@@ -30,9 +30,11 @@ import { createLibraryRoutes } from "./routes/library.route";
 import { createProductRoutes } from "./routes/product.route";
 import { createSSERoutes } from "./routes/sse.route";
 import { createTaxonomyRoutes } from "./routes/taxonomy.route";
+import { createDashboardRoutes } from "./routes/dashboard.route";
 import { createTopicRoutes } from "./routes/topic.route";
 import { createWorkspaceRoutes } from "./routes/workspace.route";
 import { AuthService } from "./services/auth.service";
+import { DashboardService } from "./services/dashboard.service";
 import { BrandService } from "./services/brand.service";
 import { CampaignService } from "./services/campaign.service";
 import { GenerationService } from "./services/generation.service";
@@ -108,6 +110,7 @@ async function main() {
 	const libraryService = new LibraryService(generationRepository);
 	const campaignService = new CampaignService(campaignRepository, boss);
 	const topicService = new TopicService(topicRepository, boss);
+	const dashboardService = new DashboardService(prisma);
 	const notificationService = new NotificationService();
 
 	// ─── Job Handlers ────────────────────────────────────────────────
@@ -235,6 +238,7 @@ async function main() {
 	workspaceScoped.route("/library", createLibraryRoutes(libraryService));
 	workspaceScoped.route("/campaigns", createCampaignRoutes(campaignService));
 	workspaceScoped.route("/topics", createTopicRoutes(topicService));
+	workspaceScoped.route("/dashboard", createDashboardRoutes(dashboardService));
 	app.route("/api/workspaces/:workspaceId", workspaceScoped);
 
 	// Health check
