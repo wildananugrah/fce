@@ -25,6 +25,7 @@ export class GenerationRepository implements IGenerationRepository {
 				outputs: {
 					include: {
 						feedbackEvents: true,
+						sections: { orderBy: { sectionOrder: "asc" } },
 					},
 				},
 			},
@@ -61,6 +62,7 @@ export class GenerationRepository implements IGenerationRepository {
 			},
 			include: {
 				request: true,
+				sections: { orderBy: { sectionOrder: "asc" } },
 			},
 			orderBy: { createdAt: "desc" },
 		});
