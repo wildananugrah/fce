@@ -128,7 +128,10 @@ export function GeneratePage() {
   }, [activeWorkspace]);
 
   const loadInitialData = useCallback(async () => {
-    if (!activeWorkspace) return;
+    if (!activeWorkspace) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const [b, p, fw, ht, gen] = await Promise.all([

@@ -42,7 +42,10 @@
       "Bash(export PATH=\"/usr/local/bin:$PATH\")",
       "Bash(npx tsc:*)",
       "Bash(export PATH=\"$PATH:/usr/local/bin:/opt/homebrew/bin\")",
-      "Bash(export PATH=\"$PATH:/usr/local/bin\")"
+      "Bash(export PATH=\"$PATH:/usr/local/bin\")",
+      "Bash(PATH=\"$HOME/.bun/bin:$PATH\")",
+      "Bash(export PATH=\"$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH\")",
+      "Bash(git push:*)"
     ],
     "additionalDirectories": [
       "/Users/wildananugrah/Documents/My-Projects/fce/.git"

@@ -11,7 +11,10 @@ export function DashboardPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!activeWorkspace) return;
+    if (!activeWorkspace) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     api<DashboardStats>(`/api/workspaces/${activeWorkspace.id}/dashboard/stats`)
       .then(setStats)
@@ -23,6 +26,20 @@ export function DashboardPage() {
     return (
       <div className="flex items-center justify-center h-64">
         <Spinner size="lg" />
+      </div>
+    );
+  }
+
+  if (!activeWorkspace) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center space-y-3">
+          <div className="text-4xl">🏢</div>
+          <h2 className="text-lg font-semibold text-black">No workspace yet</h2>
+          <p className="text-sm text-gray-500 max-w-sm">
+            Create a workspace to get started. Click the <strong>"No workspace"</strong> dropdown in the sidebar, then select <strong>"Create workspace"</strong>.
+          </p>
+        </div>
       </div>
     );
   }

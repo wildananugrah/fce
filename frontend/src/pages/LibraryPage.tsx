@@ -234,7 +234,10 @@ export function LibraryPage() {
   };
 
   const loadItems = useCallback(async () => {
-    if (!activeWorkspace) return;
+    if (!activeWorkspace) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const data = await api<LibraryItem[]>(`/api/workspaces/${activeWorkspace.id}/library`);

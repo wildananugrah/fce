@@ -37,6 +37,22 @@ export class BrandScrapingJob {
 				data: { isActive: false },
 			});
 
+			// Update brand with scraped name/category if available
+			if (scraped.name || scraped.category) {
+				await this.prisma.brand.update({
+					where: { id: brandId },
+					data: {
+						...(scraped.name ? { name: scraped.name } : {}),
+						...(scraped.category ? { category: scraped.category } : {}),
+					},
+				});
+			}
+
+			// Build messaging rules from do's and don'ts
+			const messagingRules: Record<string, string[]> = {};
+			if (scraped.dos && scraped.dos.length > 0) messagingRules.do = scraped.dos;
+			if (scraped.donts && scraped.donts.length > 0) messagingRules.dont = scraped.donts;
+
 			// Create a new BrandBrainVersion with the scraped data
 			await this.prisma.brandBrainVersion.create({
 				data: {
@@ -44,8 +60,19 @@ export class BrandScrapingJob {
 					version: nextVersion,
 					personality: scraped.personality ?? null,
 					tone: scraped.tone ?? null,
+					audiencePersonas: scraped.targetAudience
+						? [{ name: "Primary", traits: [scraped.targetAudience] }]
+						: null,
 					values: scraped.values ? (scraped.values as any) : null,
-					vocabulary: scraped.vocabulary ? (scraped.vocabulary as any) : null,
+					messagingRules: Object.keys(messagingRules).length > 0 ? messagingRules : null,
+					vocabulary: {
+						...(scraped.vocabulary ?? {}),
+						summary: scraped.summary ?? undefined,
+						brandPromise: scraped.brandPromise ?? undefined,
+						usp: scraped.usp ?? undefined,
+						contentPillars: scraped.contentPillars ?? [],
+						marketingStrategy: scraped.marketingStrategy ?? undefined,
+					},
 					isActive: true,
 					status: "draft",
 				},

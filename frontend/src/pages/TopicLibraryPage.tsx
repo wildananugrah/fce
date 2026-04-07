@@ -136,7 +136,10 @@ export function TopicLibraryPage() {
   };
 
   const loadTopics = useCallback(async () => {
-    if (!activeWorkspace) return;
+    if (!activeWorkspace) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const data = await api<Topic[]>(`/api/workspaces/${activeWorkspace.id}/topics`);

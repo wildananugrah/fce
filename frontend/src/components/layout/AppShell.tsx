@@ -16,6 +16,7 @@ import {
   ChevronDown,
   Check,
   Plus,
+  LogOut,
 } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import { useWorkspace } from "../../hooks/useWorkspace";
@@ -43,7 +44,7 @@ const bottomNavItems = [
 ];
 
 export function AppShell() {
-  const { user, isLoading: authLoading } = useAuth();
+  const { user, isLoading: authLoading, logout } = useAuth();
   const { workspaces, activeWorkspace, setActiveWorkspace, isLoading: wsLoading, refresh } = useWorkspace();
   const [workspaceSwitcherOpen, setWorkspaceSwitcherOpen] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -204,9 +205,16 @@ export function AppShell() {
           )}
         </div>
 
-        {/* User email */}
-        <div className="px-4 py-3 border-t border-gray-800">
-          <p className="text-gray-500 text-xs truncate">{user.email}</p>
+        {/* User email + logout */}
+        <div className="px-4 py-3 border-t border-gray-800 flex items-center justify-between">
+          <p className="text-gray-500 text-xs truncate flex-1">{user.email}</p>
+          <button
+            onClick={logout}
+            title="Logout"
+            className="text-gray-500 hover:text-white transition-colors ml-2 shrink-0"
+          >
+            <LogOut size={14} />
+          </button>
         </div>
       </aside>
 

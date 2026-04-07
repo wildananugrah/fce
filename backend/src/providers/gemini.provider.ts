@@ -176,12 +176,20 @@ You MUST respond with ONLY valid JSON. No markdown, no code blocks, no explanati
 
 Analyze this brand URL and extract brand identity information: ${input.url}
 
-Return JSON with fields:
+Return JSON with these fields:
 - name (string): Brand name
 - category (string): Industry or product category
-- personality (string): Brand personality traits
-- tone (string): Communication tone and style
+- summary (string): What the brand does, who they serve, their mission
+- personality (string): Brand personality traits (e.g. "The Trusted Expert, Bold Innovator")
+- tone (string): Communication tone and style (e.g. "Professional, Friendly, Empathetic")
+- targetAudience (string): Who this brand serves — demographics, pain points, goals
+- brandPromise (string): The core promise to customers
+- usp (string): Unique selling points and key differentiators
 - values (array of strings): Core brand values
+- contentPillars (array of strings): Recurring content themes the brand should communicate about
+- marketingStrategy (string): Overall marketing approach and focus areas
+- dos (array of strings): Content rules to always follow
+- donts (array of strings): Content rules to always avoid
 - vocabulary (object with: preferred (array of strings), avoided (array of strings)): Brand vocabulary guidelines
 
 You MUST respond with ONLY valid JSON. No markdown, no code blocks, no explanations.`;

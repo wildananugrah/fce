@@ -121,7 +121,10 @@ export function TopicsPage() {
   };
 
   const loadData = useCallback(async () => {
-    if (!activeWorkspace) return;
+    if (!activeWorkspace) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const [b, p] = await Promise.all([

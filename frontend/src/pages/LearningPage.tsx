@@ -81,7 +81,10 @@ export function LearningPage() {
   const [brandsLoading, setBrandsLoading] = useState(true);
 
   useEffect(() => {
-    if (!activeWorkspace) return;
+    if (!activeWorkspace) {
+      setBrandsLoading(false);
+      return;
+    }
     setBrandsLoading(true);
     api<Brand[]>(`/api/workspaces/${activeWorkspace.id}/brands`)
       .then((data) => {

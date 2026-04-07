@@ -11,6 +11,7 @@ import { Spinner } from "../components/ui/Spinner";
 import { Toast } from "../components/ui/Toast";
 import { BrainVersionEditor, type BrainVersionData } from "../components/brands/BrainVersionEditor";
 import { DocumentUpload } from "../components/brands/DocumentUpload";
+import { NewBrandBrainDrawer } from "../components/brands/NewBrandBrainDrawer";
 
 interface Brand {
   id: string;
@@ -424,13 +425,12 @@ export function BrandsPage() {
         </div>
       )}
 
-      {showCreate && (
-        <CreateBrandModal
-          workspaceId={activeWorkspace.id}
-          onCreated={loadBrands}
-          onClose={() => setShowCreate(false)}
-        />
-      )}
+      <NewBrandBrainDrawer
+        isOpen={showCreate}
+        onClose={() => setShowCreate(false)}
+        workspaceId={activeWorkspace.id}
+        onCreated={loadBrands}
+      />
 
       {selectedBrand && (
         <BrandDetailModal
