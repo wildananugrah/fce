@@ -23,4 +23,8 @@ bun run build
 echo "Deploying fce frontend..."
 cp -r "$REPO_DIR/dist" "$DEPLOY_DIR/dist"
 
+echo "Restart Monitoring"
+cd "$REPO_DIR"
+make down; make up
+
 echo "Done!"
