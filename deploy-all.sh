@@ -25,10 +25,10 @@ make down; make up;
 echo "Building fce frontend..."
 cd "$REPO_DIR/frontend"
 bun install
+# rm -r "$REPO_DIR/frontend/dist"
 bun run build
 
 echo "Deploying fce frontend..."
-rm -r "$REPO_DIR/frontend/dist"
 cp -r "$REPO_DIR/frontend/dist" "$DEPLOY_DIR/"
 
 echo "Done!"
