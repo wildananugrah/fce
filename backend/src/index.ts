@@ -17,6 +17,7 @@ import { WinstonLogger } from "./providers/winston-logger.provider";
 import { BrandRepository } from "./repositories/brand.repository";
 import { CampaignRepository } from "./repositories/campaign.repository";
 import { GenerationRepository } from "./repositories/generation.repository";
+import { OutputSectionRepository } from "./repositories/output-section.repository";
 import { ProductRepository } from "./repositories/product.repository";
 import { TaxonomyRepository } from "./repositories/taxonomy.repository";
 import { TopicRepository } from "./repositories/topic.repository";
@@ -92,6 +93,7 @@ async function main() {
 	const productRepository = new ProductRepository(prisma);
 	const taxonomyRepository = new TaxonomyRepository(prisma);
 	const generationRepository = new GenerationRepository(prisma);
+	const outputSectionRepository = new OutputSectionRepository(prisma);
 	const campaignRepository = new CampaignRepository(prisma);
 	const topicRepository = new TopicRepository(prisma);
 
@@ -119,6 +121,7 @@ async function main() {
 		resolveContentGenerator(),
 		notificationService,
 		logger,
+		outputSectionRepository,
 	);
 	const campaignGenerationJob = new CampaignGenerationJob(
 		prisma,
