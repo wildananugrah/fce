@@ -66,6 +66,22 @@ const LANGUAGE_OPTIONS = [
   { value: "english", label: "English" },
 ];
 
+const OBJECTIVE_OPTIONS = [
+  { value: "", label: "No objective (optional)" },
+  { value: "awareness", label: "Awareness" },
+  { value: "engagement", label: "Engagement" },
+  { value: "education", label: "Education" },
+  { value: "conversion", label: "Conversion" },
+  { value: "launch", label: "Launch" },
+];
+
+const OUTPUT_LENGTH_OPTIONS = [
+  { value: "", label: "No preference (optional)" },
+  { value: "short", label: "Short" },
+  { value: "medium", label: "Medium" },
+  { value: "long", label: "Long" },
+];
+
 export function GeneratePage() {
   const { activeWorkspace } = useWorkspace();
 
@@ -78,12 +94,18 @@ export function GeneratePage() {
   const [hookTypeId, setHookTypeId] = useState("");
   const [language, setLanguage] = useState("indonesian");
   const [customPrompt, setCustomPrompt] = useState("");
+  const [tonePresetId, setTonePresetId] = useState("");
+  const [visualStyleId, setVisualStyleId] = useState("");
+  const [objective, setObjective] = useState("");
+  const [outputLength, setOutputLength] = useState("");
 
   // Data
   const [brands, setBrands] = useState<Brand[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [frameworks, setFrameworks] = useState<Framework[]>([]);
   const [hookTypes, setHookTypes] = useState<HookType[]>([]);
+  const [tonePresets, setTonePresets] = useState<{ id: string; name: string }[]>([]);
+  const [visualStyles, setVisualStyles] = useState<{ id: string; name: string }[]>([]);
   const [generations, setGenerations] = useState<Generation[]>([]);
 
   const [loading, setLoading] = useState(true);
@@ -120,6 +142,8 @@ export function GeneratePage() {
       setFrameworks(fw);
       setHookTypes(ht);
       setGenerations(gen);
+      api<{ id: string; name: string }[]>(`/api/taxonomy/tone-presets`).then(setTonePresets).catch(() => {});
+      api<{ id: string; name: string }[]>(`/api/taxonomy/visual-styles`).then(setVisualStyles).catch(() => {});
     } catch (e) {
       showToast(e instanceof Error ? e.message : "Failed to load data", "error");
     } finally {
@@ -157,6 +181,10 @@ export function GeneratePage() {
           hookTypeId: hookTypeId || undefined,
           language,
           customPrompt: customPrompt.trim() || undefined,
+          tonePresetId: tonePresetId || undefined,
+          visualStyleId: visualStyleId || undefined,
+          objective: objective || undefined,
+          outputLength: outputLength || undefined,
         }),
       });
       showToast("Generation submitted", "success");
@@ -180,6 +208,8 @@ export function GeneratePage() {
   const productOptions = [{ value: "", label: "No product (optional)" }, ...filteredProducts.map((p) => ({ value: p.id, label: p.name }))];
   const frameworkOptions = [{ value: "", label: "No framework (optional)" }, ...frameworks.map((f) => ({ value: f.id, label: f.name }))];
   const hookTypeOptions = [{ value: "", label: "No hook type (optional)" }, ...hookTypes.map((h) => ({ value: h.id, label: h.name }))];
+  const tonePresetOptions = [{ value: "", label: "No tone preset (optional)" }, ...tonePresets.map((t) => ({ value: t.id, label: t.name }))];
+  const visualStyleOptions = [{ value: "", label: "No visual style (optional)" }, ...visualStyles.map((v) => ({ value: v.id, label: v.name }))];
 
   return (
     <div className="p-6 space-y-6">
@@ -222,6 +252,30 @@ export function GeneratePage() {
             options={hookTypeOptions}
             value={hookTypeId}
             onChange={(e) => setHookTypeId(e.target.value)}
+          />
+          <Select
+            label="Objective (optional)"
+            options={OBJECTIVE_OPTIONS}
+            value={objective}
+            onChange={(e) => setObjective(e.target.value)}
+          />
+          <Select
+            label="Tone Preset (optional)"
+            options={tonePresetOptions}
+            value={tonePresetId}
+            onChange={(e) => setTonePresetId(e.target.value)}
+          />
+          <Select
+            label="Visual Style (optional)"
+            options={visualStyleOptions}
+            value={visualStyleId}
+            onChange={(e) => setVisualStyleId(e.target.value)}
+          />
+          <Select
+            label="Output Length (optional)"
+            options={OUTPUT_LENGTH_OPTIONS}
+            value={outputLength}
+            onChange={(e) => setOutputLength(e.target.value)}
           />
           <Select
             label="Language"
