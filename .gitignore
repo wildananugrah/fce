@@ -19,3 +19,5 @@ backend/prisma/migrations/
 
 # Misc
 .superpowers/
+
+references/
