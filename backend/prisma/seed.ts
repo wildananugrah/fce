@@ -40,7 +40,43 @@ async function main() {
 		});
 	}
 
-	console.log("Seed completed: frameworks and hook types");
+	const tonePresets = [
+		{ name: "Professional", description: "Formal, polished, and business-appropriate tone" },
+		{ name: "Casual", description: "Relaxed, friendly, and approachable tone" },
+		{ name: "Playful", description: "Fun, witty, and lighthearted tone" },
+		{ name: "Authoritative", description: "Expert, confident, and commanding tone" },
+		{ name: "Empathetic", description: "Understanding, caring, and emotionally aware tone" },
+		{ name: "Inspirational", description: "Motivating, uplifting, and aspirational tone" },
+		{ name: "Educational", description: "Informative, clear, and teaching-oriented tone" },
+		{ name: "Conversational", description: "Natural, dialogue-like, and engaging tone" },
+	];
+
+	for (const tone of tonePresets) {
+		await prisma.tonePreset.upsert({
+			where: { name: tone.name },
+			update: {},
+			create: tone,
+		});
+	}
+
+	const visualStyles = [
+		{ name: "Minimalist", description: "Clean, simple, lots of white space" },
+		{ name: "Bold & Vibrant", description: "Strong colors, high contrast, energetic" },
+		{ name: "Elegant", description: "Sophisticated, refined, premium feel" },
+		{ name: "Organic", description: "Natural textures, earth tones, warm feel" },
+		{ name: "Modern Tech", description: "Sleek, digital, futuristic aesthetics" },
+		{ name: "Lifestyle", description: "Aspirational, real-life scenarios, relatable" },
+	];
+
+	for (const style of visualStyles) {
+		await prisma.visualStyle.upsert({
+			where: { name: style.name },
+			update: {},
+			create: style,
+		});
+	}
+
+	console.log("Seed completed: frameworks, hook types, tone presets, and visual styles");
 }
 
 main()
