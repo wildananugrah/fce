@@ -44,6 +44,16 @@ export interface VisualStyle {
   isGlobal: boolean;
 }
 
+export interface OutputSection {
+	id: string;
+	outputId: string;
+	sectionType: "hook" | "caption" | "cta" | "hashtag" | "visual_direction" | "rationale";
+	sectionOrder: number;
+	contentText: string;
+	createdAt: string;
+	updatedAt: string;
+}
+
 export interface DashboardStats {
   brandCount: number;
   productCount: number;
