@@ -54,6 +54,57 @@ export interface OutputSection {
 	updatedAt: string;
 }
 
+export interface CampaignBrief {
+  id: string;
+  campaignId: string;
+  objectiveDetail?: string;
+  channelMix?: string[];
+  mandatoryDeliverables?: string[];
+  culturalContext?: string;
+  trendContext?: string;
+  competitiveContext?: string;
+  kpiPreference?: Record<string, any>;
+  toneDirection?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CampaignChannelRole {
+  id: string;
+  channelCode: string;
+  channelRole: string;
+  priorityOrder: number;
+}
+
+export interface CampaignDeliverable {
+  id: string;
+  deliverableType: string;
+  deliverableName: string;
+  recommendedChannel?: string;
+  funnelStage?: string;
+  qtyRecommendation?: number;
+}
+
+export interface BrandDocument {
+  id: string;
+  brandId: string;
+  productId?: string;
+  fileName: string;
+  fileType: string;
+  fileUrl: string;
+  extractionStatus: string;
+  sourceType?: string;
+  createdAt: string;
+}
+
+export interface DocumentChunk {
+  id: string;
+  documentId: string;
+  chunkIndex: number;
+  contentText: string;
+  retrievalTags?: string[];
+}
+
 export interface DashboardStats {
   brandCount: number;
   productCount: number;
