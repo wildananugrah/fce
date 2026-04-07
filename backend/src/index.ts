@@ -9,6 +9,7 @@ import { ContentGenerationJob } from "./jobs/content-generation.job";
 import { DocumentExtractionJob } from "./jobs/document-extraction.job";
 import { RecommendationRecomputeJob } from "./jobs/recommendation-recompute.job";
 import { TopicGenerationJob } from "./jobs/topic-generation.job";
+import { createAdminMiddleware } from "./middlewares/admin.middleware";
 import { createAuthMiddleware } from "./middlewares/auth.middleware";
 import { createErrorHandlerMiddleware } from "./middlewares/error-handler.middleware";
 import { createRequestLoggerMiddleware } from "./middlewares/request-logger.middleware";
@@ -28,6 +29,7 @@ import { TaxonomyRepository } from "./repositories/taxonomy.repository";
 import { TopicRepository } from "./repositories/topic.repository";
 import { UserRepository } from "./repositories/user.repository";
 import { WorkspaceRepository } from "./repositories/workspace.repository";
+import { createAdminRoutes } from "./routes/admin.route";
 import { createAuthRoutes } from "./routes/auth.route";
 import { createBrandRoutes } from "./routes/brand.route";
 import { createCampaignRoutes } from "./routes/campaign.route";
@@ -41,6 +43,7 @@ import { createTaxonomyRoutes } from "./routes/taxonomy.route";
 import { createDashboardRoutes } from "./routes/dashboard.route";
 import { createTopicRoutes } from "./routes/topic.route";
 import { createWorkspaceRoutes } from "./routes/workspace.route";
+import { AdminService } from "./services/admin.service";
 import { AuthService } from "./services/auth.service";
 import { DashboardService } from "./services/dashboard.service";
 import { BrandService } from "./services/brand.service";
@@ -132,6 +135,7 @@ async function main() {
 	const dashboardService = new DashboardService(prisma);
 	const notificationService = new NotificationService();
 	const documentService = new DocumentService(documentRepository, storageProvider, boss, env.minioBucket);
+	const adminService = new AdminService(prisma);
 
 	// ─── Job Handlers ────────────────────────────────────────────────
 	const contentGenerationJob = new ContentGenerationJob(
@@ -253,6 +257,13 @@ async function main() {
 
 	// Protected routes
 	app.use("/api/*", authMiddleware);
+
+	// Admin routes (auth + superadmin)
+	const adminMiddleware = createAdminMiddleware(prisma);
+	const adminScoped = new Hono();
+	adminScoped.use("*", adminMiddleware);
+	adminScoped.route("/", createAdminRoutes(adminService));
+	app.route("/api/admin", adminScoped);
 
 	// Workspace routes (auth protected)
 	app.route("/api/workspaces", createWorkspaceRoutes(workspaceService));
