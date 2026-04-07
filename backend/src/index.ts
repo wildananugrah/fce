@@ -202,6 +202,7 @@ async function main() {
 		"Campaign not found",
 		"Topic not found",
 		"Document not found",
+		"Brief not found",
 	];
 	app.onError((err, c) => {
 		const message = err instanceof Error ? err.message : String(err);
