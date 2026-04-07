@@ -10,6 +10,7 @@ make down; make up
 
 echo "Building database..."
 cd "$REPO_DIR/backend"
+export $(grep -v '^#' .env | xargs)
 bun install
 bunx prisma db push
 bunx prisma generate
