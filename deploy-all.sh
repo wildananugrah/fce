@@ -4,6 +4,10 @@ set -e
 REPO_DIR="/root/repo/fce"
 DEPLOY_DIR="/var/www/html/fce"
 
+echo "Restart Database, Minio, Monitoring"
+cd "$REPO_DIR"
+make down; make up
+
 echo "Building database..."
 cd "$REPO_DIR/backend"
 bun install
@@ -22,9 +26,5 @@ bun run build
 
 echo "Deploying fce frontend..."
 cp -r "$REPO_DIR/dist" "$DEPLOY_DIR/dist"
-
-echo "Restart Monitoring"
-cd "$REPO_DIR"
-make down; make up
 
 echo "Done!"
