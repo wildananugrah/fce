@@ -16,6 +16,8 @@ import { SettingsPage } from "./pages/SettingsPage";
 import { WorkspaceSettingsPage } from "./pages/WorkspaceSettingsPage";
 import { AdminPage } from "./pages/AdminPage";
 import { LearningPage } from "./pages/LearningPage";
+import { BrandDetailPage } from "./pages/BrandDetailPage";
+import { ProductDetailPage } from "./pages/ProductDetailPage";
 
 export default function App() {
   return (
@@ -28,7 +30,9 @@ export default function App() {
             <Route element={<AppShell />}>
               <Route path="/" element={<DashboardPage />} />
               <Route path="/brands" element={<BrandsPage />} />
+              <Route path="/brands/:id" element={<BrandDetailPage />} />
               <Route path="/products" element={<ProductsPage />} />
+              <Route path="/products/:id" element={<ProductDetailPage />} />
               <Route path="/generate" element={<GeneratePage />} />
               <Route path="/campaigns" element={<CampaignsPage />} />
               <Route path="/topics" element={<TopicsPage />} />
