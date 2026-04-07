@@ -109,7 +109,7 @@ async function main() {
 	const productService = new ProductService(productRepository);
 	const taxonomyService = new TaxonomyService(taxonomyRepository);
 	const generationService = new GenerationService(generationRepository, boss);
-	const libraryService = new LibraryService(generationRepository);
+	const libraryService = new LibraryService(generationRepository, outputSectionRepository);
 	const campaignService = new CampaignService(campaignRepository, boss);
 	const topicService = new TopicService(topicRepository, boss);
 	const dashboardService = new DashboardService(prisma);

@@ -47,5 +47,23 @@ export function createLibraryRoutes(libraryService: ILibraryService) {
 		return c.json({ data: feedback }, 201);
 	});
 
+	// GET /:id/sections — get sections for an output
+	app.get("/:id/sections", async (c) => {
+		const sections = await libraryService.getSections(c.req.param("id"));
+		return c.json({ data: sections });
+	});
+
+	// PATCH /:id/sections/:sectionId — update section content
+	app.patch("/:id/sections/:sectionId", async (c) => {
+		const userId = c.get("userId");
+		const body = await c.req.json();
+		const { contentText } = body;
+		if (!contentText) {
+			return c.json({ error: "contentText is required" }, 400);
+		}
+		const section = await libraryService.updateSection(c.req.param("sectionId"), contentText, userId);
+		return c.json({ data: section });
+	});
+
 	return app;
 }

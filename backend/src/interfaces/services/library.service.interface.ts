@@ -10,4 +10,6 @@ export interface ILibraryService {
 		before?: any,
 		after?: any,
 	): Promise<OutputFeedbackEvent>;
+	getSections(outputId: string): Promise<any[]>;
+	updateSection(sectionId: string, contentText: string, userId: string): Promise<any>;
 }
