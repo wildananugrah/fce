@@ -40,14 +40,16 @@ model Workspace {
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
-  roles       UserWorkspaceRole[]
-  invitations WorkspaceInvitation[]
-  brands      Brand[]
-  products    Product[]
-  generations GenerationRequest[]
-  campaigns   Campaign[]
-  topics      ContentTopic[]
-  auditLogs   AuditLog[]
+  roles          UserWorkspaceRole[]
+  invitations    WorkspaceInvitation[]
+  brands         Brand[]
+  products       Product[]
+  generations    GenerationRequest[]
+  campaigns      Campaign[]
+  topics         ContentTopic[]
+  auditLogs      AuditLog[]
+  documents      BrandDocument[]
+  savedTemplates SavedTemplate[]
 
   @@map("workspaces")
 }
@@ -171,20 +173,24 @@ model ProductBrainVersion {
 // ─── Generation Pipeline ────────────────────────────────────────
 
 model GenerationRequest {
-  id          String   @id @default(uuid())
-  workspaceId String   @map("workspace_id")
-  brandId     String   @map("brand_id")
-  productId   String?  @map("product_id")
-  platform    String
-  contentType String   @map("content_type")
-  framework   String
-  hookType    String   @map("hook_type")
-  language    String   @default("id")
-  prompt      String?
-  status      String   @default("pending")
-  errorMessage String? @map("error_message")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id           String   @id @default(uuid())
+  workspaceId  String   @map("workspace_id")
+  brandId      String   @map("brand_id")
+  productId    String?  @map("product_id")
+  platform     String
+  contentType  String   @map("content_type")
+  framework    String
+  hookType     String   @map("hook_type")
+  language     String   @default("id")
+  prompt       String?
+  objective    String?
+  tonePreset   String?  @map("tone_preset")
+  visualStyle  String?  @map("visual_style")
+  outputLength String?  @map("output_length")
+  status       String   @default("pending")
+  errorMessage String?  @map("error_message")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
   workspace Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   outputs   GenerationOutput[]
@@ -196,6 +202,8 @@ model GenerationRequest {
 model GenerationOutput {
   id           String   @id @default(uuid())
   requestId    String   @map("request_id")
+  versionNo    Int      @default(1) @map("version_no")
+  rationale    String?
   contentTitle String?  @map("content_title")
   content      Json
   status       String   @default("draft")
@@ -204,6 +212,7 @@ model GenerationOutput {
 
   request        GenerationRequest     @relation(fields: [requestId], references: [id], onDelete: Cascade)
   feedbackEvents OutputFeedbackEvent[]
+  sections       OutputSection[]
 
   @@index([requestId])
   @@map("generation_outputs")
@@ -222,6 +231,21 @@ model OutputFeedbackEvent {
 
   @@index([outputId])
   @@map("output_feedback_events")
+}
+
+model OutputSection {
+  id           String   @id @default(uuid())
+  outputId     String   @map("output_id")
+  sectionType  String   @map("section_type")
+  sectionOrder Int      @map("section_order")
+  contentText  String   @map("content_text") @db.Text
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  output GenerationOutput @relation(fields: [outputId], references: [id], onDelete: Cascade)
+
+  @@index([outputId])
+  @@map("output_sections")
 }
 
 // ─── Taxonomy ───────────────────────────────────────────────────
@@ -244,24 +268,50 @@ model HookType {
   @@map("hook_types")
 }
 
+model TonePreset {
+  id          String  @id @default(uuid())
+  name        String  @unique
+  description String?
+  isGlobal    Boolean @default(true) @map("is_global")
+
+  @@map("tone_presets")
+}
+
+model VisualStyle {
+  id          String  @id @default(uuid())
+  name        String  @unique
+  description String?
+  isGlobal    Boolean @default(true) @map("is_global")
+
+  @@map("visual_styles")
+}
+
 // ─── Campaign System ────────────────────────────────────────────
 
 model Campaign {
-  id             String   @id @default(uuid())
-  workspaceId    String   @map("workspace_id")
-  brandId        String?  @map("brand_id")
-  name           String
-  description    String?
-  objective      String?
-  budget         String?
-  channelMix     Json?    @map("channel_mix")
-  culturalContext String? @map("cultural_context")
-  status         String   @default("draft")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  id              String    @id @default(uuid())
+  workspaceId     String    @map("workspace_id")
+  brandId         String?   @map("brand_id")
+  name            String
+  description     String?
+  objective       String?
+  budget          String?
+  channelMix      Json?     @map("channel_mix")
+  culturalContext String?   @map("cultural_context")
+  productId       String?   @map("product_id")
+  audienceSegment String?   @map("audience_segment")
+  durationStart   DateTime? @map("duration_start")
+  durationEnd     DateTime? @map("duration_end")
+  budgetMin       Decimal?  @map("budget_min") @db.Decimal(12, 2)
+  budgetMax       Decimal?  @map("budget_max") @db.Decimal(12, 2)
+  keyMessage      String?   @map("key_message")
+  status          String    @default("draft")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
 
   workspace Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   outputs   CampaignOutput[]
+  briefs    CampaignBrief[]
 
   @@index([workspaceId])
   @@map("campaigns")
@@ -278,10 +328,76 @@ model CampaignOutput {
   status           String   @default("draft")
   createdAt        DateTime @default(now()) @map("created_at")
 
-  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  campaign           Campaign               @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  channelRoleRecords CampaignChannelRole[]
+  deliverables       CampaignDeliverable[]
+  feedbackEvents     CampaignFeedbackEvent[]
 
   @@index([campaignId])
   @@map("campaign_outputs")
+}
+
+model CampaignBrief {
+  id                    String   @id @default(uuid())
+  campaignId            String   @map("campaign_id")
+  objectiveDetail       String?  @map("objective_detail") @db.Text
+  channelMix            Json?    @map("channel_mix")
+  mandatoryDeliverables Json?    @map("mandatory_deliverables")
+  culturalContext       String?  @map("cultural_context") @db.Text
+  trendContext          String?  @map("trend_context") @db.Text
+  competitiveContext    String?  @map("competitive_context") @db.Text
+  kpiPreference         Json?    @map("kpi_preference")
+  toneDirection         String?  @map("tone_direction")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
+  @@map("campaign_briefs")
+}
+
+model CampaignChannelRole {
+  id               String @id @default(uuid())
+  campaignOutputId String @map("campaign_output_id")
+  channelCode      String @map("channel_code")
+  channelRole      String @map("channel_role") @db.Text
+  priorityOrder    Int    @map("priority_order")
+
+  campaignOutput CampaignOutput @relation(fields: [campaignOutputId], references: [id], onDelete: Cascade)
+
+  @@index([campaignOutputId])
+  @@map("campaign_channel_roles")
+}
+
+model CampaignDeliverable {
+  id                 String  @id @default(uuid())
+  campaignOutputId   String  @map("campaign_output_id")
+  deliverableType    String  @map("deliverable_type")
+  deliverableName    String  @map("deliverable_name")
+  recommendedChannel String? @map("recommended_channel")
+  funnelStage        String? @map("funnel_stage")
+  qtyRecommendation  Int?    @map("qty_recommendation")
+
+  campaignOutput CampaignOutput @relation(fields: [campaignOutputId], references: [id], onDelete: Cascade)
+
+  @@index([campaignOutputId])
+  @@map("campaign_deliverables")
+}
+
+model CampaignFeedbackEvent {
+  id               String   @id @default(uuid())
+  campaignOutputId String   @map("campaign_output_id")
+  eventType        String   @map("event_type")
+  before           Json?
+  after            Json?
+  userId           String?  @map("user_id")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  campaignOutput CampaignOutput @relation(fields: [campaignOutputId], references: [id], onDelete: Cascade)
+
+  @@index([campaignOutputId])
+  @@map("campaign_feedback_events")
 }
 
 // ─── Content Planning ───────────────────────────────────────────
@@ -308,6 +424,63 @@ model ContentTopic {
   @@map("content_topics")
 }
 
+// ─── Document System ────────────────────────────────────────────
+
+model BrandDocument {
+  id               String   @id @default(uuid())
+  workspaceId      String   @map("workspace_id")
+  brandId          String   @map("brand_id")
+  productId        String?  @map("product_id")
+  fileName         String   @map("file_name")
+  fileType         String   @map("file_type")
+  fileUrl          String   @map("file_url")
+  fileSize         Int?     @map("file_size")
+  extractionStatus String   @default("pending") @map("extraction_status")
+  sourceType       String?  @map("source_type")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  workspace Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  chunks    DocumentChunk[]
+
+  @@index([workspaceId])
+  @@index([brandId])
+  @@map("brand_documents")
+}
+
+model DocumentChunk {
+  id            String   @id @default(uuid())
+  documentId    String   @map("document_id")
+  chunkIndex    Int      @map("chunk_index")
+  contentText   String   @map("content_text") @db.Text
+  embeddingId   String?  @map("embedding_id")
+  metadataJson  Json?    @map("metadata_json")
+  retrievalTags Json?    @map("retrieval_tags")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  document BrandDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId])
+  @@map("document_chunks")
+}
+
+// ─── Templates ──────────────────────────────────────────────────
+
+model SavedTemplate {
+  id                String   @id @default(uuid())
+  workspaceId       String   @map("workspace_id")
+  templateType      String   @map("template_type")
+  name              String
+  configurationJson Json     @map("configuration_json")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@map("saved_templates")
+}
+
 // ─── Audit & Analytics ──────────────────────────────────────────
 
 model AuditLog {
@@ -329,14 +502,19 @@ model AuditLog {
 }
 
 model RecommendationProfile {
-  id             String   @id @default(uuid())
-  brandId        String   @map("brand_id")
-  bestFrameworks Json?    @map("best_frameworks")
-  bestHookTypes  Json?    @map("best_hook_types")
-  bestTones      Json?    @map("best_tones")
-  sampleSize     Int      @default(0) @map("sample_size")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  id                    String   @id @default(uuid())
+  workspaceId           String?  @map("workspace_id")
+  scopeType             String   @map("scope_type")
+  scopeId               String   @map("scope_id")
+  preferredFrameworks   Json?    @map("preferred_frameworks")
+  preferredHooks        Json?    @map("preferred_hooks")
+  preferredTones        Json?    @map("preferred_tones")
+  preferredVisualStyles Json?    @map("preferred_visual_styles")
+  preferredPlatforms    Json?    @map("preferred_platforms")
+  commonEditPatterns    Json?    @map("common_edit_patterns")
+  sampleSize            Int      @default(0) @map("sample_size")
+  updatedAt             DateTime @updatedAt @map("updated_at")
 
-  @@unique([brandId])
+  @@unique([scopeType, scopeId])
   @@map("recommendation_profiles")
 }
