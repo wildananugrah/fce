@@ -1,11 +1,18 @@
 import { Hono } from "hono";
 import type { IDocumentService } from "../interfaces/services/document.service.interface";
 
+type Variables = {
+	userId: string;
+	userEmail: string;
+	workspaceId: string;
+	workspaceRole: string;
+};
+
 export function createDocumentRoutes(documentService: IDocumentService) {
-	const app = new Hono();
+	const app = new Hono<{ Variables: Variables }>();
 
 	app.post("/upload", async (c) => {
-		const workspaceId = c.get("workspaceId" as any);
+		const workspaceId = c.get("workspaceId");
 		const formData = await c.req.parseBody();
 		const file = formData.file as File;
 		const brandId = formData.brandId as string;

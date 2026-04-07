@@ -6,6 +6,7 @@ import { PgBoss } from "pg-boss";
 import { BrandScrapingJob } from "./jobs/brand-scraping.job";
 import { CampaignGenerationJob } from "./jobs/campaign-generation.job";
 import { ContentGenerationJob } from "./jobs/content-generation.job";
+import { DocumentExtractionJob } from "./jobs/document-extraction.job";
 import { TopicGenerationJob } from "./jobs/topic-generation.job";
 import { createAuthMiddleware } from "./middlewares/auth.middleware";
 import { createErrorHandlerMiddleware } from "./middlewares/error-handler.middleware";
@@ -13,9 +14,11 @@ import { createRequestLoggerMiddleware } from "./middlewares/request-logger.midd
 import { createWorkspaceMiddleware } from "./middlewares/workspace.middleware";
 import { AnthropicProvider } from "./providers/anthropic.provider";
 import { GeminiProvider } from "./providers/gemini.provider";
+import { MinioStorageProvider } from "./providers/minio.provider";
 import { WinstonLogger } from "./providers/winston-logger.provider";
 import { BrandRepository } from "./repositories/brand.repository";
 import { CampaignRepository } from "./repositories/campaign.repository";
+import { DocumentRepository } from "./repositories/document.repository";
 import { GenerationRepository } from "./repositories/generation.repository";
 import { OutputSectionRepository } from "./repositories/output-section.repository";
 import { ProductRepository } from "./repositories/product.repository";
@@ -26,6 +29,7 @@ import { WorkspaceRepository } from "./repositories/workspace.repository";
 import { createAuthRoutes } from "./routes/auth.route";
 import { createBrandRoutes } from "./routes/brand.route";
 import { createCampaignRoutes } from "./routes/campaign.route";
+import { createDocumentRoutes } from "./routes/document.route";
 import { createGenerationRoutes } from "./routes/generation.route";
 import { createLibraryRoutes } from "./routes/library.route";
 import { createProductRoutes } from "./routes/product.route";
@@ -37,6 +41,7 @@ import { createWorkspaceRoutes } from "./routes/workspace.route";
 import { AuthService } from "./services/auth.service";
 import { DashboardService } from "./services/dashboard.service";
 import { BrandService } from "./services/brand.service";
+import { DocumentService } from "./services/document.service";
 import { CampaignService } from "./services/campaign.service";
 import { GenerationService } from "./services/generation.service";
 import { LibraryService } from "./services/library.service";
@@ -96,6 +101,12 @@ async function main() {
 	const outputSectionRepository = new OutputSectionRepository(prisma);
 	const campaignRepository = new CampaignRepository(prisma);
 	const topicRepository = new TopicRepository(prisma);
+	const documentRepository = new DocumentRepository(prisma);
+	const storageProvider = new MinioStorageProvider(
+		env.minioEndpoint,
+		env.minioAccessKey,
+		env.minioSecretKey,
+	);
 
 	// ─── Services ───────────────────────────────────────────────────
 	const authService = new AuthService(userRepository, {
@@ -114,6 +125,7 @@ async function main() {
 	const topicService = new TopicService(topicRepository, boss);
 	const dashboardService = new DashboardService(prisma);
 	const notificationService = new NotificationService();
+	const documentService = new DocumentService(documentRepository, storageProvider, boss, env.minioBucket);
 
 	// ─── Job Handlers ────────────────────────────────────────────────
 	const contentGenerationJob = new ContentGenerationJob(
@@ -141,12 +153,14 @@ async function main() {
 		notificationService,
 		logger,
 	);
+	const documentExtractionJob = new DocumentExtractionJob(documentRepository, logger);
 
 	// ─── Create PgBoss Queues ───────────────────────────────────────
 	await boss.createQueue("content-generation");
 	await boss.createQueue("campaign-generation");
 	await boss.createQueue("topic-generation");
 	await boss.createQueue("brand-scraping");
+	await boss.createQueue("document-extraction");
 
 	// ─── Register PgBoss Workers ─────────────────────────────────────
 	await boss.work("content-generation", async (jobs) => {
@@ -160,6 +174,9 @@ async function main() {
 	});
 	await boss.work("brand-scraping", async (jobs) => {
 		for (const job of jobs) await brandScrapingJob.handle(job.data as any);
+	});
+	await boss.work("document-extraction", async (jobs) => {
+		for (const job of jobs) await documentExtractionJob.handle(job.data as any);
 	});
 
 	// ─── Middleware Instances ────────────────────────────────────────
@@ -184,6 +201,7 @@ async function main() {
 		"Generation request not found",
 		"Campaign not found",
 		"Topic not found",
+		"Document not found",
 	];
 	app.onError((err, c) => {
 		const message = err instanceof Error ? err.message : String(err);
@@ -243,6 +261,7 @@ async function main() {
 	workspaceScoped.route("/campaigns", createCampaignRoutes(campaignService));
 	workspaceScoped.route("/topics", createTopicRoutes(topicService));
 	workspaceScoped.route("/dashboard", createDashboardRoutes(dashboardService));
+	workspaceScoped.route("/documents", createDocumentRoutes(documentService));
 	app.route("/api/workspaces/:workspaceId", workspaceScoped);
 
 	// Health check

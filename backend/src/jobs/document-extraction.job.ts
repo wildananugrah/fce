@@ -53,7 +53,9 @@ export class DocumentExtractionJob {
 	private async extractPdf(fileUrl: string): Promise<string> {
 		const response = await fetch(fileUrl);
 		const buffer = Buffer.from(await response.arrayBuffer());
-		const pdfParse = (await import("pdf-parse")).default;
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const pdfParseModule = await import("pdf-parse");
+		const pdfParse = (pdfParseModule as any).default ?? pdfParseModule;
 		const result = await pdfParse(buffer);
 		return result.text;
 	}
