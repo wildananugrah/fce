@@ -237,10 +237,10 @@ async function main() {
 	// ─── Start ──────────────────────────────────────────────────────
 	logger.info(`Starting server on port ${env.port}`);
 
-	return {
+	Bun.serve({
 		port: env.port,
 		fetch: app.fetch,
-	};
+	});
 }
 
-export default main();
+main();
