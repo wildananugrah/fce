@@ -4,7 +4,7 @@ services:
   loki:
     image: grafana/loki:3.0.0
     ports:
-      - "3100:3100"
+      - "3101:3100"
     volumes:
       - ./loki/loki-config.yml:/etc/loki/local-config.yaml:ro
       - loki-data:/loki
@@ -20,7 +20,7 @@ services:
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.100.0
     ports:
-      - "4317:4317"
+      - "4319:4317"
     volumes:
       - ./otel-collector/otel-collector-config.yml:/etc/otelcol-contrib/config.yaml:ro
     depends_on:
@@ -29,7 +29,7 @@ services:
   node-exporter:
     image: prom/node-exporter:v1.8.1
     ports:
-      - "9100:9100"
+      - "9101:9100"
     volumes:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
@@ -37,7 +37,7 @@ services:
   prometheus:
     image: prom/prometheus:v2.53.0
     ports:
-      - "9090:9090"
+      - "9091:9090"
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus-data:/prometheus
@@ -47,7 +47,7 @@ services:
   grafana:
     image: grafana/grafana:11.0.0
     ports:
-      - "3000:3000"
+      - "4000:3000"
     environment:
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD: admin

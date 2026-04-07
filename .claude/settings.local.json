@@ -15,7 +15,10 @@
       "Bash(bun add:*)",
       "Bash(git -C /Users/wildananugrah/Documents/My-Projects/fce commit -m \"docs: mark Phase 6 complete\")",
       "Bash(echo \"EXIT:$?\")",
-      "Bash(git -C /Users/wildananugrah/Documents/My-Projects/fce commit -m \"docs: mark Phase 7 complete — all phases done\")"
+      "Bash(git -C /Users/wildananugrah/Documents/My-Projects/fce commit -m \"docs: mark Phase 7 complete — all phases done\")",
+      "Bash(git -C /Users/wildananugrah/Documents/My-Projects/fce status --short)",
+      "Bash(git -C /Users/wildananugrah/Documents/My-Projects/fce push -u origin main)",
+      "Bash(git -C /Users/wildananugrah/Documents/My-Projects/fce remote set-url origin git@github.com:wildananugrah/fce.git)"
     ],
     "additionalDirectories": [
       "/Users/wildananugrah/Documents/My-Projects/fce/.git"

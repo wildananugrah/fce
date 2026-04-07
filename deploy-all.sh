@@ -1,0 +1,26 @@
+#!/bin/bash
+set -e
+
+REPO_DIR="/root/repo/fce"
+DEPLOY_DIR="/var/www/html/fce"
+
+echo "Building database..."
+cd "$REPO_DIR/backend"
+bun install
+bunx prisma generate
+bunx prisma db push
+
+echo "Building backend..."
+cd "$REPO_DIR/backend"
+bun install
+make down; make up;
+
+echo "Building fce frontend..."
+cd "$REPO_DIR/frontend"
+bun install
+bun run build
+
+echo "Deploying fce frontend..."
+cp -r "$REPO_DIR/dist" "$DEPLOY_DIR/dist"
+
+echo "Done!"
