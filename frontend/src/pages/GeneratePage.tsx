@@ -111,6 +111,7 @@ export function GeneratePage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState<ToastState>(null);
+  const [advancedMode, setAdvancedMode] = useState(false);
 
   const showToast = (message: string, type: "success" | "error" | "info") => {
     setToast({ message, type });
@@ -213,7 +214,15 @@ export function GeneratePage() {
 
   return (
     <div className="p-6 space-y-6">
-      <h1 className="text-lg font-semibold text-black">Generate Content</h1>
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-xl font-semibold">Generate Content</h1>
+        <button
+          onClick={() => setAdvancedMode(!advancedMode)}
+          className="text-xs px-3 py-1.5 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+        >
+          {advancedMode ? "Switch to Basic" : "Switch to Advanced"}
+        </button>
+      </div>
 
       <div className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -242,61 +251,68 @@ export function GeneratePage() {
             onChange={(e) => setContentType(e.target.value)}
           />
           <Select
-            label="Framework (optional)"
-            options={frameworkOptions}
-            value={frameworkId}
-            onChange={(e) => setFrameworkId(e.target.value)}
-          />
-          <Select
-            label="Hook Type (optional)"
-            options={hookTypeOptions}
-            value={hookTypeId}
-            onChange={(e) => setHookTypeId(e.target.value)}
-          />
-          <Select
             label="Objective (optional)"
             options={OBJECTIVE_OPTIONS}
             value={objective}
             onChange={(e) => setObjective(e.target.value)}
           />
-          <Select
-            label="Tone Preset (optional)"
-            options={tonePresetOptions}
-            value={tonePresetId}
-            onChange={(e) => setTonePresetId(e.target.value)}
-          />
-          <Select
-            label="Visual Style (optional)"
-            options={visualStyleOptions}
-            value={visualStyleId}
-            onChange={(e) => setVisualStyleId(e.target.value)}
-          />
-          <Select
-            label="Output Length (optional)"
-            options={OUTPUT_LENGTH_OPTIONS}
-            value={outputLength}
-            onChange={(e) => setOutputLength(e.target.value)}
-          />
-          <Select
-            label="Language"
-            options={LANGUAGE_OPTIONS}
-            value={language}
-            onChange={(e) => setLanguage(e.target.value)}
-          />
         </div>
 
-        <div className="w-full">
-          <label className="block text-xs font-medium text-gray-600 uppercase tracking-wide mb-1.5">
-            Custom Prompt (optional)
-          </label>
-          <textarea
-            className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-md focus:outline-none focus:border-black focus:ring-1 focus:ring-black resize-none"
-            rows={3}
-            placeholder="Add any specific instructions or context..."
-            value={customPrompt}
-            onChange={(e) => setCustomPrompt(e.target.value)}
-          />
-        </div>
+        {advancedMode && (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Select
+              label="Framework (optional)"
+              options={frameworkOptions}
+              value={frameworkId}
+              onChange={(e) => setFrameworkId(e.target.value)}
+            />
+            <Select
+              label="Hook Type (optional)"
+              options={hookTypeOptions}
+              value={hookTypeId}
+              onChange={(e) => setHookTypeId(e.target.value)}
+            />
+            <Select
+              label="Tone Preset (optional)"
+              options={tonePresetOptions}
+              value={tonePresetId}
+              onChange={(e) => setTonePresetId(e.target.value)}
+            />
+            <Select
+              label="Visual Style (optional)"
+              options={visualStyleOptions}
+              value={visualStyleId}
+              onChange={(e) => setVisualStyleId(e.target.value)}
+            />
+            <Select
+              label="Output Length (optional)"
+              options={OUTPUT_LENGTH_OPTIONS}
+              value={outputLength}
+              onChange={(e) => setOutputLength(e.target.value)}
+            />
+            <Select
+              label="Language"
+              options={LANGUAGE_OPTIONS}
+              value={language}
+              onChange={(e) => setLanguage(e.target.value)}
+            />
+          </div>
+        )}
+
+        {advancedMode && (
+          <div className="w-full">
+            <label className="block text-xs font-medium text-gray-600 uppercase tracking-wide mb-1.5">
+              Custom Prompt (optional)
+            </label>
+            <textarea
+              className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-md focus:outline-none focus:border-black focus:ring-1 focus:ring-black resize-none"
+              rows={3}
+              placeholder="Add any specific instructions or context..."
+              value={customPrompt}
+              onChange={(e) => setCustomPrompt(e.target.value)}
+            />
+          </div>
+        )}
 
         <div className="flex justify-end pt-2">
           <Button onClick={handleSubmit} loading={submitting}>
