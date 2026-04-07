@@ -1,0 +1,93 @@
+import type {
+	GenerationOutput,
+	GenerationRequest,
+	OutputFeedbackEvent,
+	PrismaClient,
+} from "@prisma/client";
+import type { IGenerationRepository } from "../interfaces/repositories/generation.repository.interface";
+
+export class GenerationRepository implements IGenerationRepository {
+	constructor(private prisma: PrismaClient) {}
+
+	async findByWorkspace(workspaceId: string): Promise<GenerationRequest[]> {
+		return this.prisma.generationRequest.findMany({
+			where: { workspaceId },
+			orderBy: { createdAt: "desc" },
+		});
+	}
+
+	async findById(
+		id: string,
+	): Promise<(GenerationRequest & { outputs: GenerationOutput[] }) | null> {
+		return this.prisma.generationRequest.findUnique({
+			where: { id },
+			include: {
+				outputs: {
+					include: {
+						feedbackEvents: true,
+					},
+				},
+			},
+		});
+	}
+
+	async create(data: {
+		workspaceId: string;
+		brandId: string;
+		productId?: string;
+		platform: string;
+		contentType: string;
+		framework: string;
+		hookType: string;
+		language?: string;
+		prompt?: string;
+	}): Promise<GenerationRequest> {
+		return this.prisma.generationRequest.create({
+			data: {
+				...data,
+				status: "pending",
+			},
+		});
+	}
+
+	async findOutputsByWorkspace(
+		workspaceId: string,
+	): Promise<(GenerationOutput & { request: GenerationRequest })[]> {
+		return this.prisma.generationOutput.findMany({
+			where: {
+				request: {
+					workspaceId,
+				},
+			},
+			include: {
+				request: true,
+			},
+			orderBy: { createdAt: "desc" },
+		});
+	}
+
+	async findOutputById(id: string): Promise<GenerationOutput | null> {
+		return this.prisma.generationOutput.findUnique({
+			where: { id },
+		});
+	}
+
+	async updateOutput(id: string, data: { status: string }): Promise<GenerationOutput> {
+		return this.prisma.generationOutput.update({
+			where: { id },
+			data,
+		});
+	}
+
+	async addFeedback(data: {
+		outputId: string;
+		eventType: string;
+		before?: any;
+		after?: any;
+		userId?: string;
+	}): Promise<OutputFeedbackEvent> {
+		return this.prisma.outputFeedbackEvent.create({
+			data,
+		});
+	}
+}

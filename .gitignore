@@ -1,0 +1,21 @@
+# Dependencies
+node_modules/
+
+# Build
+dist/
+.next/
+out/
+
+# Environment
+.env
+.env.local
+
+# IDE
+.DS_Store
+*.log
+
+# Prisma
+backend/prisma/migrations/
+
+# Misc
+.superpowers/

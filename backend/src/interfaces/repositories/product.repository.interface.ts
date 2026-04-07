@@ -1,0 +1,22 @@
+import type { Product, ProductBrainVersion } from "@prisma/client";
+
+export interface IProductRepository {
+	findByWorkspace(workspaceId: string): Promise<Product[]>;
+	findById(id: string): Promise<(Product & { brainVersions: ProductBrainVersion[] }) | null>;
+	create(data: {
+		workspaceId: string;
+		brandId: string;
+		name: string;
+		slug: string;
+		type?: string;
+	}): Promise<Product>;
+	update(
+		id: string,
+		data: Partial<Pick<Product, "name" | "type" | "status" | "activeBrainVersionId">>,
+	): Promise<Product>;
+
+	findActiveBrainVersion(productId: string): Promise<ProductBrainVersion | null>;
+	createBrainVersion(productId: string, version: number, data: any): Promise<ProductBrainVersion>;
+	getNextVersionNumber(productId: string): Promise<number>;
+	deactivateAllVersions(productId: string): Promise<void>;
+}

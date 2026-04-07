@@ -1,0 +1,19 @@
+import type { ContentTopic } from "@prisma/client";
+
+export interface ITopicRepository {
+	findByWorkspace(workspaceId: string): Promise<ContentTopic[]>;
+	findById(id: string): Promise<ContentTopic | null>;
+	create(data: {
+		workspaceId: string;
+		brandId?: string;
+		productId?: string;
+		title: string;
+		description?: string;
+		pillar?: string;
+		platform?: string;
+		format?: string;
+		objective?: string;
+		publishDate?: Date;
+	}): Promise<ContentTopic>;
+	update(id: string, data: Partial<ContentTopic>): Promise<ContentTopic>;
+}

@@ -1,0 +1,342 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Core ───────────────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  fullName     String?  @map("full_name")
+  avatarUrl    String?  @map("avatar_url")
+  isSuperadmin Boolean  @default(false) @map("is_superadmin")
+  status       String   @default("active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  workspaceRoles UserWorkspaceRole[]
+  invitations    WorkspaceInvitation[]
+  auditLogs      AuditLog[]
+
+  @@map("users")
+}
+
+model Workspace {
+  id           String   @id @default(uuid())
+  name         String
+  slug         String   @unique
+  description  String?
+  logoUrl      String?  @map("logo_url")
+  avatarColor  String   @default("#7c6dfa") @map("avatar_color")
+  avatarEmoji  String?  @map("avatar_emoji")
+  status       String   @default("active")
+  apiLimitUsd  Decimal  @default(50.00) @map("api_limit_usd") @db.Decimal(10, 2)
+  apiUsageUsd  Decimal  @default(0.00) @map("api_usage_usd") @db.Decimal(10, 2)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  roles       UserWorkspaceRole[]
+  invitations WorkspaceInvitation[]
+  brands      Brand[]
+  products    Product[]
+  generations GenerationRequest[]
+  campaigns   Campaign[]
+  topics      ContentTopic[]
+  auditLogs   AuditLog[]
+
+  @@map("workspaces")
+}
+
+model UserWorkspaceRole {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  workspaceId String   @map("workspace_id")
+  role        String
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, workspaceId])
+  @@map("user_workspace_roles")
+}
+
+model WorkspaceInvitation {
+  id          String   @id @default(uuid())
+  workspaceId String   @map("workspace_id")
+  email       String
+  role        String   @default("editor")
+  status      String   @default("pending")
+  invitedBy   String   @map("invited_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  inviter   User      @relation(fields: [invitedBy], references: [id])
+
+  @@index([email])
+  @@map("workspace_invitations")
+}
+
+// ─── Brand System ───────────────────────────────────────────────
+
+model Brand {
+  id                   String   @id @default(uuid())
+  workspaceId          String   @map("workspace_id")
+  name                 String
+  slug                 String
+  category             String?
+  websiteUrl           String?  @map("website_url")
+  activeBrainVersionId String?  @map("active_brain_version_id")
+  status               String   @default("draft")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  workspace     Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  brainVersions BrandBrainVersion[]
+  products      Product[]
+
+  @@unique([workspaceId, slug])
+  @@map("brands")
+}
+
+model BrandBrainVersion {
+  id             String   @id @default(uuid())
+  brandId        String   @map("brand_id")
+  version        Int
+  personality    String?
+  tone           String?
+  audiencePersonas Json?  @map("audience_personas")
+  values         Json?
+  messagingRules Json?    @map("messaging_rules")
+  vocabulary     Json?
+  isActive       Boolean  @default(true) @map("is_active")
+  status         String   @default("draft")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  brand Brand @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  @@unique([brandId, version])
+  @@map("brand_brain_versions")
+}
+
+// ─── Product System ─────────────────────────────────────────────
+
+model Product {
+  id                   String   @id @default(uuid())
+  workspaceId          String   @map("workspace_id")
+  brandId              String   @map("brand_id")
+  name                 String
+  slug                 String
+  type                 String?
+  activeBrainVersionId String?  @map("active_brain_version_id")
+  status               String   @default("draft")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  workspace     Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  brand         Brand                @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  brainVersions ProductBrainVersion[]
+
+  @@unique([workspaceId, slug])
+  @@map("products")
+}
+
+model ProductBrainVersion {
+  id                 String   @id @default(uuid())
+  productId          String   @map("product_id")
+  version            Int
+  usp                String?
+  rtb                String?
+  functionalBenefits Json?    @map("functional_benefits")
+  emotionalBenefits  Json?    @map("emotional_benefits")
+  targetAudience     String?  @map("target_audience")
+  claims             Json?
+  disclaimers        Json?
+  isActive           Boolean  @default(true) @map("is_active")
+  status             String   @default("draft")
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, version])
+  @@map("product_brain_versions")
+}
+
+// ─── Generation Pipeline ────────────────────────────────────────
+
+model GenerationRequest {
+  id          String   @id @default(uuid())
+  workspaceId String   @map("workspace_id")
+  brandId     String   @map("brand_id")
+  productId   String?  @map("product_id")
+  platform    String
+  contentType String   @map("content_type")
+  framework   String
+  hookType    String   @map("hook_type")
+  language    String   @default("id")
+  prompt      String?
+  status      String   @default("pending")
+  errorMessage String? @map("error_message")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  workspace Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  outputs   GenerationOutput[]
+
+  @@index([workspaceId])
+  @@map("generation_requests")
+}
+
+model GenerationOutput {
+  id           String   @id @default(uuid())
+  requestId    String   @map("request_id")
+  contentTitle String?  @map("content_title")
+  content      Json
+  status       String   @default("draft")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  request        GenerationRequest     @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  feedbackEvents OutputFeedbackEvent[]
+
+  @@index([requestId])
+  @@map("generation_outputs")
+}
+
+model OutputFeedbackEvent {
+  id        String   @id @default(uuid())
+  outputId  String   @map("output_id")
+  eventType String   @map("event_type")
+  before    Json?
+  after     Json?
+  userId    String?  @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  output GenerationOutput @relation(fields: [outputId], references: [id], onDelete: Cascade)
+
+  @@index([outputId])
+  @@map("output_feedback_events")
+}
+
+// ─── Taxonomy ───────────────────────────────────────────────────
+
+model Framework {
+  id          String  @id @default(uuid())
+  name        String  @unique
+  description String?
+  isGlobal    Boolean @default(true) @map("is_global")
+
+  @@map("frameworks")
+}
+
+model HookType {
+  id          String  @id @default(uuid())
+  name        String  @unique
+  description String?
+  isGlobal    Boolean @default(true) @map("is_global")
+
+  @@map("hook_types")
+}
+
+// ─── Campaign System ────────────────────────────────────────────
+
+model Campaign {
+  id             String   @id @default(uuid())
+  workspaceId    String   @map("workspace_id")
+  brandId        String?  @map("brand_id")
+  name           String
+  description    String?
+  objective      String?
+  budget         String?
+  channelMix     Json?    @map("channel_mix")
+  culturalContext String? @map("cultural_context")
+  status         String   @default("draft")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  workspace Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  outputs   CampaignOutput[]
+
+  @@index([workspaceId])
+  @@map("campaigns")
+}
+
+model CampaignOutput {
+  id               String   @id @default(uuid())
+  campaignId       String   @map("campaign_id")
+  bigIdea          String?  @map("big_idea")
+  messagingPillars Json?    @map("messaging_pillars")
+  funnelJourney    Json?    @map("funnel_journey")
+  channelRoles     Json?    @map("channel_roles")
+  rawContent       Json?    @map("raw_content")
+  status           String   @default("draft")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
+  @@map("campaign_outputs")
+}
+
+// ─── Content Planning ───────────────────────────────────────────
+
+model ContentTopic {
+  id          String    @id @default(uuid())
+  workspaceId String    @map("workspace_id")
+  brandId     String?   @map("brand_id")
+  productId   String?   @map("product_id")
+  title       String
+  description String?
+  pillar      String?
+  platform    String?
+  format      String?
+  objective   String?
+  publishDate DateTime? @map("publish_date")
+  status      String    @default("draft")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@map("content_topics")
+}
+
+// ─── Audit & Analytics ──────────────────────────────────────────
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  workspaceId String   @map("workspace_id")
+  userId      String   @map("user_id")
+  action      String
+  entityType  String   @map("entity_type")
+  entityId    String?  @map("entity_id")
+  metadata    Json?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id])
+
+  @@index([workspaceId])
+  @@index([userId])
+  @@map("audit_logs")
+}
+
+model RecommendationProfile {
+  id             String   @id @default(uuid())
+  brandId        String   @map("brand_id")
+  bestFrameworks Json?    @map("best_frameworks")
+  bestHookTypes  Json?    @map("best_hook_types")
+  bestTones      Json?    @map("best_tones")
+  sampleSize     Int      @default(0) @map("sample_size")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@unique([brandId])
+  @@map("recommendation_profiles")
+}
