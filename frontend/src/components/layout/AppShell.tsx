@@ -15,10 +15,15 @@ import {
   Shield,
   ChevronDown,
   Check,
+  Plus,
 } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import { useWorkspace } from "../../hooks/useWorkspace";
 import { Spinner } from "../ui/Spinner";
+import { Modal } from "../ui/Modal";
+import { Input } from "../ui/Input";
+import { Button } from "../ui/Button";
+import { api } from "../../services/api";
 
 const navItems = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, exact: true },
@@ -39,8 +44,36 @@ const bottomNavItems = [
 
 export function AppShell() {
   const { user, isLoading: authLoading } = useAuth();
-  const { workspaces, activeWorkspace, setActiveWorkspace, isLoading: wsLoading } = useWorkspace();
+  const { workspaces, activeWorkspace, setActiveWorkspace, isLoading: wsLoading, refresh } = useWorkspace();
   const [workspaceSwitcherOpen, setWorkspaceSwitcherOpen] = useState(false);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newSlug, setNewSlug] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState("");
+
+  const handleCreateWorkspace = async () => {
+    if (!newName.trim() || !newSlug.trim()) {
+      setCreateError("Name and slug are required");
+      return;
+    }
+    setCreating(true);
+    setCreateError("");
+    try {
+      await api("/api/workspaces", {
+        method: "POST",
+        body: JSON.stringify({ name: newName.trim(), slug: newSlug.trim() }),
+      });
+      setCreateModalOpen(false);
+      setNewName("");
+      setNewSlug("");
+      await refresh();
+    } catch (e) {
+      setCreateError(e instanceof Error ? e.message : "Failed to create workspace");
+    } finally {
+      setCreating(false);
+    }
+  };
 
   if (authLoading) {
     return (
@@ -132,7 +165,7 @@ export function AppShell() {
                 <ChevronDown size={12} className="text-gray-500 shrink-0" />
               </button>
 
-              {workspaceSwitcherOpen && workspaces.length > 0 && (
+              {workspaceSwitcherOpen && (
                 <div className="absolute bottom-full left-0 right-0 mb-1 bg-[#1a1a1a] border border-gray-700 rounded-md shadow-lg overflow-hidden z-10">
                   {workspaces.map((ws) => (
                     <button
@@ -155,6 +188,16 @@ export function AppShell() {
                       )}
                     </button>
                   ))}
+                  <button
+                    onClick={() => {
+                      setWorkspaceSwitcherOpen(false);
+                      setCreateModalOpen(true);
+                    }}
+                    className="w-full flex items-center gap-2 px-2 py-1.5 hover:bg-[#333] transition-colors text-left border-t border-gray-700"
+                  >
+                    <Plus size={14} className="text-gray-400 shrink-0" />
+                    <span className="text-xs text-gray-400">Create workspace</span>
+                  </button>
                 </div>
               )}
             </div>
@@ -172,6 +215,31 @@ export function AppShell() {
           <Outlet />
         </div>
       </main>
+
+      <Modal isOpen={createModalOpen} onClose={() => setCreateModalOpen(false)} title="Create Workspace">
+        <div className="space-y-4">
+          <Input
+            label="Name"
+            value={newName}
+            onChange={(e) => {
+              setNewName(e.target.value);
+              setNewSlug(e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""));
+            }}
+            placeholder="My Workspace"
+          />
+          <Input
+            label="Slug"
+            value={newSlug}
+            onChange={(e) => setNewSlug(e.target.value)}
+            placeholder="my-workspace"
+          />
+          {createError && <p className="text-xs text-red-500">{createError}</p>}
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => setCreateModalOpen(false)}>Cancel</Button>
+            <Button onClick={handleCreateWorkspace} loading={creating}>Create</Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

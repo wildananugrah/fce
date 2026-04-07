@@ -18,7 +18,9 @@
       "Bash(git -C /Users/wildananugrah/Documents/My-Projects/fce commit -m \"docs: mark Phase 7 complete — all phases done\")",
       "Bash(git -C /Users/wildananugrah/Documents/My-Projects/fce status --short)",
       "Bash(git -C /Users/wildananugrah/Documents/My-Projects/fce push -u origin main)",
-      "Bash(git -C /Users/wildananugrah/Documents/My-Projects/fce remote set-url origin git@github.com:wildananugrah/fce.git)"
+      "Bash(git -C /Users/wildananugrah/Documents/My-Projects/fce remote set-url origin git@github.com:wildananugrah/fce.git)",
+      "Bash(git -C /Users/wildananugrah/Documents/My-Projects/fce pull --rebase)",
+      "Bash(git -C /Users/wildananugrah/Documents/My-Projects/fce stash)"
     ],
     "additionalDirectories": [
       "/Users/wildananugrah/Documents/My-Projects/fce/.git"

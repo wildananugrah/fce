@@ -36,7 +36,7 @@ export class WorkspaceService implements IWorkspaceService {
 	async create(userId: string, input: CreateWorkspaceInput): Promise<Workspace> {
 		const existing = await this.workspaceRepository.findBySlug(input.slug);
 		if (existing) {
-			throw new Error("Workspace slug already taken");
+			throw new Error("Slug already taken");
 		}
 
 		const workspace = await this.workspaceRepository.create({
