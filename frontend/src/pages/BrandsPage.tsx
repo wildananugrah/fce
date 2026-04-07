@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { useWorkspace } from "../hooks/useWorkspace";
 import { api } from "../services/api";
 import { Button } from "../components/ui/Button";
@@ -9,6 +10,7 @@ import { Tabs } from "../components/ui/Tabs";
 import { Spinner } from "../components/ui/Spinner";
 import { Toast } from "../components/ui/Toast";
 import { BrainVersionEditor, type BrainVersionData } from "../components/brands/BrainVersionEditor";
+import { DocumentUpload } from "../components/brands/DocumentUpload";
 
 interface Brand {
   id: string;
@@ -238,6 +240,7 @@ function BrandDetailModal({ brand, workspaceId, onUpdated, onClose, onToast }: B
     { key: "details", label: "Details" },
     { key: "brain", label: "Brain" },
     { key: "versions", label: "Versions" },
+    { key: "documents", label: "Documents" },
   ];
 
   const versions = detail?.brainVersions ?? [];
@@ -327,6 +330,14 @@ function BrandDetailModal({ brand, workspaceId, onUpdated, onClose, onToast }: B
                 )}
               </div>
             )}
+
+            {activeTab === "documents" && (
+              <DocumentUpload
+                workspaceId={workspaceId}
+                brandId={brand.id}
+                onToast={onToast}
+              />
+            )}
           </>
         )}
       </div>
@@ -337,6 +348,7 @@ function BrandDetailModal({ brand, workspaceId, onUpdated, onClose, onToast }: B
 // ---- Main Page ----
 export function BrandsPage() {
   const { activeWorkspace } = useWorkspace();
+  const navigate = useNavigate();
   const [brands, setBrands] = useState<Brand[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
@@ -392,7 +404,7 @@ export function BrandsPage() {
           {brands.map((brand) => (
             <button
               key={brand.id}
-              onClick={() => setSelectedBrand(brand)}
+              onClick={() => navigate(`/brands/${brand.id}`)}
               className="text-left bg-white border border-gray-200 rounded-lg p-4 hover:border-gray-400 transition-colors"
             >
               <div className="flex items-start justify-between mb-2">

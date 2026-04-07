@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { useWorkspace } from "../hooks/useWorkspace";
 import { api } from "../services/api";
 import { Button } from "../components/ui/Button";
@@ -219,6 +220,7 @@ function ProductDetailModal({ product, workspaceId, onUpdated, onClose, onToast 
 // ---- Main Page ----
 export function ProductsPage() {
   const { activeWorkspace } = useWorkspace();
+  const navigate = useNavigate();
   const [products, setProducts] = useState<Product[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
   const [loading, setLoading] = useState(true);
@@ -292,7 +294,7 @@ export function ProductsPage() {
             return (
               <button
                 key={product.id}
-                onClick={() => setSelectedProduct(product)}
+                onClick={() => navigate(`/products/${product.id}`)}
                 className="text-left bg-white border border-gray-200 rounded-lg p-4 hover:border-gray-400 transition-colors"
               >
                 <div className="flex items-start justify-between mb-2">
