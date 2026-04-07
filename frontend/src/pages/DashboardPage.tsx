@@ -1,99 +1,108 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useWorkspace } from "../hooks/useWorkspace";
 import { api } from "../services/api";
+import { Badge } from "../components/ui/Badge";
 import { Spinner } from "../components/ui/Spinner";
-
-interface Brand {
-  id: string;
-  name: string;
-  status: string;
-}
-
-interface Product {
-  id: string;
-  name: string;
-  status: string;
-}
-
-interface KpiCardProps {
-  label: string;
-  value: string | number;
-}
-
-function KpiCard({ label, value }: KpiCardProps) {
-  return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4">
-      <p className="text-xs text-gray-500 uppercase tracking-wide font-medium mb-2">{label}</p>
-      <p className="text-2xl font-bold text-black">{value}</p>
-    </div>
-  );
-}
+import type { DashboardStats } from "../types";
 
 export function DashboardPage() {
   const { activeWorkspace } = useWorkspace();
-  const [brands, setBrands] = useState<Brand[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!activeWorkspace) {
-      setLoading(false);
-      return;
-    }
-    const load = async () => {
-      setLoading(true);
-      try {
-        const [b, p] = await Promise.all([
-          api<Brand[]>(`/api/workspaces/${activeWorkspace.id}/brands`),
-          api<Product[]>(`/api/workspaces/${activeWorkspace.id}/products`),
-        ]);
-        setBrands(b);
-        setProducts(p);
-      } catch {
-        // silently ignore, counts will just show 0
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
+    if (!activeWorkspace) return;
+    setLoading(true);
+    api<DashboardStats>(`/api/workspaces/${activeWorkspace.id}/dashboard/stats`)
+      .then(setStats)
+      .catch(() => setStats(null))
+      .finally(() => setLoading(false));
   }, [activeWorkspace]);
 
-  if (!activeWorkspace) {
+  if (loading) {
     return (
-      <div className="p-6">
-        <p className="text-sm text-gray-500">Create a workspace first to view your dashboard.</p>
+      <div className="flex items-center justify-center h-64">
+        <Spinner size="lg" />
       </div>
     );
   }
 
+  if (!stats) {
+    return <div className="p-6 text-gray-500">Failed to load dashboard data.</div>;
+  }
+
+  const kpiCards = [
+    { label: "Brands", value: stats.brandCount, color: "bg-blue-50 text-blue-700" },
+    { label: "Products", value: stats.productCount, color: "bg-green-50 text-green-700" },
+    { label: "Generations", value: stats.generationCount, color: "bg-purple-50 text-purple-700" },
+    { label: "Campaigns", value: stats.campaignCount, color: "bg-amber-50 text-amber-700" },
+  ];
+
+  const usagePercent = stats.apiLimitUsd > 0 ? (stats.apiUsageUsd / stats.apiLimitUsd) * 100 : 0;
+
   return (
     <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-lg font-semibold text-black">Dashboard</h1>
-        <p className="text-sm text-gray-500 mt-0.5">{activeWorkspace.name}</p>
+      <h1 className="text-xl font-semibold">Dashboard</h1>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {kpiCards.map((card) => (
+          <div key={card.label} className={`rounded-lg p-4 ${card.color}`}>
+            <p className="text-xs font-medium uppercase tracking-wide opacity-70">{card.label}</p>
+            <p className="text-2xl font-bold mt-1">{card.value}</p>
+          </div>
+        ))}
       </div>
 
-      {loading ? (
-        <div className="flex justify-center py-12">
-          <Spinner />
+      <div className="bg-white border border-gray-200 rounded-lg p-4">
+        <h2 className="text-sm font-medium text-gray-700 mb-2">API Usage</h2>
+        <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
+          <span>${stats.apiUsageUsd.toFixed(2)} used</span>
+          <span>${stats.apiLimitUsd.toFixed(2)} limit</span>
         </div>
-      ) : (
-        <>
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            <KpiCard label="Brands" value={brands.length} />
-            <KpiCard label="Products" value={products.length} />
-            <KpiCard label="Generations" value={0} />
-            <KpiCard label="API Usage" value="$0.00" />
-          </div>
+        <div className="w-full bg-gray-100 rounded-full h-2">
+          <div
+            className={`h-2 rounded-full ${usagePercent > 80 ? "bg-red-500" : "bg-blue-500"}`}
+            style={{ width: `${Math.min(usagePercent, 100)}%` }}
+          />
+        </div>
+      </div>
 
-          <div>
-            <h2 className="text-sm font-semibold text-black mb-3">Recent Generations</h2>
-            <div className="bg-white border border-gray-200 rounded-lg p-8 text-center">
-              <p className="text-sm text-gray-400">No generations yet. Start generating content to see activity here.</p>
-            </div>
+      <div className="bg-white border border-gray-200 rounded-lg p-4">
+        <h2 className="text-sm font-medium text-gray-700 mb-3">Recent Generations</h2>
+        {stats.recentGenerations.length === 0 ? (
+          <p className="text-xs text-gray-400">No generations yet.</p>
+        ) : (
+          <div className="space-y-2">
+            {stats.recentGenerations.map((gen) => (
+              <div
+                key={gen.id}
+                className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-xs font-medium capitalize">{gen.platform}</span>
+                  <span className="text-xs text-gray-400">{gen.contentType.replace("_", " ")}</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Badge
+                    variant={
+                      gen.status === "completed"
+                        ? "success"
+                        : gen.status === "failed"
+                          ? "danger"
+                          : "default"
+                    }
+                  >
+                    {gen.status}
+                  </Badge>
+                  <span className="text-xs text-gray-400">
+                    {new Date(gen.createdAt).toLocaleDateString()}
+                  </span>
+                </div>
+              </div>
+            ))}
           </div>
-        </>
-      )}
+        )}
+      </div>
     </div>
   );
 }
