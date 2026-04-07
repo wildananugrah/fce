@@ -10,7 +10,9 @@ make down; make up
 
 echo "Building database..."
 cd "$REPO_DIR/backend"
-export $(grep -v '^#' .env | xargs)
+set -a
+source .env
+set +a
 bun install
 bunx prisma db push
 bunx prisma generate
@@ -26,6 +28,6 @@ bun install
 bun run build
 
 echo "Deploying fce frontend..."
-cp -r "$REPO_DIR/dist" "$DEPLOY_DIR/dist"
+cp -r "$REPO_DIR/frontend/dist" "$DEPLOY_DIR/dist"
 
 echo "Done!"
