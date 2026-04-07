@@ -7,6 +7,7 @@ import { BrandScrapingJob } from "./jobs/brand-scraping.job";
 import { CampaignGenerationJob } from "./jobs/campaign-generation.job";
 import { ContentGenerationJob } from "./jobs/content-generation.job";
 import { DocumentExtractionJob } from "./jobs/document-extraction.job";
+import { RecommendationRecomputeJob } from "./jobs/recommendation-recompute.job";
 import { TopicGenerationJob } from "./jobs/topic-generation.job";
 import { createAuthMiddleware } from "./middlewares/auth.middleware";
 import { createErrorHandlerMiddleware } from "./middlewares/error-handler.middleware";
@@ -20,6 +21,7 @@ import { BrandRepository } from "./repositories/brand.repository";
 import { CampaignRepository } from "./repositories/campaign.repository";
 import { DocumentRepository } from "./repositories/document.repository";
 import { GenerationRepository } from "./repositories/generation.repository";
+import { RecommendationRepository } from "./repositories/recommendation.repository";
 import { OutputSectionRepository } from "./repositories/output-section.repository";
 import { ProductRepository } from "./repositories/product.repository";
 import { TaxonomyRepository } from "./repositories/taxonomy.repository";
@@ -33,6 +35,7 @@ import { createDocumentRoutes } from "./routes/document.route";
 import { createGenerationRoutes } from "./routes/generation.route";
 import { createLibraryRoutes } from "./routes/library.route";
 import { createProductRoutes } from "./routes/product.route";
+import { createRecommendationRoutes } from "./routes/recommendation.route";
 import { createSSERoutes } from "./routes/sse.route";
 import { createTaxonomyRoutes } from "./routes/taxonomy.route";
 import { createDashboardRoutes } from "./routes/dashboard.route";
@@ -47,6 +50,7 @@ import { GenerationService } from "./services/generation.service";
 import { LibraryService } from "./services/library.service";
 import { NotificationService } from "./services/notification.service";
 import { ProductService } from "./services/product.service";
+import { RecommendationService } from "./services/recommendation.service";
 import { TaxonomyService } from "./services/taxonomy.service";
 import { TopicService } from "./services/topic.service";
 import { WorkspaceService } from "./services/workspace.service";
@@ -101,6 +105,7 @@ async function main() {
 	const outputSectionRepository = new OutputSectionRepository(prisma);
 	const campaignRepository = new CampaignRepository(prisma);
 	const topicRepository = new TopicRepository(prisma);
+	const recommendationRepository = new RecommendationRepository(prisma);
 	const documentRepository = new DocumentRepository(prisma);
 	const storageProvider = new MinioStorageProvider(
 		env.minioEndpoint,
@@ -120,7 +125,8 @@ async function main() {
 	const productService = new ProductService(productRepository);
 	const taxonomyService = new TaxonomyService(taxonomyRepository);
 	const generationService = new GenerationService(generationRepository, boss);
-	const libraryService = new LibraryService(generationRepository, outputSectionRepository);
+	const libraryService = new LibraryService(generationRepository, outputSectionRepository, boss);
+	const recommendationService = new RecommendationService(recommendationRepository);
 	const campaignService = new CampaignService(campaignRepository, boss);
 	const topicService = new TopicService(topicRepository, boss);
 	const dashboardService = new DashboardService(prisma);
@@ -154,6 +160,7 @@ async function main() {
 		logger,
 	);
 	const documentExtractionJob = new DocumentExtractionJob(documentRepository, logger);
+	const recommendationRecomputeJob = new RecommendationRecomputeJob(prisma, recommendationRepository, logger);
 
 	// ─── Create PgBoss Queues ───────────────────────────────────────
 	await boss.createQueue("content-generation");
@@ -161,6 +168,7 @@ async function main() {
 	await boss.createQueue("topic-generation");
 	await boss.createQueue("brand-scraping");
 	await boss.createQueue("document-extraction");
+	await boss.createQueue("recommendation-recompute");
 
 	// ─── Register PgBoss Workers ─────────────────────────────────────
 	await boss.work("content-generation", async (jobs) => {
@@ -177,6 +185,9 @@ async function main() {
 	});
 	await boss.work("document-extraction", async (jobs) => {
 		for (const job of jobs) await documentExtractionJob.handle(job.data as any);
+	});
+	await boss.work("recommendation-recompute", async (jobs) => {
+		for (const job of jobs) await recommendationRecomputeJob.handle(job.data as any);
 	});
 
 	// ─── Middleware Instances ────────────────────────────────────────
@@ -263,6 +274,7 @@ async function main() {
 	workspaceScoped.route("/topics", createTopicRoutes(topicService));
 	workspaceScoped.route("/dashboard", createDashboardRoutes(dashboardService));
 	workspaceScoped.route("/documents", createDocumentRoutes(documentService));
+	workspaceScoped.route("/recommendations", createRecommendationRoutes(recommendationService));
 	app.route("/api/workspaces/:workspaceId", workspaceScoped);
 
 	// Health check

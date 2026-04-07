@@ -1,4 +1,5 @@
 import type { GenerationOutput, OutputFeedbackEvent } from "@prisma/client";
+import type { PgBoss } from "pg-boss";
 import type { IGenerationRepository } from "../interfaces/repositories/generation.repository.interface";
 import type { IOutputSectionRepository } from "../interfaces/repositories/output-section.repository.interface";
 import type { ILibraryService } from "../interfaces/services/library.service.interface";
@@ -7,6 +8,7 @@ export class LibraryService implements ILibraryService {
 	constructor(
 		private generationRepository: IGenerationRepository,
 		private outputSectionRepository?: IOutputSectionRepository,
+		private boss?: PgBoss,
 	) {}
 
 	async list(workspaceId: string): Promise<any[]> {
@@ -24,7 +26,23 @@ export class LibraryService implements ILibraryService {
 		before?: any,
 		after?: any,
 	): Promise<OutputFeedbackEvent> {
-		return this.generationRepository.addFeedback({ outputId, eventType, userId, before, after });
+		const event = await this.generationRepository.addFeedback({ outputId, eventType, userId, before, after });
+
+		if (this.boss && (eventType === "approve" || eventType === "reject")) {
+			const output = await this.generationRepository.findOutputById(outputId);
+			if (output) {
+				// Fetch the request to get brandId and workspaceId
+				const request = await this.generationRepository.findById((output as any).requestId);
+				if (request) {
+					await this.boss.send("recommendation-recompute", {
+						brandId: request.brandId,
+						workspaceId: request.workspaceId,
+					});
+				}
+			}
+		}
+
+		return event;
 	}
 
 	async getSections(outputId: string): Promise<any[]> {
