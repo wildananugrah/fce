@@ -28,6 +28,6 @@ bun install
 bun run build
 
 echo "Deploying fce frontend..."
-cp -r "$REPO_DIR/frontend/dist" "$DEPLOY_DIR/dist"
+cp -r "$REPO_DIR/frontend/dist" "$DEPLOY_DIR/"
 
 echo "Done!"
