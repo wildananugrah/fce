@@ -14,5 +14,15 @@ export function createTaxonomyRoutes(taxonomyService: ITaxonomyService) {
 		return c.json({ data: hookTypes });
 	});
 
+	app.get("/tone-presets", async (c) => {
+		const tonePresets = await taxonomyService.getTonePresets();
+		return c.json({ data: tonePresets });
+	});
+
+	app.get("/visual-styles", async (c) => {
+		const visualStyles = await taxonomyService.getVisualStyles();
+		return c.json({ data: visualStyles });
+	});
+
 	return app;
 }
