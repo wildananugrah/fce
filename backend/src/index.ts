@@ -136,6 +136,12 @@ async function main() {
 		logger,
 	);
 
+	// ─── Create PgBoss Queues ───────────────────────────────────────
+	await boss.createQueue("content-generation");
+	await boss.createQueue("campaign-generation");
+	await boss.createQueue("topic-generation");
+	await boss.createQueue("brand-scraping");
+
 	// ─── Register PgBoss Workers ─────────────────────────────────────
 	await boss.work("content-generation", async (jobs) => {
 		for (const job of jobs) await contentGenerationJob.handle(job.data as any);
