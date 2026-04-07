@@ -7,6 +7,8 @@ import { Badge } from "../components/ui/Badge";
 import { Modal } from "../components/ui/Modal";
 import { Spinner } from "../components/ui/Spinner";
 import { Toast } from "../components/ui/Toast";
+import { SectionViewer } from "../components/library/SectionViewer";
+import type { OutputSection } from "../types";
 
 interface LibraryItem {
   id: string;
@@ -47,6 +49,20 @@ interface LibraryDetailModalProps {
 function LibraryDetailModal({ item, workspaceId, onUpdated, onClose, onToast }: LibraryDetailModalProps) {
   const [updating, setUpdating] = useState(false);
   const [currentStatus, setCurrentStatus] = useState(item.status);
+  const [sections, setSections] = useState<OutputSection[]>([]);
+
+  const fetchSections = useCallback(async (outputId: string) => {
+    try {
+      const secs = await api<OutputSection[]>(`/api/workspaces/${workspaceId}/library/${outputId}/sections`);
+      setSections(secs);
+    } catch {
+      setSections([]);
+    }
+  }, [workspaceId]);
+
+  useEffect(() => {
+    fetchSections(item.id);
+  }, [fetchSections, item.id]);
 
   // Feedback form
   const [feedbackEventType, setFeedbackEventType] = useState("hook_edit");
@@ -121,6 +137,18 @@ function LibraryDetailModal({ item, workspaceId, onUpdated, onClose, onToast }: 
 
         {!item.content && (
           <p className="text-sm text-gray-400 text-center py-4">No content available.</p>
+        )}
+
+        {sections.length > 0 && (
+          <div className="mt-4">
+            <h3 className="text-sm font-medium mb-2">Content Sections</h3>
+            <SectionViewer
+              sections={sections}
+              workspaceId={workspaceId}
+              outputId={item.id}
+              onSectionUpdated={() => fetchSections(item.id)}
+            />
+          </div>
         )}
 
         <div className="flex gap-2 pt-2">
