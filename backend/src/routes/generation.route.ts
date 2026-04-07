@@ -13,27 +13,25 @@ export function createGenerationRoutes(generationService: IGenerationService) {
 
 	// POST / — create generation request (enqueues job)
 	app.post("/", async (c) => {
-		const workspaceId = c.get("workspaceId");
-		const userId = c.get("userId");
+		const workspaceId = c.get("workspaceId" as any);
+		const userId = c.get("userId" as any);
 		const body = await c.req.json();
-		const { brandId, productId, platform, contentType, framework, hookType, language, prompt } =
-			body;
-		if (!brandId || !platform || !contentType || !framework || !hookType) {
-			return c.json(
-				{ error: "brandId, platform, contentType, framework, and hookType are required" },
-				400,
-			);
-		}
+
 		const request = await generationService.create(workspaceId, userId, {
-			brandId,
-			productId,
-			platform,
-			contentType,
-			framework,
-			hookType,
-			language,
-			prompt,
+			brandId: body.brandId,
+			productId: body.productId,
+			platform: body.platform,
+			contentType: body.contentType,
+			framework: body.framework,
+			hookType: body.hookType,
+			language: body.language,
+			prompt: body.prompt,
+			objective: body.objective,
+			tonePreset: body.tonePreset,
+			visualStyle: body.visualStyle,
+			outputLength: body.outputLength,
 		});
+
 		return c.json({ data: request }, 201);
 	});
 

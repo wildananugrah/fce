@@ -6,13 +6,17 @@ export interface IGenerationRepository {
 	create(data: {
 		workspaceId: string;
 		brandId: string;
-		productId?: string;
+		productId?: string | null;
 		platform: string;
 		contentType: string;
 		framework: string;
 		hookType: string;
 		language?: string;
-		prompt?: string;
+		prompt?: string | null;
+		objective?: string | null;
+		tonePreset?: string | null;
+		visualStyle?: string | null;
+		outputLength?: string | null;
 	}): Promise<GenerationRequest>;
 
 	// Library (outputs)

@@ -7,4 +7,8 @@ export interface CreateGenerationInput {
 	hookType: string;
 	language?: string;
 	prompt?: string;
+	objective?: string;
+	tonePreset?: string;
+	visualStyle?: string;
+	outputLength?: string;
 }

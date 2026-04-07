@@ -29,8 +29,18 @@ export class GenerationService implements IGenerationService {
 	): Promise<GenerationRequest> {
 		const request = await this.generationRepository.create({
 			workspaceId,
-			...input,
+			brandId: input.brandId,
+			productId: input.productId || null,
+			platform: input.platform,
+			contentType: input.contentType,
+			framework: input.framework,
+			hookType: input.hookType,
 			language: input.language || "id",
+			prompt: input.prompt || null,
+			objective: input.objective || null,
+			tonePreset: input.tonePreset || null,
+			visualStyle: input.visualStyle || null,
+			outputLength: input.outputLength || null,
 		});
 
 		await this.boss.send("content-generation", {
