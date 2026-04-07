@@ -1,61 +1,60 @@
-import { useNavigate } from "react-router-dom";
+import { useState } from "react";
 import { useAuth } from "../hooks/useAuth";
+import { api } from "../services/api";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
-import { Card } from "../components/ui/Card";
+import { Toast } from "../components/ui/Toast";
 
 export function SettingsPage() {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
+  const { user } = useAuth();
+  const [fullName, setFullName] = useState(user?.fullName || "");
+  const [avatarUrl, setAvatarUrl] = useState(user?.avatarUrl || "");
+  const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
-  const handleLogout = () => {
-    logout();
-    navigate("/login");
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await api("/api/auth/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fullName, avatarUrl }),
+      });
+      setToast({ message: "Profile updated successfully", type: "success" });
+    } catch {
+      setToast({ message: "Failed to update profile", type: "error" });
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
-    <div className="p-6 space-y-6 max-w-xl">
-      <h1 className="text-lg font-semibold text-black">Settings</h1>
+    <div className="p-6 max-w-lg">
+      <h1 className="text-xl font-semibold mb-6">Settings</h1>
 
-      <Card className="p-6 space-y-4">
-        <h2 className="text-sm font-semibold text-black">Profile</h2>
-
+      <div className="space-y-4">
+        <Input label="Email" value={user?.email || ""} disabled />
         <Input
           label="Full Name"
-          value={user?.fullName ?? ""}
-          readOnly
-          disabled
-          className="bg-gray-50 cursor-not-allowed"
+          value={fullName}
+          onChange={(e) => setFullName(e.target.value)}
+          placeholder="Your full name"
         />
-
-        <Input
-          label="Email"
-          value={user?.email ?? ""}
-          readOnly
-          disabled
-          className="bg-gray-50 cursor-not-allowed"
-        />
-
         <Input
           label="Avatar URL"
-          value={user?.avatarUrl ?? ""}
-          readOnly
-          disabled
-          placeholder="No avatar set"
-          className="bg-gray-50 cursor-not-allowed"
+          value={avatarUrl}
+          onChange={(e) => setAvatarUrl(e.target.value)}
+          placeholder="https://example.com/avatar.png"
         />
 
-        <p className="text-xs text-gray-400">
-          Profile editing is not available yet. Contact support to update your details.
-        </p>
-      </Card>
-
-      <Card className="p-6">
-        <h2 className="text-sm font-semibold text-black mb-3">Account</h2>
-        <Button variant="danger" onClick={handleLogout}>
-          Log out
+        <Button onClick={handleSave} loading={saving}>
+          Save Changes
         </Button>
-      </Card>
+      </div>
+
+      {toast && (
+        <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
+      )}
     </div>
   );
 }
