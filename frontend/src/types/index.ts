@@ -29,3 +29,33 @@ export interface Workspace {
   avatarEmoji: string | null;
   role: string;
 }
+
+export interface TonePreset {
+  id: string;
+  name: string;
+  description: string | null;
+  isGlobal: boolean;
+}
+
+export interface VisualStyle {
+  id: string;
+  name: string;
+  description: string | null;
+  isGlobal: boolean;
+}
+
+export interface DashboardStats {
+  brandCount: number;
+  productCount: number;
+  generationCount: number;
+  campaignCount: number;
+  apiUsageUsd: number;
+  apiLimitUsd: number;
+  recentGenerations: {
+    id: string;
+    platform: string;
+    contentType: string;
+    status: string;
+    createdAt: string;
+  }[];
+}
