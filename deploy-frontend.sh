@@ -7,7 +7,7 @@ DEPLOY_DIR="/var/www/html/fce"
 echo "Building fce frontend..."
 cd "$REPO_DIR/frontend"
 bun install
-# rm -r "$REPO_DIR/frontend/dist"
+[ -d "$REPO_DIR/frontend/dist" ] && rm -r "$REPO_DIR/frontend/dist"
 bun run build
 
 echo "Deploying fce frontend..."
