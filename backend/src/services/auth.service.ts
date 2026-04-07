@@ -114,4 +114,9 @@ export class AuthService implements IAuthService {
 			isSuperadmin: user.isSuperadmin,
 		};
 	}
+
+	async updateProfile(userId: string, data: { fullName?: string; avatarUrl?: string }) {
+		const user = await this.userRepository.update(userId, data);
+		return { id: user.id, email: user.email, fullName: user.fullName, avatarUrl: user.avatarUrl };
+	}
 }

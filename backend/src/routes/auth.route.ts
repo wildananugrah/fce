@@ -63,5 +63,15 @@ export function createAuthRoutes(authService: IAuthService) {
 		return c.json({ data: user });
 	});
 
+	app.patch("/profile", async (c) => {
+		const userId = c.get("userId" as any);
+		const body = await c.req.json();
+		const user = await authService.updateProfile(userId, {
+			fullName: body.fullName,
+			avatarUrl: body.avatarUrl,
+		});
+		return c.json({ data: user });
+	});
+
 	return app;
 }
