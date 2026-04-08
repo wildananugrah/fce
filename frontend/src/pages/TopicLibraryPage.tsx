@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useWorkspace } from "../hooks/useWorkspace";
 import { api } from "../services/api";
 import { Button } from "../components/ui/Button";
@@ -155,7 +155,21 @@ export function TopicLibraryPage() {
     }
   }, [activeWorkspace]);
 
+  // Close status dropdown on outside click
+  const statusDropdownRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!showStatusDropdown) return;
+    const handleClick = (e: MouseEvent) => {
+      if (statusDropdownRef.current && !statusDropdownRef.current.contains(e.target as Node)) {
+        setShowStatusDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [showStatusDropdown]);
+
   const handleBulkStatusChange = async (status: string) => {
+    if (!activeWorkspace) return;
     try {
       await api(`/api/workspaces/${activeWorkspace.id}/topics/bulk-status`, {
         method: "PATCH",
@@ -170,6 +184,7 @@ export function TopicLibraryPage() {
   };
 
   const handleBulkDelete = async () => {
+    if (!activeWorkspace) return;
     setDeleting(true);
     try {
       await api(`/api/workspaces/${activeWorkspace.id}/topics/bulk`, {
@@ -313,7 +328,7 @@ export function TopicLibraryPage() {
             {selectedIds.size} topic(s) selected
           </span>
           <div className="w-px h-6 bg-gray-200" />
-          <div className="relative">
+          <div className="relative" ref={statusDropdownRef}>
             <Button
               variant="secondary"
               size="sm"
