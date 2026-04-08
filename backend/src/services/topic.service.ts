@@ -54,6 +54,9 @@ export class TopicService implements ITopicService {
 			brandId: input.brandId,
 			productId: input.productId,
 			platform: input.platform,
+			objective: input.objective,
+			dateFrom: input.dateFrom,
+			dateTo: input.dateTo,
 			count: input.count ?? 10,
 			userId,
 		});

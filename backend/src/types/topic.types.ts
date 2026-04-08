@@ -14,6 +14,9 @@ export interface GenerateTopicsInput {
 	brandId?: string;
 	productId?: string;
 	platform?: string;
+	objective?: string;
+	dateFrom?: string;
+	dateTo?: string;
 	count?: number;
 }
 

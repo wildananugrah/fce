@@ -148,6 +148,8 @@ ${input.brandContext}
 ${input.productContext ? `\nProduct context:\n${input.productContext}` : ""}
 
 Generate ${count} content topic ideas${input.platform ? ` for ${input.platform}` : ""}.
+${input.objective ? `Content objective: ${input.objective}` : ""}
+${input.dateFrom && input.dateTo ? `Schedule date range: ${input.dateFrom} to ${input.dateTo}. Distribute publishDate values evenly across this range.` : ""}
 
 Return JSON with a single field:
 - topics (array of ${count} objects, each with: title, description, pillar, platform, format, objective, publishDate)

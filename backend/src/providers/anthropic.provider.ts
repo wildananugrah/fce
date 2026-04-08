@@ -153,6 +153,8 @@ ${input.productContext ? `\nProduct context:\n${input.productContext}` : ""}
 You MUST respond with ONLY valid JSON. No markdown, no code blocks, no explanations.`;
 
 		const userPrompt = `Generate ${count} content topic ideas${input.platform ? ` for ${input.platform}` : ""}.
+${input.objective ? `Content objective: ${input.objective}` : ""}
+${input.dateFrom && input.dateTo ? `Schedule date range: ${input.dateFrom} to ${input.dateTo}. Distribute publishDate values evenly across this range.` : ""}
 
 Return JSON with a single field:
 - topics (array of ${count} objects, each with: title, description, pillar, platform, format, objective, publishDate)

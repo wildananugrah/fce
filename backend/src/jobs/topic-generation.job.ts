@@ -8,6 +8,9 @@ interface TopicJobData {
 	brandId?: string;
 	productId?: string;
 	platform?: string;
+	objective?: string;
+	dateFrom?: string;
+	dateTo?: string;
 	count: number;
 	userId: string;
 }
@@ -21,7 +24,7 @@ export class TopicGenerationJob {
 	) {}
 
 	async handle(data: TopicJobData): Promise<void> {
-		const { workspaceId, brandId, productId, platform, count, userId } = data;
+		const { workspaceId, brandId, productId, platform, objective, dateFrom, dateTo, count, userId } = data;
 
 		try {
 			// Build brand context
@@ -53,6 +56,9 @@ export class TopicGenerationJob {
 				brandContext,
 				productContext,
 				platform,
+				objective,
+				dateFrom,
+				dateTo,
 				count,
 			});
 

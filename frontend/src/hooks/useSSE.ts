@@ -35,6 +35,14 @@ export function useSSE(onEvent: (event: SSEEvent) => void) {
       onEventRef.current({ type: "topics_generated", data: JSON.parse(e.data) });
     });
 
+    es.addEventListener("topic_generation_complete", (e) => {
+      onEventRef.current({ type: "topic_generation_complete", data: JSON.parse(e.data) });
+    });
+
+    es.addEventListener("topic_generation_failed", (e) => {
+      onEventRef.current({ type: "topic_generation_failed", data: JSON.parse(e.data) });
+    });
+
     es.addEventListener("brand_scraped", (e) => {
       onEventRef.current({ type: "brand_scraped", data: JSON.parse(e.data) });
     });

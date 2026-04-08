@@ -2,6 +2,9 @@ export interface TopicGenerationInput {
 	brandContext: string;
 	productContext?: string;
 	platform?: string;
+	objective?: string;
+	dateFrom?: string;
+	dateTo?: string;
 	count?: number;
 }
 
