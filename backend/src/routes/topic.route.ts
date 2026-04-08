@@ -36,6 +36,35 @@ export function createTopicRoutes(topicService: ITopicService) {
 		return c.json({ data: result }, 202);
 	});
 
+	// DELETE /bulk — bulk delete topics
+	app.delete("/bulk", async (c) => {
+		const workspaceId = c.get("workspaceId");
+		const { ids } = await c.req.json<{ ids: string[] }>();
+		if (!Array.isArray(ids) || ids.length === 0) {
+			return c.json({ error: "ids must be a non-empty array" }, 400);
+		}
+		const deleted = await topicService.deleteMany(workspaceId, ids);
+		return c.json({ deleted });
+	});
+
+	// PATCH /bulk-status — bulk status change
+	app.patch("/bulk-status", async (c) => {
+		const workspaceId = c.get("workspaceId");
+		const { ids, status } = await c.req.json<{ ids: string[]; status: string }>();
+		if (!Array.isArray(ids) || ids.length === 0) {
+			return c.json({ error: "ids must be a non-empty array" }, 400);
+		}
+		if (!status) {
+			return c.json({ error: "status is required" }, 400);
+		}
+		try {
+			const updated = await topicService.updateManyStatus(workspaceId, ids, status);
+			return c.json({ updated });
+		} catch (e) {
+			return c.json({ error: e instanceof Error ? e.message : "Invalid status" }, 400);
+		}
+	});
+
 	// POST / — create single topic
 	app.post("/", async (c) => {
 		const workspaceId = c.get("workspaceId");
