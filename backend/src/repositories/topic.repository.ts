@@ -33,4 +33,19 @@ export class TopicRepository implements ITopicRepository {
 	async update(id: string, data: Partial<ContentTopic>): Promise<ContentTopic> {
 		return this.prisma.contentTopic.update({ where: { id }, data });
 	}
+
+	async deleteMany(workspaceId: string, ids: string[]): Promise<number> {
+		const result = await this.prisma.contentTopic.deleteMany({
+			where: { workspaceId, id: { in: ids } },
+		});
+		return result.count;
+	}
+
+	async updateManyStatus(workspaceId: string, ids: string[], status: string): Promise<number> {
+		const result = await this.prisma.contentTopic.updateMany({
+			where: { workspaceId, id: { in: ids } },
+			data: { status },
+		});
+		return result.count;
+	}
 }

@@ -16,4 +16,6 @@ export interface ITopicRepository {
 		publishDate?: Date;
 	}): Promise<ContentTopic>;
 	update(id: string, data: Partial<ContentTopic>): Promise<ContentTopic>;
+	deleteMany(workspaceId: string, ids: string[]): Promise<number>;
+	updateManyStatus(workspaceId: string, ids: string[], status: string): Promise<number>;
 }
