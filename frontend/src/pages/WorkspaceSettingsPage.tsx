@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { useWorkspace } from "../hooks/useWorkspace";
 import { useAuth } from "../hooks/useAuth";
 import { api } from "../services/api";
 import { Tabs } from "../components/ui/Tabs";
+import { Modal } from "../components/ui/Modal";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { Select } from "../components/ui/Select";
@@ -54,6 +56,7 @@ function inviteStatusVariant(status: string): "success" | "warning" | "danger" |
 // ---- General Tab ----
 interface GeneralTabProps {
   workspaceId: string;
+  workspaceName: string;
   initial: {
     name: string;
     description: string;
@@ -62,14 +65,20 @@ interface GeneralTabProps {
   };
   onToast: (msg: string, type: "success" | "error" | "info") => void;
   onRefresh: () => Promise<void>;
+  onDeleted: () => void;
 }
 
-function GeneralTab({ workspaceId, initial, onToast, onRefresh }: GeneralTabProps) {
+function GeneralTab({ workspaceId, workspaceName, initial, onToast, onRefresh, onDeleted }: GeneralTabProps) {
   const [name, setName] = useState(initial.name);
   const [description, setDescription] = useState(initial.description);
   const [avatarColor, setAvatarColor] = useState(initial.avatarColor);
   const [avatarEmoji, setAvatarEmoji] = useState(initial.avatarEmoji);
   const [saving, setSaving] = useState(false);
+
+  // Delete workspace state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmName, setDeleteConfirmName] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   const handleSave = async () => {
     if (!name.trim()) {
@@ -96,49 +105,121 @@ function GeneralTab({ workspaceId, initial, onToast, onRefresh }: GeneralTabProp
     }
   };
 
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      await api(`/api/workspaces/${workspaceId}`, { method: "DELETE" });
+      onDeleted();
+    } catch (e) {
+      onToast(e instanceof Error ? e.message : "Failed to delete workspace", "error");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
-    <div className="space-y-4 pt-4">
-      <Input
-        label="Workspace Name"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        placeholder="My Workspace"
-      />
-      <Input
-        label="Description"
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
-        placeholder="What is this workspace for?"
-      />
-      <div className="flex gap-4">
-        <div className="flex-1">
-          <label className="block text-xs font-medium text-gray-600 uppercase tracking-wide mb-1.5">
-            Avatar Color
-          </label>
-          <div className="flex items-center gap-3">
-            <input
-              type="color"
-              value={avatarColor}
-              onChange={(e) => setAvatarColor(e.target.value)}
-              className="w-10 h-10 rounded cursor-pointer border border-gray-300"
+    <div className="space-y-6 pt-4">
+      <div className="space-y-4">
+        <Input
+          label="Workspace Name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="My Workspace"
+        />
+        <Input
+          label="Description"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="What is this workspace for?"
+        />
+        <div className="flex gap-4">
+          <div className="flex-1">
+            <label className="block text-xs font-medium text-gray-600 uppercase tracking-wide mb-1.5">
+              Avatar Color
+            </label>
+            <div className="flex items-center gap-3">
+              <input
+                type="color"
+                value={avatarColor}
+                onChange={(e) => setAvatarColor(e.target.value)}
+                className="w-10 h-10 rounded cursor-pointer border border-gray-300"
+              />
+              <span className="text-sm text-gray-600">{avatarColor}</span>
+            </div>
+          </div>
+          <div className="flex-1">
+            <Input
+              label="Avatar Emoji"
+              value={avatarEmoji}
+              onChange={(e) => setAvatarEmoji(e.target.value)}
+              placeholder="\uD83D\uDE80"
             />
-            <span className="text-sm text-gray-600">{avatarColor}</span>
           </div>
         </div>
-        <div className="flex-1">
-          <Input
-            label="Avatar Emoji"
-            value={avatarEmoji}
-            onChange={(e) => setAvatarEmoji(e.target.value)}
-            placeholder="🚀"
-          />
+        <div className="flex justify-end pt-2">
+          <Button onClick={handleSave} loading={saving}>
+            Save Changes
+          </Button>
         </div>
       </div>
-      <div className="flex justify-end pt-2">
-        <Button onClick={handleSave} loading={saving}>
-          Save Changes
+
+      {/* Danger Zone */}
+      <div className="border border-red-200 rounded-lg p-5 space-y-3">
+        <h3 className="text-sm font-semibold text-red-600">Danger Zone</h3>
+        <p className="text-sm text-gray-600">
+          Permanently delete this workspace and all of its data including brands, products, topics, content, and campaigns.
+        </p>
+        <Button variant="danger" size="sm" onClick={() => setShowDeleteModal(true)}>
+          Delete Workspace
         </Button>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <Modal
+          isOpen
+          onClose={() => { setShowDeleteModal(false); setDeleteConfirmName(""); }}
+          title="Delete Workspace"
+          size="sm"
+        >
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">
+              This will permanently delete <span className="font-semibold text-gray-900">{workspaceName}</span> and
+              all its data including brands, products, topics, content, and campaigns. This action cannot be undone.
+            </p>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                Type <span className="font-semibold text-gray-900">{workspaceName}</span> to confirm
+              </label>
+              <input
+                type="text"
+                className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-md focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500"
+                value={deleteConfirmName}
+                onChange={(e) => setDeleteConfirmName(e.target.value)}
+                placeholder={workspaceName}
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => { setShowDeleteModal(false); setDeleteConfirmName(""); }}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={handleDelete}
+                loading={deleting}
+                disabled={deleteConfirmName !== workspaceName}
+              >
+                Delete Workspace
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
@@ -420,6 +501,7 @@ function InvitationsTab({ workspaceId, onToast }: InvitationsTabProps) {
 export function WorkspaceSettingsPage() {
   const { activeWorkspace, refresh } = useWorkspace();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("general");
   const [toast, setToast] = useState<ToastState>(null);
 
@@ -429,6 +511,12 @@ export function WorkspaceSettingsPage() {
     },
     [],
   );
+
+  const handleWorkspaceDeleted = useCallback(async () => {
+    localStorage.removeItem("activeWorkspaceId");
+    await refresh();
+    navigate("/dashboard");
+  }, [refresh, navigate]);
 
   if (!activeWorkspace) {
     return (
@@ -451,6 +539,7 @@ export function WorkspaceSettingsPage() {
         {activeTab === "general" && (
           <GeneralTab
             workspaceId={activeWorkspace.id}
+            workspaceName={activeWorkspace.name}
             initial={{
               name: activeWorkspace.name,
               description: activeWorkspace.description ?? "",
@@ -459,6 +548,7 @@ export function WorkspaceSettingsPage() {
             }}
             onToast={showToast}
             onRefresh={refresh}
+            onDeleted={handleWorkspaceDeleted}
           />
         )}
 
