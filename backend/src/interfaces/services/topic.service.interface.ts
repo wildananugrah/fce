@@ -15,4 +15,6 @@ export interface ITopicService {
 		userId: string,
 		input: GenerateTopicsInput,
 	): Promise<{ jobId: string }>;
+	deleteMany(workspaceId: string, ids: string[]): Promise<number>;
+	updateManyStatus(workspaceId: string, ids: string[], status: string): Promise<number>;
 }

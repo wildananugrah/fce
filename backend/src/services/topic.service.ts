@@ -63,4 +63,22 @@ export class TopicService implements ITopicService {
 
 		return { jobId: jobId ?? "queued" };
 	}
+
+	async deleteMany(workspaceId: string, ids: string[]): Promise<number> {
+		if (!ids.length) {
+			throw new Error("No topic IDs provided");
+		}
+		return this.topicRepository.deleteMany(workspaceId, ids);
+	}
+
+	async updateManyStatus(workspaceId: string, ids: string[], status: string): Promise<number> {
+		const validStatuses = ["draft", "scheduled", "published", "archived"];
+		if (!ids.length) {
+			throw new Error("No topic IDs provided");
+		}
+		if (!validStatuses.includes(status)) {
+			throw new Error(`Invalid status: ${status}. Must be one of: ${validStatuses.join(", ")}`);
+		}
+		return this.topicRepository.updateManyStatus(workspaceId, ids, status);
+	}
 }
