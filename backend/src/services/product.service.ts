@@ -1,5 +1,5 @@
 import type { Product, ProductBrainVersion } from "@prisma/client";
-import type { IProductRepository } from "../interfaces/repositories/product.repository.interface";
+import type { IProductRepository, ProductWithRelations } from "../interfaces/repositories/product.repository.interface";
 import type { IProductService } from "../interfaces/services/product.service.interface";
 import type {
 	CreateProductBrainVersionInput,
@@ -10,7 +10,7 @@ import type {
 export class ProductService implements IProductService {
 	constructor(private productRepository: IProductRepository) {}
 
-	async list(workspaceId: string): Promise<Product[]> {
+	async list(workspaceId: string): Promise<ProductWithRelations[]> {
 		return this.productRepository.findByWorkspace(workspaceId);
 	}
 
@@ -29,6 +29,9 @@ export class ProductService implements IProductService {
 			name: input.name,
 			slug: input.slug,
 			type: input.type,
+			priceTier: input.priceTier,
+			summary: input.summary,
+			imageUrl: input.imageUrl,
 		});
 	}
 

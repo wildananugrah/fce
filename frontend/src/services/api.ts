@@ -27,8 +27,9 @@ async function refreshAccessToken(): Promise<string | null> {
 }
 
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const isFormData = options.body instanceof FormData;
   const headers: Record<string, string> = {
-    "Content-Type": "application/json",
+    ...(isFormData ? {} : { "Content-Type": "application/json" }),
     ...(options.headers as Record<string, string>),
   };
 
@@ -61,4 +62,43 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
 
   const json = await res.json();
   return json.data;
+}
+
+export function apiUpload<T>(
+  path: string,
+  formData: FormData,
+  onProgress?: (percent: number) => void,
+): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    const url = `${BASE_URL}${path}`;
+
+    xhr.upload.addEventListener("progress", (e) => {
+      if (e.lengthComputable && onProgress) {
+        onProgress(Math.round((e.loaded / e.total) * 100));
+      }
+    });
+
+    xhr.addEventListener("load", () => {
+      try {
+        const json = JSON.parse(xhr.responseText);
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(json.data);
+        } else {
+          reject(new Error(json.error || "Upload failed"));
+        }
+      } catch {
+        reject(new Error("Upload failed"));
+      }
+    });
+
+    xhr.addEventListener("error", () => reject(new Error("Upload failed")));
+
+    xhr.open("POST", url);
+    if (accessToken) {
+      xhr.setRequestHeader("Authorization", `Bearer ${accessToken}`);
+    }
+    xhr.withCredentials = true;
+    xhr.send(formData);
+  });
 }

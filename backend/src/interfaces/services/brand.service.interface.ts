@@ -10,5 +10,6 @@ export interface IBrandService {
 	getById(id: string): Promise<Brand & { brainVersions: BrandBrainVersion[] }>;
 	create(workspaceId: string, input: CreateBrandInput): Promise<Brand>;
 	update(id: string, input: UpdateBrandInput): Promise<Brand>;
+	delete(id: string): Promise<void>;
 	createBrainVersion(brandId: string, input: CreateBrainVersionInput): Promise<BrandBrainVersion>;
 }

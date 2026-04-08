@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
+import { Save, Brain, Sparkles, Loader2, Upload, X, Globe } from "lucide-react";
 import { Input } from "../ui/Input";
 import { Select } from "../ui/Select";
 import { Button } from "../ui/Button";
+import { api, apiUpload } from "../../services/api";
 
 interface Brand {
   id: string;
@@ -10,8 +12,11 @@ interface Brand {
 
 interface ProductFormProps {
   brands: Brand[];
+  workspaceId: string;
   onSubmit: (data: ProductFormData) => Promise<void>;
   onCancel: () => void;
+  initial?: Partial<ProductFormData>;
+  mode?: "create" | "edit";
 }
 
 export interface ProductFormData {
@@ -19,6 +24,15 @@ export interface ProductFormData {
   name: string;
   slug: string;
   type: string;
+  priceTier: string;
+  summary: string;
+  imageUrl: string;
+  // Brain fields
+  usp: string;
+  rtb: string;
+  functionalBenefits: string;
+  emotionalBenefits: string;
+  targetAudience: string;
 }
 
 function generateSlug(name: string): string {
@@ -29,21 +43,146 @@ function generateSlug(name: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
-const PRODUCT_TYPES = [
-  { value: "", label: "Select type..." },
-  { value: "product", label: "Product" },
-  { value: "service", label: "Service" },
-  { value: "feature", label: "Feature" },
-  { value: "campaign", label: "Campaign" },
-];
+export function ProductForm({ brands, workspaceId, onSubmit, onCancel, initial, mode = "create" }: ProductFormProps) {
+  const [brandId, setBrandId] = useState(initial?.brandId ?? brands[0]?.id ?? "");
+  const [name, setName] = useState(initial?.name ?? "");
+  const [slug, setSlug] = useState(initial?.slug ?? "");
+  const [type, setType] = useState(initial?.type ?? "");
+  const [priceTier, setPriceTier] = useState(initial?.priceTier ?? "");
+  const [summary, setSummary] = useState(initial?.summary ?? "");
+  // Brain fields
+  const [usp, setUsp] = useState(initial?.usp ?? "");
+  const [rtb, setRtb] = useState(initial?.rtb ?? "");
+  const [functionalBenefits, setFunctionalBenefits] = useState(initial?.functionalBenefits ?? "");
+  const [emotionalBenefits, setEmotionalBenefits] = useState(initial?.emotionalBenefits ?? "");
+  const [targetAudience, setTargetAudience] = useState(initial?.targetAudience ?? "");
 
-export function ProductForm({ brands, onSubmit, onCancel }: ProductFormProps) {
-  const [brandId, setBrandId] = useState(brands[0]?.id ?? "");
-  const [name, setName] = useState("");
-  const [slug, setSlug] = useState("");
-  const [type, setType] = useState("");
+  const [productUrl, setProductUrl] = useState("");
+  const [scraping, setScraping] = useState(false);
+  const [imageUrl, setImageUrl] = useState(initial?.imageUrl ?? "");
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [loading, setLoading] = useState(false);
+  const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const handleAutoFill = async () => {
+    if (!productUrl.trim()) return;
+    setScraping(true);
+    setError(null);
+    try {
+      const result = await api<{
+        name?: string;
+        type?: string;
+        priceTier?: string;
+        summary?: string;
+        usp?: string;
+        rtb?: string;
+        functionalBenefits?: string[];
+        emotionalBenefits?: string[];
+        targetAudience?: string;
+      }>(`/api/workspaces/${workspaceId}/products/scrape-preview`, {
+        method: "POST",
+        body: JSON.stringify({ url: productUrl.trim() }),
+      });
+      if (result.name && !name.trim()) {
+        setName(result.name);
+        setSlug(generateSlug(result.name));
+      }
+      if (result.type) setType(result.type);
+      if (result.priceTier) setPriceTier(result.priceTier);
+      if (result.summary) setSummary(result.summary);
+      if (result.usp) setUsp(result.usp);
+      if (result.rtb) setRtb(result.rtb);
+      if (result.functionalBenefits) {
+        const fb = Array.isArray(result.functionalBenefits) ? result.functionalBenefits.join("\n") : String(result.functionalBenefits);
+        if (fb) setFunctionalBenefits(fb);
+      }
+      if (result.emotionalBenefits) {
+        const eb = Array.isArray(result.emotionalBenefits) ? result.emotionalBenefits.join("\n") : String(result.emotionalBenefits);
+        if (eb) setEmotionalBenefits(eb);
+      }
+      if (result.targetAudience) setTargetAudience(result.targetAudience);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Auto-fill failed");
+    } finally {
+      setScraping(false);
+    }
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    setUploadProgress(0);
+    setError(null);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const result = await apiUpload<{ url: string }>(
+        `/api/workspaces/${workspaceId}/products/upload-image`,
+        formData,
+        (percent) => setUploadProgress(percent),
+      );
+      setImageUrl(result.url);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to upload image");
+    } finally {
+      setUploading(false);
+      setUploadProgress(0);
+    }
+  };
+
+  const handleGenerateBrain = async () => {
+    if (!name.trim()) {
+      setError("Enter a product name first");
+      return;
+    }
+    const brand = brands.find((b) => b.id === brandId);
+    if (!brand) {
+      setError("Select a brand first");
+      return;
+    }
+    setGenerating(true);
+    setError(null);
+    try {
+      const result = await api<{
+        usp?: string;
+        rtb?: string;
+        functionalBenefits?: string[];
+        emotionalBenefits?: string[];
+        targetAudience?: string;
+        summary?: string;
+      }>(`/api/workspaces/${workspaceId}/products/generate-brain`, {
+        method: "POST",
+        body: JSON.stringify({
+          productName: name.trim(),
+          brandName: brand.name,
+          productType: type.trim() || undefined,
+          priceTier: priceTier.trim() || undefined,
+          summary: summary.trim() || undefined,
+        }),
+      });
+      if (result.summary && !summary.trim()) setSummary(result.summary);
+      if (result.usp) setUsp(result.usp);
+      if (result.rtb) setRtb(result.rtb);
+      if (result.functionalBenefits) {
+        const fb = Array.isArray(result.functionalBenefits) ? result.functionalBenefits.join("\n") : String(result.functionalBenefits);
+        if (fb) setFunctionalBenefits(fb);
+      }
+      if (result.emotionalBenefits) {
+        const eb = Array.isArray(result.emotionalBenefits) ? result.emotionalBenefits.join("\n") : String(result.emotionalBenefits);
+        if (eb) setEmotionalBenefits(eb);
+      }
+      if (result.targetAudience) setTargetAudience(result.targetAudience);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "AI generation failed");
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
@@ -67,53 +206,299 @@ export function ProductForm({ brands, onSubmit, onCancel }: ProductFormProps) {
         brandId,
         name: name.trim(),
         slug: slug || generateSlug(name.trim()),
-        type,
+        type: type.trim(),
+        priceTier: priceTier.trim(),
+        summary: summary.trim(),
+        imageUrl,
+        usp: usp.trim(),
+        rtb: rtb.trim(),
+        functionalBenefits: functionalBenefits.trim(),
+        emotionalBenefits: emotionalBenefits.trim(),
+        targetAudience: targetAudience.trim(),
       });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to create product");
+      setError(e instanceof Error ? e.message : mode === "edit" ? "Failed to update product" : "Failed to create product");
     } finally {
       setLoading(false);
     }
   };
 
-  const brandOptions = brands.map((b) => ({ value: b.id, label: b.name }));
+  const brandOptions = [
+    { value: "", label: "Select a brand..." },
+    ...brands.map((b) => ({ value: b.id, label: b.name })),
+  ];
+
+  if (brands.length === 0) {
+    return (
+      <p className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-md p-3">
+        You need to create a brand before adding products.
+      </p>
+    );
+  }
 
   return (
-    <div className="space-y-4">
-      {brands.length === 0 ? (
-        <p className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-md p-3">
-          You need to create a brand before adding products.
-        </p>
-      ) : (
-        <>
+    <div className="space-y-6">
+      <p className="text-sm text-gray-500">
+        Define the product's identity and AI content context.
+      </p>
+
+      {/* Website URL + Auto-fill — only in create mode */}
+      {mode === "create" && (
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <Globe size={16} className="text-gray-500" />
+            <h3 className="text-sm font-semibold text-black">Product URL</h3>
+          </div>
+          <p className="text-xs text-gray-500 mb-2">
+            Enter a product page URL to auto-fill all fields using AI.
+          </p>
+          <div className="flex gap-2">
+            <input
+              value={productUrl}
+              onChange={(e) => setProductUrl(e.target.value)}
+              placeholder="https://example.com/product"
+              className="flex-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-black placeholder-gray-400 focus:border-black focus:ring-1 focus:ring-black focus:outline-none"
+            />
+            <button
+              type="button"
+              onClick={handleAutoFill}
+              disabled={scraping || !productUrl.trim()}
+              className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium border border-gray-300 rounded-md hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+            >
+              {scraping ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <Sparkles size={14} />
+              )}
+              {scraping ? "Analyzing..." : "Auto-fill from URL"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Product Info */}
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <Input
+            label="Product Name *"
+            value={name}
+            onChange={handleNameChange}
+            placeholder="e.g. Digital Marketing Retainer"
+          />
           <Select
-            label="Brand"
+            label="Brand *"
             value={brandId}
             onChange={(e) => setBrandId(e.target.value)}
             options={brandOptions}
           />
-          <Input label="Name" value={name} onChange={handleNameChange} placeholder="Product name" />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
           <Input
-            label="Slug"
-            value={slug}
-            onChange={(e) => setSlug(e.target.value)}
-            placeholder="product-slug"
-          />
-          <Select
-            label="Type"
+            label="Product Type"
             value={type}
             onChange={(e) => setType(e.target.value)}
-            options={PRODUCT_TYPES}
+            placeholder="e.g. Service, SaaS, Physical"
           />
-          {error && <p className="text-xs text-red-600">{error}</p>}
-          <div className="flex justify-end gap-2 pt-2">
-            <Button variant="secondary" onClick={onCancel}>Cancel</Button>
-            <Button onClick={handleSubmit} loading={loading}>
-              Create Product
-            </Button>
+          <Input
+            label="Price Tier"
+            value={priceTier}
+            onChange={(e) => setPriceTier(e.target.value)}
+            placeholder="e.g. Premium, Mid-range, Budget"
+          />
+        </div>
+
+        {/* Product Image */}
+        <div>
+          <label className="block text-xs font-medium text-gray-600 uppercase tracking-wide mb-1.5">
+            Product Image
+          </label>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleImageUpload}
+            className="hidden"
+          />
+          {imageUrl ? (
+            <div className="relative inline-block">
+              <img
+                src={imageUrl}
+                alt="Product"
+                className="w-32 h-24 object-cover rounded-lg border border-gray-200"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  setImageUrl("");
+                  if (fileInputRef.current) fileInputRef.current.value = "";
+                }}
+                className="absolute -top-1.5 -right-1.5 p-0.5 bg-white border border-gray-200 rounded-full text-gray-400 hover:text-red-500 shadow-sm"
+              >
+                <X size={12} />
+              </button>
+            </div>
+          ) : (
+            <div
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.currentTarget.classList.add("border-indigo-400", "bg-indigo-50/50");
+              }}
+              onDragLeave={(e) => {
+                e.preventDefault();
+                e.currentTarget.classList.remove("border-indigo-400", "bg-indigo-50/50");
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                e.currentTarget.classList.remove("border-indigo-400", "bg-indigo-50/50");
+                const file = e.dataTransfer.files[0];
+                if (file && file.type.startsWith("image/")) {
+                  const dt = new DataTransfer();
+                  dt.items.add(file);
+                  if (fileInputRef.current) {
+                    fileInputRef.current.files = dt.files;
+                    fileInputRef.current.dispatchEvent(new Event("change", { bubbles: true }));
+                  }
+                }
+              }}
+              onClick={() => fileInputRef.current?.click()}
+              className="flex flex-col items-center justify-center gap-2 px-4 py-6 border-2 border-dashed border-gray-300 rounded-lg text-gray-400 hover:border-gray-400 hover:text-gray-500 transition-colors cursor-pointer"
+            >
+              {uploading ? (
+                <Loader2 size={24} className="animate-spin text-indigo-500" />
+              ) : (
+                <Upload size={24} />
+              )}
+              <div className="text-center">
+                <p className="text-xs font-medium">
+                  {uploading ? "Uploading..." : "Drop image here or click to upload"}
+                </p>
+                {uploading ? (
+                  <div className="w-48 mt-2">
+                    <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-indigo-500 rounded-full transition-all duration-200"
+                        style={{ width: `${uploadProgress}%` }}
+                      />
+                    </div>
+                    <p className="text-[10px] text-indigo-500 mt-1">{uploadProgress}%</p>
+                  </div>
+                ) : (
+                  <p className="text-[10px] text-gray-400 mt-0.5">800x600px recommended. JPG or PNG.</p>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-gray-600 uppercase tracking-wide mb-1.5">
+            Product Summary
+          </label>
+          <textarea
+            value={summary}
+            onChange={(e) => setSummary(e.target.value)}
+            placeholder="Brief description of what this product offers..."
+            rows={3}
+            className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-black placeholder-gray-400 focus:border-black focus:ring-1 focus:ring-black focus:outline-none resize-y"
+          />
+        </div>
+      </div>
+
+      {/* Product Brain */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between pb-1 border-b border-gray-200">
+          <div className="flex items-center gap-2">
+            <Brain size={16} className="text-gray-500" />
+            <h3 className="text-sm font-semibold text-black">Product Brain</h3>
           </div>
-        </>
-      )}
+          <button
+            type="button"
+            onClick={handleGenerateBrain}
+            disabled={generating || !name.trim()}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 rounded-md hover:bg-indigo-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {generating ? (
+              <Loader2 size={12} className="animate-spin" />
+            ) : (
+              <Sparkles size={12} />
+            )}
+            {generating ? "Generating..." : "Generate with AI"}
+          </button>
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-gray-600 uppercase tracking-wide mb-1.5">
+            Unique Selling Proposition (USP)
+          </label>
+          <textarea
+            value={usp}
+            onChange={(e) => setUsp(e.target.value)}
+            placeholder="What makes this product uniquely valuable? Why choose it over alternatives?"
+            rows={3}
+            className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-black placeholder-gray-400 focus:border-black focus:ring-1 focus:ring-black focus:outline-none resize-y"
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-gray-600 uppercase tracking-wide mb-1.5">
+            Reason to Believe (RTB)
+          </label>
+          <textarea
+            value={rtb}
+            onChange={(e) => setRtb(e.target.value)}
+            placeholder="Evidence or proof points that back up the USP..."
+            rows={3}
+            className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-black placeholder-gray-400 focus:border-black focus:ring-1 focus:ring-black focus:outline-none resize-y"
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-medium text-gray-600 uppercase tracking-wide mb-1.5">
+              Functional Benefits
+            </label>
+            <textarea
+              value={functionalBenefits}
+              onChange={(e) => setFunctionalBenefits(e.target.value)}
+              placeholder={`e.g. Saves 10 hours/week, Reduces cost by 30%`}
+              rows={3}
+              className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-black placeholder-gray-400 focus:border-black focus:ring-1 focus:ring-black focus:outline-none resize-y"
+            />
+            <p className="text-xs text-gray-400 mt-1">One benefit per line.</p>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 uppercase tracking-wide mb-1.5">
+              Emotional Benefits
+            </label>
+            <textarea
+              value={emotionalBenefits}
+              onChange={(e) => setEmotionalBenefits(e.target.value)}
+              placeholder={`e.g. Feel confident, Peace of mind`}
+              rows={3}
+              className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-black placeholder-gray-400 focus:border-black focus:ring-1 focus:ring-black focus:outline-none resize-y"
+            />
+            <p className="text-xs text-gray-400 mt-1">One benefit per line.</p>
+          </div>
+        </div>
+
+        <Input
+          label="Target Audience"
+          value={targetAudience}
+          onChange={(e) => setTargetAudience(e.target.value)}
+          placeholder="e.g. SME owners looking to scale digital presence"
+        />
+      </div>
+
+      {error && <p className="text-xs text-red-600">{error}</p>}
+
+      <div className="flex justify-end gap-2 pt-2">
+        <Button variant="secondary" onClick={onCancel}>Cancel</Button>
+        <Button onClick={handleSubmit} loading={loading}>
+          <Save size={14} className="mr-1.5" />
+          {mode === "edit" ? "Save Changes" : "Save Product"}
+        </Button>
+      </div>
     </div>
   );
 }

@@ -178,6 +178,102 @@ Make topics diverse, engaging, and aligned with the brand voice.`;
 		}
 	}
 
+	async generateProductBrain(input: {
+		productName: string;
+		brandName: string;
+		productType?: string;
+		priceTier?: string;
+		summary?: string;
+	}): Promise<{
+		usp?: string;
+		rtb?: string;
+		functionalBenefits?: string[];
+		emotionalBenefits?: string[];
+		targetAudience?: string;
+		summary?: string;
+	}> {
+		const context = [
+			`Product: ${input.productName}`,
+			`Brand: ${input.brandName}`,
+			input.productType ? `Type: ${input.productType}` : "",
+			input.priceTier ? `Price Tier: ${input.priceTier}` : "",
+			input.summary ? `Description: ${input.summary}` : "",
+		]
+			.filter(Boolean)
+			.join("\n");
+
+		const response = await this.client.messages.create({
+			model: this.model,
+			max_tokens: 1024,
+			system: "You are a product marketing expert. You MUST respond with ONLY valid JSON. No markdown, no code blocks, no explanations.",
+			messages: [
+				{
+					role: "user",
+					content: `Based on the following product information, generate product brain content for AI-powered content generation.
+
+${context}
+
+Return JSON with these fields:
+- summary (string): A compelling product summary if not already provided
+- usp (string): Unique selling proposition — what makes this product uniquely valuable
+- rtb (string): Reason to believe — evidence or proof points that support the USP
+- functionalBenefits (array of strings): Practical benefits (e.g. "Saves 10 hours/week")
+- emotionalBenefits (array of strings): Emotional benefits (e.g. "Feel confident", "Peace of mind")
+- targetAudience (string): Who this product is for — demographics, pain points, goals`,
+				},
+			],
+		});
+
+		const text = response.content[0].type === "text" ? response.content[0].text : "";
+		try {
+			return parseJsonResponse(text);
+		} catch {
+			throw new Error("Failed to parse AI response for product brain generation");
+		}
+	}
+
+	async scrapeProduct(input: { url: string }): Promise<{
+		name?: string;
+		type?: string;
+		priceTier?: string;
+		summary?: string;
+		usp?: string;
+		rtb?: string;
+		functionalBenefits?: string[];
+		emotionalBenefits?: string[];
+		targetAudience?: string;
+	}> {
+		const response = await this.client.messages.create({
+			model: this.model,
+			max_tokens: 1024,
+			system: "You are a product marketing expert. You MUST respond with ONLY valid JSON. No markdown, no code blocks, no explanations.",
+			messages: [
+				{
+					role: "user",
+					content: `Analyze this product URL and extract product information: ${input.url}
+
+Return JSON with these fields:
+- name (string): Product name
+- type (string): Product type (e.g. Service, SaaS, Physical, Insurance)
+- priceTier (string): Price tier if detectable (e.g. Premium, Mid-range, Budget)
+- summary (string): What this product does, who it's for, key value proposition
+- usp (string): Unique selling proposition — what makes it uniquely valuable
+- rtb (string): Reason to believe — evidence, proof points, credentials
+- functionalBenefits (array of strings): Practical benefits
+- emotionalBenefits (array of strings): Emotional benefits
+- targetAudience (string): Who this product is for`,
+				},
+			],
+		});
+
+		const text = response.content[0].type === "text" ? response.content[0].text : "";
+		try {
+			return parseJsonResponse(text);
+		} catch {
+			throw new Error("Failed to parse AI response for product scraping");
+		}
+	}
+
 	async scrape(input: BrandScrapingInput): Promise<BrandScrapingOutput> {
 		const systemPrompt = `You are a brand analyst expert. Analyze the provided URL and extract brand identity information.
 You MUST respond with ONLY valid JSON. No markdown, no code blocks, no explanations.`;

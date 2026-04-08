@@ -8,9 +8,10 @@ interface DrawerProps {
   subtitle?: string;
   children: ReactNode;
   headerActions?: ReactNode;
+  headerExtra?: ReactNode;
 }
 
-export function Drawer({ isOpen, onClose, title, subtitle, children, headerActions }: DrawerProps) {
+export function Drawer({ isOpen, onClose, title, subtitle, children, headerActions, headerExtra }: DrawerProps) {
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = "hidden";
@@ -39,6 +40,7 @@ export function Drawer({ isOpen, onClose, title, subtitle, children, headerActio
             </button>
           </div>
         </div>
+        {headerExtra}
         {/* Body */}
         <div className="flex-1 overflow-y-auto">
           {children}

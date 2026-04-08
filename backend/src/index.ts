@@ -255,6 +255,9 @@ async function main() {
 	// Public routes (no auth needed)
 	app.route("/api/auth", createAuthRoutes(authService));
 
+	// SSE route (handles its own auth via query parameter token)
+	app.route("/api/sse", createSSERoutes(notificationService, env.jwtSecret));
+
 	// Protected routes
 	app.use("/api/*", authMiddleware);
 
@@ -271,14 +274,11 @@ async function main() {
 	// Taxonomy routes (auth protected, no workspace scoping)
 	app.route("/api/taxonomy", createTaxonomyRoutes(taxonomyService));
 
-	// SSE route (NOT workspace-scoped)
-	app.route("/api/sse", createSSERoutes(notificationService, env.jwtSecret));
-
 	// Workspace-scoped routes (auth + workspace middleware)
 	const workspaceScoped = new Hono();
 	workspaceScoped.use("*", wsMiddleware);
-	workspaceScoped.route("/brands", createBrandRoutes(brandService, boss));
-	workspaceScoped.route("/products", createProductRoutes(productService));
+	workspaceScoped.route("/brands", createBrandRoutes(brandService, boss, resolveBrandScraper()));
+	workspaceScoped.route("/products", createProductRoutes(productService, resolveBrandScraper(), storageProvider, env.minioBucket));
 	workspaceScoped.route("/generations", createGenerationRoutes(generationService));
 	workspaceScoped.route("/library", createLibraryRoutes(libraryService));
 	workspaceScoped.route("/campaigns", createCampaignRoutes(campaignService));
@@ -291,12 +291,23 @@ async function main() {
 	// Health check
 	app.get("/api/health", (c) => c.json({ status: "ok" }));
 
+	// ─── Storage init ───────────────────────────────────────────────
+	const bucketResults = await storageProvider.init(env.minioBucket);
+	for (const [bucket, status] of bucketResults) {
+		if (status === "created") {
+			logger.info(`Storage bucket "${bucket}" created`);
+		} else {
+			logger.info(`Storage bucket "${bucket}" already exists`);
+		}
+	}
+
 	// ─── Start ──────────────────────────────────────────────────────
 	logger.info(`Starting server on port ${env.port}`);
 
 	Bun.serve({
 		port: env.port,
 		fetch: app.fetch,
+		idleTimeout: 255,
 	});
 }
 

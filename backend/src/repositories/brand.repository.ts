@@ -4,10 +4,16 @@ import type { IBrandRepository } from "../interfaces/repositories/brand.reposito
 export class BrandRepository implements IBrandRepository {
 	constructor(private prisma: PrismaClient) {}
 
-	async findByWorkspace(workspaceId: string): Promise<Brand[]> {
+	async findByWorkspace(workspaceId: string): Promise<(Brand & { brainVersions: BrandBrainVersion[] })[]> {
 		return this.prisma.brand.findMany({
 			where: { workspaceId },
 			orderBy: { updatedAt: "desc" },
+			include: {
+				brainVersions: {
+					where: { isActive: true },
+					take: 1,
+				},
+			},
 		});
 	}
 
@@ -39,6 +45,10 @@ export class BrandRepository implements IBrandRepository {
 		>,
 	): Promise<Brand> {
 		return this.prisma.brand.update({ where: { id }, data });
+	}
+
+	async delete(id: string): Promise<void> {
+		await this.prisma.brand.delete({ where: { id } });
 	}
 
 	async findActiveBrainVersion(brandId: string): Promise<BrandBrainVersion | null> {

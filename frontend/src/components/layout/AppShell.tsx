@@ -11,7 +11,6 @@ import {
   Library,
   GraduationCap,
   Settings,
-  Users,
   Shield,
   ChevronDown,
   Check,
@@ -26,21 +25,47 @@ import { Input } from "../ui/Input";
 import { Button } from "../ui/Button";
 import { api } from "../../services/api";
 
-const navItems = [
-  { to: "/", label: "Dashboard", icon: LayoutDashboard, exact: true },
-  { to: "/brands", label: "Brands", icon: Palette },
-  { to: "/products", label: "Products", icon: Package },
-  { to: "/generate", label: "Generate", icon: Sparkles },
-  { to: "/campaigns", label: "Campaigns", icon: Megaphone },
-  { to: "/topics", label: "Topics", icon: Lightbulb },
-  { to: "/topic-library", label: "Topic Library", icon: BookOpen },
-  { to: "/library", label: "Library", icon: Library },
-  { to: "/learning", label: "Learning", icon: GraduationCap },
-];
+interface NavItem {
+  to: string;
+  label: string;
+  icon: React.ComponentType<{ size?: number }>;
+  exact?: boolean;
+}
 
-const bottomNavItems = [
-  { to: "/settings", label: "Settings", icon: Settings },
-  { to: "/workspace-settings", label: "Workspace Settings", icon: Users },
+interface NavSection {
+  label?: string;
+  items: NavItem[];
+}
+
+const navSections: NavSection[] = [
+  {
+    items: [
+      { to: "/", label: "Dashboard", icon: LayoutDashboard, exact: true },
+    ],
+  },
+  {
+    label: "Core",
+    items: [
+      { to: "/brands", label: "Brand Brain", icon: Palette },
+      { to: "/products", label: "Product Brain", icon: Package },
+    ],
+  },
+  {
+    label: "Generate",
+    items: [
+      { to: "/topics", label: "Topic Generator", icon: Lightbulb },
+      { to: "/generate", label: "Content Generator", icon: Sparkles },
+      { to: "/campaigns", label: "Campaign Generator", icon: Megaphone },
+    ],
+  },
+  {
+    label: "Manage",
+    items: [
+      { to: "/topic-library", label: "Topic Library", icon: BookOpen },
+      { to: "/library", label: "Content Library", icon: Library },
+      { to: "/learning", label: "Learning Center", icon: GraduationCap },
+    ],
+  },
 ];
 
 export function AppShell() {
@@ -104,36 +129,44 @@ export function AppShell() {
         </div>
 
         {/* Main Navigation */}
-        <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.exact}
-              className={navLinkClass}
-            >
-              <item.icon size={14} />
-              <span>{item.label}</span>
-            </NavLink>
+        <nav className="flex-1 px-3 py-3 overflow-y-auto space-y-4">
+          {navSections.map((section, i) => (
+            <div key={section.label ?? i}>
+              {section.label && (
+                <p className="px-2 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+                  {section.label}
+                </p>
+              )}
+              <div className="space-y-0.5">
+                {section.items.map((item) => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    end={item.exact}
+                    className={navLinkClass}
+                  >
+                    <item.icon size={14} />
+                    <span>{item.label}</span>
+                  </NavLink>
+                ))}
+              </div>
+            </div>
           ))}
+        </nav>
 
-          {/* Separator */}
-          <div className="my-2 border-t border-gray-800" />
-
-          {bottomNavItems.map((item) => (
-            <NavLink key={item.to} to={item.to} className={navLinkClass}>
-              <item.icon size={14} />
-              <span>{item.label}</span>
-            </NavLink>
-          ))}
-
+        {/* Bottom nav — Settings */}
+        <div className="px-3 pb-1 space-y-0.5">
+          <NavLink to="/settings" className={navLinkClass}>
+            <Settings size={14} />
+            <span>Settings</span>
+          </NavLink>
           {user.isSuperadmin && (
             <NavLink to="/admin" className={navLinkClass}>
               <Shield size={14} />
               <span>Admin</span>
             </NavLink>
           )}
-        </nav>
+        </div>
 
         {/* Workspace Switcher */}
         <div className="border-t border-gray-800 px-3 py-3">

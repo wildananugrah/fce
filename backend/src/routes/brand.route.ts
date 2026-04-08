@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import type { PgBoss } from "pg-boss";
 import type { IBrandService } from "../interfaces/services/brand.service.interface";
+import type { IBrandScraper } from "../interfaces/providers/brand-scraper.interface";
 
 type Variables = {
 	userId: string;
@@ -9,7 +10,7 @@ type Variables = {
 	workspaceRole: string;
 };
 
-export function createBrandRoutes(brandService: IBrandService, boss: PgBoss) {
+export function createBrandRoutes(brandService: IBrandService, boss: PgBoss, brandScraper?: IBrandScraper) {
 	const app = new Hono<{ Variables: Variables }>();
 
 	// GET / — list brands
@@ -44,11 +45,31 @@ export function createBrandRoutes(brandService: IBrandService, boss: PgBoss) {
 		return c.json({ data: brand });
 	});
 
+	// DELETE /:id — delete brand
+	app.delete("/:id", async (c) => {
+		await brandService.delete(c.req.param("id"));
+		return c.json({ data: { success: true } });
+	});
+
 	// POST /:id/brain-versions — create new brain version
 	app.post("/:id/brain-versions", async (c) => {
 		const body = await c.req.json();
 		const brainVersion = await brandService.createBrainVersion(c.req.param("id"), body);
 		return c.json({ data: brainVersion }, 201);
+	});
+
+	// POST /scrape-preview — synchronous scrape, returns AI result without saving
+	app.post("/scrape-preview", async (c) => {
+		if (!brandScraper) {
+			return c.json({ error: "Brand scraper not configured" }, 500);
+		}
+		const body = await c.req.json();
+		const { url } = body;
+		if (!url) {
+			return c.json({ error: "url is required" }, 400);
+		}
+		const result = await brandScraper.scrape({ url });
+		return c.json({ data: result });
 	});
 
 	// POST /:id/scrape — enqueue brand scraping job

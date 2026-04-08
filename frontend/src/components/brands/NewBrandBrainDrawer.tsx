@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Globe,
   Building2,
@@ -12,6 +12,7 @@ import {
   Save,
   X,
   Plus,
+  Loader2,
 } from "lucide-react";
 import { Drawer } from "../ui/Drawer";
 import { Button } from "../ui/Button";
@@ -20,11 +21,31 @@ import { api } from "../../services/api";
 
 // ── Types ──────────────────────────────────────────────────────
 
+interface EditBrand {
+  id: string;
+  name: string;
+  slug: string;
+  category: string | null;
+  websiteUrl: string | null;
+  brainVersions?: {
+    id: string;
+    version: number;
+    personality?: string | null;
+    tone?: string | null;
+    audiencePersonas?: any;
+    values?: any;
+    messagingRules?: any;
+    vocabulary?: any;
+    isActive: boolean;
+  }[];
+}
+
 interface NewBrandBrainDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   workspaceId: string;
   onCreated: () => void;
+  editBrand?: EditBrand | null;
 }
 
 interface BrandFormData {
@@ -274,12 +295,65 @@ export function NewBrandBrainDrawer({
   onClose,
   workspaceId,
   onCreated,
+  editBrand,
 }: NewBrandBrainDrawerProps) {
+  const isEditMode = !!editBrand;
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
   const [form, setForm] = useState<BrandFormData>({ ...INITIAL_DATA });
   const [saving, setSaving] = useState(false);
   const [scraping, setScraping] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // Load brand data when opening in edit mode
+  useEffect(() => {
+    if (!isOpen) {
+      // Reset form when drawer closes
+      setForm({ ...INITIAL_DATA });
+      setActiveTab("overview");
+      setError("");
+      return;
+    }
+    if (!editBrand) return;
+
+    const loadBrand = async () => {
+      setLoading(true);
+      try {
+        const brand = await api<EditBrand>(`/api/workspaces/${workspaceId}/brands/${editBrand.id}`);
+        const brain = brand.brainVersions?.find((v) => v.isActive) ?? brand.brainVersions?.[0];
+        const vocab = brain?.vocabulary ?? {};
+        const rules = brain?.messagingRules ?? {};
+        const audience = brain?.audiencePersonas;
+        const audienceText = Array.isArray(audience)
+          ? audience.map((a: any) => a.traits?.join(", ") ?? a.name).join("; ")
+          : "";
+
+        setForm({
+          websiteUrl: brand.websiteUrl ?? "",
+          name: brand.name,
+          industry: brand.category ?? "",
+          summary: vocab.summary ?? "",
+          tone: brain?.tone ?? "",
+          personality: brain?.personality ?? "",
+          contentLanguage: vocab.contentLanguage ?? "English",
+          platforms: vocab.preferred ?? [],
+          targetAudience: audienceText,
+          brandValues: Array.isArray(brain?.values) ? brain.values : [],
+          brandPromise: vocab.brandPromise ?? "",
+          usp: vocab.usp ?? "",
+          contentPillars: vocab.contentPillars ?? [],
+          marketingStrategy: vocab.marketingStrategy ?? "",
+          dos: Array.isArray(rules.do) ? rules.do : [],
+          donts: Array.isArray(rules.dont) ? rules.dont : [],
+        });
+      } catch {
+        setError("Failed to load brand data");
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadBrand();
+  }, [isOpen, editBrand, workspaceId]);
 
   const update = <K extends keyof BrandFormData>(key: K, value: BrandFormData[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -309,27 +383,71 @@ export function NewBrandBrainDrawer({
     setScraping(true);
     setError("");
     try {
-      // First create the brand so we have an ID for the scraping job
-      const brand = await api<{ id: string }>(`/api/workspaces/${workspaceId}/brands`, {
-        method: "POST",
-        body: JSON.stringify({
-          name: form.name.trim() || new URL(form.websiteUrl).hostname.replace("www.", ""),
-          slug: generateSlug(form.name.trim() || new URL(form.websiteUrl).hostname.replace("www.", "")),
-          websiteUrl: form.websiteUrl.trim(),
-        }),
-      });
-      // Enqueue scraping job
-      await api(`/api/workspaces/${workspaceId}/brands/${brand.id}/scrape`, {
+      const result = await api<{
+        name: string;
+        category?: string;
+        summary?: string;
+        personality?: string;
+        tone?: string;
+        targetAudience?: string;
+        brandPromise?: string;
+        usp?: string;
+        values?: string[];
+        contentPillars?: string[];
+        marketingStrategy?: string;
+        dos?: string[];
+        donts?: string[];
+      }>(`/api/workspaces/${workspaceId}/brands/scrape-preview`, {
         method: "POST",
         body: JSON.stringify({ url: form.websiteUrl.trim() }),
       });
-      onCreated();
-      onClose();
+
+      setForm((prev) => ({
+        ...prev,
+        name: result.name || prev.name,
+        industry: result.category || prev.industry,
+        summary: result.summary || prev.summary,
+        personality: result.personality || prev.personality,
+        tone: result.tone || prev.tone,
+        targetAudience: result.targetAudience || prev.targetAudience,
+        brandPromise: result.brandPromise || prev.brandPromise,
+        usp: result.usp || prev.usp,
+        brandValues: result.values?.length ? result.values : prev.brandValues,
+        contentPillars: result.contentPillars?.length ? result.contentPillars : prev.contentPillars,
+        marketingStrategy: result.marketingStrategy || prev.marketingStrategy,
+        dos: result.dos?.length ? result.dos : prev.dos,
+        donts: result.donts?.length ? result.donts : prev.donts,
+      }));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Auto-fill failed");
     } finally {
       setScraping(false);
     }
+  };
+
+  const buildBrainPayload = () => {
+    const messagingRules: Record<string, string[]> = {};
+    if (form.dos.filter(Boolean).length > 0) messagingRules.do = form.dos.filter(Boolean);
+    if (form.donts.filter(Boolean).length > 0) messagingRules.dont = form.donts.filter(Boolean);
+
+    return {
+      personality: form.personality.trim() || undefined,
+      tone: form.tone.trim() || undefined,
+      audiencePersonas: form.targetAudience.trim()
+        ? [{ name: "Primary", traits: [form.targetAudience.trim()] }]
+        : undefined,
+      values: form.brandValues.length > 0 ? form.brandValues : undefined,
+      messagingRules: Object.keys(messagingRules).length > 0 ? messagingRules : undefined,
+      vocabulary: {
+        preferred: form.platforms,
+        contentLanguage: form.contentLanguage,
+        brandPromise: form.brandPromise.trim() || undefined,
+        usp: form.usp.trim() || undefined,
+        summary: form.summary.trim() || undefined,
+        contentPillars: form.contentPillars.filter(Boolean),
+        marketingStrategy: form.marketingStrategy.trim() || undefined,
+      },
+    };
   };
 
   const handleSave = async () => {
@@ -341,47 +459,42 @@ export function NewBrandBrainDrawer({
     setSaving(true);
     setError("");
     try {
-      // Create the brand
-      const brand = await api<{ id: string }>(`/api/workspaces/${workspaceId}/brands`, {
-        method: "POST",
-        body: JSON.stringify({
-          name: form.name.trim(),
-          slug: generateSlug(form.name.trim()),
-          category: form.industry.trim() || undefined,
-          websiteUrl: form.websiteUrl.trim() || undefined,
-        }),
-      });
+      if (isEditMode && editBrand) {
+        // Update existing brand
+        await api(`/api/workspaces/${workspaceId}/brands/${editBrand.id}`, {
+          method: "PATCH",
+          body: JSON.stringify({
+            name: form.name.trim(),
+            category: form.industry.trim() || null,
+            websiteUrl: form.websiteUrl.trim() || null,
+          }),
+        });
 
-      // Create brain version with all the data
-      const messagingRules: Record<string, string[]> = {};
-      if (form.dos.filter(Boolean).length > 0) messagingRules.do = form.dos.filter(Boolean);
-      if (form.donts.filter(Boolean).length > 0) messagingRules.dont = form.donts.filter(Boolean);
+        // Create new brain version with updated data
+        await api(`/api/workspaces/${workspaceId}/brands/${editBrand.id}/brain-versions`, {
+          method: "POST",
+          body: JSON.stringify(buildBrainPayload()),
+        });
+      } else {
+        // Create new brand
+        const brand = await api<{ id: string }>(`/api/workspaces/${workspaceId}/brands`, {
+          method: "POST",
+          body: JSON.stringify({
+            name: form.name.trim(),
+            slug: generateSlug(form.name.trim()),
+            category: form.industry.trim() || undefined,
+            websiteUrl: form.websiteUrl.trim() || undefined,
+          }),
+        });
 
-      await api(`/api/workspaces/${workspaceId}/brands/${brand.id}/brain-versions`, {
-        method: "POST",
-        body: JSON.stringify({
-          personality: form.personality.trim() || undefined,
-          tone: form.tone.trim() || undefined,
-          audiencePersonas: form.targetAudience.trim()
-            ? [{ name: "Primary", traits: [form.targetAudience.trim()] }]
-            : undefined,
-          values: form.brandValues.length > 0 ? form.brandValues : undefined,
-          messagingRules: Object.keys(messagingRules).length > 0 ? messagingRules : undefined,
-          vocabulary: {
-            preferred: form.platforms,
-            contentLanguage: form.contentLanguage,
-            brandPromise: form.brandPromise.trim() || undefined,
-            usp: form.usp.trim() || undefined,
-            summary: form.summary.trim() || undefined,
-            contentPillars: form.contentPillars.filter(Boolean),
-            marketingStrategy: form.marketingStrategy.trim() || undefined,
-          },
-        }),
-      });
+        await api(`/api/workspaces/${workspaceId}/brands/${brand.id}/brain-versions`, {
+          method: "POST",
+          body: JSON.stringify(buildBrainPayload()),
+        });
+      }
 
       onCreated();
       onClose();
-      setForm({ ...INITIAL_DATA });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to save brand");
     } finally {
@@ -393,13 +506,23 @@ export function NewBrandBrainDrawer({
     <Drawer
       isOpen={isOpen}
       onClose={onClose}
-      title="New Brand Brain"
-      subtitle="Define your brand's DNA for AI-powered content generation."
+      title={isEditMode ? editBrand!.name : "New Brand Brain"}
+      subtitle={isEditMode ? "Edit brand DNA and AI configuration." : "Define your brand's DNA for AI-powered content generation."}
       headerActions={
         <Button onClick={handleSave} loading={saving} size="sm">
           <Save size={14} className="mr-1.5" />
-          Save Brand
+          {isEditMode ? "Save Changes" : "Save Brand"}
         </Button>
+      }
+      headerExtra={
+        scraping ? (
+          <div className="px-6 py-2.5 bg-indigo-50 border-b border-indigo-100 flex items-center gap-2.5 shrink-0">
+            <Loader2 size={14} className="text-indigo-600 animate-spin" />
+            <span className="text-xs font-medium text-indigo-700">
+              AI is analyzing the website and filling in brand details. You can browse tabs while it loads...
+            </span>
+          </div>
+        ) : null
       }
     >
       <div className="flex h-full">
@@ -428,6 +551,11 @@ export function NewBrandBrainDrawer({
         {/* Tab content */}
         <div className="flex-1 flex flex-col">
           <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 size={24} className="text-gray-400 animate-spin" />
+              </div>
+            ) : (<>
             {activeTab === "overview" && (
               <>
                 <div>
@@ -697,6 +825,7 @@ export function NewBrandBrainDrawer({
             )}
 
             {error && <p className="text-xs text-red-600">{error}</p>}
+            </>)}
           </div>
 
           {/* Footer navigation */}

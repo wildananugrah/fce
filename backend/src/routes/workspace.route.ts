@@ -38,12 +38,14 @@ export function createWorkspaceRoutes(workspaceService: IWorkspaceService) {
 
 	// PATCH /:id — update workspace
 	app.patch("/:id", async (c) => {
-		const role = c.get("workspaceRole");
+		const userId = c.get("userId");
+		const workspaceId = c.req.param("id");
+		const role = await workspaceService.getMemberRole(userId, workspaceId);
 		if (role !== "admin") {
 			return c.json({ error: "Admin access required" }, 403);
 		}
 		const body = await c.req.json();
-		const workspace = await workspaceService.update(c.req.param("id"), body);
+		const workspace = await workspaceService.update(workspaceId, body);
 		return c.json({ data: workspace });
 	});
 
@@ -55,11 +57,12 @@ export function createWorkspaceRoutes(workspaceService: IWorkspaceService) {
 
 	// POST /:id/invitations — invite member
 	app.post("/:id/invitations", async (c) => {
-		const role = c.get("workspaceRole");
+		const userId = c.get("userId");
+		const workspaceId = c.req.param("id");
+		const role = await workspaceService.getMemberRole(userId, workspaceId);
 		if (role !== "admin") {
 			return c.json({ error: "Admin access required" }, 403);
 		}
-		const userId = c.get("userId");
 		const body = await c.req.json();
 		if (!body.email) {
 			return c.json({ error: "Email is required" }, 400);
@@ -89,11 +92,13 @@ export function createWorkspaceRoutes(workspaceService: IWorkspaceService) {
 
 	// DELETE /:id/members/:memberId — remove member
 	app.delete("/:id/members/:memberId", async (c) => {
-		const role = c.get("workspaceRole");
+		const userId = c.get("userId");
+		const workspaceId = c.req.param("id");
+		const role = await workspaceService.getMemberRole(userId, workspaceId);
 		if (role !== "admin") {
 			return c.json({ error: "Admin access required" }, 403);
 		}
-		await workspaceService.removeMember(c.req.param("id"), c.req.param("memberId"));
+		await workspaceService.removeMember(workspaceId, c.req.param("memberId"));
 		return c.json({ data: { success: true } });
 	});
 

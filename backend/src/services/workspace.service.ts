@@ -54,8 +54,20 @@ export class WorkspaceService implements IWorkspaceService {
 		return this.workspaceRepository.update(id, input);
 	}
 
+	async getMemberRole(userId: string, workspaceId: string): Promise<string | null> {
+		const role = await this.workspaceRepository.findRole(userId, workspaceId);
+		return role?.role ?? null;
+	}
+
 	async listMembers(workspaceId: string): Promise<any[]> {
-		return this.workspaceRepository.findMembers(workspaceId);
+		const members = await this.workspaceRepository.findMembers(workspaceId);
+		return members.map((m) => ({
+			userId: m.userId,
+			email: m.user.email,
+			fullName: m.user.fullName,
+			avatarUrl: m.user.avatarUrl,
+			role: m.role,
+		}));
 	}
 
 	async invite(

@@ -36,6 +36,14 @@ export class BrandService implements IBrandService {
 		return this.brandRepository.update(id, input);
 	}
 
+	async delete(id: string): Promise<void> {
+		const brand = await this.brandRepository.findById(id);
+		if (!brand) {
+			throw new Error("Brand not found");
+		}
+		await this.brandRepository.delete(id);
+	}
+
 	async createBrainVersion(
 		brandId: string,
 		input: CreateBrainVersionInput,

@@ -3,11 +3,17 @@ export interface CreateProductInput {
 	name: string;
 	slug: string;
 	type?: string;
+	priceTier?: string;
+	summary?: string;
+	imageUrl?: string;
 }
 
 export interface UpdateProductInput {
 	name?: string;
 	type?: string;
+	priceTier?: string;
+	summary?: string;
+	imageUrl?: string;
 	status?: string;
 }
 

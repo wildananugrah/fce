@@ -173,6 +173,98 @@ You MUST respond with ONLY valid JSON. No markdown, no code blocks, no explanati
 		}
 	}
 
+	async generateProductBrain(input: {
+		productName: string;
+		brandName: string;
+		productType?: string;
+		priceTier?: string;
+		summary?: string;
+	}): Promise<{
+		usp?: string;
+		rtb?: string;
+		functionalBenefits?: string[];
+		emotionalBenefits?: string[];
+		targetAudience?: string;
+		summary?: string;
+	}> {
+		const context = [
+			`Product: ${input.productName}`,
+			`Brand: ${input.brandName}`,
+			input.productType ? `Type: ${input.productType}` : "",
+			input.priceTier ? `Price Tier: ${input.priceTier}` : "",
+			input.summary ? `Description: ${input.summary}` : "",
+		]
+			.filter(Boolean)
+			.join("\n");
+
+		const prompt = `You are a product marketing expert. Based on the following product information, generate product brain content for AI-powered content generation.
+
+${context}
+
+Return JSON with these fields:
+- summary (string): A compelling product summary if not already provided
+- usp (string): Unique selling proposition — what makes this product uniquely valuable
+- rtb (string): Reason to believe — evidence or proof points that support the USP
+- functionalBenefits (array of strings): Practical benefits (e.g. "Saves 10 hours/week")
+- emotionalBenefits (array of strings): Emotional benefits (e.g. "Feel confident", "Peace of mind")
+- targetAudience (string): Who this product is for — demographics, pain points, goals
+
+You MUST respond with ONLY valid JSON. No markdown, no code blocks, no explanations.`;
+
+		const response = await this.ai.models.generateContent({
+			model: this.model,
+			contents: prompt,
+		});
+
+		const text = response.text ?? "";
+		try {
+			return parseJsonResponse(text);
+		} catch {
+			throw new Error("Failed to parse AI response for product brain generation");
+		}
+	}
+
+	async scrapeProduct(input: { url: string }): Promise<{
+		name?: string;
+		type?: string;
+		priceTier?: string;
+		summary?: string;
+		usp?: string;
+		rtb?: string;
+		functionalBenefits?: string[];
+		emotionalBenefits?: string[];
+		targetAudience?: string;
+	}> {
+		const prompt = `You are a product marketing expert. Analyze the provided product URL and extract product information for AI-powered content generation.
+
+Analyze this product URL: ${input.url}
+
+Return JSON with these fields:
+- name (string): Product name
+- type (string): Product type (e.g. Service, SaaS, Physical, Insurance)
+- priceTier (string): Price tier if detectable (e.g. Premium, Mid-range, Budget)
+- summary (string): What this product does, who it's for, key value proposition
+- usp (string): Unique selling proposition — what makes it uniquely valuable
+- rtb (string): Reason to believe — evidence, proof points, credentials
+- functionalBenefits (array of strings): Practical benefits (e.g. "Saves 10 hours/week")
+- emotionalBenefits (array of strings): Emotional benefits (e.g. "Feel confident")
+- targetAudience (string): Who this product is for — demographics, pain points, goals
+
+You MUST respond with ONLY valid JSON. No markdown, no code blocks, no explanations.`;
+
+		const response = await this.ai.models.generateContent({
+			model: this.model,
+			contents: prompt,
+		});
+
+		const text = response.text ?? "";
+		try {
+			return parseJsonResponse(text);
+		} catch {
+			throw new Error("Failed to parse AI response for product scraping");
+		}
+	}
+
 	async scrape(input: BrandScrapingInput): Promise<BrandScrapingOutput> {
 		const prompt = `You are a brand analyst expert. Analyze the provided URL and extract brand identity information.
 

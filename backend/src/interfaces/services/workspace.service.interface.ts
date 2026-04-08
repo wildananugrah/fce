@@ -11,6 +11,7 @@ export interface IWorkspaceService {
 	getById(id: string): Promise<Workspace>;
 	create(userId: string, input: CreateWorkspaceInput): Promise<Workspace>;
 	update(id: string, input: UpdateWorkspaceInput): Promise<Workspace>;
+	getMemberRole(userId: string, workspaceId: string): Promise<string | null>;
 
 	listMembers(workspaceId: string): Promise<any[]>;
 	invite(

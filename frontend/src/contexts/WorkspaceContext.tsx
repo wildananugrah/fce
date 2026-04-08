@@ -1,5 +1,6 @@
 import { createContext, useState, useEffect, useCallback, type ReactNode } from "react";
 import { api } from "../services/api";
+import { useAuth } from "../hooks/useAuth";
 
 interface Workspace {
   id: string;
@@ -23,6 +24,7 @@ interface WorkspaceContextValue {
 export const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
+  const { user, isLoading: authLoading } = useAuth();
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [activeWorkspace, setActive] = useState<Workspace | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -48,8 +50,15 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    if (authLoading) return;
+    if (!user) {
+      setWorkspaces([]);
+      setActive(null);
+      setIsLoading(false);
+      return;
+    }
     refresh();
-  }, [refresh]);
+  }, [authLoading, user, refresh]);
 
   const setActiveWorkspace = useCallback((ws: Workspace) => {
     setActive(ws);

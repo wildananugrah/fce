@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import type { IProductService } from "../interfaces/services/product.service.interface";
+import type { IStorageProvider } from "../interfaces/providers/storage.provider.interface";
 
 type Variables = {
 	userId: string;
@@ -8,8 +9,92 @@ type Variables = {
 	workspaceRole: string;
 };
 
-export function createProductRoutes(productService: IProductService) {
+type ProductAIProvider = {
+	generateProductBrain(input: {
+		productName: string;
+		brandName: string;
+		productType?: string;
+		priceTier?: string;
+		summary?: string;
+	}): Promise<{
+		usp?: string;
+		rtb?: string;
+		functionalBenefits?: string[];
+		emotionalBenefits?: string[];
+		targetAudience?: string;
+		summary?: string;
+	}>;
+	scrapeProduct(input: { url: string }): Promise<{
+		name?: string;
+		type?: string;
+		priceTier?: string;
+		summary?: string;
+		usp?: string;
+		rtb?: string;
+		functionalBenefits?: string[];
+		emotionalBenefits?: string[];
+		targetAudience?: string;
+	}>;
+};
+
+export function createProductRoutes(
+	productService: IProductService,
+	aiGenerator?: ProductAIProvider,
+	storageProvider?: IStorageProvider,
+	storageBucket?: string,
+) {
 	const app = new Hono<{ Variables: Variables }>();
+
+	// POST /scrape-preview — scrape product URL and return all fields
+	app.post("/scrape-preview", async (c) => {
+		if (!aiGenerator) {
+			return c.json({ error: "AI provider not configured" }, 500);
+		}
+		const body = await c.req.json();
+		const { url } = body;
+		if (!url) {
+			return c.json({ error: "url is required" }, 400);
+		}
+		const result = await aiGenerator.scrapeProduct({ url });
+		return c.json({ data: result });
+	});
+
+	// POST /generate-brain — AI-generate product brain fields
+	app.post("/generate-brain", async (c) => {
+		if (!aiGenerator) {
+			return c.json({ error: "AI provider not configured" }, 500);
+		}
+		const body = await c.req.json();
+		const { productName, brandName, productType, priceTier, summary } = body;
+		if (!productName || !brandName) {
+			return c.json({ error: "productName and brandName are required" }, 400);
+		}
+		const result = await aiGenerator.generateProductBrain({
+			productName,
+			brandName,
+			productType,
+			priceTier,
+			summary,
+		});
+		return c.json({ data: result });
+	});
+
+	// POST /upload-image — upload product image
+	app.post("/upload-image", async (c) => {
+		if (!storageProvider || !storageBucket) {
+			return c.json({ error: "Storage not configured" }, 500);
+		}
+		const formData = await c.req.parseBody();
+		const file = formData.file as File;
+		if (!file) {
+			return c.json({ error: "file is required" }, 400);
+		}
+		const ext = file.name.split(".").pop() ?? "jpg";
+		const key = `products/${crypto.randomUUID()}.${ext}`;
+		const buffer = Buffer.from(await file.arrayBuffer());
+		const url = await storageProvider.upload(storageBucket, key, buffer, file.type);
+		return c.json({ data: { url } });
+	});
 
 	// GET / — list products
 	app.get("/", async (c) => {
@@ -22,11 +107,11 @@ export function createProductRoutes(productService: IProductService) {
 	app.post("/", async (c) => {
 		const workspaceId = c.get("workspaceId");
 		const body = await c.req.json();
-		const { brandId, name, slug, type } = body;
+		const { brandId, name, slug, type, priceTier, summary, imageUrl } = body;
 		if (!brandId || !name || !slug) {
 			return c.json({ error: "brandId, name, and slug are required" }, 400);
 		}
-		const product = await productService.create(workspaceId, { brandId, name, slug, type });
+		const product = await productService.create(workspaceId, { brandId, name, slug, type, priceTier, summary, imageUrl });
 		return c.json({ data: product }, 201);
 	});
 

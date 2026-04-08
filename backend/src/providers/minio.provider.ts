@@ -1,9 +1,16 @@
-import { DeleteObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import {
+	CreateBucketCommand,
+	DeleteObjectCommand,
+	HeadBucketCommand,
+	PutObjectCommand,
+	S3Client,
+} from "@aws-sdk/client-s3";
 import type { IStorageProvider } from "../interfaces/providers/storage.provider.interface";
 
 export class MinioStorageProvider implements IStorageProvider {
 	private client: S3Client;
 	private endpoint: string;
+	private ensuredBuckets = new Set<string>();
 
 	constructor(endpoint: string, accessKey: string, secretKey: string) {
 		this.endpoint = endpoint;
@@ -15,7 +22,36 @@ export class MinioStorageProvider implements IStorageProvider {
 		});
 	}
 
+	private async ensureBucket(bucket: string): Promise<"exists" | "created"> {
+		if (this.ensuredBuckets.has(bucket)) return "exists";
+		let created = false;
+		try {
+			await this.client.send(new HeadBucketCommand({ Bucket: bucket }));
+		} catch {
+			try {
+				await this.client.send(new CreateBucketCommand({ Bucket: bucket }));
+				created = true;
+			} catch (createErr: unknown) {
+				const code = (createErr as { name?: string }).name;
+				if (code !== "BucketAlreadyOwnedByYou" && code !== "BucketAlreadyExists") {
+					throw createErr;
+				}
+			}
+		}
+		this.ensuredBuckets.add(bucket);
+		return created ? "created" : "exists";
+	}
+
+	async init(...buckets: string[]): Promise<Map<string, "exists" | "created">> {
+		const results = new Map<string, "exists" | "created">();
+		for (const bucket of buckets) {
+			results.set(bucket, await this.ensureBucket(bucket));
+		}
+		return results;
+	}
+
 	async upload(bucket: string, key: string, data: Buffer, contentType: string): Promise<string> {
+		await this.ensureBucket(bucket);
 		await this.client.send(
 			new PutObjectCommand({ Bucket: bucket, Key: key, Body: data, ContentType: contentType }),
 		);

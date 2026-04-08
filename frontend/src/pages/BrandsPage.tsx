@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { Trash2, Globe, Dna } from "lucide-react";
 import { useWorkspace } from "../hooks/useWorkspace";
 import { api } from "../services/api";
 import { Button } from "../components/ui/Button";
@@ -25,7 +26,7 @@ interface Brand {
 
 interface BrainVersion {
   id: string;
-  versionNumber: number;
+  version: number;
   status: string;
   createdAt: string;
   personality?: string;
@@ -33,8 +34,16 @@ interface BrainVersion {
   audiencePersonas?: unknown;
   values?: string[];
   messagingRules?: unknown;
-  vocabularyPreferred?: string[];
-  vocabularyAvoided?: string[];
+  vocabulary?: {
+    preferred?: string[];
+    avoided?: string[];
+    contentLanguage?: string;
+    summary?: string;
+    brandPromise?: string;
+    usp?: string;
+    contentPillars?: string[];
+    marketingStrategy?: string;
+  };
 }
 
 type ToastState = { message: string; type: "success" | "error" | "info" } | null;
@@ -360,6 +369,20 @@ export function BrandsPage() {
     setToast({ message, type });
   };
 
+  const handleDelete = async (brandId: string, brandName: string) => {
+    if (!activeWorkspace) return;
+    if (!window.confirm(`Delete "${brandName}"? This cannot be undone.`)) return;
+    try {
+      await api(`/api/workspaces/${activeWorkspace.id}/brands/${brandId}`, {
+        method: "DELETE",
+      });
+      showToast("Brand deleted", "success");
+      loadBrands();
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : "Failed to delete brand", "error");
+    }
+  };
+
   const loadBrands = useCallback(async () => {
     if (!activeWorkspace) return;
     setLoading(true);
@@ -401,27 +424,123 @@ export function BrandsPage() {
           <p className="text-sm text-gray-400">No brands yet. Create your first brand to get started.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {brands.map((brand) => (
-            <button
-              key={brand.id}
-              onClick={() => navigate(`/brands/${brand.id}`)}
-              className="text-left bg-white border border-gray-200 rounded-lg p-4 hover:border-gray-400 transition-colors"
-            >
-              <div className="flex items-start justify-between mb-2">
-                <p className="text-sm font-semibold text-black truncate flex-1">{brand.name}</p>
-                <Badge variant={statusBadgeVariant(brand.status)}>{brand.status}</Badge>
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+          {brands.map((brand) => {
+            const brain = brand.brainVersions?.[0];
+            const pillars = brain?.vocabulary?.contentPillars ?? [];
+            const platforms = brain?.vocabulary?.preferred ?? [];
+            const language = brain?.vocabulary?.contentLanguage;
+            const summary = brain?.vocabulary?.summary;
+
+            return (
+              <div
+                key={brand.id}
+                className="relative bg-white border border-gray-200 rounded-xl hover:border-gray-400 transition-colors overflow-hidden"
+              >
+                {/* Delete button */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDelete(brand.id, brand.name);
+                  }}
+                  className="absolute top-3 right-3 p-1.5 text-gray-300 hover:text-red-500 transition-colors rounded-md hover:bg-red-50 z-10"
+                  title="Delete brand"
+                >
+                  <Trash2 size={14} />
+                </button>
+
+                <button
+                  onClick={() => setSelectedBrand(brand)}
+                  className="text-left w-full"
+                >
+                  {/* Header */}
+                  <div className="p-4 pb-2.5">
+                    <div className="flex items-center gap-3 mb-2.5">
+                      <div className="w-10 h-10 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center text-xs font-bold shrink-0">
+                        {brand.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-semibold text-black truncate">{brand.name}</p>
+                        {brand.category && (
+                          <p className="text-xs text-gray-500 truncate">{brand.category}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Website URL */}
+                    {brand.websiteUrl && (
+                      <div className="flex items-center gap-1.5 mb-2">
+                        <Globe size={12} className="text-gray-400 shrink-0" />
+                        <span className="text-xs text-indigo-600 truncate">{brand.websiteUrl}</span>
+                      </div>
+                    )}
+
+                    {/* Summary */}
+                    {summary && (
+                      <p className="text-xs text-gray-500 line-clamp-2 mb-2.5 leading-relaxed">{summary}</p>
+                    )}
+                  </div>
+
+                  {/* Brain DNA section */}
+                  {brain && (
+                    <div className="mx-4 mb-3 border border-gray-100 rounded-lg p-3 bg-gray-50/50">
+                      <div className="flex items-center gap-1.5 mb-2">
+                        <Dna size={12} className="text-gray-400" />
+                        <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Brand DNA</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+                        {brain.tone && (
+                          <div>
+                            <span className="text-[10px] text-gray-400">Tone</span>
+                            <p className="text-gray-700 font-medium">{brain.tone}</p>
+                          </div>
+                        )}
+                        {brain.personality && (
+                          <div>
+                            <span className="text-[10px] text-gray-400">Personality</span>
+                            <p className="text-gray-700 font-medium">{brain.personality}</p>
+                          </div>
+                        )}
+                        {language && (
+                          <div>
+                            <span className="text-[10px] text-gray-400">Language</span>
+                            <p className="text-gray-700 font-medium">{language}</p>
+                          </div>
+                        )}
+                        {pillars.length > 0 && (
+                          <div>
+                            <span className="text-[10px] text-gray-400">Pillars</span>
+                            <p className="text-gray-700 font-medium">{pillars.length} defined</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Platform tags */}
+                  {platforms.length > 0 && (
+                    <div className="px-4 pb-4 flex flex-wrap gap-1.5">
+                      {platforms.map((p) => (
+                        <span
+                          key={p}
+                          className="px-2 py-0.5 text-[10px] font-medium bg-indigo-50 text-indigo-600 rounded-full"
+                        >
+                          {p}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Empty state */}
+                  {!brain && (
+                    <div className="px-4 pb-4">
+                      <p className="text-xs text-gray-400">No brain versions yet</p>
+                    </div>
+                  )}
+                </button>
               </div>
-              {brand.category && (
-                <p className="text-xs text-gray-500 mb-2">{brand.category}</p>
-              )}
-              <p className="text-xs text-gray-400">
-                {(brand.brainVersions?.length ?? 0) > 0
-                  ? `v${brand.brainVersions!.length} active`
-                  : "No brain versions"}
-              </p>
-            </button>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -432,15 +551,13 @@ export function BrandsPage() {
         onCreated={loadBrands}
       />
 
-      {selectedBrand && (
-        <BrandDetailModal
-          brand={selectedBrand}
-          workspaceId={activeWorkspace.id}
-          onUpdated={loadBrands}
-          onClose={() => setSelectedBrand(null)}
-          onToast={showToast}
-        />
-      )}
+      <NewBrandBrainDrawer
+        isOpen={!!selectedBrand}
+        onClose={() => setSelectedBrand(null)}
+        workspaceId={activeWorkspace.id}
+        onCreated={loadBrands}
+        editBrand={selectedBrand}
+      />
 
       {toast && (
         <Toast

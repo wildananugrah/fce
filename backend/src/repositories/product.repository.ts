@@ -4,10 +4,17 @@ import type { IProductRepository } from "../interfaces/repositories/product.repo
 export class ProductRepository implements IProductRepository {
 	constructor(private prisma: PrismaClient) {}
 
-	async findByWorkspace(workspaceId: string): Promise<Product[]> {
+	async findByWorkspace(workspaceId: string) {
 		return this.prisma.product.findMany({
 			where: { workspaceId },
 			orderBy: { updatedAt: "desc" },
+			include: {
+				brand: { select: { id: true, name: true } },
+				brainVersions: {
+					where: { isActive: true },
+					take: 1,
+				},
+			},
 		});
 	}
 
@@ -28,13 +35,16 @@ export class ProductRepository implements IProductRepository {
 		name: string;
 		slug: string;
 		type?: string;
+		priceTier?: string;
+		summary?: string;
+		imageUrl?: string;
 	}): Promise<Product> {
 		return this.prisma.product.create({ data });
 	}
 
 	async update(
 		id: string,
-		data: Partial<Pick<Product, "name" | "type" | "status" | "activeBrainVersionId">>,
+		data: Partial<Pick<Product, "name" | "type" | "priceTier" | "summary" | "imageUrl" | "status" | "activeBrainVersionId">>,
 	): Promise<Product> {
 		return this.prisma.product.update({ where: { id }, data });
 	}

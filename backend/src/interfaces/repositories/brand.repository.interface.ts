@@ -17,6 +17,7 @@ export interface IBrandRepository {
 		>,
 	): Promise<Brand>;
 
+	delete(id: string): Promise<void>;
 	findActiveBrainVersion(brandId: string): Promise<BrandBrainVersion | null>;
 	createBrainVersion(brandId: string, version: number, data: any): Promise<BrandBrainVersion>;
 	getNextVersionNumber(brandId: string): Promise<number>;
