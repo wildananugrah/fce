@@ -56,6 +56,12 @@ export class MockWorkspaceRepository implements IWorkspaceRepository {
 		return this.workspaces[index];
 	}
 
+	async delete(id: string): Promise<void> {
+		const index = this.workspaces.findIndex((w) => w.id === id);
+		if (index === -1) throw new Error("Workspace not found");
+		this.workspaces.splice(index, 1);
+	}
+
 	async findRole(userId: string, workspaceId: string): Promise<UserWorkspaceRole | null> {
 		return this.roles.find((r) => r.userId === userId && r.workspaceId === workspaceId) ?? null;
 	}

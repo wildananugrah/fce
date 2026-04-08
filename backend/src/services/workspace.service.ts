@@ -54,6 +54,14 @@ export class WorkspaceService implements IWorkspaceService {
 		return this.workspaceRepository.update(id, input);
 	}
 
+	async delete(workspaceId: string, userId: string): Promise<void> {
+		const role = await this.workspaceRepository.findRole(userId, workspaceId);
+		if (!role || role.role !== "admin") {
+			throw new Error("Only admins can delete a workspace");
+		}
+		await this.workspaceRepository.delete(workspaceId);
+	}
+
 	async getMemberRole(userId: string, workspaceId: string): Promise<string | null> {
 		const role = await this.workspaceRepository.findRole(userId, workspaceId);
 		return role?.role ?? null;

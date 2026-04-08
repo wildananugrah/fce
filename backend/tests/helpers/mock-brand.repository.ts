@@ -51,6 +51,12 @@ export class MockBrandRepository implements IBrandRepository {
 		return this.brands[index];
 	}
 
+	async delete(id: string): Promise<void> {
+		const index = this.brands.findIndex((b) => b.id === id);
+		if (index === -1) throw new Error("Brand not found");
+		this.brands.splice(index, 1);
+	}
+
 	async findActiveBrainVersion(brandId: string): Promise<BrandBrainVersion | null> {
 		return this.brainVersions.find((v) => v.brandId === brandId && v.isActive) ?? null;
 	}

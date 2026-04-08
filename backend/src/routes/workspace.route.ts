@@ -30,6 +30,18 @@ export function createWorkspaceRoutes(workspaceService: IWorkspaceService) {
 		return c.json({ data: workspace }, 201);
 	});
 
+	// DELETE /:id — delete workspace (admin only)
+	app.delete("/:id", async (c) => {
+		const userId = c.get("userId");
+		const workspaceId = c.req.param("id");
+		const role = await workspaceService.getMemberRole(userId, workspaceId);
+		if (role !== "admin") {
+			return c.json({ error: "Admin access required" }, 403);
+		}
+		await workspaceService.delete(workspaceId, userId);
+		return c.body(null, 204);
+	});
+
 	// GET /:id — get workspace
 	app.get("/:id", async (c) => {
 		const workspace = await workspaceService.getById(c.req.param("id"));

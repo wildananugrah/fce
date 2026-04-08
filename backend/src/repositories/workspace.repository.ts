@@ -48,6 +48,10 @@ export class WorkspaceRepository implements IWorkspaceRepository {
 		return this.prisma.workspace.update({ where: { id }, data });
 	}
 
+	async delete(id: string): Promise<void> {
+		await this.prisma.workspace.delete({ where: { id } });
+	}
+
 	async findRole(userId: string, workspaceId: string): Promise<UserWorkspaceRole | null> {
 		return this.prisma.userWorkspaceRole.findUnique({
 			where: { userId_workspaceId: { userId, workspaceId } },

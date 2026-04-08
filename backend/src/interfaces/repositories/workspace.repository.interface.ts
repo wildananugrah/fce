@@ -11,6 +11,7 @@ export interface IWorkspaceRepository {
 			Pick<Workspace, "name" | "description" | "logoUrl" | "avatarColor" | "avatarEmoji" | "status">
 		>,
 	): Promise<Workspace>;
+	delete(id: string): Promise<void>;
 
 	findRole(userId: string, workspaceId: string): Promise<UserWorkspaceRole | null>;
 	findMembers(workspaceId: string): Promise<
