@@ -156,9 +156,13 @@ export function AppShell() {
 
         {/* Bottom nav — Settings */}
         <div className="px-3 pb-1 space-y-0.5">
+          <NavLink to="/workspace-settings" className={navLinkClass}>
+            <Settings size={14} />
+            <span>Workspace Settings</span>
+          </NavLink>
           <NavLink to="/settings" className={navLinkClass}>
             <Settings size={14} />
-            <span>Settings</span>
+            <span>Profile Settings</span>
           </NavLink>
           {user.isSuperadmin && (
             <NavLink to="/admin" className={navLinkClass}>
