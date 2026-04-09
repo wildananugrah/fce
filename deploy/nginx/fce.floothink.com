@@ -40,6 +40,19 @@ server {
       add_header Cache-Control "public";
   }
 
+  # SSE — must disable buffering so events stream in real time
+  location /api/sse {
+      proxy_pass http://localhost:3004;
+      proxy_set_header Host $host;
+      proxy_set_header X-Real-IP $remote_addr;
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+      proxy_set_header X-Forwarded-Proto $scheme;
+      proxy_buffering off;
+      proxy_cache off;
+      proxy_read_timeout 86400s;
+      chunked_transfer_encoding off;
+  }
+
   # API proxy to backend
   location /api/ {
       proxy_pass http://localhost:3004;
