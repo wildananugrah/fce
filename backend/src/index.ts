@@ -114,6 +114,7 @@ async function main() {
 		env.minioEndpoint,
 		env.minioAccessKey,
 		env.minioSecretKey,
+		env.minioPublicUrl,
 	);
 
 	// ─── Services ───────────────────────────────────────────────────

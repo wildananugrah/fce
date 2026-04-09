@@ -10,10 +10,12 @@ import type { IStorageProvider } from "../interfaces/providers/storage.provider.
 export class MinioStorageProvider implements IStorageProvider {
 	private client: S3Client;
 	private endpoint: string;
+	private publicUrl: string;
 	private ensuredBuckets = new Set<string>();
 
-	constructor(endpoint: string, accessKey: string, secretKey: string) {
+	constructor(endpoint: string, accessKey: string, secretKey: string, publicUrl?: string) {
 		this.endpoint = endpoint;
+		this.publicUrl = publicUrl || endpoint;
 		this.client = new S3Client({
 			endpoint,
 			region: "us-east-1",
@@ -59,7 +61,7 @@ export class MinioStorageProvider implements IStorageProvider {
 	}
 
 	getUrl(bucket: string, key: string): string {
-		return `${this.endpoint}/${bucket}/${key}`;
+		return `${this.publicUrl}/${bucket}/${key}`;
 	}
 
 	async delete(bucket: string, key: string): Promise<void> {

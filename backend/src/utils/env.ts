@@ -27,6 +27,7 @@ export const env = {
 	geminiApiKey: optionalEnv("GEMINI_API_KEY"),
 	geminiModel: optionalEnv("GEMINI_MODEL", "gemini-2.0-flash"),
 	minioEndpoint: optionalEnv("MINIO_ENDPOINT", "http://localhost:9000"),
+	minioPublicUrl: optionalEnv("MINIO_PUBLIC_URL"),
 	minioPort: Number.parseInt(optionalEnv("MINIO_PORT", "9000"), 10),
 	minioAccessKey: optionalEnv("MINIO_ACCESS_KEY", "minioadmin"),
 	minioSecretKey: optionalEnv("MINIO_SECRET_KEY", "minioadmin"),

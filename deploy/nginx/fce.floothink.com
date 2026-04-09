@@ -30,6 +30,16 @@ server {
       add_header Cache-Control "public, immutable";
   }
 
+  # MinIO proxy — serves uploaded images (products, brands, etc.)
+  location /fce-uploads/ {
+      proxy_pass http://localhost:9002/fce-uploads/;
+      proxy_set_header Host $host;
+      proxy_hide_header x-amz-request-id;
+      proxy_hide_header x-amz-id-2;
+      expires 7d;
+      add_header Cache-Control "public";
+  }
+
   # API proxy to backend
   location /api/ {
       proxy_pass http://localhost:3004;
