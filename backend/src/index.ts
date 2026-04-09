@@ -43,6 +43,8 @@ import { createTaxonomyRoutes } from "./routes/taxonomy.route";
 import { createDashboardRoutes } from "./routes/dashboard.route";
 import { createTopicRoutes } from "./routes/topic.route";
 import { createWorkspaceRoutes } from "./routes/workspace.route";
+import { createSkillRoutes, createWorkspaceSkillRoutes } from "./routes/skill.route";
+import { createAiLogRoutes } from "./routes/ai-log.route";
 import { AdminService } from "./services/admin.service";
 import { AuthService } from "./services/auth.service";
 import { DashboardService } from "./services/dashboard.service";
@@ -275,6 +277,9 @@ async function main() {
 	// Taxonomy routes (auth protected, no workspace scoping)
 	app.route("/api/taxonomy", createTaxonomyRoutes(taxonomyService));
 
+	// Skills routes (auth protected, no workspace scoping)
+	app.route("/api/skills", createSkillRoutes(prisma));
+
 	// Workspace-scoped routes (auth + workspace middleware)
 	const workspaceScoped = new Hono();
 	workspaceScoped.use("*", wsMiddleware);
@@ -287,6 +292,8 @@ async function main() {
 	workspaceScoped.route("/dashboard", createDashboardRoutes(dashboardService));
 	workspaceScoped.route("/documents", createDocumentRoutes(documentService));
 	workspaceScoped.route("/recommendations", createRecommendationRoutes(recommendationService));
+	workspaceScoped.route("/skills", createWorkspaceSkillRoutes(prisma));
+	workspaceScoped.route("/ai-logs", createAiLogRoutes(prisma));
 	app.route("/api/workspaces/:workspaceId", workspaceScoped);
 
 	// Health check

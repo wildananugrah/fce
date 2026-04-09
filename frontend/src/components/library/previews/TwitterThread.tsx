@@ -1,0 +1,79 @@
+import { Heart, MessageCircle, Repeat2, Share } from "lucide-react";
+import type { PreviewProps } from "./PreviewRegistry";
+
+function getSectionText(sections: PreviewProps["sections"], type: string): string {
+  return sections
+    .filter((s) => s.sectionType === type)
+    .sort((a, b) => a.sectionOrder - b.sectionOrder)
+    .map((s) => s.contentText)
+    .join("\n");
+}
+
+export function TwitterThread({ content, sections, brandName }: PreviewProps) {
+  const slides = Array.isArray(content.slides)
+    ? (content.slides as { headline?: string; body?: string }[])
+    : [];
+  const hook = getSectionText(sections, "hook") || (content.hook as string) || "";
+  const caption = getSectionText(sections, "caption") || (content.caption as string) || (content.body as string) || "";
+  const hashtags = getSectionText(sections, "hashtag") || (Array.isArray(content.hashtags) ? (content.hashtags as string[]).join(" ") : "");
+
+  const brandHandle = `@${brandName.toLowerCase().replace(/\s+/g, "")}`;
+
+  // Build thread tweets from slides or fallback to hook + caption
+  const tweets: string[] = [];
+  if (slides.length > 0) {
+    for (const slide of slides) {
+      tweets.push([slide.headline, slide.body].filter(Boolean).join("\n\n"));
+    }
+  } else {
+    if (hook) tweets.push(hook);
+    if (caption) tweets.push(caption);
+  }
+
+  return (
+    <div className="space-y-0">
+      {tweets.map((tweet, i) => (
+        <div key={i} className="relative bg-white border border-gray-200 first:rounded-t-2xl last:rounded-b-2xl -mt-px px-4 py-3">
+          <div className="flex items-start gap-3">
+            {/* Avatar + thread line */}
+            <div className="flex flex-col items-center shrink-0">
+              <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-bold">
+                {brandName.charAt(0).toUpperCase()}
+              </div>
+              {i < tweets.length - 1 && (
+                <div className="w-0.5 flex-1 bg-gray-200 mt-1" />
+              )}
+            </div>
+
+            <div className="flex-1 min-w-0">
+              {/* Header */}
+              <div className="flex items-center gap-1">
+                <span className="text-sm font-bold text-gray-900">{brandName}</span>
+                <svg className="w-3.5 h-3.5 text-blue-500" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M22.25 12c0-1.43-.88-2.67-2.19-3.34.46-1.39.2-2.9-.81-3.91s-2.52-1.27-3.91-.81c-.66-1.31-1.91-2.19-3.34-2.19s-2.67.88-3.33 2.19c-1.4-.46-2.91-.2-3.92.81s-1.26 2.52-.8 3.91c-1.31.67-2.2 1.91-2.2 3.34s.89 2.67 2.2 3.34c-.46 1.39-.21 2.9.8 3.91s2.52 1.26 3.91.81c.67 1.31 1.91 2.19 3.34 2.19s2.68-.88 3.34-2.19c1.39.45 2.9.2 3.91-.81s1.27-2.52.81-3.91c1.31-.67 2.19-1.91 2.19-3.34zm-11.71 4.2L6.8 12.46l1.41-1.42 2.26 2.26 4.8-5.23 1.47 1.36-6.2 6.77z" />
+                </svg>
+                <span className="text-xs text-gray-500">{brandHandle}</span>
+                <span className="text-xs text-gray-400">&middot; {i + 1}/{tweets.length}</span>
+              </div>
+
+              {/* Tweet body */}
+              <p className="text-[15px] text-gray-900 whitespace-pre-wrap leading-relaxed mt-1">{tweet}</p>
+
+              {/* Hashtags on last tweet */}
+              {i === tweets.length - 1 && hashtags && (
+                <p className="text-[15px] text-blue-500 mt-1">{hashtags}</p>
+              )}
+
+              {/* Actions */}
+              <div className="flex items-center gap-8 mt-2">
+                {[MessageCircle, Repeat2, Heart, Share].map((Icon, j) => (
+                  <Icon key={j} size={14} className="text-gray-400" />
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}

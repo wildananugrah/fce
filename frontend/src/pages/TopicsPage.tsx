@@ -6,6 +6,7 @@ import { Button } from "../components/ui/Button";
 import { Select } from "../components/ui/Select";
 import { Spinner } from "../components/ui/Spinner";
 import { Toast } from "../components/ui/Toast";
+import { ActiveSkillsBadges } from "../components/skills/ActiveSkillsBadges";
 
 interface Brand {
 	id: string;
@@ -321,6 +322,7 @@ export function TopicsPage() {
 					</Button>
 				)}
 			</div>
+			<ActiveSkillsBadges generator="topic" />
 
 			{loading ? (
 				<div className="flex justify-center py-12">

@@ -1,6 +1,6 @@
 import type { ContentTopic } from "@prisma/client";
 import type { PgBoss } from "pg-boss";
-import type { ITopicRepository } from "../interfaces/repositories/topic.repository.interface";
+import type { ITopicRepository, TopicWithBrand } from "../interfaces/repositories/topic.repository.interface";
 import type { ITopicService } from "../interfaces/services/topic.service.interface";
 import type { CreateTopicInput, GenerateTopicsInput, UpdateTopicInput } from "../types/topic.types";
 
@@ -10,7 +10,7 @@ export class TopicService implements ITopicService {
 		private boss: PgBoss,
 	) {}
 
-	async list(workspaceId: string): Promise<ContentTopic[]> {
+	async list(workspaceId: string): Promise<TopicWithBrand[]> {
 		return this.topicRepository.findByWorkspace(workspaceId);
 	}
 

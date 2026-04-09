@@ -19,6 +19,11 @@ import type {
 	TopicGenerationInput,
 	TopicGenerationOutput,
 } from "../interfaces/providers/topic-generator.interface";
+import {
+	buildCampaignGenerationPrompt,
+	buildContentGenerationPrompt,
+	buildTopicGenerationPrompt,
+} from "../utils/prompt-builder";
 
 function parseJsonResponse(text: string): any {
 	let cleaned = text.trim();
@@ -64,35 +69,11 @@ export class GeminiProvider
 	}
 
 	private async generateContent(input: ContentGenerationInput): Promise<ContentGenerationOutput> {
-		const contentTypeInstructions: Record<string, string> = {
-			single_image: `Return JSON with fields: contentTitle (string), content (object with: hook, headline, body, cta, hashtags (array), visualDirection)`,
-			carousel: `Return JSON with fields: contentTitle (string), content (object with: slides (array of objects with: headline, body, visualDirection))`,
-			video: `Return JSON with fields: contentTitle (string), content (object with: scenes (array of objects with: visualDirection, voiceover, onScreenText))`,
-			story: `Return JSON with fields: contentTitle (string), content (object with: frames (array of objects with: visual, textOverlay))`,
-		};
-
-		const formatInstruction =
-			contentTypeInstructions[input.contentType] || contentTypeInstructions.single_image;
-
-		const prompt = `You are an expert content creator. You have the following brand context:
-${input.brandContext}
-${input.productContext ? `\nProduct context:\n${input.productContext}` : ""}
-
-Create ${input.contentType} content for ${input.platform} platform.
-Framework: ${input.framework}
-Hook type: ${input.hookType}
-Language: ${input.language}
-${input.prompt ? `\nAdditional instructions: ${input.prompt}` : ""}
-
-${formatInstruction}
-
-Apply the ${input.framework} framework and use a ${input.hookType} hook style. Write all copy in ${input.language}.
-
-You MUST respond with ONLY valid JSON. No markdown, no code blocks, no explanations.`;
+		const { systemPrompt, userPrompt } = buildContentGenerationPrompt(input);
 
 		const response = await this.ai.models.generateContent({
 			model: this.model,
-			contents: prompt,
+			contents: `${systemPrompt}\n\n${userPrompt}`,
 		});
 
 		const text = response.text ?? "";
@@ -108,26 +89,11 @@ You MUST respond with ONLY valid JSON. No markdown, no code blocks, no explanati
 	private async generateCampaign(
 		input: CampaignGenerationInput,
 	): Promise<CampaignGenerationOutput> {
-		const prompt = `You are an expert marketing strategist. You have the following brand context:
-${input.brandContext}
-
-Create a comprehensive marketing campaign strategy.
-${input.objective ? `Objective: ${input.objective}` : ""}
-${input.budget ? `Budget: ${input.budget}` : ""}
-${input.channelMix && input.channelMix.length > 0 ? `Channel mix: ${input.channelMix.join(", ")}` : ""}
-${input.culturalContext ? `Cultural context: ${input.culturalContext}` : ""}
-
-Return JSON with fields:
-- bigIdea (string): The overarching campaign concept
-- messagingPillars (array of objects with: name, description): 3-5 key messaging pillars
-- funnelJourney (object): Awareness, consideration, and conversion stage strategies
-- channelRoles (object): Role and tactics for each channel
-
-You MUST respond with ONLY valid JSON. No markdown, no code blocks, no explanations.`;
+		const { systemPrompt, userPrompt } = buildCampaignGenerationPrompt(input);
 
 		const response = await this.ai.models.generateContent({
 			model: this.model,
-			contents: prompt,
+			contents: `${systemPrompt}\n\n${userPrompt}`,
 		});
 
 		const text = response.text ?? "";
@@ -141,26 +107,11 @@ You MUST respond with ONLY valid JSON. No markdown, no code blocks, no explanati
 	}
 
 	private async generateTopics(input: TopicGenerationInput): Promise<TopicGenerationOutput> {
-		const count = input.count ?? 10;
-
-		const prompt = `You are an expert content strategist. You have the following brand context:
-${input.brandContext}
-${input.productContext ? `\nProduct context:\n${input.productContext}` : ""}
-
-Generate ${count} content topic ideas${input.platform ? ` for ${input.platform}` : ""}.
-${input.objective ? `Content objective: ${input.objective}` : ""}
-${input.dateFrom && input.dateTo ? `Schedule date range: ${input.dateFrom} to ${input.dateTo}. Distribute publishDate values evenly across this range.` : ""}
-
-Return JSON with a single field:
-- topics (array of ${count} objects, each with: title, description, pillar, platform, format, objective, publishDate)
-
-Make topics diverse, engaging, and aligned with the brand voice.
-
-You MUST respond with ONLY valid JSON. No markdown, no code blocks, no explanations.`;
+		const { systemPrompt, userPrompt } = buildTopicGenerationPrompt(input);
 
 		const response = await this.ai.models.generateContent({
 			model: this.model,
-			contents: prompt,
+			contents: `${systemPrompt}\n\n${userPrompt}`,
 		});
 
 		const text = response.text ?? "";

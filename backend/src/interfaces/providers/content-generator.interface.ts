@@ -1,6 +1,7 @@
 export interface ContentGenerationInput {
 	brandContext: string;
 	productContext?: string;
+	skillContext?: string;
 	platform: string;
 	contentType: string;
 	framework: string;

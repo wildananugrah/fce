@@ -1,231 +1,108 @@
 import { useState, useEffect, useCallback } from "react";
+import { Search, Eye } from "lucide-react";
 import { useWorkspace } from "../hooks/useWorkspace";
 import { api } from "../services/api";
-import { Button } from "../components/ui/Button";
-import { Select } from "../components/ui/Select";
-import { Badge } from "../components/ui/Badge";
-import { Modal } from "../components/ui/Modal";
 import { Spinner } from "../components/ui/Spinner";
 import { Toast } from "../components/ui/Toast";
-import { SectionViewer } from "../components/library/SectionViewer";
-import type { OutputSection } from "../types";
+import { ContentPreviewModal } from "../components/library/ContentPreviewModal";
 
 interface LibraryItem {
   id: string;
-  title?: string | null;
-  contentType?: string | null;
+  contentTitle?: string | null;
+  content: Record<string, unknown>;
   status: string;
-  content?: string | null;
-  platform?: string | null;
   createdAt: string;
+  request: {
+    platform: string;
+    contentType: string;
+    brand?: { id: string; name: string } | null;
+    product?: { id: string; name: string } | null;
+  };
+  sections: {
+    id: string;
+    sectionType: string;
+    sectionOrder: number;
+    contentText: string;
+  }[];
 }
 
 type ToastState = { message: string; type: "success" | "error" | "info" } | null;
 
-function statusBadgeVariant(status: string): "success" | "default" | "danger" {
-  if (status === "approved") return "success";
-  if (status === "rejected") return "danger";
-  return "default";
+// ── Helpers ────────────────────────────────────────────────────
+
+function getContentSubtitle(contentType: string, content: Record<string, unknown>): string {
+  const slides = Array.isArray(content.slides) ? content.slides.length : 0;
+  const scenes = Array.isArray(content.scenes) ? content.scenes.length : 0;
+  const frames = Array.isArray(content.frames) ? content.frames.length : 0;
+
+  if (slides > 0) return `${slides} slides`;
+  if (scenes > 0) return `${scenes} scenes`;
+  if (frames > 0) return `${frames} frames`;
+
+  // Infer from content type
+  const ct = contentType.toLowerCase();
+  if (ct.includes("carousel") || ct.includes("thread")) return "slides";
+  if (ct.includes("reel") || ct.includes("video") || ct.includes("short")) return "video";
+  return "post";
 }
 
-function contentTypeBadgeVariant(_type: string): "success" | "default" | "danger" {
-  return "default";
+function getPlatformStyle(platform: string): { bg: string; text: string } {
+  const map: Record<string, { bg: string; text: string }> = {
+    instagram: { bg: "bg-purple-100", text: "text-purple-700" },
+    tiktok: { bg: "bg-gray-900", text: "text-white" },
+    youtube: { bg: "bg-red-100", text: "text-red-700" },
+    twitter: { bg: "bg-blue-100", text: "text-blue-700" },
+    linkedin: { bg: "bg-sky-100", text: "text-sky-700" },
+    facebook: { bg: "bg-blue-100", text: "text-blue-700" },
+  };
+  return map[platform] ?? { bg: "bg-gray-100", text: "text-gray-700" };
 }
 
-const FEEDBACK_EVENT_OPTIONS = [
-  { value: "hook_edit", label: "Hook Edit" },
-  { value: "copy_edit", label: "Copy Edit" },
+function getStatusStyle(status: string): string {
+  if (status === "approved") return "bg-green-50 text-green-700";
+  if (status === "rejected") return "bg-red-50 text-red-700";
+  return "bg-gray-100 text-gray-600";
+}
+
+function formatRelativeDate(dateStr: string): string {
+  const now = new Date();
+  const date = new Date(dateStr);
+  const diffMs = now.getTime() - date.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "yesterday";
+  if (diffDays < 7) return `${diffDays} days ago`;
+  if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+  return date.toLocaleDateString();
+}
+
+const PLATFORM_FILTER_OPTIONS = [
+  { value: "", label: "All Platforms" },
+  { value: "instagram", label: "Instagram" },
+  { value: "tiktok", label: "TikTok" },
+  { value: "youtube", label: "YouTube" },
+  { value: "twitter", label: "Twitter/X" },
+  { value: "linkedin", label: "LinkedIn" },
+  { value: "facebook", label: "Facebook" },
 ];
 
-// ---- Library Item Detail Modal ----
-interface LibraryDetailModalProps {
-  item: LibraryItem;
-  workspaceId: string;
-  onUpdated: () => void;
-  onClose: () => void;
-  onToast: (msg: string, type: "success" | "error" | "info") => void;
-}
+const STATUS_FILTER_OPTIONS = [
+  { value: "", label: "All Statuses" },
+  { value: "draft", label: "Draft" },
+  { value: "approved", label: "Approved" },
+  { value: "rejected", label: "Rejected" },
+];
 
-function LibraryDetailModal({ item, workspaceId, onUpdated, onClose, onToast }: LibraryDetailModalProps) {
-  const [updating, setUpdating] = useState(false);
-  const [currentStatus, setCurrentStatus] = useState(item.status);
-  const [sections, setSections] = useState<OutputSection[]>([]);
+// ── Main Page ──────────────────────────────────────────────────
 
-  const fetchSections = useCallback(async (outputId: string) => {
-    try {
-      const secs = await api<OutputSection[]>(`/api/workspaces/${workspaceId}/library/${outputId}/sections`);
-      setSections(secs);
-    } catch {
-      setSections([]);
-    }
-  }, [workspaceId]);
-
-  useEffect(() => {
-    fetchSections(item.id);
-  }, [fetchSections, item.id]);
-
-  // Feedback form
-  const [feedbackEventType, setFeedbackEventType] = useState("hook_edit");
-  const [beforeText, setBeforeText] = useState("");
-  const [afterText, setAfterText] = useState("");
-  const [submittingFeedback, setSubmittingFeedback] = useState(false);
-  const [showFeedback, setShowFeedback] = useState(false);
-
-  const handleStatusChange = async (newStatus: "approved" | "rejected") => {
-    setUpdating(true);
-    try {
-      await api(`/api/workspaces/${workspaceId}/library/${item.id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ status: newStatus }),
-      });
-      setCurrentStatus(newStatus);
-      onToast(`Content ${newStatus}`, "success");
-      onUpdated();
-    } catch (e) {
-      onToast(e instanceof Error ? e.message : `Failed to ${newStatus} content`, "error");
-    } finally {
-      setUpdating(false);
-    }
-  };
-
-  const handleFeedback = async () => {
-    if (!beforeText.trim() || !afterText.trim()) {
-      onToast("Please fill in both before and after text", "error");
-      return;
-    }
-    setSubmittingFeedback(true);
-    try {
-      await api(`/api/workspaces/${workspaceId}/library/${item.id}/feedback`, {
-        method: "POST",
-        body: JSON.stringify({
-          eventType: feedbackEventType,
-          before: beforeText.trim(),
-          after: afterText.trim(),
-        }),
-      });
-      onToast("Feedback submitted", "success");
-      setBeforeText("");
-      setAfterText("");
-      setShowFeedback(false);
-    } catch (e) {
-      onToast(e instanceof Error ? e.message : "Failed to submit feedback", "error");
-    } finally {
-      setSubmittingFeedback(false);
-    }
-  };
-
-  return (
-    <Modal isOpen onClose={onClose} title={item.title ?? "Content Detail"}>
-      <div className="space-y-4">
-        <div className="flex items-center gap-2 flex-wrap">
-          {item.contentType && (
-            <Badge variant={contentTypeBadgeVariant(item.contentType)}>
-              {item.contentType.replace(/_/g, " ")}
-            </Badge>
-          )}
-          <Badge variant={statusBadgeVariant(currentStatus)}>{currentStatus}</Badge>
-          {item.platform && (
-            <span className="text-xs text-gray-500 capitalize">{item.platform}</span>
-          )}
-        </div>
-
-        {item.content && (
-          <div className="bg-gray-50 rounded-lg p-4 max-h-64 overflow-auto">
-            <p className="text-sm text-gray-700 whitespace-pre-wrap">{item.content}</p>
-          </div>
-        )}
-
-        {!item.content && (
-          <p className="text-sm text-gray-400 text-center py-4">No content available.</p>
-        )}
-
-        {sections.length > 0 && (
-          <div className="mt-4">
-            <h3 className="text-sm font-medium mb-2">Content Sections</h3>
-            <SectionViewer
-              sections={sections}
-              workspaceId={workspaceId}
-              outputId={item.id}
-              onSectionUpdated={() => fetchSections(item.id)}
-            />
-          </div>
-        )}
-
-        <div className="flex gap-2 pt-2">
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => handleStatusChange("approved")}
-            loading={updating}
-            disabled={currentStatus === "approved"}
-          >
-            Approve
-          </Button>
-          <Button
-            variant="danger"
-            size="sm"
-            onClick={() => handleStatusChange("rejected")}
-            loading={updating}
-            disabled={currentStatus === "rejected"}
-          >
-            Reject
-          </Button>
-          <div className="flex-1" />
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => setShowFeedback(!showFeedback)}
-          >
-            {showFeedback ? "Hide Feedback" : "Add Feedback"}
-          </Button>
-        </div>
-
-        {showFeedback && (
-          <div className="border border-gray-200 rounded-lg p-4 space-y-3">
-            <p className="text-xs font-medium text-gray-600 uppercase tracking-wide">Submit Feedback</p>
-            <Select
-              label="Event Type"
-              options={FEEDBACK_EVENT_OPTIONS}
-              value={feedbackEventType}
-              onChange={(e) => setFeedbackEventType(e.target.value)}
-            />
-            <div className="w-full">
-              <label className="block text-xs font-medium text-gray-600 uppercase tracking-wide mb-1.5">Before</label>
-              <textarea
-                className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-md focus:outline-none focus:border-black focus:ring-1 focus:ring-black resize-none"
-                rows={2}
-                placeholder="Original text..."
-                value={beforeText}
-                onChange={(e) => setBeforeText(e.target.value)}
-              />
-            </div>
-            <div className="w-full">
-              <label className="block text-xs font-medium text-gray-600 uppercase tracking-wide mb-1.5">After</label>
-              <textarea
-                className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-md focus:outline-none focus:border-black focus:ring-1 focus:ring-black resize-none"
-                rows={2}
-                placeholder="Edited text..."
-                value={afterText}
-                onChange={(e) => setAfterText(e.target.value)}
-              />
-            </div>
-            <div className="flex justify-end">
-              <Button size="sm" onClick={handleFeedback} loading={submittingFeedback}>
-                Submit Feedback
-              </Button>
-            </div>
-          </div>
-        )}
-      </div>
-    </Modal>
-  );
-}
-
-// ---- Main Page ----
 export function LibraryPage() {
   const { activeWorkspace } = useWorkspace();
   const [items, setItems] = useState<LibraryItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [platformFilter, setPlatformFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
   const [selectedItem, setSelectedItem] = useState<LibraryItem | null>(null);
   const [toast, setToast] = useState<ToastState>(null);
 
@@ -249,7 +126,13 @@ export function LibraryPage() {
     }
   }, [activeWorkspace]);
 
-  useEffect(() => { loadItems(); }, [loadItems]);
+  useEffect(() => {
+    loadItems();
+  }, [loadItems]);
+
+  const handleStatusChange = (id: string, status: string) => {
+    setItems((prev) => prev.map((item) => (item.id === id ? { ...item, status } : item)));
+  };
 
   if (!activeWorkspace) {
     return (
@@ -259,55 +142,176 @@ export function LibraryPage() {
     );
   }
 
+  // Filter
+  const filtered = items.filter((item) => {
+    if (platformFilter && item.request.platform !== platformFilter) return false;
+    if (statusFilter && item.status !== statusFilter) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      const title = (item.contentTitle ?? "").toLowerCase();
+      const brand = (item.request.brand?.name ?? "").toLowerCase();
+      const product = (item.request.product?.name ?? "").toLowerCase();
+      if (!title.includes(q) && !brand.includes(q) && !product.includes(q)) return false;
+    }
+    return true;
+  });
+
   return (
     <div className="p-6 space-y-6">
-      <h1 className="text-lg font-semibold text-black">Content Library</h1>
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-bold text-black">Content Library</h1>
+        <p className="text-sm text-gray-500 mt-1">Your database of generated social media content.</p>
+      </div>
 
+      {/* Search + Filters */}
+      <div className="flex items-center gap-3">
+        {/* Search */}
+        <div className="flex-1 relative">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search content, hooks, brands..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-9 pr-3 py-2.5 text-sm bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-black focus:ring-1 focus:ring-black placeholder-gray-400"
+          />
+        </div>
+
+        {/* Platform filter */}
+        <select
+          className="px-3 py-2.5 text-sm bg-white border border-gray-300 rounded-lg text-gray-700 focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
+          value={platformFilter}
+          onChange={(e) => setPlatformFilter(e.target.value)}
+        >
+          {PLATFORM_FILTER_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
+
+        {/* Status filter */}
+        <select
+          className="px-3 py-2.5 text-sm bg-white border border-gray-300 rounded-lg text-gray-700 focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+        >
+          {STATUS_FILTER_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
+
+        {/* Count */}
+        <span className="text-sm text-gray-500 whitespace-nowrap">{filtered.length} items</span>
+      </div>
+
+      {/* Table */}
       {loading ? (
         <div className="flex justify-center py-12"><Spinner /></div>
-      ) : items.length === 0 ? (
-        <div className="bg-white border border-gray-200 rounded-lg p-12 text-center">
-          <p className="text-sm text-gray-400">No content in library yet. Generate some content first.</p>
+      ) : filtered.length === 0 ? (
+        <div className="bg-white border border-gray-200 rounded-xl p-12 text-center">
+          <p className="text-sm text-gray-400">
+            {search || platformFilter || statusFilter
+              ? "No content matches the current filters."
+              : "No content in library yet. Generate some content first."}
+          </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {items.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setSelectedItem(item)}
-              className="text-left bg-white border border-gray-200 rounded-lg p-4 hover:border-gray-400 transition-colors"
-            >
-              <div className="flex items-start justify-between mb-2 gap-2">
-                <p className="text-sm font-semibold text-black truncate flex-1">
-                  {item.title ?? "Untitled Content"}
-                </p>
-                <Badge variant={statusBadgeVariant(item.status)}>{item.status}</Badge>
-              </div>
-              <div className="flex items-center gap-2 mb-2 flex-wrap">
-                {item.contentType && (
-                  <Badge variant="default">{item.contentType.replace(/_/g, " ")}</Badge>
-                )}
-                {item.platform && (
-                  <span className="text-xs text-gray-500 capitalize">{item.platform}</span>
-                )}
-              </div>
-              {item.content && (
-                <p className="text-xs text-gray-400 line-clamp-2">{item.content}</p>
-              )}
-              <p className="text-xs text-gray-400 mt-2">
-                {new Date(item.createdAt).toLocaleDateString()}
-              </p>
-            </button>
-          ))}
+        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-gray-100 bg-gray-50">
+                <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide">
+                  Content Title
+                </th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide">
+                  Brand
+                </th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide">
+                  Platform
+                </th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide">
+                  Status
+                </th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide">
+                  Generated
+                </th>
+                <th className="px-4 py-3" />
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((item) => {
+                const platformStyle = getPlatformStyle(item.request.platform);
+                const subtitle = getContentSubtitle(item.request.contentType, item.content);
+
+                return (
+                  <tr key={item.id} className="border-b border-gray-50 hover:bg-gray-50">
+                    {/* Title */}
+                    <td className="px-5 py-3 max-w-[320px]">
+                      <p className="text-sm font-medium text-gray-900 truncate">
+                        {item.contentTitle ?? "Untitled Content"}
+                      </p>
+                      <p className="text-xs text-gray-400">{subtitle}</p>
+                    </td>
+
+                    {/* Brand */}
+                    <td className="px-4 py-3">
+                      <p className="text-sm text-gray-800">
+                        {item.request.brand?.name ?? "—"}
+                      </p>
+                      {item.request.product?.name && (
+                        <p className="text-xs text-gray-400">{item.request.product.name}</p>
+                      )}
+                    </td>
+
+                    {/* Platform */}
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium capitalize ${platformStyle.bg} ${platformStyle.text}`}>
+                        {item.request.platform}
+                      </span>
+                    </td>
+
+                    {/* Status */}
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium capitalize ${getStatusStyle(item.status)}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${
+                          item.status === "approved" ? "bg-green-500" :
+                          item.status === "rejected" ? "bg-red-500" : "bg-gray-400"
+                        }`} />
+                        {item.status}
+                      </span>
+                    </td>
+
+                    {/* Date */}
+                    <td className="px-4 py-3 text-sm text-gray-500">
+                      {formatRelativeDate(item.createdAt)}
+                    </td>
+
+                    {/* View */}
+                    <td className="px-4 py-3">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedItem(item)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                      >
+                        <Eye size={14} />
+                        View
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
 
+      {/* Preview Modal */}
       {selectedItem && (
-        <LibraryDetailModal
+        <ContentPreviewModal
           item={selectedItem}
           workspaceId={activeWorkspace.id}
-          onUpdated={loadItems}
           onClose={() => setSelectedItem(null)}
+          onStatusChange={handleStatusChange}
           onToast={showToast}
         />
       )}

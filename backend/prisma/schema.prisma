@@ -50,6 +50,8 @@ model Workspace {
   auditLogs      AuditLog[]
   documents      BrandDocument[]
   savedTemplates SavedTemplate[]
+  skillMappings  WorkspaceSkillMapping[]
+  aiProviderLogs AiProviderLog[]
 
   @@map("workspaces")
 }
@@ -99,9 +101,11 @@ model Brand {
   createdAt            DateTime @default(now()) @map("created_at")
   updatedAt            DateTime @updatedAt @map("updated_at")
 
-  workspace     Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  brainVersions BrandBrainVersion[]
-  products      Product[]
+  workspace          Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  brainVersions      BrandBrainVersion[]
+  products           Product[]
+  contentTopics      ContentTopic[]
+  generationRequests GenerationRequest[]
 
   @@unique([workspaceId, slug])
   @@map("brands")
@@ -144,9 +148,10 @@ model Product {
   createdAt            DateTime @default(now()) @map("created_at")
   updatedAt            DateTime @updatedAt @map("updated_at")
 
-  workspace     Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  brand         Brand                @relation(fields: [brandId], references: [id], onDelete: Cascade)
-  brainVersions ProductBrainVersion[]
+  workspace          Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  brand              Brand                @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  brainVersions      ProductBrainVersion[]
+  generationRequests GenerationRequest[]
 
   @@unique([workspaceId, slug])
   @@map("products")
@@ -176,29 +181,36 @@ model ProductBrainVersion {
 // ─── Generation Pipeline ────────────────────────────────────────
 
 model GenerationRequest {
-  id           String   @id @default(uuid())
-  workspaceId  String   @map("workspace_id")
-  brandId      String   @map("brand_id")
-  productId    String?  @map("product_id")
-  platform     String
-  contentType  String   @map("content_type")
-  framework    String
-  hookType     String   @map("hook_type")
-  language     String   @default("id")
-  prompt       String?
-  objective    String?
-  tonePreset   String?  @map("tone_preset")
-  visualStyle  String?  @map("visual_style")
-  outputLength String?  @map("output_length")
-  status       String   @default("pending")
-  errorMessage String?  @map("error_message")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  id             String   @id @default(uuid())
+  workspaceId    String   @map("workspace_id")
+  brandId        String   @map("brand_id")
+  productId      String?  @map("product_id")
+  contentTopicId String?  @map("content_topic_id")
+  platform       String
+  contentType    String   @map("content_type")
+  framework      String
+  hookType       String   @map("hook_type")
+  language       String   @default("id")
+  prompt         String?
+  objective      String?
+  tonePreset     String?  @map("tone_preset")
+  visualStyle    String?  @map("visual_style")
+  outputLength   String?  @map("output_length")
+  status         String   @default("pending")
+  errorMessage   String?  @map("error_message")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
 
-  workspace Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  outputs   GenerationOutput[]
+  workspace    Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  brand        Brand         @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  product      Product?      @relation(fields: [productId], references: [id], onDelete: SetNull)
+  contentTopic ContentTopic? @relation(fields: [contentTopicId], references: [id], onDelete: SetNull)
+  outputs      GenerationOutput[]
 
   @@index([workspaceId])
+  @@index([brandId])
+  @@index([productId])
+  @@index([contentTopicId])
   @@map("generation_requests")
 }
 
@@ -421,9 +433,12 @@ model ContentTopic {
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
 
-  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspace          Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  brand              Brand?               @relation(fields: [brandId], references: [id], onDelete: SetNull)
+  generationRequests GenerationRequest[]
 
   @@index([workspaceId])
+  @@index([brandId])
   @@map("content_topics")
 }
 
@@ -520,4 +535,87 @@ model RecommendationProfile {
 
   @@unique([scopeType, scopeId])
   @@map("recommendation_profiles")
+}
+
+// ─── AI Skills System ───────────────────────────────────────────
+
+model AiSkill {
+  id             String   @id @default(uuid())
+  slug           String   @unique
+  name           String
+  description    String   @db.Text
+  content        String   @db.Text
+  category       String
+  referenceFiles Json?    @map("reference_files")
+  isSystem       Boolean  @default(true) @map("is_system")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  workspaceMappings WorkspaceSkillMapping[]
+
+  @@map("ai_skills")
+}
+
+model WorkspaceSkillMapping {
+  id          String  @id @default(uuid())
+  workspaceId String  @map("workspace_id")
+  skillId     String  @map("skill_id")
+  generator   String
+  isActive    Boolean @default(true) @map("is_active")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  skill     AiSkill   @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, skillId, generator])
+  @@index([workspaceId, generator])
+  @@map("workspace_skill_mappings")
+}
+
+// ─── AI Provider Activity Log ───────────────────────────────────
+
+model AiProviderLog {
+  id             String   @id @default(uuid())
+  workspaceId    String   @map("workspace_id")
+  generator      String   // "topic" | "content" | "campaign" | "brand-scraper" | "product-brain"
+  provider       String   // "gemini" | "anthropic"
+  model          String?
+  requestId      String?  @map("request_id") // FK to GenerationRequest (for content gen)
+  userId         String?  @map("user_id")
+
+  // Prompt
+  systemPrompt   String   @map("system_prompt") @db.Text
+  userPrompt     String   @map("user_prompt") @db.Text
+
+  // Response
+  responseText   String?  @map("response_text") @db.Text
+  responseJson   Json?    @map("response_json")
+
+  // Context
+  brandId        String?  @map("brand_id")
+  productId      String?  @map("product_id")
+  platform       String?
+  contentType    String?  @map("content_type")
+
+  // Skills used
+  skillIds       Json?    @map("skill_ids")   // string[]
+  skillNames     Json?    @map("skill_names") // string[]
+
+  // Metrics
+  inputTokens    Int?     @map("input_tokens")
+  outputTokens   Int?     @map("output_tokens")
+  durationMs     Int?     @map("duration_ms")
+  estimatedCost  Decimal? @map("estimated_cost") @db.Decimal(10, 6)
+
+  // Status
+  status         String   @default("success") // "success" | "error"
+  errorMessage   String?  @map("error_message") @db.Text
+
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([generator])
+  @@index([createdAt])
+  @@map("ai_provider_logs")
 }

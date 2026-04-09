@@ -46,7 +46,10 @@
       "Bash(PATH=\"$HOME/.bun/bin:$PATH\")",
       "Bash(export PATH=\"$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH\")",
       "Bash(git push:*)",
-      "Bash(chmod +x /Users/bellinnn/Documents/projects/fce/scripts/minio-setup.sh)"
+      "Bash(chmod +x /Users/bellinnn/Documents/projects/fce/scripts/minio-setup.sh)",
+      "Read(//private/tmp/**)",
+      "Bash(rm -rf marketingskills)",
+      "Bash(gh repo:*)"
     ],
     "additionalDirectories": [
       "/Users/wildananugrah/Documents/My-Projects/fce/.git"

@@ -16,6 +16,7 @@ import { SettingsPage } from "./pages/SettingsPage";
 import { WorkspaceSettingsPage } from "./pages/WorkspaceSettingsPage";
 import { AdminPage } from "./pages/AdminPage";
 import { LearningPage } from "./pages/LearningPage";
+import { SkillsPage } from "./pages/SkillsPage";
 import { BrandDetailPage } from "./pages/BrandDetailPage";
 import { ProductDetailPage } from "./pages/ProductDetailPage";
 
@@ -37,8 +38,9 @@ export default function App() {
               <Route path="/campaigns" element={<CampaignsPage />} />
               <Route path="/topics" element={<TopicsPage />} />
               <Route path="/topic-library" element={<TopicLibraryPage />} />
-              <Route path="/library" element={<LibraryPage />} />
+              <Route path="/content-library" element={<LibraryPage />} />
               <Route path="/learning" element={<LearningPage />} />
+              <Route path="/skills" element={<SkillsPage />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/workspace-settings" element={<WorkspaceSettingsPage />} />
               <Route path="/admin" element={<AdminPage />} />

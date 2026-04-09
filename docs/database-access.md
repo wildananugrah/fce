@@ -90,3 +90,72 @@ cd backend && bunx prisma db push --force-reset
 ```
 
 This drops all tables and recreates them from `prisma/schema.prisma`. Use with caution.
+
+## AI Provider Logs
+
+```sql
+-- List recent AI logs (latest 20)
+SELECT id, generator, provider, platform, content_type, status, duration_ms, created_at
+FROM ai_provider_logs
+ORDER BY created_at DESC
+LIMIT 20;
+
+-- Filter by generator
+SELECT id, generator, provider, status, duration_ms, created_at
+FROM ai_provider_logs
+WHERE generator = 'content'
+ORDER BY created_at DESC
+LIMIT 20;
+
+-- View full log detail (prompts + response)
+SELECT id, generator, provider, system_prompt, user_prompt, response_json, skill_names, duration_ms, status, error_message
+FROM ai_provider_logs
+WHERE id = '<log-id>';
+
+-- Logs with errors
+SELECT id, generator, provider, error_message, created_at
+FROM ai_provider_logs
+WHERE status = 'error'
+ORDER BY created_at DESC;
+
+-- Which skills were used per generation
+SELECT id, generator, skill_names, duration_ms, created_at
+FROM ai_provider_logs
+WHERE skill_names IS NOT NULL
+ORDER BY created_at DESC
+LIMIT 20;
+
+-- Stats: count by generator
+SELECT generator, COUNT(*) as total, AVG(duration_ms) as avg_duration_ms
+FROM ai_provider_logs
+GROUP BY generator;
+
+-- Stats: count by provider
+SELECT provider, COUNT(*) as total, AVG(duration_ms) as avg_duration_ms
+FROM ai_provider_logs
+GROUP BY provider;
+
+-- Stats: error rate
+SELECT
+  COUNT(*) as total,
+  COUNT(*) FILTER (WHERE status = 'error') as errors,
+  ROUND(COUNT(*) FILTER (WHERE status = 'error')::numeric / COUNT(*)::numeric * 100, 1) as error_pct
+FROM ai_provider_logs;
+```
+
+## AI Skills
+
+```sql
+-- List all skills
+SELECT id, slug, name, category, is_system FROM ai_skills ORDER BY category, name;
+
+-- List workspace skill mappings
+SELECT wsm.generator, s.name, s.category, wsm.is_active
+FROM workspace_skill_mappings wsm
+JOIN ai_skills s ON s.id = wsm.skill_id
+WHERE wsm.workspace_id = '<workspace-id>'
+ORDER BY wsm.generator, s.name;
+
+-- Count skills by category
+SELECT category, COUNT(*) FROM ai_skills GROUP BY category ORDER BY category;
+```

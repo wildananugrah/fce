@@ -1,11 +1,15 @@
 import { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useWorkspace } from "../hooks/useWorkspace";
 import { useSSE } from "../hooks/useSSE";
 import { api } from "../services/api";
+import { Eye } from "lucide-react";
 import { Select } from "../components/ui/Select";
-import { Badge } from "../components/ui/Badge";
+import { SearchableSelect } from "../components/ui/SearchableSelect";
 import { Spinner } from "../components/ui/Spinner";
+import { ContentPreviewModal } from "../components/library/ContentPreviewModal";
 import { Toast } from "../components/ui/Toast";
+import { ActiveSkillsBadges } from "../components/skills/ActiveSkillsBadges";
 
 interface Brand {
   id: string;
@@ -34,6 +38,16 @@ interface ProductBrainVersion {
   isActive: boolean;
 }
 
+interface ContentTopic {
+  id: string;
+  title: string;
+  pillar?: string | null;
+  platform?: string | null;
+  format?: string | null;
+  brandId?: string | null;
+  status: string;
+}
+
 interface Framework {
   id: string;
   name: string;
@@ -50,14 +64,47 @@ interface Generation {
   platform: string;
   contentType: string;
   createdAt: string;
+  brand?: { id: string; name: string } | null;
+  product?: { id: string; name: string } | null;
 }
 
 type ToastState = { message: string; type: "success" | "error" | "info" } | null;
 
-function statusBadgeVariant(status: string): "success" | "default" | "danger" {
-  if (status === "completed") return "success";
-  if (status === "failed") return "danger";
-  return "default";
+function getStatusStyle(status: string): string {
+  if (status === "completed") return "bg-green-50 text-green-700";
+  if (status === "failed") return "bg-red-50 text-red-700";
+  if (status === "processing") return "bg-amber-50 text-amber-700";
+  return "bg-gray-100 text-gray-600";
+}
+
+function getStatusDot(status: string): string {
+  if (status === "completed") return "bg-green-500";
+  if (status === "failed") return "bg-red-500";
+  if (status === "processing") return "bg-amber-500";
+  return "bg-gray-400";
+}
+
+function getPlatformStyle(platform: string): { bg: string; text: string } {
+  const map: Record<string, { bg: string; text: string }> = {
+    instagram: { bg: "bg-purple-100", text: "text-purple-700" },
+    tiktok: { bg: "bg-gray-900", text: "text-white" },
+    youtube: { bg: "bg-red-100", text: "text-red-700" },
+    twitter: { bg: "bg-blue-100", text: "text-blue-700" },
+    linkedin: { bg: "bg-sky-100", text: "text-sky-700" },
+    facebook: { bg: "bg-blue-100", text: "text-blue-700" },
+  };
+  return map[platform] ?? { bg: "bg-gray-100", text: "text-gray-700" };
+}
+
+function formatRelativeDate(dateStr: string): string {
+  const now = new Date();
+  const date = new Date(dateStr);
+  const diffMs = now.getTime() - date.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "yesterday";
+  if (diffDays < 7) return `${diffDays} days ago`;
+  return date.toLocaleDateString();
 }
 
 // ─── Platform & Format Configuration ────────────────────────────
@@ -170,15 +217,17 @@ function BrainContextCard({ tone, usp }: { tone?: string; usp?: string }) {
 
 export function GeneratePage() {
   const { activeWorkspace } = useWorkspace();
+  const [searchParams] = useSearchParams();
 
-  // Form state
-  const [brandId, setBrandId] = useState("");
+  // Form state — pre-fill from URL params (e.g., from Topic Library)
+  const [brandId, setBrandId] = useState(searchParams.get("brandId") ?? "");
   const [productId, setProductId] = useState("");
-  const [platform, setPlatform] = useState("instagram");
+  const [platform, setPlatform] = useState(searchParams.get("platform") ?? "instagram");
   const [contentType, setContentType] = useState("");
   const [frameworkId, setFrameworkId] = useState("");
   const [hookTypeId, setHookTypeId] = useState("");
   const [language] = useState("indonesian");
+  const [contentTopicId, setContentTopicId] = useState(searchParams.get("topicId") ?? "");
   const [customPrompt, setCustomPrompt] = useState("");
   const [tonePresetId, setTonePresetId] = useState("");
   const [visualStyleId, setVisualStyleId] = useState("");
@@ -190,9 +239,24 @@ export function GeneratePage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [frameworks, setFrameworks] = useState<Framework[]>([]);
   const [hookTypes, setHookTypes] = useState<HookType[]>([]);
+  const [topics, setTopics] = useState<ContentTopic[]>([]);
   const [tonePresets, setTonePresets] = useState<{ id: string; name: string }[]>([]);
   const [visualStyles, setVisualStyles] = useState<{ id: string; name: string }[]>([]);
   const [generations, setGenerations] = useState<Generation[]>([]);
+  const [previewItem, setPreviewItem] = useState<{
+    id: string;
+    contentTitle?: string | null;
+    content: Record<string, unknown>;
+    status: string;
+    createdAt: string;
+    request: {
+      platform: string;
+      contentType: string;
+      brand?: { id: string; name: string } | null;
+      product?: { id: string; name: string } | null;
+    };
+    sections: { id: string; sectionType: string; sectionOrder: number; contentText: string }[];
+  } | null>(null);
 
   // Brain context
   const [brainTone, setBrainTone] = useState<string | undefined>();
@@ -202,6 +266,51 @@ export function GeneratePage() {
   const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState<ToastState>(null);
   const [advancedMode, setAdvancedMode] = useState(false);
+
+  const handleViewGeneration = async (gen: Generation) => {
+    if (!activeWorkspace) return;
+    try {
+      const data = await api<{
+        data: {
+          id: string;
+          platform: string;
+          contentType: string;
+          brand?: { id: string; name: string } | null;
+          product?: { id: string; name: string } | null;
+          outputs: {
+            id: string;
+            contentTitle?: string | null;
+            content: Record<string, unknown>;
+            status: string;
+            createdAt: string;
+            sections: { id: string; sectionType: string; sectionOrder: number; contentText: string }[];
+          }[];
+        };
+      }>(`/api/workspaces/${activeWorkspace.id}/generations/${gen.id}`);
+      const req = (data as any).data ?? data;
+      const output = req.outputs?.[0];
+      if (!output) {
+        showToast("No output available yet", "info");
+        return;
+      }
+      setPreviewItem({
+        id: output.id,
+        contentTitle: output.contentTitle,
+        content: output.content as Record<string, unknown>,
+        status: output.status,
+        createdAt: output.createdAt,
+        request: {
+          platform: req.platform ?? gen.platform,
+          contentType: req.contentType ?? gen.contentType,
+          brand: req.brand ?? gen.brand,
+          product: req.product ?? gen.product,
+        },
+        sections: output.sections ?? [],
+      });
+    } catch {
+      showToast("Failed to load generation details", "error");
+    }
+  };
 
   const showToast = (message: string, type: "success" | "error" | "info") => {
     setToast({ message, type });
@@ -224,18 +333,20 @@ export function GeneratePage() {
     }
     setLoading(true);
     try {
-      const [b, p, fw, ht, gen] = await Promise.all([
+      const [b, p, fw, ht, gen, tp] = await Promise.all([
         api<Brand[]>(`/api/workspaces/${activeWorkspace.id}/brands`),
         api<Product[]>(`/api/workspaces/${activeWorkspace.id}/products`),
         api<Framework[]>(`/api/taxonomy/frameworks`),
         api<HookType[]>(`/api/taxonomy/hook-types`),
         api<Generation[]>(`/api/workspaces/${activeWorkspace.id}/generations`),
+        api<ContentTopic[]>(`/api/workspaces/${activeWorkspace.id}/topics`),
       ]);
       setBrands(b);
       setProducts(p);
       setFrameworks(fw);
       setHookTypes(ht);
       setGenerations(gen);
+      setTopics(tp);
       api<{ id: string; name: string }[]>(`/api/taxonomy/tone-presets`).then(setTonePresets).catch(() => {});
       api<{ id: string; name: string }[]>(`/api/taxonomy/visual-styles`).then(setVisualStyles).catch(() => {});
     } catch (e) {
@@ -306,6 +417,7 @@ export function GeneratePage() {
         body: JSON.stringify({
           brandId,
           productId: productId || undefined,
+          contentTopicId: contentTopicId || undefined,
           platform,
           contentType,
           framework: frameworkId || "PAS",
@@ -375,6 +487,7 @@ export function GeneratePage() {
           </button>
         </div>
       </div>
+      <ActiveSkillsBadges generator="content" />
 
       {loading ? (
         <div className="flex justify-center py-12"><Spinner /></div>
@@ -396,16 +509,32 @@ export function GeneratePage() {
                 label="Brand"
                 options={brandOptions}
                 value={brandId}
-                onChange={(e) => { setBrandId(e.target.value); setProductId(""); }}
+                onChange={(e) => { setBrandId(e.target.value); setProductId(""); setContentTopicId(""); }}
               />
 
               {brandId && (
-                <Select
-                  label="Product"
-                  options={productOptions}
-                  value={productId}
-                  onChange={(e) => setProductId(e.target.value)}
-                />
+                <>
+                  <Select
+                    label="Product"
+                    options={productOptions}
+                    value={productId}
+                    onChange={(e) => setProductId(e.target.value)}
+                  />
+
+                  <SearchableSelect
+                    label="Topic (optional)"
+                    options={topics
+                      .filter((t) => t.brandId === brandId)
+                      .map((t) => ({
+                        value: t.id,
+                        label: t.title,
+                        sublabel: [t.pillar, t.platform, t.format].filter(Boolean).join(" \u00B7 "),
+                      }))}
+                    value={contentTopicId}
+                    onChange={setContentTopicId}
+                    placeholder="Search topics..."
+                  />
+                </>
               )}
 
               <BrainContextCard tone={brainTone} usp={brainUsp} />
@@ -575,27 +704,54 @@ export function GeneratePage() {
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-gray-100 bg-gray-50">
-                        <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-wide">ID</th>
+                        <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-wide">Brand</th>
                         <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-wide">Platform</th>
                         <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-wide">Format</th>
                         <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-wide">Status</th>
-                        <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-wide">Date</th>
+                        <th className="px-4 py-2.5" />
                       </tr>
                     </thead>
                     <tbody>
-                      {generations.map((gen) => (
-                        <tr key={gen.id} className="border-b border-gray-50 hover:bg-gray-50">
-                          <td className="px-4 py-2.5 text-sm text-gray-500 font-mono">{gen.id.slice(0, 8)}</td>
-                          <td className="px-4 py-2.5 text-sm text-gray-700 capitalize">{gen.platform}</td>
-                          <td className="px-4 py-2.5 text-sm text-gray-700">{gen.contentType?.replace(/_/g, " ")}</td>
-                          <td className="px-4 py-2.5">
-                            <Badge variant={statusBadgeVariant(gen.status)}>{gen.status}</Badge>
-                          </td>
-                          <td className="px-4 py-2.5 text-sm text-gray-500">
-                            {new Date(gen.createdAt).toLocaleDateString()}
-                          </td>
-                        </tr>
-                      ))}
+                      {generations.map((gen) => {
+                        const ps = getPlatformStyle(gen.platform);
+                        return (
+                          <tr key={gen.id} className="border-b border-gray-50 hover:bg-gray-50">
+                            <td className="px-4 py-2.5">
+                              <p className="text-sm text-gray-800">{gen.brand?.name ?? "—"}</p>
+                              {gen.product?.name && (
+                                <p className="text-xs text-gray-400">{gen.product.name}</p>
+                              )}
+                            </td>
+                            <td className="px-4 py-2.5">
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium capitalize ${ps.bg} ${ps.text}`}>
+                                {gen.platform}
+                              </span>
+                            </td>
+                            <td className="px-4 py-2.5 text-sm text-gray-700 capitalize">
+                              {gen.contentType?.replace(/_/g, " ")}
+                            </td>
+                            <td className="px-4 py-2.5">
+                              <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium capitalize ${getStatusStyle(gen.status)}`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${getStatusDot(gen.status)}`} />
+                                {gen.status}
+                              </span>
+                              <p className="text-[10px] text-gray-400 mt-0.5">{formatRelativeDate(gen.createdAt)}</p>
+                            </td>
+                            <td className="px-4 py-2.5">
+                              {gen.status === "completed" && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleViewGeneration(gen)}
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                                >
+                                  <Eye size={14} />
+                                  View
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -615,6 +771,18 @@ export function GeneratePage() {
             )}
           </div>
         </div>
+      )}
+
+      {previewItem && activeWorkspace && (
+        <ContentPreviewModal
+          item={previewItem}
+          workspaceId={activeWorkspace.id}
+          onClose={() => setPreviewItem(null)}
+          onStatusChange={(id, status) => {
+            setPreviewItem((prev) => prev && prev.id === id ? { ...prev, status } : prev);
+          }}
+          onToast={showToast}
+        />
       )}
 
       {toast && (

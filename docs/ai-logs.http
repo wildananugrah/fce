@@ -1,0 +1,33 @@
+### Variables
+@baseUrl = http://localhost:3001
+@workspaceId = YOUR_WORKSPACE_ID
+@token = YOUR_JWT_TOKEN
+
+### ─── List AI Logs ─────────────────────────────────────────────
+### Get all logs (latest 50)
+GET {{baseUrl}}/api/workspaces/{{workspaceId}}/ai-logs
+Authorization: Bearer {{token}}
+
+### ─── List with filters ────────────────────────────────────────
+### Filter by generator (topic | content | campaign)
+GET {{baseUrl}}/api/workspaces/{{workspaceId}}/ai-logs?generator=content&limit=20
+Authorization: Bearer {{token}}
+
+### Filter by status (success | error)
+GET {{baseUrl}}/api/workspaces/{{workspaceId}}/ai-logs?status=error&limit=10
+Authorization: Bearer {{token}}
+
+### Pagination
+GET {{baseUrl}}/api/workspaces/{{workspaceId}}/ai-logs?limit=10&offset=10
+Authorization: Bearer {{token}}
+
+### ─── Get Log Detail ───────────────────────────────────────────
+### Full detail including prompts and response
+@logId = YOUR_LOG_ID
+GET {{baseUrl}}/api/workspaces/{{workspaceId}}/ai-logs/{{logId}}
+Authorization: Bearer {{token}}
+
+### ─── Stats Summary ────────────────────────────────────────────
+### Aggregate stats (total, by generator, by provider, error count)
+GET {{baseUrl}}/api/workspaces/{{workspaceId}}/ai-logs/stats/summary
+Authorization: Bearer {{token}}

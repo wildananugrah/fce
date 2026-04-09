@@ -9,9 +9,13 @@ import type { IGenerationRepository } from "../interfaces/repositories/generatio
 export class GenerationRepository implements IGenerationRepository {
 	constructor(private prisma: PrismaClient) {}
 
-	async findByWorkspace(workspaceId: string): Promise<GenerationRequest[]> {
+	async findByWorkspace(workspaceId: string) {
 		return this.prisma.generationRequest.findMany({
 			where: { workspaceId },
+			include: {
+				brand: { select: { id: true, name: true } },
+				product: { select: { id: true, name: true } },
+			},
 			orderBy: { createdAt: "desc" },
 		});
 	}
@@ -51,9 +55,7 @@ export class GenerationRepository implements IGenerationRepository {
 		});
 	}
 
-	async findOutputsByWorkspace(
-		workspaceId: string,
-	): Promise<(GenerationOutput & { request: GenerationRequest })[]> {
+	async findOutputsByWorkspace(workspaceId: string) {
 		return this.prisma.generationOutput.findMany({
 			where: {
 				request: {
@@ -61,7 +63,12 @@ export class GenerationRepository implements IGenerationRepository {
 				},
 			},
 			include: {
-				request: true,
+				request: {
+					include: {
+						brand: { select: { id: true, name: true } },
+						product: { select: { id: true, name: true } },
+					},
+				},
 				sections: { orderBy: { sectionOrder: "asc" } },
 			},
 			orderBy: { createdAt: "desc" },

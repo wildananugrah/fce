@@ -20,6 +20,7 @@ export function createGenerationRoutes(generationService: IGenerationService) {
 		const request = await generationService.create(workspaceId, userId, {
 			brandId: body.brandId,
 			productId: body.productId,
+			contentTopicId: body.contentTopicId,
 			platform: body.platform,
 			contentType: body.contentType,
 			framework: body.framework,

@@ -1,7 +1,11 @@
 import type { ContentTopic } from "@prisma/client";
 
+export type TopicWithBrand = ContentTopic & {
+	brand?: { id: string; name: string } | null;
+};
+
 export interface ITopicRepository {
-	findByWorkspace(workspaceId: string): Promise<ContentTopic[]>;
+	findByWorkspace(workspaceId: string): Promise<TopicWithBrand[]>;
 	findById(id: string): Promise<ContentTopic | null>;
 	create(data: {
 		workspaceId: string;

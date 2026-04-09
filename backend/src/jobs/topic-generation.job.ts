@@ -2,6 +2,8 @@ import type { PrismaClient } from "@prisma/client";
 import type { ILogger } from "../interfaces/providers/logger.provider.interface";
 import type { ITopicGenerator } from "../interfaces/providers/topic-generator.interface";
 import type { INotificationService } from "../interfaces/services/notification.service.interface";
+import { buildTopicGenerationPrompt } from "../utils/prompt-builder";
+import { logAiActivity } from "../utils/ai-activity-logger";
 
 interface TopicJobData {
 	workspaceId: string;
@@ -51,15 +53,59 @@ export class TopicGenerationJob {
 				}
 			}
 
-			// Generate topics
-			const output = await this.topicGenerator.generate({
+			// Fetch mapped AI skills for topic generator
+			const skillMappings = await this.prisma.workspaceSkillMapping.findMany({
+				where: { workspaceId, generator: "topic", isActive: true },
+				include: { skill: true },
+			});
+			const skillContext = skillMappings
+				.map((m) => {
+					let ctx = m.skill.content;
+					if (m.skill.referenceFiles) {
+						const refs = m.skill.referenceFiles as { name: string; content: string }[];
+						ctx += "\n\n" + refs.map((r) => `## Reference: ${r.name}\n${r.content}`).join("\n\n");
+					}
+					return `### Skill: ${m.skill.name}\n${ctx}`;
+				})
+				.join("\n\n---\n\n");
+
+			// Build generation input
+			const generationInput = {
 				brandContext,
 				productContext,
+				skillContext: skillContext || undefined,
 				platform,
 				objective,
 				dateFrom,
 				dateTo,
 				count,
+			};
+
+			// Get prompts for logging
+			const { systemPrompt, userPrompt } = buildTopicGenerationPrompt(generationInput);
+
+			// Generate topics with timing
+			const startTime = Date.now();
+			const output = await this.topicGenerator.generate(generationInput);
+			const durationMs = Date.now() - startTime;
+
+			// Log AI activity
+			await logAiActivity(this.prisma, {
+				workspaceId,
+				generator: "topic",
+				provider: process.env.AI_TOPIC_PROVIDER || process.env.AI_PROVIDER || "unknown",
+				userId,
+				systemPrompt,
+				userPrompt,
+				brandId: brandId ?? undefined,
+				productId: productId ?? undefined,
+				platform: platform ?? undefined,
+				skillIds: skillMappings.map((m) => m.skill.id),
+				skillNames: skillMappings.map((m) => m.skill.name),
+			}, {
+				responseJson: output,
+				durationMs,
+				status: "success",
 			});
 
 			// Create ContentTopic records for each generated topic

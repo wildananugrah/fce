@@ -1,6 +1,7 @@
 export interface CreateGenerationInput {
 	brandId: string;
 	productId?: string;
+	contentTopicId?: string;
 	platform: string;
 	contentType: string;
 	framework: string;

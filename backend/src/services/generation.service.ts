@@ -31,6 +31,7 @@ export class GenerationService implements IGenerationService {
 			workspaceId,
 			brandId: input.brandId,
 			productId: input.productId || null,
+			contentTopicId: input.contentTopicId || null,
 			platform: input.platform,
 			contentType: input.contentType,
 			framework: input.framework,
