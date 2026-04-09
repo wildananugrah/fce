@@ -30,6 +30,6 @@ bun run build
 
 echo "Deploying fce frontend..."
 [ -d "$DEPLOY_DIR/" ] && rm -r "$DEPLOY_DIR/"
-cp -r "$REPO_DIR/frontend/dist" "$DEPLOY_DIR/"
+cp -r "$REPO_DIR/frontend/dist" "$DEPLOY_DIR/dist"
 
 echo "Done!"
