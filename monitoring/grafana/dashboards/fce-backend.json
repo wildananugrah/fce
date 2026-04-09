@@ -2,7 +2,7 @@
   "title": "FCE Backend",
   "uid": "fce-backend",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "editable": true,
   "refresh": "30s",
   "time": { "from": "now-12h", "to": "now" },
@@ -19,6 +19,7 @@
         "refresh": 1,
         "includeAll": true,
         "multi": true,
+        "allValue": ".+",
         "current": { "text": "All", "value": "$__all" }
       }
     ]
@@ -33,7 +34,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "count(count by (userId) (count_over_time({app=~\"$app\"} | regexp `\\[user:(?P<userId>[^\\]]+)\\]` | userId != \"anonymous\" [$__range])))",
+          "expr": "count(count by (userId) (count_over_time({app=~\"$app\"} |= \"Request completed\" | regexp `\"userId\":\"(?P<userId>[^\"]+)\"` | userId != \"anonymous\" [$__range])))",
           "queryType": "instant"
         }
       ],
@@ -46,7 +47,8 @@
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "fixed", "fixedColor": "blue" },
-          "unit": "none"
+          "unit": "none",
+          "noValue": "0"
         },
         "overrides": []
       }
@@ -60,7 +62,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(count_over_time({app=~\"$app\"} |~ `\\] (GET|POST|PUT|DELETE|PATCH) ` | regexp `\\[user:(?P<userId>[^\\]]+)\\]` | userId != \"anonymous\" [$__range]))",
+          "expr": "sum(count_over_time({app=~\"$app\"} |= \"Request completed\" | regexp `\"userId\":\"(?P<userId>[^\"]+)\"` | userId != \"anonymous\" [$__range]))",
           "queryType": "instant"
         }
       ],
@@ -73,7 +75,8 @@
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "fixed", "fixedColor": "green" },
-          "unit": "none"
+          "unit": "none",
+          "noValue": "0"
         },
         "overrides": []
       }
@@ -87,7 +90,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "topk(10, sum by (userId) (count_over_time({app=~\"$app\"} | regexp `\\[user:(?P<userId>[^\\]]+)\\]` | userId != \"anonymous\" [$__range])))",
+          "expr": "topk(10, sum by (userId) (count_over_time({app=~\"$app\"} |= \"Request completed\" | regexp `\"userId\":\"(?P<userId>[^\"]+)\"` | userId != \"anonymous\" [$__range])))",
           "queryType": "instant",
           "format": "table"
         }
@@ -96,9 +99,12 @@
         "defaults": {},
         "overrides": [
           { "matcher": { "id": "byName", "options": "userId" }, "properties": [{ "id": "displayName", "value": "User ID" }] },
-          { "matcher": { "id": "byName", "options": "Value" }, "properties": [{ "id": "displayName", "value": "Requests" }] }
+          { "matcher": { "id": "byName", "options": "Value #A" }, "properties": [{ "id": "displayName", "value": "Requests" }] }
         ]
-      }
+      },
+      "transformations": [
+        { "id": "filterFieldsByName", "options": { "include": { "names": ["userId", "Value #A"] } } }
+      ]
     },
     {
       "id": 4,
@@ -109,7 +115,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(count_over_time({app=~\"$app\"} |~ `\\] (GET|POST|PUT|DELETE|PATCH) ` [$__range]))",
+          "expr": "sum(count_over_time({app=~\"$app\"} |= \"Request completed\" [$__range]))",
           "queryType": "instant"
         }
       ],
@@ -122,7 +128,8 @@
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "fixed", "fixedColor": "purple" },
-          "unit": "none"
+          "unit": "none",
+          "noValue": "0"
         },
         "overrides": []
       }
@@ -136,7 +143,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(count_over_time({app=~\"$app\"} |~ `\\[ERROR\\]` [$__range]))",
+          "expr": "sum(count_over_time({app=~\"$app\", level=\"error\"} [$__range]))",
           "queryType": "instant"
         }
       ],
@@ -164,7 +171,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (userId) (count_over_time({app=~\"$app\"} | regexp `\\[user:(?P<userId>[^\\]]+)\\]` | userId != \"anonymous\" [$__interval]))",
+          "expr": "sum by (userId) (count_over_time({app=~\"$app\"} |= \"Request completed\" | regexp `\"userId\":\"(?P<userId>[^\"]+)\"` | userId != \"anonymous\" [$__interval]))",
           "legendFormat": "{{userId}}"
         }
       ],
@@ -192,7 +199,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "topk(10, sum by (userId) (count_over_time({app=~\"$app\"} | regexp `\\[user:(?P<userId>[^\\]]+)\\]` | userId != \"anonymous\" [$__range])))",
+          "expr": "topk(10, sum by (userId) (count_over_time({app=~\"$app\"} |= \"Request completed\" | regexp `\"userId\":\"(?P<userId>[^\"]+)\"` | userId != \"anonymous\" [$__range])))",
           "queryType": "instant",
           "legendFormat": "{{userId}}"
         }
@@ -218,7 +225,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (level) (count_over_time({app=~\"$app\"} | regexp `\\[(?P<level>INFO|WARN|ERROR|DEBUG)\\]` [1m]))",
+          "expr": "sum by (level) (count_over_time({app=~\"$app\"} [1m]))",
           "legendFormat": "{{level}}"
         }
       ],
@@ -227,9 +234,9 @@
           "custom": { "drawStyle": "bars", "fillOpacity": 70, "stacking": { "mode": "normal", "group": "A" } }
         },
         "overrides": [
-          { "matcher": { "id": "byName", "options": "INFO" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "green" } }] },
-          { "matcher": { "id": "byName", "options": "WARN" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } }] },
-          { "matcher": { "id": "byName", "options": "ERROR" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }] }
+          { "matcher": { "id": "byName", "options": "info" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "green" } }] },
+          { "matcher": { "id": "byName", "options": "warn" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } }] },
+          { "matcher": { "id": "byName", "options": "error" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }] }
         ]
       }
     },
@@ -242,8 +249,8 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (status) (count_over_time({app=~\"$app\"} | regexp `(?P<method>GET|POST|PUT|DELETE|PATCH) \\S+ (?P<status>\\d{3})` [1m]))",
-          "legendFormat": "{{status}}"
+          "expr": "sum by (statusCode) (count_over_time({app=~\"$app\"} |= \"statusCode\" | regexp `\"statusCode\":(?P<statusCode>\\d+)` [1m]))",
+          "legendFormat": "{{statusCode}}"
         }
       ],
       "fieldConfig": {
@@ -262,7 +269,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "topk(15, sum by (method, uri) (count_over_time({app=~\"$app\"} | regexp `(?P<method>GET|POST|PUT|DELETE|PATCH) (?P<uri>\\S+) \\d{3}` [$__range])))",
+          "expr": "topk(15, sum by (method, uri) (count_over_time({app=~\"$app\"} |= \"Request completed\" | regexp `\"method\":\"(?P<method>[^\"]+)\"` | regexp `\"uri\":\"(?P<uri>[^\"]+)\"` [$__range])))",
           "queryType": "instant",
           "format": "table"
         }
@@ -272,9 +279,12 @@
         "overrides": [
           { "matcher": { "id": "byName", "options": "method" }, "properties": [{ "id": "displayName", "value": "Method" }, { "id": "custom.width", "value": 90 }] },
           { "matcher": { "id": "byName", "options": "uri" }, "properties": [{ "id": "displayName", "value": "Endpoint" }] },
-          { "matcher": { "id": "byName", "options": "Value" }, "properties": [{ "id": "displayName", "value": "Count" }, { "id": "custom.width", "value": 90 }] }
+          { "matcher": { "id": "byName", "options": "Value #A" }, "properties": [{ "id": "displayName", "value": "Count" }, { "id": "custom.width", "value": 90 }] }
         ]
-      }
+      },
+      "transformations": [
+        { "id": "filterFieldsByName", "options": { "include": { "names": ["method", "uri", "Value #A"] } } }
+      ]
     },
     {
       "id": 11,
@@ -285,17 +295,17 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "quantile_over_time(0.50, {app=~\"$app\"} |~ ` \\d+ms$` | regexp ` (?P<duration_ms>\\d+)ms$` | unwrap duration_ms [1m])",
+          "expr": "quantile_over_time(0.50, {app=~\"$app\"} |= \"processingTime\" | regexp `\"processingTime\":(?P<processingTime>\\d+)` | unwrap processingTime [1m]) by ()",
           "legendFormat": "p50"
         },
         {
           "refId": "B",
-          "expr": "quantile_over_time(0.95, {app=~\"$app\"} |~ ` \\d+ms$` | regexp ` (?P<duration_ms>\\d+)ms$` | unwrap duration_ms [1m])",
+          "expr": "quantile_over_time(0.95, {app=~\"$app\"} |= \"processingTime\" | regexp `\"processingTime\":(?P<processingTime>\\d+)` | unwrap processingTime [1m]) by ()",
           "legendFormat": "p95"
         },
         {
           "refId": "C",
-          "expr": "quantile_over_time(0.99, {app=~\"$app\"} |~ ` \\d+ms$` | regexp ` (?P<duration_ms>\\d+)ms$` | unwrap duration_ms [1m])",
+          "expr": "quantile_over_time(0.99, {app=~\"$app\"} |= \"processingTime\" | regexp `\"processingTime\":(?P<processingTime>\\d+)` | unwrap processingTime [1m]) by ()",
           "legendFormat": "p99"
         }
       ],
@@ -343,7 +353,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(count_over_time({app=~\"$app\"} |~ `\"Job queued\"|job enqueued` [$__range]))",
+          "expr": "sum(count_over_time({app=~\"$app\"} |~ `job enqueued|Job queued` [$__range]))",
           "queryType": "instant"
         }
       ],
@@ -475,17 +485,17 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "quantile_over_time(0.50, {app=~\"$app\"} |~ ` \\d+ms$` | regexp ` (?P<duration_ms>\\d+)ms$` | unwrap duration_ms [5m])",
+          "expr": "quantile_over_time(0.50, {app=~\"$app\"} |= \"processingTime\" | regexp `\"processingTime\":(?P<processingTime>\\d+)` | unwrap processingTime [5m]) by ()",
           "legendFormat": "p50"
         },
         {
           "refId": "B",
-          "expr": "quantile_over_time(0.95, {app=~\"$app\"} |~ ` \\d+ms$` | regexp ` (?P<duration_ms>\\d+)ms$` | unwrap duration_ms [5m])",
+          "expr": "quantile_over_time(0.95, {app=~\"$app\"} |= \"processingTime\" | regexp `\"processingTime\":(?P<processingTime>\\d+)` | unwrap processingTime [5m]) by ()",
           "legendFormat": "p95"
         },
         {
           "refId": "C",
-          "expr": "quantile_over_time(0.99, {app=~\"$app\"} |~ ` \\d+ms$` | regexp ` (?P<duration_ms>\\d+)ms$` | unwrap duration_ms [5m])",
+          "expr": "quantile_over_time(0.99, {app=~\"$app\"} |= \"processingTime\" | regexp `\"processingTime\":(?P<processingTime>\\d+)` | unwrap processingTime [5m]) by ()",
           "legendFormat": "p99"
         }
       ],
@@ -500,7 +510,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (jobType) (count_over_time({app=~\"$app\"} | regexp `(?P<jobType>Content generation|Campaign generation|Topic generation|Brand scraping|Document extraction|Recommendation recompute) (completed|failed)` [$__range]))",
+          "expr": "sum by (jobType) (count_over_time({app=~\"$app\"} |~ `(Content generation|Campaign generation|Topic generation|Brand scraping|Document extraction|Recommendation recompute) (completed|failed)` | regexp `(?P<jobType>Content generation|Campaign generation|Topic generation|Brand scraping|Document extraction|Recommendation recompute) (completed|failed)` [$__range]))",
           "queryType": "instant",
           "legendFormat": "{{jobType}}"
         }
