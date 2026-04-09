@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from "react";
 import { useWorkspace } from "../hooks/useWorkspace";
 import { useSSE } from "../hooks/useSSE";
 import { api } from "../services/api";
-import { Button } from "../components/ui/Button";
 import { Select } from "../components/ui/Select";
 import { Badge } from "../components/ui/Badge";
 import { Spinner } from "../components/ui/Spinner";
@@ -123,11 +122,6 @@ const OBJECTIVE_OPTIONS = [
   { value: "launch", label: "Launch" },
 ];
 
-const LANGUAGE_OPTIONS = [
-  { value: "indonesian", label: "Indonesian" },
-  { value: "english", label: "English" },
-];
-
 const OUTPUT_LENGTH_OPTIONS = [
   { value: "", label: "Select Output Length" },
   { value: "short", label: "Short" },
@@ -184,7 +178,7 @@ export function GeneratePage() {
   const [contentType, setContentType] = useState("");
   const [frameworkId, setFrameworkId] = useState("");
   const [hookTypeId, setHookTypeId] = useState("");
-  const [language, setLanguage] = useState("indonesian");
+  const [language] = useState("indonesian");
   const [customPrompt, setCustomPrompt] = useState("");
   const [tonePresetId, setTonePresetId] = useState("");
   const [visualStyleId, setVisualStyleId] = useState("");
