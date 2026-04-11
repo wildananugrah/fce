@@ -356,7 +356,10 @@ export function GeneratePage() {
   const initialObjective = normalizeObjective(searchParams.get("objective"));
 
   const [brandId, setBrandId] = useState(searchParams.get("brandId") ?? "");
-  const [productId, setProductId] = useState(searchParams.get("productId") ?? "");
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>(() => {
+    const ids = searchParams.getAll("productId");
+    return ids.length > 0 ? ids : [];
+  });
   const [platform, setPlatform] = useState(initialPlatform);
   const [contentType, setContentType] = useState(initialContentType);
   const [frameworkId, setFrameworkId] = useState("");
@@ -511,9 +514,9 @@ export function GeneratePage() {
         const activeBrandBrain = brand.brainVersions?.find((v: BrandBrainVersion) => v.isActive);
         setBrainTone(activeBrandBrain?.tone);
 
-        // Get product brain for USP
-        if (productId) {
-          const productRes = await api<{ data: Product }>(`/api/workspaces/${activeWorkspace.id}/products/${productId}`);
+        // Get product brain for USP (use first selected product)
+        if (selectedProductIds.length > 0) {
+          const productRes = await api<{ data: Product }>(`/api/workspaces/${activeWorkspace.id}/products/${selectedProductIds[0]}`);
           const product = (productRes as any).data ?? productRes;
           const activeProductBrain = product.brainVersions?.find((v: ProductBrainVersion) => v.isActive);
           setBrainUsp(activeProductBrain?.usp);
@@ -525,7 +528,7 @@ export function GeneratePage() {
         setBrainUsp(undefined);
       }
     })();
-  }, [activeWorkspace, brandId, productId]);
+  }, [activeWorkspace, brandId, selectedProductIds]);
 
   useSSE((event) => {
     if (event.type === "generation_complete" || event.type === "generation_failed") {
@@ -536,11 +539,11 @@ export function GeneratePage() {
   const filteredProducts = products.filter((p) => !brandId || p.brandId === brandId);
   const currentFormats = PLATFORM_FORMATS[platform] ?? [];
 
-  const canGenerate = brandId && productId && platform && contentType && objective;
+  const canGenerate = brandId && selectedProductIds.length > 0 && platform && contentType && objective;
 
   const handleSubmit = async () => {
     if (!brandId) { showToast("Please select a brand", "error"); return; }
-    if (!productId) { showToast("Please select a product", "error"); return; }
+    if (selectedProductIds.length === 0) { showToast("Please select at least one product", "error"); return; }
     if (!platform) { showToast("Please select a platform", "error"); return; }
     if (!contentType) { showToast("Please select an output format", "error"); return; }
     if (!objective) { showToast("Please select an objective", "error"); return; }
@@ -551,7 +554,7 @@ export function GeneratePage() {
         method: "POST",
         body: JSON.stringify({
           brandId,
-          productId: productId || undefined,
+          productIds: selectedProductIds.length > 0 ? selectedProductIds : undefined,
           contentTopicId: contentTopicId || undefined,
           platform,
           contentType,
@@ -586,11 +589,7 @@ export function GeneratePage() {
     { value: "", label: "Select brand" },
     ...brands.map((b) => ({ value: b.id, label: b.name })),
   ];
-  const productOptions = [
-    { value: "", label: "Select product" },
-    ...filteredProducts.map((p) => ({ value: p.id, label: `${brands.find((b) => b.id === p.brandId)?.name ?? ""} ${p.name}` })),
-  ];
-  const frameworkOptions = [{ value: "", label: "PAS (recommended)" }, ...frameworks.map((f) => ({ value: f.id, label: f.name }))];
+const frameworkOptions = [{ value: "", label: "PAS (recommended)" }, ...frameworks.map((f) => ({ value: f.id, label: f.name }))];
   const hookTypeOptions = [{ value: "", label: "Curiosity (recommended)" }, ...hookTypes.map((h) => ({ value: h.id, label: h.name }))];
   const tonePresetOptions = [{ value: "", label: "Select Tone Variation" }, ...tonePresets.map((t) => ({ value: t.id, label: t.name }))];
   const visualStyleOptions = [{ value: "", label: "Select Visual Style" }, ...visualStyles.map((v) => ({ value: v.id, label: v.name }))];
@@ -644,17 +643,53 @@ export function GeneratePage() {
                 label="Brand"
                 options={brandOptions}
                 value={brandId}
-                onChange={(e) => { setBrandId(e.target.value); setProductId(""); setContentTopicId(""); }}
+                onChange={(e) => { setBrandId(e.target.value); setSelectedProductIds([]); setContentTopicId(""); }}
               />
 
               {brandId && (
                 <>
-                  <Select
-                    label="Product"
-                    options={productOptions}
-                    value={productId}
-                    onChange={(e) => setProductId(e.target.value)}
-                  />
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 uppercase tracking-wide mb-1">
+                      Products
+                    </label>
+                    <p className="text-[11px] text-gray-400 mb-2">
+                      Select one or more products
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {filteredProducts.map((p) => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() =>
+                            setSelectedProductIds((prev) =>
+                              prev.includes(p.id)
+                                ? prev.filter((id) => id !== p.id)
+                                : [...prev, p.id]
+                            )
+                          }
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+                            selectedProductIds.includes(p.id)
+                              ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
+                              : "bg-white text-gray-600 border-gray-200 hover:border-indigo-300 hover:bg-indigo-50"
+                          }`}
+                        >
+                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            {selectedProductIds.includes(p.id) ? (
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                            ) : (
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                            )}
+                          </svg>
+                          {p.name}
+                        </button>
+                      ))}
+                    </div>
+                    {selectedProductIds.length > 0 && (
+                      <p className="text-[11px] text-indigo-500 mt-1.5">
+                        {selectedProductIds.length} product{selectedProductIds.length > 1 ? "s" : ""} selected
+                      </p>
+                    )}
+                  </div>
 
                   <SearchableSelect
                     label="Topic (optional)"

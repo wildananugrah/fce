@@ -27,10 +27,13 @@ export class GenerationService implements IGenerationService {
 		userId: string,
 		input: CreateGenerationInput,
 	): Promise<GenerationRequest> {
+		// Use first productId for the FK, or fall back to single productId
+		const primaryProductId = input.productIds?.[0] ?? input.productId ?? null;
+
 		const request = await this.generationRepository.create({
 			workspaceId,
 			brandId: input.brandId,
-			productId: input.productId || null,
+			productId: primaryProductId,
 			contentTopicId: input.contentTopicId || null,
 			platform: input.platform,
 			contentType: input.contentType,
@@ -46,6 +49,7 @@ export class GenerationService implements IGenerationService {
 
 		await this.boss.send("content-generation", {
 			requestId: request.id,
+			productIds: input.productIds ?? (input.productId ? [input.productId] : []),
 			userId,
 		});
 

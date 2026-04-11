@@ -8,6 +8,7 @@ import { buildContentGenerationPrompt } from "../utils/prompt-builder";
 
 interface ContentJobData {
 	requestId: string;
+	productIds?: string[];
 	userId: string;
 }
 
@@ -21,7 +22,7 @@ export class ContentGenerationJob {
 	) {}
 
 	async handle(data: ContentJobData): Promise<void> {
-		const { requestId, userId } = data;
+		const { requestId, productIds, userId } = data;
 
 		try {
 			// Update status to processing
@@ -36,14 +37,37 @@ export class ContentGenerationJob {
 				include: { brainVersions: { where: { isActive: true }, take: 1 } },
 			});
 
+			// Build product contexts (multiple)
 			let productContext: string | undefined;
-			if (request.productId) {
+			const resolvedProductIds = productIds && productIds.length > 0
+				? productIds
+				: request.productId ? [request.productId] : [];
+
+			if (resolvedProductIds.length === 1) {
+				// Single product — keep original behavior
 				const product = await this.prisma.product.findUnique({
-					where: { id: request.productId },
+					where: { id: resolvedProductIds[0] },
 					include: { brainVersions: { where: { isActive: true }, take: 1 } },
 				});
 				if (product?.brainVersions[0]) {
 					productContext = JSON.stringify(product.brainVersions[0]);
+				}
+			} else if (resolvedProductIds.length > 1) {
+				// Multiple products — concatenate contexts
+				const contexts: string[] = [];
+				for (const pid of resolvedProductIds) {
+					const product = await this.prisma.product.findUnique({
+						where: { id: pid },
+						include: { brainVersions: { where: { isActive: true }, take: 1 } },
+					});
+					if (product?.brainVersions[0]) {
+						contexts.push(`Product "${product.name}":\n${JSON.stringify(product.brainVersions[0])}`);
+					} else if (product) {
+						contexts.push(`Product "${product.name}":\n${JSON.stringify({ name: product.name })}`);
+					}
+				}
+				if (contexts.length > 0) {
+					productContext = contexts.join("\n\n");
 				}
 			}
 
