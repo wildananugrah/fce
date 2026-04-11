@@ -430,51 +430,67 @@ export function TopicsPage() {
 								}}
 							/>
 
-							{brandId && (
-								<>
-									{filteredProducts.length > 0 && (
-										<div>
-											<label className="block text-xs font-medium text-gray-600 uppercase tracking-wide mb-2">
-												Products (optional — select multiple for cross-product topics)
-											</label>
-											<div className="flex flex-wrap gap-2">
-												{filteredProducts.map((p) => (
-													<button
-														key={p.id}
-														type="button"
-														onClick={() =>
-															setSelectedProductIds((prev) =>
-																prev.includes(p.id)
-																	? prev.filter((id) => id !== p.id)
-																	: [...prev, p.id]
-															)
-														}
-														className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-															selectedProductIds.includes(p.id)
-																? "bg-indigo-600 text-white border-indigo-600"
-																: "bg-white text-gray-600 border-gray-300 hover:border-gray-400"
-														}`}
-													>
-														{p.name}
-													</button>
-												))}
-											</div>
-										</div>
+							{brandId && filteredProducts.length > 0 && (
+								<div>
+									<label className="block text-xs font-medium text-gray-600 uppercase tracking-wide mb-2">
+										Products
+									</label>
+									<p className="text-[11px] text-gray-400 mb-2">
+										Select one or more products for cross-product topics
+									</p>
+									<div className="flex flex-wrap gap-2">
+										{filteredProducts.map((p) => (
+											<button
+												key={p.id}
+												type="button"
+												onClick={() =>
+													setSelectedProductIds((prev) =>
+														prev.includes(p.id)
+															? prev.filter((id) => id !== p.id)
+															: [...prev, p.id]
+													)
+												}
+												className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+													selectedProductIds.includes(p.id)
+														? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
+														: "bg-white text-gray-600 border-gray-200 hover:border-indigo-300 hover:bg-indigo-50"
+												}`}
+											>
+												<svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+													{selectedProductIds.includes(p.id) ? (
+														<path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+													) : (
+														<path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+													)}
+												</svg>
+												{p.name}
+											</button>
+										))}
+									</div>
+									{selectedProductIds.length > 0 && (
+										<p className="text-[11px] text-indigo-500 mt-1.5">
+											{selectedProductIds.length} product{selectedProductIds.length > 1 ? "s" : ""} selected
+										</p>
 									)}
+								</div>
+							)}
 
-									{contentPillars.length > 0 && (
-										<div className="flex flex-wrap gap-2">
-											{contentPillars.map((p, i) => (
-												<span
-													key={p}
-													className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${PILLAR_COLORS[i % PILLAR_COLORS.length]}`}
-												>
-													{p}
-												</span>
-											))}
-										</div>
-									)}
-								</>
+							{brandId && contentPillars.length > 0 && (
+								<div className="pt-3 border-t border-gray-100">
+									<label className="block text-[10px] font-medium text-gray-400 uppercase tracking-wide mb-2">
+										Brand Content Pillars
+									</label>
+									<div className="flex flex-wrap gap-1.5">
+										{contentPillars.map((p, i) => (
+											<span
+												key={p}
+												className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium ${PILLAR_COLORS[i % PILLAR_COLORS.length]}`}
+											>
+												{p}
+											</span>
+										))}
+									</div>
+								</div>
 							)}
 						</div>
 
@@ -498,28 +514,33 @@ export function TopicsPage() {
 							</div>
 
 							{/* Platform chips */}
-							<div className="flex flex-wrap gap-2">
-								{PLATFORMS.map((p) => (
-									<button
-										key={p.value}
-										type="button"
-										onClick={() => {
-											setPlatform(
+							<div>
+								<label className="block text-xs font-medium text-gray-600 uppercase tracking-wide mb-2">
+									Platform
+								</label>
+								<div className="flex flex-wrap gap-2">
+									{PLATFORMS.map((p) => (
+										<button
+											key={p.value}
+											type="button"
+											onClick={() => {
+												setPlatform(
+													platform === p.value
+														? ""
+														: p.value
+												);
+												setSelectedFormats([]);
+											}}
+											className={`px-3.5 py-1.5 rounded-full text-xs font-medium border transition-colors ${
 												platform === p.value
-													? ""
-													: p.value
-											);
-											setSelectedFormats([]);
-										}}
-										className={`px-3.5 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-											platform === p.value
-												? "bg-indigo-600 text-white border-indigo-600"
-												: "bg-white text-gray-600 border-gray-300 hover:border-gray-400"
-										}`}
-									>
-										{p.label}
-									</button>
-								))}
+													? "bg-indigo-600 text-white border-indigo-600"
+													: "bg-white text-gray-600 border-gray-300 hover:border-gray-400"
+											}`}
+										>
+											{p.label}
+										</button>
+									))}
+								</div>
 							</div>
 
 							{/* Objective */}
@@ -551,11 +572,15 @@ export function TopicsPage() {
 								</div>
 							</div>
 
+							{/* Content Formats — separate card-like section */}
 							{platform && PLATFORM_FORMATS[platform] && (
-								<div>
-									<label className="block text-xs font-medium text-gray-600 uppercase tracking-wide mb-2">
-										Content Formats (select allowed formats)
+								<div className="pt-3 border-t border-gray-100">
+									<label className="block text-xs font-medium text-gray-600 uppercase tracking-wide mb-1">
+										Content Formats
 									</label>
+									<p className="text-[11px] text-gray-400 mb-2">
+										Select which formats the AI can assign to topics
+									</p>
 									<div className="flex flex-wrap gap-2">
 										{PLATFORM_FORMATS[platform].map((f) => (
 											<button
@@ -568,20 +593,25 @@ export function TopicsPage() {
 															: [...prev, f.value]
 													)
 												}
-												className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+												className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
 													selectedFormats.includes(f.value)
-														? "bg-indigo-600 text-white border-indigo-600"
-														: "bg-white text-gray-600 border-gray-300 hover:border-gray-400"
+														? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
+														: "bg-white text-gray-600 border-gray-200 hover:border-indigo-300 hover:bg-indigo-50"
 												}`}
 											>
 												<span>{f.icon}</span>
 												{f.label}
 												{f.badge && (
-													<span className="text-[9px] opacity-70">{f.badge}</span>
+													<span className={`text-[9px] ${selectedFormats.includes(f.value) ? "opacity-70" : "text-gray-400"}`}>{f.badge}</span>
 												)}
 											</button>
 										))}
 									</div>
+									{selectedFormats.length > 0 && (
+										<p className="text-[11px] text-indigo-500 mt-1.5">
+											{selectedFormats.length} format{selectedFormats.length > 1 ? "s" : ""} selected
+										</p>
+									)}
 								</div>
 							)}
 						</div>
