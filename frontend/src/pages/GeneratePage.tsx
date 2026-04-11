@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
+import { Trash2, X } from "lucide-react";
 import { useWorkspace } from "../hooks/useWorkspace";
 import { useSSE } from "../hooks/useSSE";
 import { api } from "../services/api";
@@ -406,6 +407,8 @@ export function GeneratePage() {
   const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState<ToastState>(null);
   const [advancedMode, setAdvancedMode] = useState(false);
+  const [selectedGenIds, setSelectedGenIds] = useState<Set<string>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   const handleViewGeneration = async (gen: Generation) => {
     if (!activeWorkspace) return;
@@ -454,7 +457,50 @@ export function GeneratePage() {
 
   const handleGenerationApproved = (genId: string) => {
     setGenerations((prev) => prev.filter((g) => g.id !== genId));
+    setSelectedGenIds((prev) => { const next = new Set(prev); next.delete(genId); return next; });
     showToast("Content approved and moved to library", "success");
+  };
+
+  const toggleSelectGen = (id: string) => {
+    setSelectedGenIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedGenIds.size === 0 || !activeWorkspace) return;
+    setBulkDeleting(true);
+    try {
+      // Get output IDs for selected generations by fetching each
+      const outputIds: string[] = [];
+      for (const genId of selectedGenIds) {
+        try {
+          const res = await api<{ data: { outputs: { id: string }[] } }>(
+            `/api/workspaces/${activeWorkspace.id}/generations/${genId}`
+          );
+          const data = (res as any).data ?? res;
+          if (data.outputs?.[0]?.id) outputIds.push(data.outputs[0].id);
+        } catch { /* skip */ }
+      }
+
+      if (outputIds.length > 0) {
+        await api(`/api/workspaces/${activeWorkspace.id}/library/bulk`, {
+          method: "DELETE",
+          body: JSON.stringify({ ids: outputIds }),
+        });
+      }
+
+      setGenerations((prev) => prev.filter((g) => !selectedGenIds.has(g.id)));
+      showToast(`${selectedGenIds.size} generation${selectedGenIds.size > 1 ? "s" : ""} deleted`, "info");
+      setSelectedGenIds(new Set());
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : "Failed to delete", "error");
+    } finally {
+      setBulkDeleting(false);
+    }
   };
 
   const showToast = (message: string, type: "success" | "error" | "info") => {
@@ -906,6 +952,25 @@ const frameworkOptions = [{ value: "", label: "PAS (recommended)" }, ...framewor
                   <table className="w-full min-w-[640px]">
                     <thead>
                       <tr className="border-b border-gray-100 bg-gray-50">
+                        <th className="w-10 px-4 py-2.5">
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                            checked={generations.length > 0 && generations.every((g) => selectedGenIds.has(g.id))}
+                            ref={(el) => {
+                              if (!el) return;
+                              const count = generations.filter((g) => selectedGenIds.has(g.id)).length;
+                              el.indeterminate = count > 0 && count < generations.length;
+                            }}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedGenIds(new Set(generations.map((g) => g.id)));
+                              } else {
+                                setSelectedGenIds(new Set());
+                              }
+                            }}
+                          />
+                        </th>
                         <th className="px-4 py-2.5 w-8" />
                         <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-wide">Brand</th>
                         <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-wide">Platform</th>
@@ -920,6 +985,8 @@ const frameworkOptions = [{ value: "", label: "PAS (recommended)" }, ...framewor
                           key={gen.id}
                           generation={gen}
                           workspaceId={activeWorkspace!.id}
+                          selected={selectedGenIds.has(gen.id)}
+                          onSelect={toggleSelectGen}
                           onApproved={handleGenerationApproved}
                           onDeleted={(genId) => {
                             setGenerations((prev) => prev.filter((g) => g.id !== genId));
@@ -963,6 +1030,34 @@ const frameworkOptions = [{ value: "", label: "PAS (recommended)" }, ...framewor
           }}
           onToast={showToast}
         />
+      )}
+
+      {/* Bulk Action Bar */}
+      {selectedGenIds.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 bg-gray-900 text-white rounded-xl shadow-2xl border border-gray-800 px-4 py-3 flex items-center gap-3">
+          <span className="text-sm font-medium">
+            {selectedGenIds.size} item{selectedGenIds.size > 1 ? "s" : ""} selected
+          </span>
+          <div className="w-px h-5 bg-gray-700" />
+          <button
+            type="button"
+            onClick={handleBulkDelete}
+            disabled={bulkDeleting}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-red-600 hover:bg-red-700 rounded-lg disabled:opacity-50 transition-colors"
+          >
+            <Trash2 size={13} />
+            {bulkDeleting ? "Deleting..." : "Delete"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelectedGenIds(new Set())}
+            disabled={bulkDeleting}
+            className="p-1.5 text-gray-400 hover:text-white rounded disabled:opacity-50 transition-colors"
+            title="Clear selection"
+          >
+            <X size={14} />
+          </button>
+        </div>
       )}
 
       {toast && (

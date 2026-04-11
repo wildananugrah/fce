@@ -22,6 +22,8 @@ interface Generation {
 interface GenerationResultRowProps {
   generation: Generation;
   workspaceId: string;
+  selected?: boolean;
+  onSelect?: (id: string) => void;
   onApproved: (id: string) => void;
   onDeleted: (id: string) => void;
   onViewFull: (generation: Generation) => void;
@@ -34,6 +36,8 @@ interface GenerationResultRowProps {
 export function GenerationResultRow({
   generation,
   workspaceId,
+  selected,
+  onSelect,
   onApproved,
   onDeleted,
   onViewFull,
@@ -224,6 +228,16 @@ export function GenerationResultRow({
         className="border-b border-gray-50 hover:bg-gray-50 cursor-pointer"
         onClick={handleToggle}
       >
+        {onSelect && (
+          <td className="w-10 px-4 py-2.5" onClick={(e) => e.stopPropagation()}>
+            <input
+              type="checkbox"
+              checked={selected ?? false}
+              onChange={() => onSelect(generation.id)}
+              className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+            />
+          </td>
+        )}
         <td className="px-4 py-2.5 w-8">
           {expanded ? (
             <ChevronDown size={14} className="text-gray-400" />
@@ -309,7 +323,7 @@ export function GenerationResultRow({
       {/* Expanded content */}
       {expanded && (
         <tr>
-          <td colSpan={6} className="px-4 py-4 bg-gray-50/50">
+          <td colSpan={onSelect ? 7 : 6} className="px-4 py-4 bg-gray-50/50">
             {loading ? (
               <div className="flex items-center justify-center py-6">
                 <Loader2 size={18} className="animate-spin text-gray-400" />
