@@ -119,7 +119,7 @@ describe("TopicService", () => {
 			});
 
 			expect(topic.title).toBe("Cross-product topic");
-			expect(topic.products).toHaveLength(2);
+			expect((topic as any).products).toHaveLength(2);
 		});
 	});
 
