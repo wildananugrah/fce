@@ -1,0 +1,67 @@
+import type { ILogger } from "../interfaces/providers/logger.provider.interface";
+import type { IDocumentRepository } from "../interfaces/repositories/document.repository.interface";
+
+export class LinkScrapingJob {
+	constructor(
+		private documentRepository: IDocumentRepository,
+		private logger: ILogger,
+	) {}
+
+	async handle(data: { documentId: string; url: string }): Promise<void> {
+		const { documentId, url } = data;
+		try {
+			this.logger.info("Starting link scraping", { documentId, url });
+			await this.documentRepository.updateExtractionStatus(documentId, "processing");
+
+			const response = await fetch(url, {
+				headers: { "User-Agent": "FCE-Bot/1.0" },
+				signal: AbortSignal.timeout(15000),
+			});
+
+			if (!response.ok) {
+				throw new Error(`Failed to fetch URL: ${response.status}`);
+			}
+
+			const html = await response.text();
+
+			// Basic HTML text extraction — strip tags and normalize whitespace
+			const text = html
+				.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+				.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+				.replace(/<[^>]+>/g, " ")
+				.replace(/&nbsp;/g, " ")
+				.replace(/&amp;/g, "&")
+				.replace(/&lt;/g, "<")
+				.replace(/&gt;/g, ">")
+				.replace(/\s+/g, " ")
+				.trim();
+
+			if (!text) {
+				throw new Error("No text content extracted from URL");
+			}
+
+			const chunks = this.chunkText(text, 500, 50);
+			await this.documentRepository.createChunks(
+				documentId,
+				chunks.map((content, index) => ({ chunkIndex: index, contentText: content })),
+			);
+
+			await this.documentRepository.updateExtractionStatus(documentId, "completed");
+			this.logger.info("Link scraping completed", { documentId, chunkCount: chunks.length });
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			this.logger.error("Link scraping failed", { documentId, error: message });
+			await this.documentRepository.updateExtractionStatus(documentId, "failed");
+		}
+	}
+
+	private chunkText(text: string, chunkSize: number, overlap: number): string[] {
+		const chunks: string[] = [];
+		let start = 0;
+		while (start < text.length) {
+			chunks.push(text.slice(start, start + chunkSize));
+			start += chunkSize - overlap;
+		}
+		return chunks;
+	}
+}

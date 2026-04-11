@@ -7,6 +7,7 @@ import { BrandScrapingJob } from "./jobs/brand-scraping.job";
 import { CampaignGenerationJob } from "./jobs/campaign-generation.job";
 import { ContentGenerationJob } from "./jobs/content-generation.job";
 import { DocumentExtractionJob } from "./jobs/document-extraction.job";
+import { LinkScrapingJob } from "./jobs/link-scraping.job";
 import { RecommendationRecomputeJob } from "./jobs/recommendation-recompute.job";
 import { TopicGenerationJob } from "./jobs/topic-generation.job";
 import { TopicRegenerationJob } from "./jobs/topic-regeneration.job";
@@ -180,6 +181,7 @@ async function main() {
 		logger,
 	);
 	const documentExtractionJob = new DocumentExtractionJob(documentRepository, logger);
+	const linkScrapingJob = new LinkScrapingJob(documentRepository, logger);
 	const recommendationRecomputeJob = new RecommendationRecomputeJob(
 		prisma,
 		recommendationRepository,
@@ -193,6 +195,7 @@ async function main() {
 	await boss.createQueue("topic-regeneration");
 	await boss.createQueue("brand-scraping");
 	await boss.createQueue("document-extraction");
+	await boss.createQueue("link-scraping");
 	await boss.createQueue("recommendation-recompute");
 
 	// ─── Register PgBoss Workers ─────────────────────────────────────
@@ -213,6 +216,9 @@ async function main() {
 	});
 	await boss.work("document-extraction", async (jobs) => {
 		for (const job of jobs) await documentExtractionJob.handle(job.data as any);
+	});
+	await boss.work("link-scraping", async (jobs) => {
+		for (const job of jobs) await linkScrapingJob.handle(job.data as any);
 	});
 	await boss.work("recommendation-recompute", async (jobs) => {
 		for (const job of jobs) await recommendationRecomputeJob.handle(job.data as any);
