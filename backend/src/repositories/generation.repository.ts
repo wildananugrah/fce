@@ -88,6 +88,31 @@ export class GenerationRepository implements IGenerationRepository {
 		});
 	}
 
+	async updateManyOutputStatus(
+		workspaceId: string,
+		ids: string[],
+		status: string,
+	): Promise<number> {
+		const result = await this.prisma.generationOutput.updateMany({
+			where: {
+				id: { in: ids },
+				request: { workspaceId },
+			},
+			data: { status },
+		});
+		return result.count;
+	}
+
+	async deleteManyOutputs(workspaceId: string, ids: string[]): Promise<number> {
+		const result = await this.prisma.generationOutput.deleteMany({
+			where: {
+				id: { in: ids },
+				request: { workspaceId },
+			},
+		});
+		return result.count;
+	}
+
 	async addFeedback(data: {
 		outputId: string;
 		eventType: string;

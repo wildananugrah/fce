@@ -9,9 +9,11 @@ import type {
 export interface IWorkspaceService {
 	listByUser(userId: string): Promise<WorkspaceSummary[]>;
 	getById(id: string): Promise<Workspace>;
+	getByIdSafe(id: string): Promise<Workspace | null>;
 	create(userId: string, input: CreateWorkspaceInput): Promise<Workspace>;
 	update(id: string, input: UpdateWorkspaceInput): Promise<Workspace>;
 	delete(workspaceId: string, userId: string): Promise<void>;
+	canManage(userId: string, workspaceId: string): Promise<boolean>;
 	getMemberRole(userId: string, workspaceId: string): Promise<string | null>;
 
 	listMembers(workspaceId: string): Promise<any[]>;

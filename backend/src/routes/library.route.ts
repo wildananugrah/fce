@@ -18,6 +18,35 @@ export function createLibraryRoutes(libraryService: ILibraryService) {
 		return c.json({ data: outputs });
 	});
 
+	// DELETE /bulk — bulk delete outputs
+	app.delete("/bulk", async (c) => {
+		const workspaceId = c.get("workspaceId");
+		const { ids } = await c.req.json<{ ids: string[] }>();
+		if (!Array.isArray(ids) || ids.length === 0) {
+			return c.json({ error: "ids must be a non-empty array" }, 400);
+		}
+		const deleted = await libraryService.deleteMany(workspaceId, ids);
+		return c.json({ deleted });
+	});
+
+	// PATCH /bulk-status — bulk status change
+	app.patch("/bulk-status", async (c) => {
+		const workspaceId = c.get("workspaceId");
+		const { ids, status } = await c.req.json<{ ids: string[]; status: string }>();
+		if (!Array.isArray(ids) || ids.length === 0) {
+			return c.json({ error: "ids must be a non-empty array" }, 400);
+		}
+		if (!status) {
+			return c.json({ error: "status is required" }, 400);
+		}
+		try {
+			const updated = await libraryService.updateManyStatus(workspaceId, ids, status);
+			return c.json({ updated });
+		} catch (e) {
+			return c.json({ error: e instanceof Error ? e.message : "Invalid status" }, 400);
+		}
+	});
+
 	// PATCH /:id — update status (approve/reject)
 	app.patch("/:id", async (c) => {
 		const body = await c.req.json();

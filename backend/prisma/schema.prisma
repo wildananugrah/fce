@@ -19,9 +19,10 @@ model User {
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
-  workspaceRoles UserWorkspaceRole[]
-  invitations    WorkspaceInvitation[]
-  auditLogs      AuditLog[]
+  workspaceRoles    UserWorkspaceRole[]
+  invitations       WorkspaceInvitation[]
+  auditLogs         AuditLog[]
+  createdWorkspaces Workspace[]           @relation("WorkspaceCreator")
 
   @@map("users")
 }
@@ -37,9 +38,11 @@ model Workspace {
   status       String   @default("active")
   apiLimitUsd  Decimal  @default(50.00) @map("api_limit_usd") @db.Decimal(10, 2)
   apiUsageUsd  Decimal  @default(0.00) @map("api_usage_usd") @db.Decimal(10, 2)
+  createdBy    String?  @map("created_by")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
+  creator        User?                  @relation("WorkspaceCreator", fields: [createdBy], references: [id], onDelete: SetNull)
   roles          UserWorkspaceRole[]
   invitations    WorkspaceInvitation[]
   brands         Brand[]

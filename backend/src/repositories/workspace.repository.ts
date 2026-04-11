@@ -39,6 +39,21 @@ export class WorkspaceRepository implements IWorkspaceRepository {
 		return this.prisma.workspace.create({ data });
 	}
 
+	async createWithOwner(
+		data: { name: string; slug: string; description?: string },
+		ownerUserId: string,
+	): Promise<Workspace> {
+		return this.prisma.$transaction(async (tx) => {
+			const workspace = await tx.workspace.create({
+				data: { ...data, createdBy: ownerUserId },
+			});
+			await tx.userWorkspaceRole.create({
+				data: { workspaceId: workspace.id, userId: ownerUserId, role: "admin" },
+			});
+			return workspace;
+		});
+	}
+
 	async update(
 		id: string,
 		data: Partial<
@@ -76,6 +91,25 @@ export class WorkspaceRepository implements IWorkspaceRepository {
 	async addMember(workspaceId: string, userId: string, role: string): Promise<UserWorkspaceRole> {
 		return this.prisma.userWorkspaceRole.create({
 			data: { workspaceId, userId, role },
+		});
+	}
+
+	async upsertMemberRole(
+		workspaceId: string,
+		userId: string,
+		role: string,
+	): Promise<UserWorkspaceRole> {
+		return this.prisma.userWorkspaceRole.upsert({
+			where: { userId_workspaceId: { userId, workspaceId } },
+			create: { workspaceId, userId, role },
+			update: { role },
+		});
+	}
+
+	async setCreator(workspaceId: string, userId: string): Promise<void> {
+		await this.prisma.workspace.update({
+			where: { id: workspaceId },
+			data: { createdBy: userId },
 		});
 	}
 

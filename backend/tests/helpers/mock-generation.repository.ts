@@ -74,6 +74,34 @@ export class MockGenerationRepository implements IGenerationRepository {
 		return this.outputs[index];
 	}
 
+	async updateManyOutputStatus(
+		workspaceId: string,
+		ids: string[],
+		status: string,
+	): Promise<number> {
+		let count = 0;
+		for (let i = 0; i < this.outputs.length; i++) {
+			const o = this.outputs[i];
+			if (!ids.includes(o.id)) continue;
+			const request = this.requests.find((r) => r.id === o.requestId);
+			if (!request || request.workspaceId !== workspaceId) continue;
+			this.outputs[i] = { ...o, status, updatedAt: new Date() };
+			count++;
+		}
+		return count;
+	}
+
+	async deleteManyOutputs(workspaceId: string, ids: string[]): Promise<number> {
+		const before = this.outputs.length;
+		this.outputs = this.outputs.filter((o) => {
+			if (!ids.includes(o.id)) return true;
+			const request = this.requests.find((r) => r.id === o.requestId);
+			if (!request || request.workspaceId !== workspaceId) return true;
+			return false;
+		});
+		return before - this.outputs.length;
+	}
+
 	async addFeedback(data: {
 		outputId: string;
 		eventType: string;

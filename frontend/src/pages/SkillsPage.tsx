@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Search, Plus, X } from "lucide-react";
+import { Search, Plus, X, Trash2 } from "lucide-react";
 import { useWorkspace } from "../hooks/useWorkspace";
 import { api } from "../services/api";
 import { Button } from "../components/ui/Button";
@@ -93,6 +93,11 @@ export function SkillsPage() {
   const [addGeneratorModal, setAddGeneratorModal] = useState<"topic" | "content" | "campaign" | null>(null);
   const [addSearch, setAddSearch] = useState("");
 
+  // Bulk selection
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+  const [bulkActionRunning, setBulkActionRunning] = useState(false);
+
   const showToast = (message: string, type: "success" | "error" | "info") => {
     setToast({ message, type });
   };
@@ -175,7 +180,48 @@ export function SkillsPage() {
   const handleDeleteSkill = (skillId: string) => {
     setSkills((prev) => prev.filter((s) => s.id !== skillId));
     setMappings((prev) => prev.filter((m) => m.skillId !== skillId));
+    setSelectedIds((prev) => {
+      if (!prev.has(skillId)) return prev;
+      const next = new Set(prev);
+      next.delete(skillId);
+      return next;
+    });
     showToast("Skill deleted", "success");
+  };
+
+  const toggleSelect = (skillId: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(skillId)) next.delete(skillId);
+      else next.add(skillId);
+      return next;
+    });
+  };
+
+  const clearSelection = () => setSelectedIds(new Set());
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    setBulkActionRunning(true);
+    try {
+      const ids = Array.from(selectedIds);
+      const result = await api<{ deleted: number }>(`/api/skills/bulk`, {
+        method: "DELETE",
+        body: JSON.stringify({ ids }),
+      });
+      setSkills((prev) => prev.filter((s) => !selectedIds.has(s.id)));
+      setMappings((prev) => prev.filter((m) => !selectedIds.has(m.skillId)));
+      showToast(
+        `Deleted ${result?.deleted ?? ids.length} skill${(result?.deleted ?? ids.length) > 1 ? "s" : ""}`,
+        "success",
+      );
+      clearSelection();
+      setShowBulkDeleteConfirm(false);
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : "Failed to delete skills", "error");
+    } finally {
+      setBulkActionRunning(false);
+    }
   };
 
   const handleEditFromDetail = (skill: { id: string; name: string; description: string; category: string; content: string }) => {
@@ -200,13 +246,8 @@ export function SkillsPage() {
     return filtered;
   };
 
-  if (!activeWorkspace) {
-    return (
-      <div className="p-6">
-        <p className="text-sm text-gray-500">Create a workspace first to manage AI skills.</p>
-      </div>
-    );
-  }
+  // Force to the library tab if there is no workspace, since mappings are workspace-scoped.
+  const effectiveTab = !activeWorkspace ? "library" : tab;
 
   return (
     <div className="space-y-6">
@@ -224,13 +265,19 @@ export function SkillsPage() {
         </Button>
       </div>
 
+      {!activeWorkspace && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-800">
+          You're browsing the global skill library. Create a workspace to map skills to generators.
+        </div>
+      )}
+
       {/* Tabs */}
       <div className="flex gap-1 border-b border-gray-200">
         <button
           type="button"
           onClick={() => setTab("library")}
           className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-            tab === "library"
+            effectiveTab === "library"
               ? "border-black text-black"
               : "border-transparent text-gray-500 hover:text-gray-700"
           }`}
@@ -239,19 +286,21 @@ export function SkillsPage() {
         </button>
         <button
           type="button"
-          onClick={() => setTab("mappings")}
+          onClick={() => activeWorkspace && setTab("mappings")}
+          disabled={!activeWorkspace}
+          title={!activeWorkspace ? "Create a workspace to configure mappings" : undefined}
           className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-            tab === "mappings"
+            effectiveTab === "mappings"
               ? "border-black text-black"
               : "border-transparent text-gray-500 hover:text-gray-700"
-          }`}
+          } ${!activeWorkspace ? "opacity-40 cursor-not-allowed" : ""}`}
         >
           Generator Mappings
         </button>
       </div>
 
       {/* Tab Content */}
-      {tab === "library" && (
+      {effectiveTab === "library" && (
         <div className="space-y-4">
           {/* Search + Filter */}
           <div className="flex items-center gap-3">
@@ -292,30 +341,66 @@ export function SkillsPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {skills.map((skill) => {
                 const catColor = CATEGORY_COLORS[skill.category] ?? CATEGORY_COLORS.other;
+                const isSelected = selectedIds.has(skill.id);
+                const canSelect = !skill.isSystem;
                 return (
-                  <button
+                  <div
                     key={skill.id}
-                    type="button"
-                    onClick={() => { setDetailSkillId(skill.id); setDetailOpen(true); }}
-                    className="bg-white border border-gray-200 rounded-xl p-4 text-left hover:border-gray-300 hover:shadow-sm transition-all space-y-3"
+                    className={`group relative bg-white border rounded-xl p-4 transition-all space-y-3 ${
+                      isSelected
+                        ? "border-indigo-400 ring-2 ring-indigo-100"
+                        : "border-gray-200 hover:border-gray-300 hover:shadow-sm"
+                    }`}
                   >
-                    <div className="flex items-start justify-between gap-2">
-                      <h3 className="text-sm font-semibold text-gray-900 leading-snug">{skill.name}</h3>
-                      <span
-                        className={`shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border ${
-                          skill.isSystem
-                            ? "bg-gray-100 text-gray-600 border-gray-200"
-                            : "bg-indigo-50 text-indigo-700 border-indigo-200"
-                        }`}
+                    {/* Checkbox (custom skills only) */}
+                    {canSelect && (
+                      <label
+                        className={`absolute top-3 left-3 z-10 flex items-center justify-center cursor-pointer ${
+                          isSelected || selectedIds.size > 0
+                            ? "opacity-100"
+                            : "opacity-0 group-hover:opacity-100"
+                        } transition-opacity`}
+                        onClick={(e) => e.stopPropagation()}
                       >
-                        {skill.isSystem ? "System" : "Custom"}
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                          checked={isSelected}
+                          onChange={() => toggleSelect(skill.id)}
+                        />
+                      </label>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDetailSkillId(skill.id);
+                        setDetailOpen(true);
+                      }}
+                      className={`w-full text-left space-y-3 ${canSelect ? "pl-7" : ""}`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <h3 className="text-sm font-semibold text-gray-900 leading-snug">
+                          {skill.name}
+                        </h3>
+                        <span
+                          className={`shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border ${
+                            skill.isSystem
+                              ? "bg-gray-100 text-gray-600 border-gray-200"
+                              : "bg-indigo-50 text-indigo-700 border-indigo-200"
+                          }`}
+                        >
+                          {skill.isSystem ? "System" : "Custom"}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-500 line-clamp-2">{skill.description}</p>
+                      <span
+                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border ${catColor}`}
+                      >
+                        {skill.category}
                       </span>
-                    </div>
-                    <p className="text-xs text-gray-500 line-clamp-2">{skill.description}</p>
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border ${catColor}`}>
-                      {skill.category}
-                    </span>
-                  </button>
+                    </button>
+                  </div>
                 );
               })}
             </div>
@@ -323,7 +408,7 @@ export function SkillsPage() {
         </div>
       )}
 
-      {tab === "mappings" && (
+      {effectiveTab === "mappings" && (
         <div>
           {mappingsLoading ? (
             <div className="flex justify-center py-12">
@@ -437,6 +522,65 @@ export function SkillsPage() {
         editSkill={editSkill}
         onSaved={() => { loadSkills(); loadMappings(); }}
       />
+
+      {/* Bulk Action Bar */}
+      {selectedIds.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 bg-gray-900 text-white rounded-xl shadow-2xl border border-gray-800 px-4 py-3 flex items-center gap-3">
+          <span className="text-sm font-medium">
+            {selectedIds.size} skill{selectedIds.size > 1 ? "s" : ""} selected
+          </span>
+          <div className="w-px h-5 bg-gray-700" />
+          <button
+            type="button"
+            onClick={() => setShowBulkDeleteConfirm(true)}
+            disabled={bulkActionRunning}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-red-600 hover:bg-red-700 rounded-lg disabled:opacity-50 transition-colors"
+          >
+            <Trash2 size={13} />
+            Delete
+          </button>
+          <button
+            type="button"
+            onClick={clearSelection}
+            disabled={bulkActionRunning}
+            className="p-1.5 text-gray-400 hover:text-white rounded disabled:opacity-50 transition-colors"
+            title="Clear selection"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
+      {/* Bulk Delete Confirm Modal */}
+      {showBulkDeleteConfirm && (
+        <Modal
+          isOpen
+          onClose={() => setShowBulkDeleteConfirm(false)}
+          title="Delete Skills"
+          size="sm"
+        >
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">
+              Delete {selectedIds.size} selected custom skill
+              {selectedIds.size > 1 ? "s" : ""}? This will also remove any generator mappings for
+              these skills. This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-2">
+              <Button variant="secondary" size="sm" onClick={() => setShowBulkDeleteConfirm(false)}>
+                Cancel
+              </Button>
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={handleBulkDelete}
+                loading={bulkActionRunning}
+              >
+                Delete {selectedIds.size}
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
 
       {toast && (
         <Toast

@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
-import { Search, Eye } from "lucide-react";
+import { Search, Eye, Trash2, X } from "lucide-react";
 import { useWorkspace } from "../hooks/useWorkspace";
 import { api } from "../services/api";
 import { Spinner } from "../components/ui/Spinner";
 import { Toast } from "../components/ui/Toast";
+import { Modal } from "../components/ui/Modal";
+import { Button } from "../components/ui/Button";
 import { ContentPreviewModal } from "../components/library/ContentPreviewModal";
 
 interface LibraryItem {
@@ -94,6 +96,12 @@ const STATUS_FILTER_OPTIONS = [
   { value: "rejected", label: "Rejected" },
 ];
 
+const BULK_STATUS_OPTIONS = [
+  { value: "draft", label: "Draft" },
+  { value: "approved", label: "Approved" },
+  { value: "rejected", label: "Rejected" },
+];
+
 // ── Main Page ──────────────────────────────────────────────────
 
 export function LibraryPage() {
@@ -105,6 +113,9 @@ export function LibraryPage() {
   const [statusFilter, setStatusFilter] = useState("");
   const [selectedItem, setSelectedItem] = useState<LibraryItem | null>(null);
   const [toast, setToast] = useState<ToastState>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+  const [bulkActionRunning, setBulkActionRunning] = useState(false);
 
   const showToast = (message: string, type: "success" | "error" | "info") => {
     setToast({ message, type });
@@ -132,6 +143,67 @@ export function LibraryPage() {
 
   const handleStatusChange = (id: string, status: string) => {
     setItems((prev) => prev.map((item) => (item.id === id ? { ...item, status } : item)));
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = (ids: string[], select: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      for (const id of ids) {
+        if (select) next.add(id);
+        else next.delete(id);
+      }
+      return next;
+    });
+  };
+
+  const clearSelection = () => setSelectedIds(new Set());
+
+  const handleBulkDelete = async () => {
+    if (!activeWorkspace || selectedIds.size === 0) return;
+    setBulkActionRunning(true);
+    try {
+      const ids = Array.from(selectedIds);
+      await api(`/api/workspaces/${activeWorkspace.id}/library/bulk`, {
+        method: "DELETE",
+        body: JSON.stringify({ ids }),
+      });
+      setItems((prev) => prev.filter((i) => !selectedIds.has(i.id)));
+      showToast(`Deleted ${ids.length} item${ids.length > 1 ? "s" : ""}`, "success");
+      clearSelection();
+      setShowBulkDeleteConfirm(false);
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : "Failed to delete items", "error");
+    } finally {
+      setBulkActionRunning(false);
+    }
+  };
+
+  const handleBulkStatus = async (status: string) => {
+    if (!activeWorkspace || selectedIds.size === 0) return;
+    setBulkActionRunning(true);
+    try {
+      const ids = Array.from(selectedIds);
+      await api(`/api/workspaces/${activeWorkspace.id}/library/bulk-status`, {
+        method: "PATCH",
+        body: JSON.stringify({ ids, status }),
+      });
+      setItems((prev) => prev.map((i) => (selectedIds.has(i.id) ? { ...i, status } : i)));
+      showToast(`Updated ${ids.length} item${ids.length > 1 ? "s" : ""} to ${status}`, "success");
+      clearSelection();
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : "Failed to update items", "error");
+    } finally {
+      setBulkActionRunning(false);
+    }
   };
 
   if (!activeWorkspace) {
@@ -220,6 +292,24 @@ export function LibraryPage() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50">
+                <th className="w-10 px-4 py-3">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                    checked={filtered.length > 0 && filtered.every((i) => selectedIds.has(i.id))}
+                    ref={(el) => {
+                      if (!el) return;
+                      const selectedOnPage = filtered.filter((i) => selectedIds.has(i.id)).length;
+                      el.indeterminate = selectedOnPage > 0 && selectedOnPage < filtered.length;
+                    }}
+                    onChange={(e) =>
+                      toggleSelectAll(
+                        filtered.map((i) => i.id),
+                        e.target.checked,
+                      )
+                    }
+                  />
+                </th>
                 <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide">
                   Content Title
                 </th>
@@ -242,9 +332,22 @@ export function LibraryPage() {
               {filtered.map((item) => {
                 const platformStyle = getPlatformStyle(item.request.platform);
                 const subtitle = getContentSubtitle(item.request.contentType, item.content);
+                const isSelected = selectedIds.has(item.id);
 
                 return (
-                  <tr key={item.id} className="border-b border-gray-50 hover:bg-gray-50">
+                  <tr
+                    key={item.id}
+                    className={`border-b border-gray-50 ${isSelected ? "bg-indigo-50/50" : "hover:bg-gray-50"}`}
+                  >
+                    {/* Select */}
+                    <td className="w-10 px-4 py-3">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                        checked={isSelected}
+                        onChange={() => toggleSelect(item.id)}
+                      />
+                    </td>
                     {/* Title */}
                     <td className="px-5 py-3 max-w-[320px]">
                       <p className="text-sm font-medium text-gray-900 truncate">
@@ -314,6 +417,86 @@ export function LibraryPage() {
           onStatusChange={handleStatusChange}
           onToast={showToast}
         />
+      )}
+
+      {/* Bulk Action Bar */}
+      {selectedIds.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 bg-gray-900 text-white rounded-xl shadow-2xl border border-gray-800 px-4 py-3 flex items-center gap-3">
+          <span className="text-sm font-medium">
+            {selectedIds.size} item{selectedIds.size > 1 ? "s" : ""} selected
+          </span>
+          <div className="w-px h-5 bg-gray-700" />
+          <select
+            className="bg-gray-800 border border-gray-700 text-white text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:border-indigo-500 disabled:opacity-50"
+            value=""
+            disabled={bulkActionRunning}
+            onChange={(e) => {
+              if (e.target.value) handleBulkStatus(e.target.value);
+              e.target.value = "";
+            }}
+          >
+            <option value="" disabled>
+              Change status…
+            </option>
+            {BULK_STATUS_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={() => setShowBulkDeleteConfirm(true)}
+            disabled={bulkActionRunning}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-red-600 hover:bg-red-700 rounded-lg disabled:opacity-50 transition-colors"
+          >
+            <Trash2 size={13} />
+            Delete
+          </button>
+          <button
+            type="button"
+            onClick={clearSelection}
+            disabled={bulkActionRunning}
+            className="p-1.5 text-gray-400 hover:text-white rounded disabled:opacity-50 transition-colors"
+            title="Clear selection"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
+      {/* Bulk Delete Confirm Modal */}
+      {showBulkDeleteConfirm && (
+        <Modal
+          isOpen
+          onClose={() => setShowBulkDeleteConfirm(false)}
+          title="Delete Content"
+          size="sm"
+        >
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">
+              Delete {selectedIds.size} selected content item
+              {selectedIds.size > 1 ? "s" : ""}? This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setShowBulkDeleteConfirm(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={handleBulkDelete}
+                loading={bulkActionRunning}
+              >
+                Delete {selectedIds.size}
+              </Button>
+            </div>
+          </div>
+        </Modal>
       )}
 
       {toast && (

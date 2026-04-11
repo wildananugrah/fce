@@ -5,6 +5,10 @@ export interface IWorkspaceRepository {
 	findBySlug(slug: string): Promise<Workspace | null>;
 	findByUserId(userId: string): Promise<(Workspace & { roles: { role: string }[] })[]>;
 	create(data: { name: string; slug: string; description?: string }): Promise<Workspace>;
+	createWithOwner(
+		data: { name: string; slug: string; description?: string },
+		ownerUserId: string,
+	): Promise<Workspace>;
 	update(
 		id: string,
 		data: Partial<
@@ -20,6 +24,12 @@ export interface IWorkspaceRepository {
 		})[]
 	>;
 	addMember(workspaceId: string, userId: string, role: string): Promise<UserWorkspaceRole>;
+	upsertMemberRole(
+		workspaceId: string,
+		userId: string,
+		role: string,
+	): Promise<UserWorkspaceRole>;
+	setCreator(workspaceId: string, userId: string): Promise<void>;
 	removeMember(workspaceId: string, userId: string): Promise<void>;
 
 	findInvitations(workspaceId: string): Promise<WorkspaceInvitation[]>;

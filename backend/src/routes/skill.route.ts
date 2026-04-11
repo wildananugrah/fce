@@ -46,6 +46,18 @@ export function createSkillRoutes(prisma: PrismaClient) {
 		return c.json({ data: skills });
 	});
 
+	// DELETE /bulk — bulk delete custom skills (system skills are skipped)
+	app.delete("/bulk", async (c) => {
+		const { ids } = await c.req.json<{ ids: string[] }>();
+		if (!Array.isArray(ids) || ids.length === 0) {
+			return c.json({ error: "ids must be a non-empty array" }, 400);
+		}
+		const result = await prisma.aiSkill.deleteMany({
+			where: { id: { in: ids }, isSystem: false },
+		});
+		return c.json({ deleted: result.count });
+	});
+
 	// GET /:id — Get skill detail
 	app.get("/:id", async (c) => {
 		const skill = await prisma.aiSkill.findUnique({ where: { id: c.req.param("id") } });

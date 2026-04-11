@@ -37,10 +37,20 @@ export class MockWorkspaceRepository implements IWorkspaceRepository {
 			status: "active",
 			apiLimitUsd: 50.0 as any,
 			apiUsageUsd: 0.0 as any,
+			createdBy: null,
 			createdAt: new Date(),
 			updatedAt: new Date(),
 		};
 		this.workspaces.push(workspace);
+		return workspace;
+	}
+
+	async createWithOwner(
+		data: { name: string; slug: string; description?: string },
+		ownerUserId: string,
+	): Promise<Workspace> {
+		const workspace = await this.create(data);
+		await this.addMember(workspace.id, ownerUserId, "admin");
 		return workspace;
 	}
 
@@ -87,6 +97,28 @@ export class MockWorkspaceRepository implements IWorkspaceRepository {
 		};
 		this.roles.push(member);
 		return member;
+	}
+
+	async upsertMemberRole(
+		workspaceId: string,
+		userId: string,
+		role: string,
+	): Promise<UserWorkspaceRole> {
+		const existing = this.roles.find(
+			(r) => r.userId === userId && r.workspaceId === workspaceId,
+		);
+		if (existing) {
+			existing.role = role;
+			return existing;
+		}
+		return this.addMember(workspaceId, userId, role);
+	}
+
+	async setCreator(workspaceId: string, userId: string): Promise<void> {
+		const workspace = this.workspaces.find((w) => w.id === workspaceId);
+		if (workspace) {
+			(workspace as any).createdBy = userId;
+		}
 	}
 
 	async removeMember(workspaceId: string, userId: string): Promise<void> {

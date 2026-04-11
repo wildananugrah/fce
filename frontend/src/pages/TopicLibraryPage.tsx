@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Trash2, RefreshCw, ChevronDown, Sparkles, Calendar } from "lucide-react";
+import { Trash2, RefreshCw, ChevronDown, Sparkles, Calendar, X } from "lucide-react";
 import { useWorkspace } from "../hooks/useWorkspace";
 import { api } from "../services/api";
 import { Button } from "../components/ui/Button";
@@ -15,9 +15,11 @@ interface Topic {
   pillar?: string | null;
   platform?: string | null;
   format?: string | null;
+  objective?: string | null;
   publishDate?: string | null;
   status: string;
   brandId?: string | null;
+  productId?: string | null;
   brand?: { id: string; name: string } | null;
   createdAt: string;
 }
@@ -182,6 +184,9 @@ export function TopicLibraryPage() {
   const [toast, setToast] = useState<ToastState>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+  const [bulkActionRunning, setBulkActionRunning] = useState(false);
 
   const showToast = (message: string, type: "success" | "error" | "info") => {
     setToast({ message, type });
@@ -238,6 +243,67 @@ export function TopicLibraryPage() {
       showToast(e instanceof Error ? e.message : "Failed to delete topic", "error");
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const toggleSelect = (topicId: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(topicId)) next.delete(topicId);
+      else next.add(topicId);
+      return next;
+    });
+  };
+
+  const toggleSelectGroup = (topicIds: string[], select: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      for (const id of topicIds) {
+        if (select) next.add(id);
+        else next.delete(id);
+      }
+      return next;
+    });
+  };
+
+  const clearSelection = () => setSelectedIds(new Set());
+
+  const handleBulkDelete = async () => {
+    if (!activeWorkspace || selectedIds.size === 0) return;
+    setBulkActionRunning(true);
+    try {
+      const ids = Array.from(selectedIds);
+      await api(`/api/workspaces/${activeWorkspace.id}/topics/bulk`, {
+        method: "DELETE",
+        body: JSON.stringify({ ids }),
+      });
+      setTopics((prev) => prev.filter((t) => !selectedIds.has(t.id)));
+      showToast(`Deleted ${ids.length} topic${ids.length > 1 ? "s" : ""}`, "success");
+      clearSelection();
+      setShowBulkDeleteConfirm(false);
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : "Failed to delete topics", "error");
+    } finally {
+      setBulkActionRunning(false);
+    }
+  };
+
+  const handleBulkStatus = async (status: string) => {
+    if (!activeWorkspace || selectedIds.size === 0) return;
+    setBulkActionRunning(true);
+    try {
+      const ids = Array.from(selectedIds);
+      await api(`/api/workspaces/${activeWorkspace.id}/topics/bulk-status`, {
+        method: "PATCH",
+        body: JSON.stringify({ ids, status }),
+      });
+      setTopics((prev) => prev.map((t) => (selectedIds.has(t.id) ? { ...t, status } : t)));
+      showToast(`Updated ${ids.length} topic${ids.length > 1 ? "s" : ""} to ${status}`, "success");
+      clearSelection();
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : "Failed to update topics", "error");
+    } finally {
+      setBulkActionRunning(false);
     }
   };
 
@@ -412,6 +478,31 @@ export function TopicLibraryPage() {
                     <table className="w-full">
                       <thead>
                         <tr className="bg-gray-50 border-b border-gray-100">
+                          <th className="w-10 px-4 py-2.5">
+                            <input
+                              type="checkbox"
+                              className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                              checked={
+                                group.topics.length > 0 &&
+                                group.topics.every((t) => selectedIds.has(t.id))
+                              }
+                              ref={(el) => {
+                                if (!el) return;
+                                const selectedInGroup = group.topics.filter((t) =>
+                                  selectedIds.has(t.id),
+                                ).length;
+                                el.indeterminate =
+                                  selectedInGroup > 0 && selectedInGroup < group.topics.length;
+                              }}
+                              onChange={(e) =>
+                                toggleSelectGroup(
+                                  group.topics.map((t) => t.id),
+                                  e.target.checked,
+                                )
+                              }
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          </th>
                           <th className="text-left px-5 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-wide">
                             Title
                           </th>
@@ -436,8 +527,22 @@ export function TopicLibraryPage() {
                       <tbody>
                         {group.topics.map((topic) => {
                           const fmtStyle = getFormatStyle(topic.format);
+                          const isSelected = selectedIds.has(topic.id);
                           return (
-                            <tr key={topic.id} className="border-b border-gray-50 hover:bg-gray-50">
+                            <tr
+                              key={topic.id}
+                              className={`border-b border-gray-50 ${isSelected ? "bg-indigo-50/50" : "hover:bg-gray-50"}`}
+                            >
+                              {/* Select */}
+                              <td className="w-10 px-4 py-3">
+                                <input
+                                  type="checkbox"
+                                  className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                                  checked={isSelected}
+                                  onChange={() => toggleSelect(topic.id)}
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                              </td>
                               {/* Title */}
                               <td className="px-5 py-3 max-w-[280px]">
                                 <p className="text-sm font-medium text-gray-900 truncate">{topic.title}</p>
@@ -507,8 +612,13 @@ export function TopicLibraryPage() {
                                     type="button"
                                     onClick={() => {
                                       const params = new URLSearchParams();
-                                      if (topic.brand?.id) params.set("brandId", topic.brand.id);
+                                      if (topic.brand?.id ?? topic.brandId) {
+                                        params.set("brandId", (topic.brand?.id ?? topic.brandId) as string);
+                                      }
+                                      if (topic.productId) params.set("productId", topic.productId);
                                       if (topic.platform) params.set("platform", topic.platform);
+                                      if (topic.format) params.set("format", topic.format);
+                                      if (topic.objective) params.set("objective", topic.objective);
                                       params.set("topicId", topic.id);
                                       navigate(`/generate?${params.toString()}`);
                                     }}
@@ -543,6 +653,86 @@ export function TopicLibraryPage() {
             );
           })}
         </div>
+      )}
+
+      {/* Bulk Action Bar */}
+      {selectedIds.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 bg-gray-900 text-white rounded-xl shadow-2xl border border-gray-800 px-4 py-3 flex items-center gap-3">
+          <span className="text-sm font-medium">
+            {selectedIds.size} topic{selectedIds.size > 1 ? "s" : ""} selected
+          </span>
+          <div className="w-px h-5 bg-gray-700" />
+          <select
+            className="bg-gray-800 border border-gray-700 text-white text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:border-indigo-500 disabled:opacity-50"
+            value=""
+            disabled={bulkActionRunning}
+            onChange={(e) => {
+              if (e.target.value) handleBulkStatus(e.target.value);
+              e.target.value = "";
+            }}
+          >
+            <option value="" disabled>
+              Change status…
+            </option>
+            {STATUS_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={() => setShowBulkDeleteConfirm(true)}
+            disabled={bulkActionRunning}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-red-600 hover:bg-red-700 rounded-lg disabled:opacity-50 transition-colors"
+          >
+            <Trash2 size={13} />
+            Delete
+          </button>
+          <button
+            type="button"
+            onClick={clearSelection}
+            disabled={bulkActionRunning}
+            className="p-1.5 text-gray-400 hover:text-white rounded disabled:opacity-50 transition-colors"
+            title="Clear selection"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
+      {/* Bulk Delete Confirm Modal */}
+      {showBulkDeleteConfirm && (
+        <Modal
+          isOpen
+          onClose={() => setShowBulkDeleteConfirm(false)}
+          title="Delete Topics"
+          size="sm"
+        >
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">
+              Delete {selectedIds.size} selected topic{selectedIds.size > 1 ? "s" : ""}? This
+              action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setShowBulkDeleteConfirm(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={handleBulkDelete}
+                loading={bulkActionRunning}
+              >
+                Delete {selectedIds.size}
+              </Button>
+            </div>
+          </div>
+        </Modal>
       )}
 
       {/* Delete Confirm Modal */}

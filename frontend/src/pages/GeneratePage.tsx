@@ -169,6 +169,137 @@ const OBJECTIVE_OPTIONS = [
   { value: "launch", label: "Launch" },
 ];
 
+// ─── Normalizers for values coming from topics (LLM output) ─────
+
+function normKey(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function normalizePlatform(raw?: string | null): string {
+  if (!raw) return "";
+  const k = normKey(raw);
+  const match = PLATFORMS.find((p) => normKey(p.value) === k || normKey(p.label) === k);
+  if (match) return match.value;
+  // Fuzzy hints (e.g. "ig" → instagram, "x" → twitter)
+  if (k === "ig") return "instagram";
+  if (k === "x") return "twitter";
+  return "";
+}
+
+// Hand-rolled synonym maps for common LLM variations. Topic generation is
+// free-form on the LLM side, so we map noun/verb/adjective variants to the
+// canonical option values used by this form.
+const OBJECTIVE_SYNONYMS: Record<string, string> = {
+  // awareness
+  awareness: "awareness",
+  aware: "awareness",
+  brand: "awareness",
+  brandawareness: "awareness",
+  discovery: "awareness",
+  reach: "awareness",
+  // engagement
+  engagement: "engagement",
+  engage: "engagement",
+  interact: "engagement",
+  interaction: "engagement",
+  community: "engagement",
+  // education
+  education: "education",
+  educate: "education",
+  educational: "education",
+  inform: "education",
+  informational: "education",
+  teach: "education",
+  learn: "education",
+  howto: "education",
+  tutorial: "education",
+  tip: "education",
+  tips: "education",
+  // conversion
+  conversion: "conversion",
+  convert: "conversion",
+  sales: "conversion",
+  sale: "conversion",
+  sell: "conversion",
+  promote: "conversion",
+  promotion: "conversion",
+  promotional: "conversion",
+  leadgen: "conversion",
+  lead: "conversion",
+  // launch
+  launch: "launch",
+  announcement: "launch",
+  announce: "launch",
+  reveal: "launch",
+  release: "launch",
+};
+
+// Map common free-form LLM format phrases to canonical contentType values.
+// Key is the platform-agnostic substring (normalized); value is the canonical
+// PLATFORM_FORMATS value to try first.
+const FORMAT_HINTS: Array<{ match: (k: string) => boolean; value: string }> = [
+  { match: (k) => k.includes("carousel"), value: "carousel" },
+  { match: (k) => k.includes("reel"), value: "reels" },
+  { match: (k) => k === "short" || k.includes("shortvideo") || k.includes("shorts"), value: "reels" },
+  { match: (k) => k.includes("storyimage") || k === "story" || k.includes("imagestory"), value: "story_image" },
+  { match: (k) => k.includes("storyvideo") || k.includes("videostory"), value: "story_video" },
+  { match: (k) => k.includes("singleimage") || k.includes("staticimage") || k === "image" || k.includes("imagewithtext") || k.includes("infographic") || k.includes("poster"), value: "single_image" },
+  { match: (k) => k.includes("longvideo") || k.includes("fullvideo"), value: "long_video" },
+  { match: (k) => k.includes("thread"), value: "thread" },
+  { match: (k) => k.includes("article") || k.includes("blog"), value: "article" },
+];
+
+function normalizeContentType(raw: string | null | undefined, platform: string): string {
+  if (!raw || !platform) return "";
+  const options = PLATFORM_FORMATS[platform] ?? [];
+  if (options.length === 0) return "";
+  const k = normKey(raw);
+
+  // 1. Exact match on value or label
+  const exactVal = options.find((o) => normKey(o.value) === k);
+  if (exactVal) return exactVal.value;
+  const exactLabel = options.find((o) => normKey(o.label) === k);
+  if (exactLabel) return exactLabel.value;
+
+  // 2. Synonym hints — try to resolve against the canonical name, then
+  // check if that canonical is actually available on this platform.
+  for (const hint of FORMAT_HINTS) {
+    if (!hint.match(k)) continue;
+    const hinted = options.find((o) => o.value === hint.value);
+    if (hinted) return hinted.value;
+    // If the exact canonical isn't present, look for any option whose value
+    // contains the canonical stem (e.g. "carousel" → "carousel_post" on LinkedIn).
+    const hintKey = normKey(hint.value);
+    const stemmed = options.find(
+      (o) => normKey(o.value).includes(hintKey) || hintKey.includes(normKey(o.value)),
+    );
+    if (stemmed) return stemmed.value;
+  }
+
+  // 3. Bi-directional substring match
+  const partial = options.find(
+    (o) => normKey(o.value).includes(k) || k.includes(normKey(o.value)),
+  );
+  return partial?.value ?? "";
+}
+
+function normalizeObjective(raw?: string | null): string {
+  if (!raw) return "";
+  const k = normKey(raw);
+  // Direct synonym lookup
+  if (OBJECTIVE_SYNONYMS[k]) return OBJECTIVE_SYNONYMS[k];
+  // Exact match on canonical value or label
+  const match = OBJECTIVE_OPTIONS.find(
+    (o) => o.value && (normKey(o.value) === k || normKey(o.label) === k),
+  );
+  if (match?.value) return match.value;
+  // Substring: e.g. "brand awareness campaign" → "awareness"
+  for (const [synKey, canonical] of Object.entries(OBJECTIVE_SYNONYMS)) {
+    if (k.includes(synKey) || synKey.includes(k)) return canonical;
+  }
+  return "";
+}
+
 const OUTPUT_LENGTH_OPTIONS = [
   { value: "", label: "Select Output Length" },
   { value: "short", label: "Short" },
@@ -220,10 +351,14 @@ export function GeneratePage() {
   const [searchParams] = useSearchParams();
 
   // Form state — pre-fill from URL params (e.g., from Topic Library)
+  const initialPlatform = normalizePlatform(searchParams.get("platform")) || "instagram";
+  const initialContentType = normalizeContentType(searchParams.get("format"), initialPlatform);
+  const initialObjective = normalizeObjective(searchParams.get("objective"));
+
   const [brandId, setBrandId] = useState(searchParams.get("brandId") ?? "");
-  const [productId, setProductId] = useState("");
-  const [platform, setPlatform] = useState(searchParams.get("platform") ?? "instagram");
-  const [contentType, setContentType] = useState("");
+  const [productId, setProductId] = useState(searchParams.get("productId") ?? "");
+  const [platform, setPlatform] = useState(initialPlatform);
+  const [contentType, setContentType] = useState(initialContentType);
   const [frameworkId, setFrameworkId] = useState("");
   const [hookTypeId, setHookTypeId] = useState("");
   const [language] = useState("indonesian");
@@ -231,7 +366,7 @@ export function GeneratePage() {
   const [customPrompt, setCustomPrompt] = useState("");
   const [tonePresetId, setTonePresetId] = useState("");
   const [visualStyleId, setVisualStyleId] = useState("");
-  const [objective, setObjective] = useState("");
+  const [objective, setObjective] = useState(initialObjective);
   const [outputLength, setOutputLength] = useState("");
 
   // Data

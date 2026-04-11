@@ -25,6 +25,8 @@ export interface IGenerationRepository {
 	): Promise<(GenerationOutput & { request: GenerationRequest })[]>;
 	findOutputById(id: string): Promise<GenerationOutput | null>;
 	updateOutput(id: string, data: { status: string }): Promise<GenerationOutput>;
+	updateManyOutputStatus(workspaceId: string, ids: string[], status: string): Promise<number>;
+	deleteManyOutputs(workspaceId: string, ids: string[]): Promise<number>;
 	addFeedback(data: {
 		outputId: string;
 		eventType: string;

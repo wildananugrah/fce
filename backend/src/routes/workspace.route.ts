@@ -30,13 +30,18 @@ export function createWorkspaceRoutes(workspaceService: IWorkspaceService) {
 		return c.json({ data: workspace }, 201);
 	});
 
-	// DELETE /:id — delete workspace (admin only)
+	// DELETE /:id — delete workspace (admin or creator)
 	app.delete("/:id", async (c) => {
 		const userId = c.get("userId");
 		const workspaceId = c.req.param("id");
-		const role = await workspaceService.getMemberRole(userId, workspaceId);
-		if (role !== "admin") {
-			return c.json({ error: "Admin access required" }, 403);
+		// If the workspace was already deleted (e.g. stale browser cache),
+		// short-circuit with a 204 instead of a 403 so the UI can move on.
+		const existing = await workspaceService.getByIdSafe(workspaceId);
+		if (!existing) {
+			return c.body(null, 204);
+		}
+		if (!(await workspaceService.canManage(userId, workspaceId))) {
+			return c.json({ error: "Admin or creator access required" }, 403);
 		}
 		await workspaceService.delete(workspaceId, userId);
 		return c.body(null, 204);
@@ -52,9 +57,8 @@ export function createWorkspaceRoutes(workspaceService: IWorkspaceService) {
 	app.patch("/:id", async (c) => {
 		const userId = c.get("userId");
 		const workspaceId = c.req.param("id");
-		const role = await workspaceService.getMemberRole(userId, workspaceId);
-		if (role !== "admin") {
-			return c.json({ error: "Admin access required" }, 403);
+		if (!(await workspaceService.canManage(userId, workspaceId))) {
+			return c.json({ error: "Admin or creator access required" }, 403);
 		}
 		const body = await c.req.json();
 		const workspace = await workspaceService.update(workspaceId, body);

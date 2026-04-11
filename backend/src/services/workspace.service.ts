@@ -33,19 +33,24 @@ export class WorkspaceService implements IWorkspaceService {
 		return workspace;
 	}
 
+	async getByIdSafe(id: string): Promise<Workspace | null> {
+		return this.workspaceRepository.findById(id);
+	}
+
 	async create(userId: string, input: CreateWorkspaceInput): Promise<Workspace> {
 		const existing = await this.workspaceRepository.findBySlug(input.slug);
 		if (existing) {
 			throw new Error("Slug already taken");
 		}
 
-		const workspace = await this.workspaceRepository.create({
-			name: input.name,
-			slug: input.slug,
-			description: input.description,
-		});
-
-		await this.workspaceRepository.addMember(workspace.id, userId, "admin");
+		const workspace = await this.workspaceRepository.createWithOwner(
+			{
+				name: input.name,
+				slug: input.slug,
+				description: input.description,
+			},
+			userId,
+		);
 
 		return workspace;
 	}
@@ -54,10 +59,38 @@ export class WorkspaceService implements IWorkspaceService {
 		return this.workspaceRepository.update(id, input);
 	}
 
-	async delete(workspaceId: string, userId: string): Promise<void> {
+	async canManage(userId: string, workspaceId: string): Promise<boolean> {
 		const role = await this.workspaceRepository.findRole(userId, workspaceId);
-		if (!role || role.role !== "admin") {
-			throw new Error("Only admins can delete a workspace");
+		if (role?.role === "admin") return true;
+
+		const workspace = await this.workspaceRepository.findById(workspaceId);
+		if (!workspace) return false;
+
+		// Creator of the workspace can always manage/delete it.
+		if (workspace.createdBy === userId) return true;
+
+		// Self-heal for orphaned workspaces: if no existing admin can
+		// manage the workspace, nobody is able to rename, invite into, or
+		// delete it. In that state, the workspace is effectively ownerless
+		// and the current authenticated caller can take it over. This
+		// promotion is persistent so the recovery only happens once.
+		const members = await this.workspaceRepository.findMembers(workspaceId);
+		const hasAdmin = members.some((m) => m.role === "admin");
+		if (!hasAdmin) {
+			await this.workspaceRepository.upsertMemberRole(workspaceId, userId, "admin");
+			if (!workspace.createdBy) {
+				await this.workspaceRepository.setCreator(workspaceId, userId);
+			}
+			return true;
+		}
+
+		return false;
+	}
+
+	async delete(workspaceId: string, userId: string): Promise<void> {
+		const allowed = await this.canManage(userId, workspaceId);
+		if (!allowed) {
+			throw new Error("Only admins or the creator can delete a workspace");
 		}
 		await this.workspaceRepository.delete(workspaceId);
 	}

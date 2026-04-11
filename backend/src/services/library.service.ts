@@ -19,6 +19,18 @@ export class LibraryService implements ILibraryService {
 		return this.generationRepository.updateOutput(id, { status });
 	}
 
+	async updateManyStatus(workspaceId: string, ids: string[], status: string): Promise<number> {
+		const allowed = ["draft", "approved", "rejected"];
+		if (!allowed.includes(status)) {
+			throw new Error(`Invalid status. Must be one of: ${allowed.join(", ")}`);
+		}
+		return this.generationRepository.updateManyOutputStatus(workspaceId, ids, status);
+	}
+
+	async deleteMany(workspaceId: string, ids: string[]): Promise<number> {
+		return this.generationRepository.deleteManyOutputs(workspaceId, ids);
+	}
+
 	async addFeedback(
 		outputId: string,
 		eventType: string,

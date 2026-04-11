@@ -60,7 +60,16 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
     throw new Error(errorBody.error || "Request failed");
   }
 
-  const json = await res.json();
+  // 204 No Content and empty bodies — return null/undefined gracefully
+  // instead of blowing up in res.json().
+  if (res.status === 204) {
+    return undefined as T;
+  }
+  const text = await res.text();
+  if (!text) {
+    return undefined as T;
+  }
+  const json = JSON.parse(text);
   return json.data;
 }
 

@@ -3,6 +3,8 @@ import type { GenerationOutput, OutputFeedbackEvent } from "@prisma/client";
 export interface ILibraryService {
 	list(workspaceId: string): Promise<any[]>;
 	updateStatus(id: string, status: string): Promise<GenerationOutput>;
+	updateManyStatus(workspaceId: string, ids: string[], status: string): Promise<number>;
+	deleteMany(workspaceId: string, ids: string[]): Promise<number>;
 	addFeedback(
 		outputId: string,
 		eventType: string,
