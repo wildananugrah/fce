@@ -13,4 +13,5 @@ export interface CreateGenerationInput {
 	tonePreset?: string;
 	visualStyle?: string;
 	outputLength?: string;
+	referenceImages?: string[];
 }

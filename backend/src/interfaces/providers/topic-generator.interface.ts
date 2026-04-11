@@ -8,6 +8,8 @@ export interface TopicGenerationInput {
 	dateFrom?: string;
 	dateTo?: string;
 	count?: number;
+	prompt?: string;
+	referenceImages?: string[];
 }
 
 export interface TopicGenerationOutput {

@@ -8,6 +8,7 @@ export interface ContentGenerationInput {
 	hookType: string;
 	language: string;
 	prompt?: string;
+	referenceImages?: string[];
 }
 
 export interface ContentGenerationOutput {

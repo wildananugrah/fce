@@ -19,6 +19,8 @@ export interface GenerateTopicsInput {
 	dateFrom?: string;
 	dateTo?: string;
 	count?: number;
+	prompt?: string;
+	referenceImages?: string[];
 }
 
 export interface UpdateTopicInput {
