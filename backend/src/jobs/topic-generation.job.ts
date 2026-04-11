@@ -140,6 +140,11 @@ export class TopicGenerationJob {
 				const contextArray = generationInput.productContexts ?? [];
 				contextArray.push(`Product reference materials:\n${productReferenceContext}`);
 				generationInput.productContexts = contextArray;
+				this.logger.info("Product references injected into topic generation", {
+					workspaceId,
+					charCount: productReferenceContext.length,
+					imageCount: productReferenceImages.length,
+				});
 			}
 
 			const allRefImages = [...(referenceImages ?? []), ...productReferenceImages];

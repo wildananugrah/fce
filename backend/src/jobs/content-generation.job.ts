@@ -140,6 +140,11 @@ export class ContentGenerationJob {
 			// Inject product reference content into generation input
 			if (productReferenceContext) {
 				generationInput.productContext = (generationInput.productContext ?? "") + `\n\nProduct reference materials:\n${productReferenceContext}`;
+				this.logger.info("Product references injected into content generation", {
+					requestId,
+					charCount: productReferenceContext.length,
+					imageCount: productReferenceImages.length,
+				});
 			}
 
 			const allRefImages = [...(referenceImages ?? []), ...productReferenceImages];
