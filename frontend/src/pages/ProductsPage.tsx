@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useWorkspace } from "../hooks/useWorkspace";
 import { api } from "../services/api";
 import { Button } from "../components/ui/Button";
-import { Drawer } from "../components/ui/Drawer";
+import { ProductDrawer } from "../components/products/ProductDrawer";
 import { Spinner } from "../components/ui/Spinner";
 import { Toast } from "../components/ui/Toast";
 import { ProductForm, type ProductFormData } from "../components/products/ProductForm";
@@ -310,16 +310,15 @@ export function ProductsPage() {
       )}
 
       {showCreate && (
-        <Drawer isOpen onClose={() => setShowCreate(false)} title="New Product">
-          <div className="p-6">
-            <ProductForm
-              brands={brands}
-              workspaceId={activeWorkspace.id}
-              onSubmit={handleCreateProduct}
-              onCancel={() => setShowCreate(false)}
-            />
-          </div>
-        </Drawer>
+        <ProductDrawer
+          isOpen
+          onClose={() => setShowCreate(false)}
+          title="New Product"
+          brands={brands}
+          workspaceId={activeWorkspace.id}
+          mode="create"
+          onSubmit={handleCreateProduct}
+        />
       )}
 
       {selectedProduct && (() => {
@@ -330,31 +329,32 @@ export function ProductsPage() {
           return String(val);
         };
         return (
-          <Drawer isOpen onClose={() => setSelectedProduct(null)} title="Edit Product" subtitle={selectedProduct.name}>
-            <div className="p-6">
-              <ProductForm
-                brands={brands}
-                workspaceId={activeWorkspace.id}
-                mode="edit"
-                initial={{
-                  brandId: selectedProduct.brandId,
-                  name: selectedProduct.name,
-                  slug: selectedProduct.slug,
-                  type: selectedProduct.type ?? "",
-                  priceTier: selectedProduct.priceTier ?? "",
-                  summary: selectedProduct.summary ?? "",
-                  imageUrl: selectedProduct.imageUrl ?? "",
-                  usp: activeBrain?.usp ?? "",
-                  rtb: activeBrain?.rtb ?? "",
-                  functionalBenefits: toStr(activeBrain?.functionalBenefits),
-                  emotionalBenefits: toStr(activeBrain?.emotionalBenefits),
-                  targetAudience: activeBrain?.targetAudience ?? "",
-                }}
-                onSubmit={(data) => handleEditProduct(selectedProduct, data)}
-                onCancel={() => setSelectedProduct(null)}
-              />
-            </div>
-          </Drawer>
+          <ProductDrawer
+            isOpen
+            onClose={() => setSelectedProduct(null)}
+            title="Edit Product"
+            subtitle={selectedProduct.name}
+            brands={brands}
+            workspaceId={activeWorkspace.id}
+            mode="edit"
+            productId={selectedProduct.id}
+            brandId={selectedProduct.brandId}
+            initial={{
+              brandId: selectedProduct.brandId,
+              name: selectedProduct.name,
+              slug: selectedProduct.slug,
+              type: selectedProduct.type ?? "",
+              priceTier: selectedProduct.priceTier ?? "",
+              summary: selectedProduct.summary ?? "",
+              imageUrl: selectedProduct.imageUrl ?? "",
+              usp: activeBrain?.usp ?? "",
+              rtb: activeBrain?.rtb ?? "",
+              functionalBenefits: toStr(activeBrain?.functionalBenefits),
+              emotionalBenefits: toStr(activeBrain?.emotionalBenefits),
+              targetAudience: activeBrain?.targetAudience ?? "",
+            }}
+            onSubmit={(data) => handleEditProduct(selectedProduct, data)}
+          />
         );
       })()}
 
