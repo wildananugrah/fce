@@ -19,7 +19,10 @@ interface Topic {
   publishDate?: string | null;
   status: string;
   brandId?: string | null;
-  productId?: string | null;
+  products?: Array<{
+    id: string;
+    product: { id: string; name: string };
+  }>;
   brand?: { id: string; name: string } | null;
   createdAt: string;
 }
@@ -519,6 +522,9 @@ export function TopicLibraryPage() {
                             Platform
                           </th>
                           <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-wide">
+                            Products
+                          </th>
+                          <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-wide">
                             Status
                           </th>
                           <th className="px-4 py-2.5" />
@@ -597,6 +603,24 @@ export function TopicLibraryPage() {
                                 </span>
                               </td>
 
+                              {/* Products */}
+                              <td className="px-4 py-3">
+                                {topic.products && topic.products.length > 0 ? (
+                                  <div className="flex flex-wrap gap-1">
+                                    {topic.products.map((tp) => (
+                                      <span
+                                        key={tp.id}
+                                        className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-600"
+                                      >
+                                        {tp.product.name}
+                                      </span>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <span className="text-xs text-gray-300">&mdash;</span>
+                                )}
+                              </td>
+
                               {/* Status */}
                               <td className="px-4 py-3">
                                 <StatusDropdown
@@ -611,15 +635,15 @@ export function TopicLibraryPage() {
                                   <button
                                     type="button"
                                     onClick={() => {
-                                      const params = new URLSearchParams();
-                                      if (topic.brand?.id ?? topic.brandId) {
-                                        params.set("brandId", (topic.brand?.id ?? topic.brandId) as string);
-                                      }
-                                      if (topic.productId) params.set("productId", topic.productId);
-                                      if (topic.platform) params.set("platform", topic.platform);
-                                      if (topic.format) params.set("format", topic.format);
-                                      if (topic.objective) params.set("objective", topic.objective);
-                                      params.set("topicId", topic.id);
+                                      const productIds = topic.products?.map((tp) => tp.product.id) ?? [];
+                                      const params = new URLSearchParams({
+                                        brandId: topic.brandId ?? "",
+                                        platform: topic.platform ?? "",
+                                        objective: topic.objective ?? "",
+                                        topicId: topic.id,
+                                        ...(topic.format ? { format: topic.format } : {}),
+                                      });
+                                      productIds.forEach((pid) => params.append("productId", pid));
                                       navigate(`/generate?${params.toString()}`);
                                     }}
                                     className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors"
