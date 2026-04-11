@@ -9,6 +9,7 @@ import { ContentGenerationJob } from "./jobs/content-generation.job";
 import { DocumentExtractionJob } from "./jobs/document-extraction.job";
 import { RecommendationRecomputeJob } from "./jobs/recommendation-recompute.job";
 import { TopicGenerationJob } from "./jobs/topic-generation.job";
+import { TopicRegenerationJob } from "./jobs/topic-regeneration.job";
 import { createAdminMiddleware } from "./middlewares/admin.middleware";
 import { createAuthMiddleware } from "./middlewares/auth.middleware";
 import { createErrorHandlerMiddleware } from "./middlewares/error-handler.middleware";
@@ -160,6 +161,12 @@ async function main() {
 		notificationService,
 		logger,
 	);
+	const topicRegenerationJob = new TopicRegenerationJob(
+		prisma,
+		resolveTopicGenerator(),
+		notificationService,
+		logger,
+	);
 	const brandScrapingJob = new BrandScrapingJob(
 		prisma,
 		resolveBrandScraper(),
@@ -173,6 +180,7 @@ async function main() {
 	await boss.createQueue("content-generation");
 	await boss.createQueue("campaign-generation");
 	await boss.createQueue("topic-generation");
+	await boss.createQueue("topic-regeneration");
 	await boss.createQueue("brand-scraping");
 	await boss.createQueue("document-extraction");
 	await boss.createQueue("recommendation-recompute");
@@ -186,6 +194,9 @@ async function main() {
 	});
 	await boss.work("topic-generation", async (jobs) => {
 		for (const job of jobs) await topicGenerationJob.handle(job.data as any);
+	});
+	await boss.work("topic-regeneration", async (jobs) => {
+		for (const job of jobs) await topicRegenerationJob.handle(job.data as any);
 	});
 	await boss.work("brand-scraping", async (jobs) => {
 		for (const job of jobs) await brandScrapingJob.handle(job.data as any);
