@@ -111,15 +111,9 @@ export function InstagramCarousel({ content, sections, brandName }: PreviewProps
           </svg>
         </div>
 
-        {/* Caption */}
+        {/* Caption — fixed, does not change with slide navigation */}
         <div className="px-4 pb-3 space-y-1">
-          {currentSlide?.body && (
-            <p className="text-sm text-gray-800">
-              <span className="font-semibold">{brandSlug}</span>{" "}
-              {currentSlide.body}
-            </p>
-          )}
-          {!currentSlide?.body && caption && (
+          {caption && (
             <p className="text-sm text-gray-800">
               <span className="font-semibold">{brandSlug}</span>{" "}
               {caption}
@@ -131,10 +125,20 @@ export function InstagramCarousel({ content, sections, brandName }: PreviewProps
       </div>
 
       {/* Slide details (below card) */}
-      {currentSlide?.visualDirection && (
-        <div className="bg-gray-50 rounded-lg p-3">
-          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Visual Direction</p>
-          <p className="text-xs text-gray-600">{currentSlide.visualDirection}</p>
+      {currentSlide && (currentSlide.body || currentSlide.visualDirection) && (
+        <div className="bg-gray-50 rounded-lg p-3 space-y-2">
+          {currentSlide.body && (
+            <div>
+              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Slide {current + 1} Copy</p>
+              <p className="text-xs text-gray-600">{currentSlide.body}</p>
+            </div>
+          )}
+          {currentSlide.visualDirection && (
+            <div>
+              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Visual Direction</p>
+              <p className="text-xs text-gray-600">{currentSlide.visualDirection}</p>
+            </div>
+          )}
         </div>
       )}
     </div>
