@@ -32,11 +32,24 @@ export class ContentGenerationJob {
 				data: { status: "processing" },
 			});
 
-			// Build brand context
-			const brand = await this.prisma.brand.findUnique({
-				where: { id: request.brandId },
-				include: { brainVersions: { where: { isActive: true }, take: 1 } },
-			});
+			// Build brand context (with fallback if brain version has corrupted data)
+			let brand: any = null;
+			try {
+				brand = await this.prisma.brand.findUnique({
+					where: { id: request.brandId },
+					include: { brainVersions: { where: { isActive: true }, take: 1 } },
+				});
+			} catch (err) {
+				this.logger.warn("Failed to load brand brain version, falling back to name only", {
+					brandId: request.brandId,
+					error: err instanceof Error ? err.message : String(err),
+				});
+				brand = await this.prisma.brand.findUnique({
+					where: { id: request.brandId },
+					select: { name: true },
+				});
+				brand = { ...brand, brainVersions: [] };
+			}
 
 			// Build product contexts (multiple)
 			let productContext: string | undefined;
@@ -44,27 +57,42 @@ export class ContentGenerationJob {
 				? productIds
 				: request.productId ? [request.productId] : [];
 
+			const fetchProductSafely = async (pid: string) => {
+				try {
+					return await this.prisma.product.findUnique({
+						where: { id: pid },
+						include: { brainVersions: { where: { isActive: true }, take: 1 } },
+					});
+				} catch (err) {
+					this.logger.warn("Failed to load product brain version, falling back to name only", {
+						productId: pid,
+						error: err instanceof Error ? err.message : String(err),
+					});
+					const basic = await this.prisma.product.findUnique({
+						where: { id: pid },
+						select: { name: true },
+					});
+					return basic ? { ...basic, brainVersions: [] } : null;
+				}
+			};
+
 			if (resolvedProductIds.length === 1) {
 				// Single product — keep original behavior
-				const product = await this.prisma.product.findUnique({
-					where: { id: resolvedProductIds[0] },
-					include: { brainVersions: { where: { isActive: true }, take: 1 } },
-				});
+				const product = await fetchProductSafely(resolvedProductIds[0]);
 				if (product?.brainVersions[0]) {
 					productContext = JSON.stringify(product.brainVersions[0]);
+				} else if (product) {
+					productContext = JSON.stringify({ name: (product as any).name });
 				}
 			} else if (resolvedProductIds.length > 1) {
 				// Multiple products — concatenate contexts
 				const contexts: string[] = [];
 				for (const pid of resolvedProductIds) {
-					const product = await this.prisma.product.findUnique({
-						where: { id: pid },
-						include: { brainVersions: { where: { isActive: true }, take: 1 } },
-					});
+					const product = await fetchProductSafely(pid);
 					if (product?.brainVersions[0]) {
-						contexts.push(`Product "${product.name}":\n${JSON.stringify(product.brainVersions[0])}`);
+						contexts.push(`Product "${(product as any).name}":\n${JSON.stringify(product.brainVersions[0])}`);
 					} else if (product) {
-						contexts.push(`Product "${product.name}":\n${JSON.stringify({ name: product.name })}`);
+						contexts.push(`Product "${(product as any).name}":\n${JSON.stringify({ name: (product as any).name })}`);
 					}
 				}
 				if (contexts.length > 0) {
