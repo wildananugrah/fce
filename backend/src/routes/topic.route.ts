@@ -23,16 +23,32 @@ export function createTopicRoutes(topicService: ITopicService) {
 		const workspaceId = c.get("workspaceId");
 		const userId = c.get("userId");
 		const body = await c.req.json();
-		const { brandId, productId, platform, objective, dateFrom, dateTo, count } = body;
+		const { brandId, productIds, platform, objective, formats, dateFrom, dateTo, count } = body;
 		const result = await topicService.generate(workspaceId, userId, {
 			brandId,
-			productId,
+			productIds,
 			platform,
 			objective,
+			formats,
 			dateFrom,
 			dateTo,
 			count,
 		});
+		return c.json({ data: result }, 202);
+	});
+
+	// POST /regenerate-preview — regenerate a single topic in preview (before save)
+	app.post("/regenerate-preview", async (c) => {
+		const workspaceId = c.get("workspaceId");
+		const userId = c.get("userId");
+		const body = await c.req.json();
+		const { brandId, productIds, platform, format, objective, hint } = body;
+		const result = await topicService.regeneratePreview(
+			workspaceId,
+			userId,
+			{ brandId, productIds, platform, format, objective },
+			hint,
+		);
 		return c.json({ data: result }, 202);
 	});
 
@@ -69,23 +85,13 @@ export function createTopicRoutes(topicService: ITopicService) {
 	app.post("/", async (c) => {
 		const workspaceId = c.get("workspaceId");
 		const body = await c.req.json();
-		const {
-			brandId,
-			productId,
-			title,
-			description,
-			pillar,
-			platform,
-			format,
-			objective,
-			publishDate,
-		} = body;
+		const { brandId, productIds, title, description, pillar, platform, format, objective, publishDate } = body;
 		if (!title) {
 			return c.json({ error: "title is required" }, 400);
 		}
 		const topic = await topicService.create(workspaceId, {
 			brandId,
-			productId,
+			productIds,
 			title,
 			description,
 			pillar,
@@ -108,6 +114,17 @@ export function createTopicRoutes(topicService: ITopicService) {
 		const body = await c.req.json();
 		const topic = await topicService.update(c.req.param("id"), body);
 		return c.json({ data: topic });
+	});
+
+	// POST /:id/regenerate — regenerate a single saved topic
+	app.post("/:id/regenerate", async (c) => {
+		const workspaceId = c.get("workspaceId");
+		const userId = c.get("userId");
+		const topicId = c.req.param("id");
+		const body = await c.req.json().catch(() => ({}));
+		const { hint } = body;
+		const result = await topicService.regenerate(workspaceId, userId, topicId, hint);
+		return c.json({ data: result }, 202);
 	});
 
 	return app;
