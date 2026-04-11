@@ -91,6 +91,41 @@ export function GenerationResultRow({
     return editedSections[section.id] ?? section.contentText;
   };
 
+  const getSectionsByType = (type: string) => {
+    if (!sections) return [];
+    return sections.filter((s) => s.sectionType === type).sort((a, b) => a.sectionOrder - b.sectionOrder);
+  };
+
+  const getJsonField = (sectionId: string, contentText: string, field: string): string => {
+    try {
+      const edited = editedSections[sectionId];
+      const data = JSON.parse(edited ?? contentText);
+      return data[field] ?? "";
+    } catch {
+      return "";
+    }
+  };
+
+  const handleJsonFieldChange = (sectionId: string, contentText: string, field: string, value: string) => {
+    try {
+      const current = editedSections[sectionId] ?? contentText;
+      const data = JSON.parse(current);
+      data[field] = value;
+      const newText = JSON.stringify(data);
+      if (newText === contentText) {
+        setEditedSections((prev) => {
+          const next = { ...prev };
+          delete next[sectionId];
+          return next;
+        });
+      } else {
+        setEditedSections((prev) => ({ ...prev, [sectionId]: newText }));
+      }
+    } catch {
+      // ignore parse errors
+    }
+  };
+
   const handleFieldChange = (type: string, value: string) => {
     if (!sections) return;
     const section = sections.find((s) => s.sectionType === type);
@@ -105,6 +140,11 @@ export function GenerationResultRow({
       setEditedSections((prev) => ({ ...prev, [section.id]: value }));
     }
   };
+
+  const hasTopLevelFields = sections ? sections.some((s) => ["hook", "caption", "visual_direction"].includes(s.sectionType)) : false;
+  const slides = getSectionsByType("slide");
+  const scenes = getSectionsByType("scene");
+  const frames = getSectionsByType("frame");
 
   const handleSave = async () => {
     if (!outputId || !isDirty) return;
@@ -246,45 +286,172 @@ export function GenerationResultRow({
               </div>
             ) : sections && sections.length > 0 ? (
               <div className="space-y-3 max-w-2xl">
-                <div>
-                  <label className="block text-[10px] font-medium text-gray-400 uppercase tracking-wide mb-1">
-                    Copy in Visual (Hook)
-                  </label>
-                  <input
-                    type="text"
-                    value={getSectionText("hook")}
-                    onChange={(e) => handleFieldChange("hook", e.target.value)}
-                    className="w-full px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400"
-                    placeholder="No hook generated"
-                  />
-                </div>
+                {/* ─── Single-format fields (hook, visual direction, caption) ─── */}
+                {hasTopLevelFields && (
+                  <>
+                    <div>
+                      <label className="block text-[10px] font-medium text-gray-400 uppercase tracking-wide mb-1">
+                        Copy in Visual (Hook)
+                      </label>
+                      <input
+                        type="text"
+                        value={getSectionText("hook")}
+                        onChange={(e) => handleFieldChange("hook", e.target.value)}
+                        className="w-full px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400"
+                        placeholder="No hook generated"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-medium text-gray-400 uppercase tracking-wide mb-1">
+                        Visual Direction
+                      </label>
+                      <textarea
+                        value={getSectionText("visual_direction")}
+                        onChange={(e) => handleFieldChange("visual_direction", e.target.value)}
+                        rows={2}
+                        className="w-full px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 resize-none"
+                        placeholder="No visual direction generated"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-medium text-gray-400 uppercase tracking-wide mb-1">
+                        Caption
+                      </label>
+                      <textarea
+                        value={getSectionText("caption")}
+                        onChange={(e) => handleFieldChange("caption", e.target.value)}
+                        rows={3}
+                        className="w-full px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 resize-none"
+                        placeholder="No caption generated"
+                      />
+                    </div>
+                  </>
+                )}
 
-                <div>
-                  <label className="block text-[10px] font-medium text-gray-400 uppercase tracking-wide mb-1">
-                    Visual Direction
-                  </label>
-                  <textarea
-                    value={getSectionText("visual_direction")}
-                    onChange={(e) => handleFieldChange("visual_direction", e.target.value)}
-                    rows={2}
-                    className="w-full px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 resize-none"
-                    placeholder="No visual direction generated"
-                  />
-                </div>
+                {/* ─── Slides (carousel, thread, carousel_post, etc.) ─── */}
+                {slides.length > 0 && (
+                  <div className="space-y-3">
+                    <label className="block text-[10px] font-medium text-gray-400 uppercase tracking-wide">
+                      Slides ({slides.length})
+                    </label>
+                    {slides.map((slide) => {
+                      const num = getJsonField(slide.id, slide.contentText, "slideNumber");
+                      return (
+                        <div key={slide.id} className="bg-white border border-gray-200 rounded-lg p-3 space-y-2">
+                          <p className="text-[10px] font-semibold text-indigo-500 uppercase">Slide {num}</p>
+                          <div>
+                            <label className="block text-[10px] text-gray-400 mb-0.5">Headline</label>
+                            <input
+                              type="text"
+                              value={getJsonField(slide.id, slide.contentText, "headline")}
+                              onChange={(e) => handleJsonFieldChange(slide.id, slide.contentText, "headline", e.target.value)}
+                              className="w-full px-2.5 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:border-indigo-400"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] text-gray-400 mb-0.5">Body</label>
+                            <textarea
+                              value={getJsonField(slide.id, slide.contentText, "body")}
+                              onChange={(e) => handleJsonFieldChange(slide.id, slide.contentText, "body", e.target.value)}
+                              rows={2}
+                              className="w-full px-2.5 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:border-indigo-400 resize-none"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] text-gray-400 mb-0.5">Visual Direction</label>
+                            <textarea
+                              value={getJsonField(slide.id, slide.contentText, "visualDirection")}
+                              onChange={(e) => handleJsonFieldChange(slide.id, slide.contentText, "visualDirection", e.target.value)}
+                              rows={1}
+                              className="w-full px-2.5 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:border-indigo-400 resize-none"
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
 
-                <div>
-                  <label className="block text-[10px] font-medium text-gray-400 uppercase tracking-wide mb-1">
-                    Caption
-                  </label>
-                  <textarea
-                    value={getSectionText("caption")}
-                    onChange={(e) => handleFieldChange("caption", e.target.value)}
-                    rows={3}
-                    className="w-full px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 resize-none"
-                    placeholder="No caption generated"
-                  />
-                </div>
+                {/* ─── Scenes (reels, video, shorts, etc.) ─── */}
+                {scenes.length > 0 && (
+                  <div className="space-y-3">
+                    <label className="block text-[10px] font-medium text-gray-400 uppercase tracking-wide">
+                      Scenes ({scenes.length})
+                    </label>
+                    {scenes.map((scene) => {
+                      const num = getJsonField(scene.id, scene.contentText, "sceneNumber");
+                      return (
+                        <div key={scene.id} className="bg-white border border-gray-200 rounded-lg p-3 space-y-2">
+                          <p className="text-[10px] font-semibold text-red-500 uppercase">Scene {num}</p>
+                          <div>
+                            <label className="block text-[10px] text-gray-400 mb-0.5">Visual Direction</label>
+                            <textarea
+                              value={getJsonField(scene.id, scene.contentText, "visualDirection")}
+                              onChange={(e) => handleJsonFieldChange(scene.id, scene.contentText, "visualDirection", e.target.value)}
+                              rows={2}
+                              className="w-full px-2.5 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:border-indigo-400 resize-none"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] text-gray-400 mb-0.5">Voiceover</label>
+                            <textarea
+                              value={getJsonField(scene.id, scene.contentText, "voiceover")}
+                              onChange={(e) => handleJsonFieldChange(scene.id, scene.contentText, "voiceover", e.target.value)}
+                              rows={2}
+                              className="w-full px-2.5 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:border-indigo-400 resize-none"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] text-gray-400 mb-0.5">On-Screen Text</label>
+                            <input
+                              type="text"
+                              value={getJsonField(scene.id, scene.contentText, "onScreenText")}
+                              onChange={(e) => handleJsonFieldChange(scene.id, scene.contentText, "onScreenText", e.target.value)}
+                              className="w-full px-2.5 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:border-indigo-400"
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
 
+                {/* ─── Frames (story, story_image, story_video) ─── */}
+                {frames.length > 0 && (
+                  <div className="space-y-3">
+                    <label className="block text-[10px] font-medium text-gray-400 uppercase tracking-wide">
+                      Frames ({frames.length})
+                    </label>
+                    {frames.map((frame) => {
+                      const num = getJsonField(frame.id, frame.contentText, "frameNumber");
+                      return (
+                        <div key={frame.id} className="bg-white border border-gray-200 rounded-lg p-3 space-y-2">
+                          <p className="text-[10px] font-semibold text-purple-500 uppercase">Frame {num}</p>
+                          <div>
+                            <label className="block text-[10px] text-gray-400 mb-0.5">Visual</label>
+                            <textarea
+                              value={getJsonField(frame.id, frame.contentText, "visual")}
+                              onChange={(e) => handleJsonFieldChange(frame.id, frame.contentText, "visual", e.target.value)}
+                              rows={2}
+                              className="w-full px-2.5 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:border-indigo-400 resize-none"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] text-gray-400 mb-0.5">Text Overlay</label>
+                            <input
+                              type="text"
+                              value={getJsonField(frame.id, frame.contentText, "textOverlay")}
+                              onChange={(e) => handleJsonFieldChange(frame.id, frame.contentText, "textOverlay", e.target.value)}
+                              className="w-full px-2.5 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:border-indigo-400"
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* ─── Save button ─── */}
                 <div className="flex items-center gap-2 pt-1">
                   <button
                     type="button"

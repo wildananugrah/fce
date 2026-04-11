@@ -188,6 +188,7 @@ export class ContentGenerationJob {
 		const sections: { sectionType: string; sectionOrder: number; contentText: string }[] = [];
 		let order = 0;
 
+		// ─── Top-level fields (single_image, single_post, single_tweet, feed_post, article) ───
 		if (result.hooks || result.hook) {
 			const hooks = result.hooks || [result.hook];
 			const hookArray = Array.isArray(hooks) ? hooks : [hooks];
@@ -238,6 +239,56 @@ export class ContentGenerationJob {
 						? result.visualDirection
 						: JSON.stringify(result.visualDirection),
 			});
+		}
+
+		// ─── Slides (carousel, carousel_post, carousel_ad, tiktok_carousel, thread) ───
+		if (Array.isArray(result.slides)) {
+			for (let i = 0; i < result.slides.length; i++) {
+				const slide = result.slides[i];
+				sections.push({
+					sectionType: "slide",
+					sectionOrder: order++,
+					contentText: JSON.stringify({
+						slideNumber: i + 1,
+						headline: slide.headline ?? "",
+						body: slide.body ?? "",
+						visualDirection: slide.visualDirection ?? "",
+					}),
+				});
+			}
+		}
+
+		// ─── Scenes (reels, tiktok_video, long_video, youtube_shorts, video_tweet, linkedin_video, reel_short_video) ───
+		if (Array.isArray(result.scenes)) {
+			for (let i = 0; i < result.scenes.length; i++) {
+				const scene = result.scenes[i];
+				sections.push({
+					sectionType: "scene",
+					sectionOrder: order++,
+					contentText: JSON.stringify({
+						sceneNumber: i + 1,
+						visualDirection: scene.visualDirection ?? "",
+						voiceover: scene.voiceover ?? "",
+						onScreenText: scene.onScreenText ?? "",
+					}),
+				});
+			}
+		}
+
+		// ─── Frames (story_image, story_video, story) ───
+		if (Array.isArray(result.frames)) {
+			for (let i = 0; i < result.frames.length; i++) {
+				const frame = result.frames[i];
+				sections.push({
+					sectionType: "frame",
+					sectionOrder: order++,
+					contentText: JSON.stringify({
+						frameNumber: i + 1,
+						visual: frame.visual ?? "",
+						textOverlay: frame.textOverlay ?? "",
+					}),
+				});
+			}
 		}
 
 		if (result.rationale) {
