@@ -21,7 +21,7 @@ interface ProductDocument {
 
 interface ProductReferencesProps {
   workspaceId: string;
-  productId: string;
+  productId?: string;
   brandId: string;
 }
 
@@ -37,9 +37,10 @@ export function ProductReferences({ workspaceId, productId, brandId }: ProductRe
 
   const loadDocs = useCallback(async () => {
     try {
-      const res = await api<{ data: ProductDocument[] }>(
-        `/api/workspaces/${workspaceId}/documents/product/${productId}`
-      );
+      const endpoint = productId
+        ? `/api/workspaces/${workspaceId}/documents/product/${productId}`
+        : `/api/workspaces/${workspaceId}/documents/brand/${brandId}`;
+      const res = await api<{ data: ProductDocument[] }>(endpoint);
       const data = Array.isArray(res) ? res : (res as any).data ?? res;
       setDocs(data);
     } catch {
@@ -47,7 +48,7 @@ export function ProductReferences({ workspaceId, productId, brandId }: ProductRe
     } finally {
       setLoading(false);
     }
-  }, [workspaceId, productId]);
+  }, [workspaceId, productId, brandId]);
 
   useEffect(() => {
     loadDocs();
@@ -72,7 +73,7 @@ export function ProductReferences({ workspaceId, productId, brandId }: ProductRe
       const formData = new FormData();
       formData.append("file", file);
       formData.append("brandId", brandId);
-      formData.append("productId", productId);
+      if (productId) formData.append("productId", productId);
 
       const res = await fetch(`/api/workspaces/${workspaceId}/documents/upload`, {
         method: "POST",
@@ -95,7 +96,7 @@ export function ProductReferences({ workspaceId, productId, brandId }: ProductRe
     try {
       await api(`/api/workspaces/${workspaceId}/documents/link`, {
         method: "POST",
-        body: JSON.stringify({ brandId, productId, url: linkUrl.trim() }),
+        body: JSON.stringify({ brandId, ...(productId ? { productId } : {}), url: linkUrl.trim() }),
       });
       setLinkUrl("");
       await loadDocs();

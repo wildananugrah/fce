@@ -6,6 +6,7 @@ import {
   Dna,
   Target,
   CircleDot,
+  FileText,
   ChevronRight,
   ChevronLeft,
   Sparkles,
@@ -18,6 +19,7 @@ import { Drawer } from "../ui/Drawer";
 import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
 import { api } from "../../services/api";
+import { ProductReferences } from "../products/ProductReferences";
 
 // ── Types ──────────────────────────────────────────────────────
 
@@ -97,6 +99,7 @@ const TABS = [
   { key: "dna", label: "Brand DNA", icon: Dna },
   { key: "strategy", label: "Content Strategy", icon: Target },
   { key: "rules", label: "Do's & Don'ts", icon: CircleDot },
+  { key: "references", label: "References", icon: FileText },
 ] as const;
 
 type TabKey = (typeof TABS)[number]["key"];
@@ -529,6 +532,7 @@ export function NewBrandBrainDrawer({
         {/* Sidebar tabs */}
         <nav className="w-48 border-r border-gray-200 py-4 shrink-0">
           {TABS.map((tab) => {
+            if (tab.key === "references" && !editBrand) return null;
             const Icon = tab.icon;
             const isActive = activeTab === tab.key;
             return (
@@ -821,6 +825,24 @@ export function NewBrandBrainDrawer({
                     placeholder="e.g. Never use aggressive sales language"
                   />
                 </div>
+              </>
+            )}
+
+            {activeTab === "references" && editBrand && (
+              <>
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <FileText size={18} className="text-gray-500" />
+                    <h3 className="text-sm font-semibold text-black">Brand References</h3>
+                  </div>
+                  <p className="text-xs text-gray-500 mb-4">
+                    Upload files or add links as reference material. These will be used by the AI when generating content for this brand.
+                  </p>
+                </div>
+                <ProductReferences
+                  workspaceId={workspaceId}
+                  brandId={editBrand.id}
+                />
               </>
             )}
 
