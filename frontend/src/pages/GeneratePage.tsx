@@ -10,6 +10,7 @@ import { ContentPreviewModal } from "../components/library/ContentPreviewModal";
 import { Toast } from "../components/ui/Toast";
 import { ActiveSkillsBadges } from "../components/skills/ActiveSkillsBadges";
 import { GenerationResultRow } from "../components/generation/GenerationResultRow";
+import { ReferenceImageUpload, type ImageRef } from "../components/ui/ReferenceImageUpload";
 
 interface Brand {
   id: string;
@@ -367,6 +368,7 @@ export function GeneratePage() {
   const [language] = useState("indonesian");
   const [contentTopicId, setContentTopicId] = useState(searchParams.get("topicId") ?? "");
   const [customPrompt, setCustomPrompt] = useState("");
+  const [referenceImages, setReferenceImages] = useState<ImageRef[]>([]);
   const [tonePresetId, setTonePresetId] = useState("");
   const [visualStyleId, setVisualStyleId] = useState("");
   const [objective, setObjective] = useState(initialObjective);
@@ -567,6 +569,9 @@ export function GeneratePage() {
           hookType: hookTypeId || "curiosity",
           language,
           customPrompt: customPrompt.trim() || undefined,
+          referenceImages: referenceImages.filter((i) => !i.uploading).map((i) => i.url).length > 0
+            ? referenceImages.filter((i) => !i.uploading).map((i) => i.url)
+            : undefined,
           tonePresetId: tonePresetId || undefined,
           visualStyleId: visualStyleId || undefined,
           objective: objective || undefined,
@@ -839,6 +844,19 @@ const frameworkOptions = [{ value: "", label: "PAS (recommended)" }, ...framewor
                     value={customPrompt}
                     onChange={(e) => setCustomPrompt(e.target.value)}
                   />
+                  <p className="text-[10px] text-gray-400 mt-1">
+                      Tip: You can paste URLs as references and they will be included in the AI context.
+                  </p>
+                </div>
+                <div>
+                    <label className="block text-xs font-medium text-gray-600 uppercase tracking-wide mb-1.5">
+                        Reference Images (optional)
+                    </label>
+                    <ReferenceImageUpload
+                        workspaceId={activeWorkspace!.id}
+                        images={referenceImages}
+                        onChange={setReferenceImages}
+                    />
                 </div>
               </div>
             )}
