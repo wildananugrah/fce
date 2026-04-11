@@ -14,7 +14,7 @@ export class TopicService implements ITopicService {
 		return this.topicRepository.findByWorkspace(workspaceId);
 	}
 
-	async getById(id: string): Promise<ContentTopic> {
+	async getById(id: string): Promise<TopicWithBrand> {
 		const topic = await this.topicRepository.findById(id);
 		if (!topic) {
 			throw new Error("Topic not found");
@@ -26,7 +26,7 @@ export class TopicService implements ITopicService {
 		return this.topicRepository.create({
 			workspaceId,
 			brandId: input.brandId,
-			productId: input.productId,
+			productIds: input.productIds,
 			title: input.title,
 			description: input.description,
 			pillar: input.pillar,
@@ -52,12 +52,67 @@ export class TopicService implements ITopicService {
 		const jobId = await this.boss.send("topic-generation", {
 			workspaceId,
 			brandId: input.brandId,
-			productId: input.productId,
+			productIds: input.productIds,
 			platform: input.platform,
 			objective: input.objective,
+			formats: input.formats,
 			dateFrom: input.dateFrom,
 			dateTo: input.dateTo,
 			count: input.count ?? 10,
+			userId,
+		});
+
+		return { jobId: jobId ?? "queued" };
+	}
+
+	async regenerate(
+		workspaceId: string,
+		userId: string,
+		topicId: string,
+		hint?: string,
+	): Promise<{ jobId: string }> {
+		const topic = await this.topicRepository.findById(topicId);
+		if (!topic) {
+			throw new Error("Topic not found");
+		}
+
+		const jobId = await this.boss.send("topic-regeneration", {
+			workspaceId,
+			topicId,
+			brandId: topic.brandId,
+			productIds: topic.products?.map((p) => p.product.id) ?? [],
+			platform: topic.platform,
+			format: topic.format,
+			objective: topic.objective,
+			hint,
+			preview: false,
+			userId,
+		});
+
+		return { jobId: jobId ?? "queued" };
+	}
+
+	async regeneratePreview(
+		workspaceId: string,
+		userId: string,
+		params: {
+			brandId?: string;
+			productIds?: string[];
+			platform?: string;
+			format?: string;
+			objective?: string;
+		},
+		hint?: string,
+	): Promise<{ jobId: string }> {
+		const jobId = await this.boss.send("topic-regeneration", {
+			workspaceId,
+			brandId: params.brandId,
+			productIds: params.productIds ?? [],
+			platform: params.platform,
+			format: params.format,
+			objective: params.objective,
+			hint,
+			preview: true,
 			userId,
 		});
 
