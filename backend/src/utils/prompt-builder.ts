@@ -20,10 +20,15 @@ const CONTENT_TYPE_FORMAT_INSTRUCTIONS: Record<string, string> = {
 function buildContextBlock(input: {
 	brandContext: string;
 	productContext?: string;
+	productContexts?: string[];
 	skillContext?: string;
 }): string {
 	let context = input.brandContext;
-	if (input.productContext) {
+	if (input.productContexts && input.productContexts.length > 0) {
+		input.productContexts.forEach((pc, i) => {
+			context += `\n\nProduct ${i + 1} context:\n${pc}`;
+		});
+	} else if (input.productContext) {
 		context += `\n\nProduct context:\n${input.productContext}`;
 	}
 	if (input.skillContext) {
@@ -79,16 +84,30 @@ Return JSON with fields:
 
 export function buildTopicGenerationPrompt(input: TopicGenerationInput): PromptPair {
 	const count = input.count ?? 10;
-	const contextBlock = buildContextBlock(input);
+	const contextBlock = buildContextBlock({
+		brandContext: input.brandContext ?? "{}",
+		productContexts: input.productContexts,
+		skillContext: input.skillContext,
+	});
 
 	const systemPrompt = `You are an expert content strategist. You have the following brand context:
 ${contextBlock}
 
 ${JSON_ONLY_INSTRUCTION}`;
 
+	const formatLine = input.formats && input.formats.length > 0
+		? `Allowed content formats: ${input.formats.join(", ")}. Assign exactly one format per topic from this list.`
+		: "";
+
+	const multiProductLine = input.productContexts && input.productContexts.length > 1
+		? "The topics should bridge or combine the provided products where relevant."
+		: "";
+
 	const userPrompt = `Generate ${count} content topic ideas${input.platform ? ` for ${input.platform}` : ""}.
 ${input.objective ? `Content objective: ${input.objective}` : ""}
 ${input.dateFrom && input.dateTo ? `Schedule date range: ${input.dateFrom} to ${input.dateTo}. Distribute publishDate values evenly across this range.` : ""}
+${formatLine}
+${multiProductLine}
 
 Return JSON with a single field:
 - topics (array of ${count} objects, each with: title, description, pillar, platform, format, objective, publishDate)
