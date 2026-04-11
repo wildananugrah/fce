@@ -8,9 +8,10 @@ import { logAiActivity } from "../utils/ai-activity-logger";
 interface TopicJobData {
 	workspaceId: string;
 	brandId?: string;
-	productId?: string;
+	productIds?: string[];
 	platform?: string;
 	objective?: string;
+	formats?: string[];
 	dateFrom?: string;
 	dateTo?: string;
 	count: number;
@@ -26,7 +27,7 @@ export class TopicGenerationJob {
 	) {}
 
 	async handle(data: TopicJobData): Promise<void> {
-		const { workspaceId, brandId, productId, platform, objective, dateFrom, dateTo, count, userId } = data;
+		const { workspaceId, brandId, productIds, platform, objective, formats, dateFrom, dateTo, count, userId } = data;
 
 		try {
 			// Build brand context
@@ -41,15 +42,19 @@ export class TopicGenerationJob {
 					: JSON.stringify({ name: brand?.name });
 			}
 
-			// Build product context
-			let productContext: string | undefined;
-			if (productId) {
-				const product = await this.prisma.product.findUnique({
-					where: { id: productId },
-					include: { brainVersions: { where: { isActive: true }, take: 1 } },
-				});
-				if (product?.brainVersions[0]) {
-					productContext = JSON.stringify(product.brainVersions[0]);
+			// Build product contexts (multiple)
+			const productContexts: string[] = [];
+			if (productIds && productIds.length > 0) {
+				for (const pid of productIds) {
+					const product = await this.prisma.product.findUnique({
+						where: { id: pid },
+						include: { brainVersions: { where: { isActive: true }, take: 1 } },
+					});
+					if (product?.brainVersions[0]) {
+						productContexts.push(JSON.stringify(product.brainVersions[0]));
+					} else if (product) {
+						productContexts.push(JSON.stringify({ name: product.name }));
+					}
 				}
 			}
 
@@ -72,10 +77,11 @@ export class TopicGenerationJob {
 			// Build generation input
 			const generationInput = {
 				brandContext,
-				productContext,
+				productContexts: productContexts.length > 0 ? productContexts : undefined,
 				skillContext: skillContext || undefined,
 				platform,
 				objective,
+				formats,
 				dateFrom,
 				dateTo,
 				count,
@@ -98,7 +104,7 @@ export class TopicGenerationJob {
 				systemPrompt,
 				userPrompt,
 				brandId: brandId ?? undefined,
-				productId: productId ?? undefined,
+				productId: productIds?.[0] ?? undefined,
 				platform: platform ?? undefined,
 				skillIds: skillMappings.map((m) => m.skill.id),
 				skillNames: skillMappings.map((m) => m.skill.name),
@@ -115,7 +121,6 @@ export class TopicGenerationJob {
 						data: {
 							workspaceId,
 							brandId: brandId ?? null,
-							productId: productId ?? null,
 							title: topic.title,
 							description: topic.description,
 							pillar: topic.pillar ?? null,
@@ -124,6 +129,9 @@ export class TopicGenerationJob {
 							objective: topic.objective ?? null,
 							publishDate: topic.publishDate ? new Date(topic.publishDate) : null,
 							status: "draft",
+							products: productIds && productIds.length > 0
+								? { create: productIds.map((productId) => ({ productId })) }
+								: undefined,
 						},
 					}),
 				),
