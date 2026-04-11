@@ -1,6 +1,6 @@
 import type { PrismaClient } from "@prisma/client";
-import type { IRecommendationRepository } from "../interfaces/repositories/recommendation.repository.interface";
 import type { ILogger } from "../interfaces/providers/logger.provider.interface";
+import type { IRecommendationRepository } from "../interfaces/repositories/recommendation.repository.interface";
 
 export class RecommendationRecomputeJob {
 	constructor(
@@ -71,7 +71,10 @@ export class RecommendationRecomputeJob {
 				sampleSize: approvedOutputs.length,
 			});
 
-			this.logger.info("Recommendation profile updated", { brandId, sampleSize: approvedOutputs.length });
+			this.logger.info("Recommendation profile updated", {
+				brandId,
+				sampleSize: approvedOutputs.length,
+			});
 		} catch (error) {
 			this.logger.error("Recommendation recompute failed", {
 				brandId,

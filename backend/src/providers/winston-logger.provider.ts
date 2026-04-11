@@ -14,8 +14,7 @@ const simpleLineFormat = winston.format.printf(({ timestamp, level, message, ...
 	const hasHttpMeta = method || uri || status;
 	const body = hasHttpMeta ? `${method} ${uri} ${status}${time}` : String(message);
 
-	const mainLine =
-		`${timestamp} [${level.toUpperCase()}]${txn}${trace}${user} ${body}`.trim();
+	const mainLine = `${timestamp} [${level.toUpperCase()}]${txn}${trace}${user} ${body}`.trim();
 
 	const extras: Record<string, unknown> = {};
 	if (meta.requestBody) extras.requestBody = meta.requestBody;

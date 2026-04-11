@@ -1,7 +1,7 @@
-import { PrismaClient } from "@prisma/client";
-import { PrismaPg } from "@prisma/adapter-pg";
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "@prisma/client";
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) throw new Error("DATABASE_URL is required");
@@ -92,7 +92,7 @@ async function main() {
 
 		// Read reference files
 		const refsDir = join(skillsDir, dir, "references");
-		let referenceFiles: { name: string; content: string }[] = [];
+		const referenceFiles: { name: string; content: string }[] = [];
 		try {
 			const refFiles = await readdir(refsDir);
 			for (const refFile of refFiles.sort()) {

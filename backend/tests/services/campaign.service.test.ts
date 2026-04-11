@@ -133,9 +133,7 @@ describe("CampaignService", () => {
 		});
 
 		it("should throw 'Campaign not found' when not found", async () => {
-			await expect(
-				campaignService.getById("nonexistent-id"),
-			).rejects.toThrow("Campaign not found");
+			await expect(campaignService.getById("nonexistent-id")).rejects.toThrow("Campaign not found");
 		});
 	});
 
@@ -159,19 +157,12 @@ describe("CampaignService", () => {
 			});
 
 			expect(brief.campaignId).toBe(campaign.id);
-			expect(brief.objectiveDetail).toBe(
-				"Increase brand awareness among Gen Z",
-			);
+			expect(brief.objectiveDetail).toBe("Increase brand awareness among Gen Z");
 			expect(brief.channelMix).toEqual(["instagram", "tiktok"]);
-			expect(brief.mandatoryDeliverables).toEqual([
-				"hero-video",
-				"carousel",
-			]);
+			expect(brief.mandatoryDeliverables).toEqual(["hero-video", "carousel"]);
 			expect(brief.culturalContext).toBe("Summer festival season");
 			expect(brief.trendContext).toBe("Short-form video is king");
-			expect(brief.competitiveContext).toBe(
-				"Competitor X launched similar campaign",
-			);
+			expect(brief.competitiveContext).toBe("Competitor X launched similar campaign");
 			expect(brief.kpiPreference).toEqual({
 				reach: 1000000,
 				engagement: 0.05,
@@ -266,10 +257,7 @@ describe("CampaignService", () => {
 
 		it("should throw 'Campaign not found' for invalid campaign", async () => {
 			await expect(
-				campaignService.generateFromBrief(
-					"nonexistent-id",
-					crypto.randomUUID(),
-				),
+				campaignService.generateFromBrief("nonexistent-id", crypto.randomUUID()),
 			).rejects.toThrow("Campaign not found");
 		});
 	});

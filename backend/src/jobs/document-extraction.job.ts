@@ -1,5 +1,5 @@
-import type { IDocumentRepository } from "../interfaces/repositories/document.repository.interface";
 import type { ILogger } from "../interfaces/providers/logger.provider.interface";
+import type { IDocumentRepository } from "../interfaces/repositories/document.repository.interface";
 
 export class DocumentExtractionJob {
 	constructor(
@@ -7,12 +7,7 @@ export class DocumentExtractionJob {
 		private logger: ILogger,
 	) {}
 
-	async handle(data: {
-		documentId: string;
-		fileUrl: string;
-		fileName: string;
-		fileType: string;
-	}) {
+	async handle(data: { documentId: string; fileUrl: string; fileName: string; fileType: string }) {
 		const { documentId, fileUrl, fileName, fileType } = data;
 		try {
 			this.logger.info("Starting document extraction", { documentId, fileName });
@@ -22,8 +17,7 @@ export class DocumentExtractionJob {
 			if (fileType === "application/pdf" || fileName.endsWith(".pdf")) {
 				text = await this.extractPdf(fileUrl);
 			} else if (
-				fileType ===
-					"application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+				fileType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
 				fileName.endsWith(".docx")
 			) {
 				text = await this.extractDocx(fileUrl);

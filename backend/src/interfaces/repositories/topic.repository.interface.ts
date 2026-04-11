@@ -23,7 +23,10 @@ export interface ITopicRepository {
 		objective?: string;
 		publishDate?: Date;
 	}): Promise<ContentTopic>;
-	update(id: string, data: Partial<ContentTopic> & { productIds?: string[] }): Promise<ContentTopic>;
+	update(
+		id: string,
+		data: Partial<ContentTopic> & { productIds?: string[] },
+	): Promise<ContentTopic>;
 	deleteMany(workspaceId: string, ids: string[]): Promise<number>;
 	updateManyStatus(workspaceId: string, ids: string[], status: string): Promise<number>;
 }

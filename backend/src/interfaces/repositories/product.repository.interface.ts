@@ -20,7 +20,12 @@ export interface IProductRepository {
 	}): Promise<Product>;
 	update(
 		id: string,
-		data: Partial<Pick<Product, "name" | "type" | "priceTier" | "summary" | "imageUrl" | "status" | "activeBrainVersionId">>,
+		data: Partial<
+			Pick<
+				Product,
+				"name" | "type" | "priceTier" | "summary" | "imageUrl" | "status" | "activeBrainVersionId"
+			>
+		>,
 	): Promise<Product>;
 
 	findActiveBrainVersion(productId: string): Promise<ProductBrainVersion | null>;

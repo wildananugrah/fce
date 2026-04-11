@@ -4,7 +4,9 @@ import type { IBrandRepository } from "../interfaces/repositories/brand.reposito
 export class BrandRepository implements IBrandRepository {
 	constructor(private prisma: PrismaClient) {}
 
-	async findByWorkspace(workspaceId: string): Promise<(Brand & { brainVersions: BrandBrainVersion[] })[]> {
+	async findByWorkspace(
+		workspaceId: string,
+	): Promise<(Brand & { brainVersions: BrandBrainVersion[] })[]> {
 		return this.prisma.brand.findMany({
 			where: { workspaceId },
 			orderBy: { updatedAt: "desc" },

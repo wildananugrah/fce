@@ -1,6 +1,6 @@
 import { Hono } from "hono";
-import type { IProductService } from "../interfaces/services/product.service.interface";
 import type { IStorageProvider } from "../interfaces/providers/storage.provider.interface";
+import type { IProductService } from "../interfaces/services/product.service.interface";
 
 type Variables = {
 	userId: string;
@@ -111,7 +111,15 @@ export function createProductRoutes(
 		if (!brandId || !name || !slug) {
 			return c.json({ error: "brandId, name, and slug are required" }, 400);
 		}
-		const product = await productService.create(workspaceId, { brandId, name, slug, type, priceTier, summary, imageUrl });
+		const product = await productService.create(workspaceId, {
+			brandId,
+			name,
+			slug,
+			type,
+			priceTier,
+			summary,
+			imageUrl,
+		});
 		return c.json({ data: product }, 201);
 	});
 

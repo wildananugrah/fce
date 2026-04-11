@@ -1,5 +1,8 @@
 import type { Product, ProductBrainVersion } from "@prisma/client";
-import type { IProductRepository, ProductWithRelations } from "../interfaces/repositories/product.repository.interface";
+import type {
+	IProductRepository,
+	ProductWithRelations,
+} from "../interfaces/repositories/product.repository.interface";
 import type { IProductService } from "../interfaces/services/product.service.interface";
 import type {
 	CreateProductBrainVersionInput,

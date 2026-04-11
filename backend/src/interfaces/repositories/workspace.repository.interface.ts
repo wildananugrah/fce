@@ -24,11 +24,7 @@ export interface IWorkspaceRepository {
 		})[]
 	>;
 	addMember(workspaceId: string, userId: string, role: string): Promise<UserWorkspaceRole>;
-	upsertMemberRole(
-		workspaceId: string,
-		userId: string,
-		role: string,
-	): Promise<UserWorkspaceRole>;
+	upsertMemberRole(workspaceId: string, userId: string, role: string): Promise<UserWorkspaceRole>;
 	setCreator(workspaceId: string, userId: string): Promise<void>;
 	removeMember(workspaceId: string, userId: string): Promise<void>;
 

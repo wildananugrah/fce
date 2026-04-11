@@ -49,7 +49,14 @@
       "Bash(chmod +x /Users/bellinnn/Documents/projects/fce/scripts/minio-setup.sh)",
       "Read(//private/tmp/**)",
       "Bash(rm -rf marketingskills)",
-      "Bash(gh repo:*)"
+      "Bash(gh repo:*)",
+      "Bash(ls /Users/bellinnn/Documents/projects/fce/backend/src/*.ts)",
+      "Bash(ls -la /Users/bellinnn/Documents/projects/fce/frontend/src/pages/*.tsx)",
+      "Bash(DATABASE_URL=\"postgresql://fce:fce_secret@localhost:5433/fce_dashboard\" bunx prisma db push)",
+      "Bash(DATABASE_URL=\"postgresql://fce:fce_secret@localhost:5433/fce_dashboard\" bunx prisma db push --accept-data-loss)",
+      "Bash(DATABASE_URL=postgresql://fce:fce_secret@localhost:5433/fce_dashboard bunx prisma generate)",
+      "Bash(python3)",
+      "Bash(git reset:*)"
     ],
     "additionalDirectories": [
       "/Users/wildananugrah/Documents/My-Projects/fce/.git"

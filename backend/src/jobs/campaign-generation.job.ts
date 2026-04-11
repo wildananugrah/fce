@@ -67,9 +67,7 @@ export class CampaignGenerationJob {
 				brandContext,
 				objective: campaign.objective ?? undefined,
 				budget: campaign.budget ?? undefined,
-				channelMix: campaign.channelMix
-					? (campaign.channelMix as string[])
-					: undefined,
+				channelMix: campaign.channelMix ? (campaign.channelMix as string[]) : undefined,
 				culturalContext: campaign.culturalContext ?? undefined,
 			};
 
@@ -81,29 +79,34 @@ export class CampaignGenerationJob {
 			// Add brief fields to generation input
 			if (brief) {
 				if (brief.objectiveDetail) {
-					generationInput.objective = `${generationInput.objective ?? ""}\n\nDetailed Objective: ${brief.objectiveDetail}`.trim();
+					generationInput.objective =
+						`${generationInput.objective ?? ""}\n\nDetailed Objective: ${brief.objectiveDetail}`.trim();
 				}
 				if (brief.channelMix) {
-					generationInput.channelMix =
-						brief.channelMix as string[];
+					generationInput.channelMix = brief.channelMix as string[];
 				}
 				if (brief.culturalContext) {
-					generationInput.culturalContext = `${generationInput.culturalContext ?? ""}\n\n${brief.culturalContext}`.trim();
+					generationInput.culturalContext =
+						`${generationInput.culturalContext ?? ""}\n\n${brief.culturalContext}`.trim();
 				}
 				if (brief.trendContext) {
-					generationInput.culturalContext = `${generationInput.culturalContext ?? ""}\n\nTrend Context: ${brief.trendContext}`.trim();
+					generationInput.culturalContext =
+						`${generationInput.culturalContext ?? ""}\n\nTrend Context: ${brief.trendContext}`.trim();
 				}
 				if (brief.competitiveContext) {
-					generationInput.culturalContext = `${generationInput.culturalContext ?? ""}\n\nCompetitive Context: ${brief.competitiveContext}`.trim();
+					generationInput.culturalContext =
+						`${generationInput.culturalContext ?? ""}\n\nCompetitive Context: ${brief.competitiveContext}`.trim();
 				}
 				if (brief.toneDirection) {
 					generationInput.brandContext = `${generationInput.brandContext}\n\nTone Direction: ${brief.toneDirection}`;
 				}
 				if (brief.mandatoryDeliverables) {
-					generationInput.culturalContext = `${generationInput.culturalContext ?? ""}\n\nMandatory Deliverables: ${JSON.stringify(brief.mandatoryDeliverables)}`.trim();
+					generationInput.culturalContext =
+						`${generationInput.culturalContext ?? ""}\n\nMandatory Deliverables: ${JSON.stringify(brief.mandatoryDeliverables)}`.trim();
 				}
 				if (brief.kpiPreference) {
-					generationInput.culturalContext = `${generationInput.culturalContext ?? ""}\n\nKPI Preferences: ${JSON.stringify(brief.kpiPreference)}`.trim();
+					generationInput.culturalContext =
+						`${generationInput.culturalContext ?? ""}\n\nKPI Preferences: ${JSON.stringify(brief.kpiPreference)}`.trim();
 				}
 			}
 
@@ -124,14 +127,12 @@ export class CampaignGenerationJob {
 
 			// Parse and create CampaignChannelRole records from output
 			if (output.channelRoles && Array.isArray(output.channelRoles)) {
-				const channelRoleData = output.channelRoles.map(
-					(role: any, index: number) => ({
-						campaignOutputId: campaignOutput.id,
-						channelCode: role.channelCode ?? role.channel ?? `channel-${index}`,
-						channelRole: role.channelRole ?? role.role ?? role.description ?? "",
-						priorityOrder: role.priorityOrder ?? role.priority ?? index + 1,
-					}),
-				);
+				const channelRoleData = output.channelRoles.map((role: any, index: number) => ({
+					campaignOutputId: campaignOutput.id,
+					channelCode: role.channelCode ?? role.channel ?? `channel-${index}`,
+					channelRole: role.channelRole ?? role.role ?? role.description ?? "",
+					priorityOrder: role.priorityOrder ?? role.priority ?? index + 1,
+				}));
 				if (channelRoleData.length > 0) {
 					await this.prisma.campaignChannelRole.createMany({
 						data: channelRoleData,

@@ -90,7 +90,11 @@ export function createLibraryRoutes(libraryService: ILibraryService) {
 		if (!contentText) {
 			return c.json({ error: "contentText is required" }, 400);
 		}
-		const section = await libraryService.updateSection(c.req.param("sectionId"), contentText, userId);
+		const section = await libraryService.updateSection(
+			c.req.param("sectionId"),
+			contentText,
+			userId,
+		);
 		return c.json({ data: section });
 	});
 

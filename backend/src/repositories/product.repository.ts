@@ -44,7 +44,12 @@ export class ProductRepository implements IProductRepository {
 
 	async update(
 		id: string,
-		data: Partial<Pick<Product, "name" | "type" | "priceTier" | "summary" | "imageUrl" | "status" | "activeBrainVersionId">>,
+		data: Partial<
+			Pick<
+				Product,
+				"name" | "type" | "priceTier" | "summary" | "imageUrl" | "status" | "activeBrainVersionId"
+			>
+		>,
 	): Promise<Product> {
 		return this.prisma.product.update({ where: { id }, data });
 	}

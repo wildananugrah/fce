@@ -3,8 +3,8 @@ import type { IContentGenerator } from "../interfaces/providers/content-generato
 import type { ILogger } from "../interfaces/providers/logger.provider.interface";
 import type { IOutputSectionRepository } from "../interfaces/repositories/output-section.repository.interface";
 import type { INotificationService } from "../interfaces/services/notification.service.interface";
-import { buildContentGenerationPrompt } from "../utils/prompt-builder";
 import { logAiActivity } from "../utils/ai-activity-logger";
+import { buildContentGenerationPrompt } from "../utils/prompt-builder";
 
 interface ContentJobData {
 	requestId: string;
@@ -89,25 +89,29 @@ export class ContentGenerationJob {
 			const durationMs = Date.now() - startTime;
 
 			// Log AI activity
-			await logAiActivity(this.prisma, {
-				workspaceId: request.workspaceId,
-				generator: "content",
-				provider: process.env.AI_CONTENT_PROVIDER || process.env.AI_PROVIDER || "unknown",
-				requestId: request.id,
-				userId,
-				systemPrompt,
-				userPrompt,
-				brandId: request.brandId,
-				productId: request.productId ?? undefined,
-				platform: request.platform,
-				contentType: request.contentType,
-				skillIds: skillMappings.map((m) => m.skill.id),
-				skillNames: skillMappings.map((m) => m.skill.name),
-			}, {
-				responseJson: output.content,
-				durationMs,
-				status: "success",
-			});
+			await logAiActivity(
+				this.prisma,
+				{
+					workspaceId: request.workspaceId,
+					generator: "content",
+					provider: process.env.AI_CONTENT_PROVIDER || process.env.AI_PROVIDER || "unknown",
+					requestId: request.id,
+					userId,
+					systemPrompt,
+					userPrompt,
+					brandId: request.brandId,
+					productId: request.productId ?? undefined,
+					platform: request.platform,
+					contentType: request.contentType,
+					skillIds: skillMappings.map((m) => m.skill.id),
+					skillNames: skillMappings.map((m) => m.skill.name),
+				},
+				{
+					responseJson: output.content,
+					durationMs,
+					status: "success",
+				},
+			);
 
 			// Save output
 			const savedOutput = await this.prisma.generationOutput.create({
@@ -197,9 +201,7 @@ export class ContentGenerationJob {
 			sections.push({
 				sectionType: "hashtag",
 				sectionOrder: order++,
-				contentText: Array.isArray(result.hashtags)
-					? result.hashtags.join(" ")
-					: result.hashtags,
+				contentText: Array.isArray(result.hashtags) ? result.hashtags.join(" ") : result.hashtags,
 			});
 		}
 

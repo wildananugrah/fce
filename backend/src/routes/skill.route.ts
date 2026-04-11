@@ -1,5 +1,5 @@
-import { Hono } from "hono";
 import type { PrismaClient } from "@prisma/client";
+import { Hono } from "hono";
 
 type Variables = {
 	userId: string;
@@ -74,7 +74,13 @@ export function createSkillRoutes(prisma: PrismaClient) {
 			return c.json({ error: "name and content are required" }, 400);
 		}
 
-		const skillSlug = slug || name.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+		const skillSlug =
+			slug ||
+			name
+				.toLowerCase()
+				.trim()
+				.replace(/[^a-z0-9]+/g, "-")
+				.replace(/^-+|-+$/g, "");
 
 		const skill = await prisma.aiSkill.create({
 			data: {

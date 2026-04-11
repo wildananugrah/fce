@@ -157,7 +157,8 @@ export class AnthropicProvider
 		const response = await this.client.messages.create({
 			model: this.model,
 			max_tokens: 1024,
-			system: "You are a product marketing expert. You MUST respond with ONLY valid JSON. No markdown, no code blocks, no explanations.",
+			system:
+				"You are a product marketing expert. You MUST respond with ONLY valid JSON. No markdown, no code blocks, no explanations.",
 			messages: [
 				{
 					role: "user",
@@ -198,7 +199,8 @@ Return JSON with these fields:
 		const response = await this.client.messages.create({
 			model: this.model,
 			max_tokens: 1024,
-			system: "You are a product marketing expert. You MUST respond with ONLY valid JSON. No markdown, no code blocks, no explanations.",
+			system:
+				"You are a product marketing expert. You MUST respond with ONLY valid JSON. No markdown, no code blocks, no explanations.",
 			messages: [
 				{
 					role: "user",

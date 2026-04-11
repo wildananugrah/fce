@@ -1,5 +1,5 @@
-import { createMiddleware } from "hono/factory";
 import type { PrismaClient } from "@prisma/client";
+import { createMiddleware } from "hono/factory";
 
 export function createAdminMiddleware(prisma: PrismaClient) {
 	return createMiddleware(async (c, next) => {

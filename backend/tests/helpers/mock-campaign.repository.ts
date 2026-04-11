@@ -1,9 +1,5 @@
+import type { Campaign, CampaignBrief, CampaignOutput } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/client";
-import type {
-	Campaign,
-	CampaignBrief,
-	CampaignOutput,
-} from "@prisma/client";
 import type { ICampaignRepository } from "../../src/interfaces/repositories/campaign.repository.interface";
 import type {
 	CreateBriefInput,
@@ -24,17 +20,11 @@ export class MockCampaignRepository implements ICampaignRepository {
 
 	async findById(
 		id: string,
-	): Promise<
-		(Campaign & { outputs: CampaignOutput[]; briefs: CampaignBrief[] }) | null
-	> {
+	): Promise<(Campaign & { outputs: CampaignOutput[]; briefs: CampaignBrief[] }) | null> {
 		const campaign = this.campaigns.find((c) => c.id === id);
 		if (!campaign) return null;
-		const campaignOutputs = this.outputs.filter(
-			(o) => o.campaignId === id,
-		);
-		const campaignBriefs = this.briefs.filter(
-			(b) => b.campaignId === id,
-		);
+		const campaignOutputs = this.outputs.filter((o) => o.campaignId === id);
+		const campaignBriefs = this.briefs.filter((b) => b.campaignId === id);
 		return { ...campaign, outputs: campaignOutputs, briefs: campaignBriefs };
 	}
 
@@ -94,10 +84,7 @@ export class MockCampaignRepository implements ICampaignRepository {
 		return this.campaigns[index];
 	}
 
-	async createBrief(
-		campaignId: string,
-		data: CreateBriefInput,
-	): Promise<CampaignBrief> {
+	async createBrief(campaignId: string, data: CreateBriefInput): Promise<CampaignBrief> {
 		const brief: CampaignBrief = {
 			id: crypto.randomUUID(),
 			campaignId,
@@ -116,21 +103,14 @@ export class MockCampaignRepository implements ICampaignRepository {
 		return brief;
 	}
 
-	async findBriefByCampaign(
-		campaignId: string,
-	): Promise<CampaignBrief | null> {
+	async findBriefByCampaign(campaignId: string): Promise<CampaignBrief | null> {
 		const matching = this.briefs.filter((b) => b.campaignId === campaignId);
 		if (matching.length === 0) return null;
 		// Return the most recently created brief
-		return matching.sort(
-			(a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
-		)[0];
+		return matching.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0];
 	}
 
-	async updateBrief(
-		id: string,
-		data: Partial<CreateBriefInput>,
-	): Promise<CampaignBrief> {
+	async updateBrief(id: string, data: Partial<CreateBriefInput>): Promise<CampaignBrief> {
 		const index = this.briefs.findIndex((b) => b.id === id);
 		if (index === -1) throw new Error("Brief not found");
 		const existing = this.briefs[index];
@@ -138,12 +118,10 @@ export class MockCampaignRepository implements ICampaignRepository {
 			...existing,
 			objectiveDetail: data.objectiveDetail ?? existing.objectiveDetail,
 			channelMix: data.channelMix ?? existing.channelMix,
-			mandatoryDeliverables:
-				data.mandatoryDeliverables ?? existing.mandatoryDeliverables,
+			mandatoryDeliverables: data.mandatoryDeliverables ?? existing.mandatoryDeliverables,
 			culturalContext: data.culturalContext ?? existing.culturalContext,
 			trendContext: data.trendContext ?? existing.trendContext,
-			competitiveContext:
-				data.competitiveContext ?? existing.competitiveContext,
+			competitiveContext: data.competitiveContext ?? existing.competitiveContext,
 			kpiPreference: data.kpiPreference ?? existing.kpiPreference,
 			toneDirection: data.toneDirection ?? existing.toneDirection,
 			updatedAt: new Date(),

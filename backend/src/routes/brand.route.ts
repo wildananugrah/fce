@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import type { PgBoss } from "pg-boss";
-import type { IBrandService } from "../interfaces/services/brand.service.interface";
 import type { IBrandScraper } from "../interfaces/providers/brand-scraper.interface";
+import type { IBrandService } from "../interfaces/services/brand.service.interface";
 
 type Variables = {
 	userId: string;
@@ -10,7 +10,11 @@ type Variables = {
 	workspaceRole: string;
 };
 
-export function createBrandRoutes(brandService: IBrandService, boss: PgBoss, brandScraper?: IBrandScraper) {
+export function createBrandRoutes(
+	brandService: IBrandService,
+	boss: PgBoss,
+	brandScraper?: IBrandScraper,
+) {
 	const app = new Hono<{ Variables: Variables }>();
 
 	// GET / — list brands

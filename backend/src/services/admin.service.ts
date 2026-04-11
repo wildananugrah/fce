@@ -6,7 +6,14 @@ export class AdminService implements IAdminService {
 
 	async listUsers() {
 		return this.prisma.user.findMany({
-			select: { id: true, email: true, fullName: true, status: true, isSuperadmin: true, createdAt: true },
+			select: {
+				id: true,
+				email: true,
+				fullName: true,
+				status: true,
+				isSuperadmin: true,
+				createdAt: true,
+			},
 			orderBy: { createdAt: "desc" },
 		});
 	}
@@ -45,11 +52,16 @@ export class AdminService implements IAdminService {
 
 	private getModel(type: string) {
 		switch (type) {
-			case "framework": return this.prisma.framework;
-			case "hookType": return this.prisma.hookType;
-			case "tonePreset": return this.prisma.tonePreset;
-			case "visualStyle": return this.prisma.visualStyle;
-			default: throw new Error(`Unknown taxonomy type: ${type}`);
+			case "framework":
+				return this.prisma.framework;
+			case "hookType":
+				return this.prisma.hookType;
+			case "tonePreset":
+				return this.prisma.tonePreset;
+			case "visualStyle":
+				return this.prisma.visualStyle;
+			default:
+				throw new Error(`Unknown taxonomy type: ${type}`);
 		}
 	}
 }

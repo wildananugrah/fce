@@ -38,7 +38,13 @@ export class LibraryService implements ILibraryService {
 		before?: any,
 		after?: any,
 	): Promise<OutputFeedbackEvent> {
-		const event = await this.generationRepository.addFeedback({ outputId, eventType, userId, before, after });
+		const event = await this.generationRepository.addFeedback({
+			outputId,
+			eventType,
+			userId,
+			before,
+			after,
+		});
 
 		if (this.boss && (eventType === "approve" || eventType === "reject")) {
 			const output = await this.generationRepository.findOutputById(outputId);

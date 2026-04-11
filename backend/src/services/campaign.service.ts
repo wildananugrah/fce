@@ -26,11 +26,7 @@ export class CampaignService implements ICampaignService {
 		return campaign;
 	}
 
-	async create(
-		workspaceId: string,
-		userId: string,
-		input: CreateCampaignInput,
-	): Promise<Campaign> {
+	async create(workspaceId: string, userId: string, input: CreateCampaignInput): Promise<Campaign> {
 		const campaign = await this.campaignRepository.create({
 			workspaceId,
 			brandId: input.brandId,
@@ -42,12 +38,8 @@ export class CampaignService implements ICampaignService {
 			channelMix: input.channelMix,
 			culturalContext: input.culturalContext,
 			audienceSegment: input.audienceSegment,
-			durationStart: input.durationStart
-				? new Date(input.durationStart)
-				: undefined,
-			durationEnd: input.durationEnd
-				? new Date(input.durationEnd)
-				: undefined,
+			durationStart: input.durationStart ? new Date(input.durationStart) : undefined,
+			durationEnd: input.durationEnd ? new Date(input.durationEnd) : undefined,
 			budgetMin: input.budgetMin,
 			budgetMax: input.budgetMax,
 			keyMessage: input.keyMessage,
@@ -67,10 +59,7 @@ export class CampaignService implements ICampaignService {
 		return this.campaignRepository.update(id, input);
 	}
 
-	async createBrief(
-		campaignId: string,
-		input: CreateBriefInput,
-	): Promise<CampaignBrief> {
+	async createBrief(campaignId: string, input: CreateBriefInput): Promise<CampaignBrief> {
 		return this.campaignRepository.createBrief(campaignId, input);
 	}
 
@@ -78,17 +67,11 @@ export class CampaignService implements ICampaignService {
 		return this.campaignRepository.findBriefByCampaign(campaignId);
 	}
 
-	async updateBrief(
-		briefId: string,
-		input: Partial<CreateBriefInput>,
-	): Promise<CampaignBrief> {
+	async updateBrief(briefId: string, input: Partial<CreateBriefInput>): Promise<CampaignBrief> {
 		return this.campaignRepository.updateBrief(briefId, input);
 	}
 
-	async generateFromBrief(
-		campaignId: string,
-		userId: string,
-	): Promise<void> {
+	async generateFromBrief(campaignId: string, userId: string): Promise<void> {
 		const campaign = await this.campaignRepository.findById(campaignId);
 		if (!campaign) {
 			throw new Error("Campaign not found");

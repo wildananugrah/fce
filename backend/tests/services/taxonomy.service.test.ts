@@ -1,11 +1,16 @@
-import { describe, it, expect } from "bun:test";
-import { TaxonomyService } from "../../src/services/taxonomy.service";
+import { describe, expect, it } from "bun:test";
 import type { ITaxonomyRepository } from "../../src/interfaces/repositories/taxonomy.repository.interface";
+import { TaxonomyService } from "../../src/services/taxonomy.service";
 
 function createMockRepository(): ITaxonomyRepository {
 	return {
 		findAllFrameworks: async () => [
-			{ id: "f1", name: "AIDA", description: "Attention, Interest, Desire, Action", isGlobal: true },
+			{
+				id: "f1",
+				name: "AIDA",
+				description: "Attention, Interest, Desire, Action",
+				isGlobal: true,
+			},
 		],
 		findAllHookTypes: async () => [
 			{ id: "h1", name: "Curiosity", description: "Spark curiosity", isGlobal: true },

@@ -1,7 +1,7 @@
 import type { PgBoss } from "pg-boss";
+import type { IStorageProvider } from "../interfaces/providers/storage.provider.interface";
 import type { IDocumentRepository } from "../interfaces/repositories/document.repository.interface";
 import type { IDocumentService } from "../interfaces/services/document.service.interface";
-import type { IStorageProvider } from "../interfaces/providers/storage.provider.interface";
 
 export class DocumentService implements IDocumentService {
 	constructor(

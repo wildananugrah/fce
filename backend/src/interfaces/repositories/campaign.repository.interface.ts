@@ -1,8 +1,4 @@
-import type {
-	Campaign,
-	CampaignBrief,
-	CampaignOutput,
-} from "@prisma/client";
+import type { Campaign, CampaignBrief, CampaignOutput } from "@prisma/client";
 import type {
 	CreateBriefInput,
 	CreateChannelRoleInput,
@@ -42,10 +38,7 @@ export interface ICampaignRepository {
 	createBrief(campaignId: string, data: CreateBriefInput): Promise<CampaignBrief>;
 	findBriefByCampaign(campaignId: string): Promise<CampaignBrief | null>;
 	updateBrief(id: string, data: Partial<CreateBriefInput>): Promise<CampaignBrief>;
-	createChannelRoles(
-		campaignOutputId: string,
-		roles: CreateChannelRoleInput[],
-	): Promise<void>;
+	createChannelRoles(campaignOutputId: string, roles: CreateChannelRoleInput[]): Promise<void>;
 	createDeliverables(
 		campaignOutputId: string,
 		deliverables: CreateDeliverableInput[],

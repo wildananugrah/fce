@@ -25,7 +25,7 @@ export function createAdminRoutes(adminService: IAdminService) {
 
 	const taxonomyTypes = ["frameworks", "hook-types", "tone-presets", "visual-styles"];
 	const typeMap: Record<string, string> = {
-		"frameworks": "framework",
+		frameworks: "framework",
 		"hook-types": "hookType",
 		"tone-presets": "tonePreset",
 		"visual-styles": "visualStyle",

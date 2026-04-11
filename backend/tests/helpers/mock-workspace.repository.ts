@@ -104,9 +104,7 @@ export class MockWorkspaceRepository implements IWorkspaceRepository {
 		userId: string,
 		role: string,
 	): Promise<UserWorkspaceRole> {
-		const existing = this.roles.find(
-			(r) => r.userId === userId && r.workspaceId === workspaceId,
-		);
+		const existing = this.roles.find((r) => r.userId === userId && r.workspaceId === workspaceId);
 		if (existing) {
 			existing.role = role;
 			return existing;
