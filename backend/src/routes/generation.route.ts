@@ -32,6 +32,7 @@ export function createGenerationRoutes(generationService: IGenerationService) {
 			tonePreset: body.tonePreset,
 			visualStyle: body.visualStyle,
 			outputLength: body.outputLength,
+			referenceImages: body.referenceImages,
 		});
 
 		return c.json({ data: request }, 201);

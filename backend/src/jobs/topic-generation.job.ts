@@ -16,6 +16,8 @@ interface TopicJobData {
 	dateTo?: string;
 	count: number;
 	userId: string;
+	prompt?: string;
+	referenceImages?: string[];
 }
 
 export class TopicGenerationJob {
@@ -38,6 +40,8 @@ export class TopicGenerationJob {
 			dateTo,
 			count,
 			userId,
+			prompt,
+			referenceImages,
 		} = data;
 
 		try {
@@ -96,6 +100,8 @@ export class TopicGenerationJob {
 				dateFrom,
 				dateTo,
 				count,
+				prompt,
+				referenceImages,
 			};
 
 			// Get prompts for logging

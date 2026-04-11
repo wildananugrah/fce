@@ -63,6 +63,8 @@ export class TopicService implements ITopicService {
 			dateTo: input.dateTo,
 			count: input.count ?? 10,
 			userId,
+			prompt: input.prompt,
+			referenceImages: input.referenceImages,
 		});
 
 		return { jobId: jobId ?? "queued" };

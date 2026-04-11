@@ -10,6 +10,7 @@ interface ContentJobData {
 	requestId: string;
 	productIds?: string[];
 	userId: string;
+	referenceImages?: string[];
 }
 
 export class ContentGenerationJob {
@@ -22,7 +23,7 @@ export class ContentGenerationJob {
 	) {}
 
 	async handle(data: ContentJobData): Promise<void> {
-		const { requestId, productIds, userId } = data;
+		const { requestId, productIds, userId, referenceImages } = data;
 
 		try {
 			// Update status to processing
@@ -102,6 +103,7 @@ export class ContentGenerationJob {
 				hookType: request.hookType,
 				language: request.language,
 				prompt: request.prompt ?? undefined,
+				referenceImages,
 			};
 
 			// Get prompts for logging

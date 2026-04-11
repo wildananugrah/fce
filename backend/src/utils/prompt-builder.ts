@@ -114,6 +114,7 @@ ${multiProductLine}
 Return JSON with a single field:
 - topics (array of ${count} objects, each with: title, description, pillar, platform, format, objective, publishDate)
 
+${input.prompt ? `\nAdditional instructions: ${input.prompt}` : ""}
 Make topics diverse, engaging, and aligned with the brand voice.`;
 
 	return { systemPrompt, userPrompt };

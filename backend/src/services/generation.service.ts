@@ -51,6 +51,7 @@ export class GenerationService implements IGenerationService {
 			requestId: request.id,
 			productIds: input.productIds ?? (input.productId ? [input.productId] : []),
 			userId,
+			referenceImages: input.referenceImages,
 		});
 
 		return request;
