@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useWorkspace } from "../hooks/useWorkspace";
 import { useSSE } from "../hooks/useSSE";
 import { api } from "../services/api";
@@ -57,6 +57,41 @@ const OBJECTIVES = [
 	{ value: "retention", label: "Retention" },
 ];
 
+const PLATFORM_FORMATS: Record<string, { value: string; label: string; icon: string; badge?: string }[]> = {
+	instagram: [
+		{ value: "single_image", label: "Single Image", icon: "🖼️" },
+		{ value: "carousel", label: "Carousel", icon: "🎠", badge: "SLIDES" },
+		{ value: "reels", label: "Reels", icon: "🎬", badge: "VIDEO" },
+		{ value: "story_image", label: "Story – Image", icon: "📱" },
+		{ value: "story_video", label: "Story – Video", icon: "📹", badge: "VIDEO" },
+	],
+	tiktok: [
+		{ value: "tiktok_video", label: "TikTok Video", icon: "🎵", badge: "VIDEO" },
+		{ value: "tiktok_carousel", label: "TikTok Carousel", icon: "🎠", badge: "SLIDES" },
+	],
+	youtube: [
+		{ value: "long_video", label: "Long Video", icon: "📺", badge: "VIDEO" },
+		{ value: "youtube_shorts", label: "YouTube Shorts", icon: "⚡", badge: "VIDEO" },
+	],
+	twitter: [
+		{ value: "single_tweet", label: "Single Tweet", icon: "💬" },
+		{ value: "thread", label: "Thread", icon: "📝", badge: "SLIDES" },
+		{ value: "video_tweet", label: "Video Tweet", icon: "🎬", badge: "VIDEO" },
+	],
+	linkedin: [
+		{ value: "single_post", label: "Single Post", icon: "💼" },
+		{ value: "carousel_post", label: "Carousel Post", icon: "🎠", badge: "SLIDES" },
+		{ value: "linkedin_video", label: "LinkedIn Video", icon: "🎬", badge: "VIDEO" },
+		{ value: "article", label: "Article", icon: "📝" },
+	],
+	facebook: [
+		{ value: "feed_post", label: "Feed Post", icon: "📰" },
+		{ value: "carousel_ad", label: "Carousel Ad", icon: "🎠", badge: "SLIDES" },
+		{ value: "reel_short_video", label: "Reel / Short Video", icon: "🎬", badge: "VIDEO" },
+		{ value: "story", label: "Story", icon: "📱" },
+	],
+};
+
 const PILLAR_COLORS = [
 	"bg-emerald-50 text-emerald-700 border-emerald-200",
 	"bg-violet-50 text-violet-700 border-violet-200",
@@ -102,7 +137,8 @@ export function TopicsPage() {
 
 	// Form state
 	const [brandId, setBrandId] = useState("");
-	const [productId, setProductId] = useState("");
+	const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
+	const [selectedFormats, setSelectedFormats] = useState<string[]>([]);
 	const [platform, setPlatform] = useState("instagram");
 	const [objective, setObjective] = useState("");
 	const [dateFrom, setDateFrom] = useState(() => {
@@ -119,6 +155,10 @@ export function TopicsPage() {
 	// Generated topics (preview before save)
 	const [generatedTopics, setGeneratedTopics] = useState<GeneratedTopic[]>([]);
 	const [topicsSaved, setTopicsSaved] = useState(false);
+	const [regeneratingTopicId, setRegeneratingTopicId] = useState<string | null>(null);
+	const regeneratingTopicIdRef = useRef<string | null>(null);
+	const [regenHints, setRegenHints] = useState<Record<string, string>>({});
+	const [showRegenInput, setShowRegenInput] = useState<string | null>(null);
 
 	const showToast = (message: string, type: "success" | "error" | "info") => {
 		setToast({ message, type });
@@ -209,6 +249,24 @@ export function TopicsPage() {
 			setGenerating(false);
 			showToast("Topic generation failed. Please try again.", "error");
 		}
+		if (event.type === "topic_preview_regenerated") {
+			const { topic: newTopic } = event.data as any;
+			const targetId = regeneratingTopicIdRef.current;
+			setGeneratedTopics((prev) => {
+				if (!targetId) return prev;
+				return prev.map((t) =>
+					t.id === targetId ? { ...t, ...newTopic, id: t.id } : t
+				);
+			});
+			setRegeneratingTopicId(null);
+			regeneratingTopicIdRef.current = null;
+			showToast("Topic regenerated!", "success");
+		}
+		if (event.type === "topic_preview_regeneration_failed") {
+			setRegeneratingTopicId(null);
+			regeneratingTopicIdRef.current = null;
+			showToast("Topic regeneration failed", "error");
+		}
 	});
 
 	const handleGenerate = async () => {
@@ -226,7 +284,8 @@ export function TopicsPage() {
 					method: "POST",
 					body: JSON.stringify({
 						brandId,
-						productId: productId || undefined,
+						productIds: selectedProductIds.length > 0 ? selectedProductIds : undefined,
+						formats: selectedFormats.length > 0 ? selectedFormats : undefined,
 						platform: platform || undefined,
 						objective: objective || undefined,
 						dateFrom,
@@ -249,6 +308,41 @@ export function TopicsPage() {
 		setGeneratedTopics((prev) => prev.filter((t) => t.id !== topicId));
 	};
 
+	const handleTopicFieldChange = (topicId: string, field: keyof GeneratedTopic, value: string) => {
+		setGeneratedTopics((prev) =>
+			prev.map((t) => (t.id === topicId ? { ...t, [field]: value } : t))
+		);
+	};
+
+	const handleRegenerateSingle = async (topicId: string) => {
+		if (!activeWorkspace) return;
+		setRegeneratingTopicId(topicId);
+		regeneratingTopicIdRef.current = topicId;
+		setShowRegenInput(null);
+		try {
+			const topic = generatedTopics.find((t) => t.id === topicId);
+			await api(
+				`/api/workspaces/${activeWorkspace.id}/topics/regenerate-preview`,
+				{
+					method: "POST",
+					body: JSON.stringify({
+						brandId,
+						productIds: selectedProductIds.length > 0 ? selectedProductIds : undefined,
+						platform: topic?.platform || platform || undefined,
+						format: topic?.format || undefined,
+						objective: topic?.objective || objective || undefined,
+						hint: regenHints[topicId] || undefined,
+					}),
+				}
+			);
+			setRegenHints((prev) => ({ ...prev, [topicId]: "" }));
+		} catch (e) {
+			showToast(e instanceof Error ? e.message : "Regeneration failed", "error");
+			setRegeneratingTopicId(null);
+			regeneratingTopicIdRef.current = null;
+		}
+	};
+
 	const handleSaveAll = async () => {
 		// Topics are already saved in the backend as drafts, this is just confirmation
 		setSaving(true);
@@ -258,10 +352,6 @@ export function TopicsPage() {
 		} finally {
 			setSaving(false);
 		}
-	};
-
-	const handleRegenerate = () => {
-		handleGenerate();
 	};
 
 	if (!activeWorkspace) {
@@ -281,10 +371,6 @@ export function TopicsPage() {
 	const filteredProducts = products.filter(
 		(p) => !brandId || p.brandId === brandId
 	);
-	const productOptions = [
-		{ value: "", label: "\u2014 Brand-level topics \u2014" },
-		...filteredProducts.map((p) => ({ value: p.id, label: p.name })),
-	];
 
 	return (
 		<div className="p-6 space-y-6">
@@ -362,20 +448,41 @@ export function TopicsPage() {
 								value={brandId}
 								onChange={(e) => {
 									setBrandId(e.target.value);
-									setProductId("");
+									setSelectedProductIds([]);
 								}}
 							/>
 
 							{brandId && (
 								<>
-									<Select
-										label="Product (optional)"
-										options={productOptions}
-										value={productId}
-										onChange={(e) =>
-											setProductId(e.target.value)
-										}
-									/>
+									{filteredProducts.length > 0 && (
+										<div>
+											<label className="block text-xs font-medium text-gray-600 uppercase tracking-wide mb-2">
+												Products (optional — select multiple for cross-product topics)
+											</label>
+											<div className="flex flex-wrap gap-2">
+												{filteredProducts.map((p) => (
+													<button
+														key={p.id}
+														type="button"
+														onClick={() =>
+															setSelectedProductIds((prev) =>
+																prev.includes(p.id)
+																	? prev.filter((id) => id !== p.id)
+																	: [...prev, p.id]
+															)
+														}
+														className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+															selectedProductIds.includes(p.id)
+																? "bg-indigo-600 text-white border-indigo-600"
+																: "bg-white text-gray-600 border-gray-300 hover:border-gray-400"
+														}`}
+													>
+														{p.name}
+													</button>
+												))}
+											</div>
+										</div>
+									)}
 
 									{contentPillars.length > 0 && (
 										<div className="flex flex-wrap gap-2">
@@ -418,13 +525,14 @@ export function TopicsPage() {
 									<button
 										key={p.value}
 										type="button"
-										onClick={() =>
+										onClick={() => {
 											setPlatform(
 												platform === p.value
 													? ""
 													: p.value
-											)
-										}
+											);
+											setSelectedFormats([]);
+										}}
 										className={`px-3.5 py-1.5 rounded-full text-xs font-medium border transition-colors ${
 											platform === p.value
 												? "bg-indigo-600 text-white border-indigo-600"
@@ -464,6 +572,40 @@ export function TopicsPage() {
 									))}
 								</div>
 							</div>
+
+							{platform && PLATFORM_FORMATS[platform] && (
+								<div>
+									<label className="block text-xs font-medium text-gray-600 uppercase tracking-wide mb-2">
+										Content Formats (select allowed formats)
+									</label>
+									<div className="flex flex-wrap gap-2">
+										{PLATFORM_FORMATS[platform].map((f) => (
+											<button
+												key={f.value}
+												type="button"
+												onClick={() =>
+													setSelectedFormats((prev) =>
+														prev.includes(f.value)
+															? prev.filter((v) => v !== f.value)
+															: [...prev, f.value]
+													)
+												}
+												className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+													selectedFormats.includes(f.value)
+														? "bg-indigo-600 text-white border-indigo-600"
+														: "bg-white text-gray-600 border-gray-300 hover:border-gray-400"
+												}`}
+											>
+												<span>{f.icon}</span>
+												{f.label}
+												{f.badge && (
+													<span className="text-[9px] opacity-70">{f.badge}</span>
+												)}
+											</button>
+										))}
+									</div>
+								</div>
+							)}
 						</div>
 
 						{/* Schedule Section */}
@@ -584,30 +726,10 @@ export function TopicsPage() {
 										{platform
 											? ` \u00B7 ${PLATFORMS.find((p) => p.value === platform)?.label}`
 											: ""}
-										{productId
-											? ` \u00B7 ${products.find((p) => p.id === productId)?.name}`
+										{selectedProductIds.length > 0
+											? ` \u00B7 ${selectedProductIds.length} product${selectedProductIds.length > 1 ? "s" : ""}`
 											: ""}
 									</p>
-									<button
-										type="button"
-										onClick={handleRegenerate}
-										className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-gray-700 transition-colors"
-									>
-										<svg
-											className="w-3.5 h-3.5"
-											fill="none"
-											viewBox="0 0 24 24"
-											stroke="currentColor"
-											strokeWidth={2}
-										>
-											<path
-												strokeLinecap="round"
-												strokeLinejoin="round"
-												d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-											/>
-										</svg>
-										Regenerate
-									</button>
 								</div>
 
 								{/* Topic cards grid */}
@@ -615,98 +737,150 @@ export function TopicsPage() {
 									{generatedTopics.map((topic) => (
 										<div
 											key={topic.id}
-											className="bg-white border border-gray-200 rounded-xl p-4 space-y-3 relative group"
+											className={`bg-white border border-gray-200 rounded-xl p-4 space-y-3 relative ${
+												regeneratingTopicId === topic.id ? "opacity-50 pointer-events-none" : ""
+											}`}
 										>
-											{/* Delete button */}
-											<button
-												type="button"
-												onClick={() =>
-													handleDeleteTopic(topic.id)
-												}
-												className="absolute top-3 right-3 text-gray-300 hover:text-red-500 transition-colors"
-											>
-												<svg
-													className="w-4 h-4"
-													fill="none"
-													viewBox="0 0 24 24"
-													stroke="currentColor"
-													strokeWidth={2}
+											{regeneratingTopicId === topic.id && (
+												<div className="absolute inset-0 flex items-center justify-center z-10">
+													<Spinner />
+												</div>
+											)}
+
+											<div className="flex justify-end gap-2">
+												<button
+													type="button"
+													onClick={() => setShowRegenInput(showRegenInput === topic.id ? null : topic.id)}
+													className="text-gray-300 hover:text-indigo-500 transition-colors"
+													title="Regenerate this topic"
 												>
-													<path
-														strokeLinecap="round"
-														strokeLinejoin="round"
-														d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-													/>
-												</svg>
-											</button>
-
-											{/* Title */}
-											<h3 className="text-sm font-semibold text-gray-900 pr-6 leading-snug">
-												{topic.title}
-											</h3>
-
-											{/* Tags */}
-											<div className="flex flex-wrap items-center gap-2">
-												{topic.pillar && (
-													<span
-														className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${getPillarColor(topic.pillar, contentPillars)}`}
-													>
-														{topic.pillar}
-													</span>
-												)}
-												{topic.format && (
-													<span
-														className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${getFormatColor(topic.format)}`}
-													>
-														{topic.format}
-													</span>
-												)}
-												{topic.publishDate && (
-													<span className="inline-flex items-center gap-1 text-[10px] text-gray-400">
-														<svg
-															className="w-3 h-3"
-															fill="none"
-															viewBox="0 0 24 24"
-															stroke="currentColor"
-															strokeWidth={2}
-														>
-															<path
-																strokeLinecap="round"
-																strokeLinejoin="round"
-																d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-															/>
-														</svg>
-														{formatDate(
-															topic.publishDate
-														)}
-													</span>
-												)}
+													<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+														<path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+													</svg>
+												</button>
+												<button
+													type="button"
+													onClick={() => handleDeleteTopic(topic.id)}
+													className="text-gray-300 hover:text-red-500 transition-colors"
+												>
+													<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+														<path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+													</svg>
+												</button>
 											</div>
 
-											{/* Generate content link */}
-											<a
-												href="#"
-												className="inline-flex items-center text-xs font-medium text-indigo-600 hover:text-indigo-800 transition-colors"
-												onClick={(e) => {
-													e.preventDefault();
-													// TODO: Navigate to content generator with this topic
-												}}
-											>
-												Generate content{" "}
-												<svg
-													className="w-3 h-3 ml-1"
-													fill="none"
-													viewBox="0 0 24 24"
-													stroke="currentColor"
-													strokeWidth={2}
-												>
-													<path
-														strokeLinecap="round"
-														strokeLinejoin="round"
-														d="M14 5l7 7m0 0l-7 7m7-7H3"
+											{showRegenInput === topic.id && (
+												<div className="flex gap-2">
+													<input
+														type="text"
+														placeholder="Optional hint (e.g., 'make it more educational')" 
+														className="flex-1 px-3 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400"
+														value={regenHints[topic.id] ?? ""}
+														onChange={(e) => setRegenHints((prev) => ({ ...prev, [topic.id]: e.target.value }))}
+														onKeyDown={(e) => { if (e.key === "Enter") handleRegenerateSingle(topic.id); }}
 													/>
-												</svg>
-											</a>
+													<button
+														type="button"
+														onClick={() => handleRegenerateSingle(topic.id)}
+														className="px-3 py-1.5 text-xs font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+													>
+														Go
+													</button>
+												</div>
+											)}
+
+											<input
+												type="text"
+												value={topic.title}
+												onChange={(e) => handleTopicFieldChange(topic.id, "title", e.target.value)}
+												className="w-full text-sm font-semibold text-gray-900 bg-transparent border-b border-transparent hover:border-gray-200 focus:border-indigo-400 focus:outline-none transition-colors pb-0.5"
+											/>
+
+											<textarea
+												value={topic.description ?? ""}
+												onChange={(e) => handleTopicFieldChange(topic.id, "description", e.target.value)}
+												placeholder="Add a description..."
+												rows={2}
+												className="w-full text-xs text-gray-600 bg-transparent border border-transparent hover:border-gray-200 focus:border-indigo-400 focus:outline-none rounded-md p-1 resize-none transition-colors"
+											/>
+
+											<div className="grid grid-cols-2 gap-2">
+												<div>
+													<label className="block text-[10px] text-gray-400 mb-0.5">Pillar</label>
+													{contentPillars.length > 0 ? (
+														<select
+															value={topic.pillar ?? ""}
+															onChange={(e) => handleTopicFieldChange(topic.id, "pillar", e.target.value)}
+															className="w-full text-xs px-2 py-1 bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:border-indigo-400"
+														>
+															<option value="">None</option>
+															{contentPillars.map((p) => (
+																<option key={p} value={p}>{p}</option>
+															))}
+														</select>
+													) : (
+														<input
+															type="text"
+															value={topic.pillar ?? ""}
+															onChange={(e) => handleTopicFieldChange(topic.id, "pillar", e.target.value)}
+															placeholder="Pillar"
+															className="w-full text-xs px-2 py-1 bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:border-indigo-400"
+														/>
+													)}
+												</div>
+
+												<div>
+													<label className="block text-[10px] text-gray-400 mb-0.5">Format</label>
+													<select
+														value={topic.format ?? ""}
+														onChange={(e) => handleTopicFieldChange(topic.id, "format", e.target.value)}
+														className="w-full text-xs px-2 py-1 bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:border-indigo-400"
+													>
+														<option value="">None</option>
+														{(PLATFORM_FORMATS[topic.platform ?? platform] ?? []).map((f) => (
+															<option key={f.value} value={f.value}>{f.icon} {f.label}</option>
+														))}
+													</select>
+												</div>
+
+												<div>
+													<label className="block text-[10px] text-gray-400 mb-0.5">Platform</label>
+													<select
+														value={topic.platform ?? ""}
+														onChange={(e) => handleTopicFieldChange(topic.id, "platform", e.target.value)}
+														className="w-full text-xs px-2 py-1 bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:border-indigo-400"
+													>
+														<option value="">None</option>
+														{PLATFORMS.map((p) => (
+															<option key={p.value} value={p.value}>{p.label}</option>
+														))}
+													</select>
+												</div>
+
+												<div>
+													<label className="block text-[10px] text-gray-400 mb-0.5">Objective</label>
+													<select
+														value={topic.objective ?? ""}
+														onChange={(e) => handleTopicFieldChange(topic.id, "objective", e.target.value)}
+														className="w-full text-xs px-2 py-1 bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:border-indigo-400"
+													>
+														<option value="">None</option>
+														{OBJECTIVES.map((o) => (
+															<option key={o.value} value={o.value}>{o.label}</option>
+														))}
+													</select>
+												</div>
+
+												<div>
+													<label className="block text-[10px] text-gray-400 mb-0.5">Publish Date</label>
+													<input
+														type="date"
+														value={topic.publishDate ? topic.publishDate.split("T")[0] : ""}
+														onChange={(e) => handleTopicFieldChange(topic.id, "publishDate", e.target.value)}
+														className="w-full text-xs px-2 py-1 bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:border-indigo-400"
+													/>
+												</div>
+											</div>
 										</div>
 									))}
 								</div>
