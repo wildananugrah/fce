@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Drawer } from "../ui/Drawer";
 import { ProductForm, type ProductFormData } from "./ProductForm";
+import { ProductReferences } from "./ProductReferences";
 import { Package, FileText } from "lucide-react";
 
 interface Brand {
@@ -83,15 +84,11 @@ export function ProductDrawer({
             />
           )}
           {activeTab === "references" && productId && brandId && (
-            <div className="space-y-4">
-              <h2 className="text-sm font-semibold text-black">Product References</h2>
-              <p className="text-xs text-gray-500">
-                Upload files or add links as reference material. These will be used by the AI when generating content for this product.
-              </p>
-              <p className="text-xs text-gray-400 italic">
-                Reference management component will be added in the next task.
-              </p>
-            </div>
+            <ProductReferences
+              workspaceId={workspaceId}
+              productId={productId}
+              brandId={brandId}
+            />
           )}
         </div>
       </div>
