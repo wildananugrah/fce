@@ -48,6 +48,49 @@ export function ContentPreviewModal({
   const [currentStatus, setCurrentStatus] = useState(item.status);
   const [copied, setCopied] = useState(false);
   const [updating, setUpdating] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [editedSections, setEditedSections] = useState<Record<string, string>>({});
+  const [savingSections, setSavingSections] = useState(false);
+
+  const isDirty = Object.keys(editedSections).length > 0;
+
+  const getSectionText = (type: string): string => {
+    const section = item.sections.find((s) => s.sectionType === type);
+    if (!section) return "";
+    return editedSections[section.id] ?? section.contentText;
+  };
+
+  const handleFieldChange = (type: string, value: string) => {
+    const section = item.sections.find((s) => s.sectionType === type);
+    if (!section) return;
+    if (value === section.contentText) {
+      setEditedSections((prev) => {
+        const next = { ...prev };
+        delete next[section.id];
+        return next;
+      });
+    } else {
+      setEditedSections((prev) => ({ ...prev, [section.id]: value }));
+    }
+  };
+
+  const handleSaveSections = async () => {
+    setSavingSections(true);
+    try {
+      for (const [id, contentText] of Object.entries(editedSections)) {
+        await api(`/api/workspaces/${workspaceId}/library/${item.id}/sections/${id}`, {
+          method: "PATCH",
+          body: JSON.stringify({ contentText }),
+        });
+      }
+      setEditedSections({});
+      onToast("Changes saved", "success");
+    } catch (e) {
+      onToast(e instanceof Error ? e.message : "Failed to save", "error");
+    } finally {
+      setSavingSections(false);
+    }
+  };
 
   const PreviewComponent = getPreviewComponent(item.request.contentType);
   const brandName = item.request.brand?.name ?? "Brand";
@@ -134,6 +177,17 @@ export function ContentPreviewModal({
             </button>
             <button
               type="button"
+              onClick={() => setEditMode(!editMode)}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                editMode
+                  ? "bg-indigo-600 text-white"
+                  : "text-gray-600 bg-white border border-gray-300 hover:bg-gray-50"
+              }`}
+            >
+              {editMode ? "Editing" : "Edit"}
+            </button>
+            <button
+              type="button"
               onClick={onClose}
               className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors"
             >
@@ -144,15 +198,71 @@ export function ContentPreviewModal({
 
         {/* Preview body */}
         <div className="flex-1 overflow-y-auto px-5 pb-4">
-          <PreviewComponent
-            content={item.content}
-            sections={item.sections}
-            brandName={brandName}
-            productName={productName ?? undefined}
-            contentTitle={item.contentTitle ?? undefined}
-            contentType={item.request.contentType}
-            platform={item.request.platform}
-          />
+          {editMode ? (
+            <div className="space-y-4 py-2">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">
+                  Copy in Visual (Hook)
+                </label>
+                <input
+                  type="text"
+                  value={getSectionText("hook")}
+                  onChange={(e) => handleFieldChange("hook", e.target.value)}
+                  className="w-full px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400"
+                  placeholder="No hook"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">
+                  Visual Direction
+                </label>
+                <textarea
+                  value={getSectionText("visual_direction")}
+                  onChange={(e) => handleFieldChange("visual_direction", e.target.value)}
+                  rows={3}
+                  className="w-full px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 resize-none"
+                  placeholder="No visual direction"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">
+                  Caption
+                </label>
+                <textarea
+                  value={getSectionText("caption")}
+                  onChange={(e) => handleFieldChange("caption", e.target.value)}
+                  rows={4}
+                  className="w-full px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 resize-none"
+                  placeholder="No caption"
+                />
+              </div>
+
+              <button
+                type="button"
+                onClick={handleSaveSections}
+                disabled={!isDirty || savingSections}
+                className={`inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-lg transition-colors ${
+                  isDirty
+                    ? "bg-indigo-600 text-white hover:bg-indigo-700"
+                    : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                }`}
+              >
+                {savingSections ? "Saving..." : "Save Changes"}
+              </button>
+            </div>
+          ) : (
+            <PreviewComponent
+              content={item.content}
+              sections={item.sections}
+              brandName={brandName}
+              productName={productName ?? undefined}
+              contentTitle={item.contentTitle ?? undefined}
+              contentType={item.request.contentType}
+              platform={item.request.platform}
+            />
+          )}
         </div>
 
         {/* Footer — Status controls */}

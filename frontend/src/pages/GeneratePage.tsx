@@ -10,6 +10,7 @@ import { Spinner } from "../components/ui/Spinner";
 import { ContentPreviewModal } from "../components/library/ContentPreviewModal";
 import { Toast } from "../components/ui/Toast";
 import { ActiveSkillsBadges } from "../components/skills/ActiveSkillsBadges";
+import { GenerationResultRow } from "../components/generation/GenerationResultRow";
 
 interface Brand {
   id: string;
@@ -450,6 +451,11 @@ export function GeneratePage() {
     }
   };
 
+  const handleGenerationApproved = (genId: string) => {
+    setGenerations((prev) => prev.filter((g) => g.id !== genId));
+    showToast("Content approved and moved to library", "success");
+  };
+
   const showToast = (message: string, type: "success" | "error" | "info") => {
     setToast({ message, type });
   };
@@ -874,6 +880,7 @@ const frameworkOptions = [{ value: "", label: "PAS (recommended)" }, ...framewor
                   <table className="w-full min-w-[640px]">
                     <thead>
                       <tr className="border-b border-gray-100 bg-gray-50">
+                        <th className="px-4 py-2.5 w-8" />
                         <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-wide">Brand</th>
                         <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-wide">Platform</th>
                         <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-wide">Format</th>
@@ -882,46 +889,19 @@ const frameworkOptions = [{ value: "", label: "PAS (recommended)" }, ...framewor
                       </tr>
                     </thead>
                     <tbody>
-                      {generations.map((gen) => {
-                        const ps = getPlatformStyle(gen.platform);
-                        return (
-                          <tr key={gen.id} className="border-b border-gray-50 hover:bg-gray-50">
-                            <td className="px-4 py-2.5">
-                              <p className="text-sm text-gray-800">{gen.brand?.name ?? "—"}</p>
-                              {gen.product?.name && (
-                                <p className="text-xs text-gray-400">{gen.product.name}</p>
-                              )}
-                            </td>
-                            <td className="px-4 py-2.5">
-                              <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium capitalize ${ps.bg} ${ps.text}`}>
-                                {gen.platform}
-                              </span>
-                            </td>
-                            <td className="px-4 py-2.5 text-sm text-gray-700 capitalize">
-                              {gen.contentType?.replace(/_/g, " ")}
-                            </td>
-                            <td className="px-4 py-2.5">
-                              <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium capitalize ${getStatusStyle(gen.status)}`}>
-                                <span className={`w-1.5 h-1.5 rounded-full ${getStatusDot(gen.status)}`} />
-                                {gen.status}
-                              </span>
-                              <p className="text-[10px] text-gray-400 mt-0.5">{formatRelativeDate(gen.createdAt)}</p>
-                            </td>
-                            <td className="px-4 py-2.5">
-                              {gen.status === "completed" && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleViewGeneration(gen)}
-                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                                >
-                                  <Eye size={14} />
-                                  View
-                                </button>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
+                      {generations.map((gen) => (
+                        <GenerationResultRow
+                          key={gen.id}
+                          generation={gen}
+                          workspaceId={activeWorkspace!.id}
+                          onApproved={handleGenerationApproved}
+                          onViewFull={handleViewGeneration}
+                          getPlatformStyle={getPlatformStyle}
+                          getStatusStyle={getStatusStyle}
+                          getStatusDot={getStatusDot}
+                          formatRelativeDate={formatRelativeDate}
+                        />
+                      ))}
                     </tbody>
                   </table>
                 </div>
