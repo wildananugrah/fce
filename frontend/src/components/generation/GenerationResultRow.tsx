@@ -181,9 +181,12 @@ export function GenerationResultRow({
     if (!outputId) return;
     setStatusUpdating(true);
     try {
+      // "approved" in Content Generator means "send to library for review"
+      // Sets status to "in_review" so Library shows it as a draft for Stage 2 approval
+      const actualStatus = newStatus === "approved" ? "in_review" : newStatus;
       await api(`/api/workspaces/${workspaceId}/library/${outputId}`, {
         method: "PATCH",
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify({ status: actualStatus }),
       });
       if (newStatus === "approved") {
         onApproved(generation.id);

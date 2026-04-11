@@ -35,6 +35,7 @@ interface ContentPreviewModalProps {
 function getStatusStyle(status: string) {
   if (status === "approved") return "bg-green-50 text-green-700 border-green-200";
   if (status === "rejected") return "bg-red-50 text-red-700 border-red-200";
+  if (status === "in_review") return "bg-amber-50 text-amber-700 border-amber-200";
   return "bg-gray-50 text-gray-600 border-gray-200";
 }
 
@@ -271,7 +272,8 @@ export function ContentPreviewModal({
           <div className="relative">
             <span className={`absolute left-2.5 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full ${
               currentStatus === "approved" ? "bg-green-500" :
-              currentStatus === "rejected" ? "bg-red-500" : "bg-gray-400"
+              currentStatus === "rejected" ? "bg-red-500" :
+              currentStatus === "in_review" ? "bg-amber-500" : "bg-gray-400"
             }`} />
             <select
               value={currentStatus}
@@ -280,6 +282,7 @@ export function ContentPreviewModal({
               className={`appearance-none pl-6 pr-8 py-1.5 text-xs font-medium border rounded-lg cursor-pointer focus:outline-none focus:ring-1 focus:ring-indigo-400 capitalize ${getStatusStyle(currentStatus)}`}
             >
               <option value="approved">Approved</option>
+              <option value="in_review">In Review</option>
               <option value="draft">Draft</option>
               <option value="rejected">Rejected</option>
             </select>

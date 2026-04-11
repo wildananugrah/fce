@@ -128,7 +128,7 @@ export function LibraryPage() {
     }
     setLoading(true);
     try {
-      const data = await api<LibraryItem[]>(`/api/workspaces/${activeWorkspace.id}/library?status=approved`);
+      const data = await api<LibraryItem[]>(`/api/workspaces/${activeWorkspace.id}/library?status=in_review,approved`);
       setItems(data);
     } catch (e) {
       showToast(e instanceof Error ? e.message : "Failed to load library", "error");
@@ -142,9 +142,11 @@ export function LibraryPage() {
   }, [loadItems]);
 
   const handleStatusChange = (id: string, status: string) => {
-    if (status === "approved") {
+    if (status === "approved" || status === "in_review") {
+      // Stay in library — update in place
       setItems((prev) => prev.map((item) => (item.id === id ? { ...item, status } : item)));
     } else {
+      // Draft or rejected — remove from library, goes back to Content Generator
       setItems((prev) => prev.filter((item) => item.id !== id));
       showToast(
         status === "draft"

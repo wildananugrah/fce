@@ -20,7 +20,7 @@ export class LibraryService implements ILibraryService {
 	}
 
 	async updateManyStatus(workspaceId: string, ids: string[], status: string): Promise<number> {
-		const allowed = ["draft", "approved", "rejected"];
+		const allowed = ["draft", "approved", "rejected", "in_review"];
 		if (!allowed.includes(status)) {
 			throw new Error(`Invalid status. Must be one of: ${allowed.join(", ")}`);
 		}
