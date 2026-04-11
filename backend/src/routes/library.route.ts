@@ -14,7 +14,8 @@ export function createLibraryRoutes(libraryService: ILibraryService) {
 	// GET / — list outputs
 	app.get("/", async (c) => {
 		const workspaceId = c.get("workspaceId");
-		const outputs = await libraryService.list(workspaceId);
+		const status = c.req.query("status") || undefined;
+		const outputs = await libraryService.list(workspaceId, status);
 		return c.json({ data: outputs });
 	});
 
@@ -96,6 +97,23 @@ export function createLibraryRoutes(libraryService: ILibraryService) {
 			userId,
 		);
 		return c.json({ data: section });
+	});
+
+	// PATCH /:id/sections/bulk — bulk update section texts
+	app.patch("/:id/sections/bulk", async (c) => {
+		const userId = c.get("userId");
+		const body = await c.req.json();
+		const { sections } = body;
+		if (!Array.isArray(sections) || sections.length === 0) {
+			return c.json({ error: "sections must be a non-empty array" }, 400);
+		}
+		const results = [];
+		for (const s of sections) {
+			if (!s.id || !s.contentText) continue;
+			const updated = await libraryService.updateSection(s.id, s.contentText, userId);
+			results.push(updated);
+		}
+		return c.json({ data: results });
 	});
 
 	return app;

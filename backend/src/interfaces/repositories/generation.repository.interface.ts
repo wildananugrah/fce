@@ -22,6 +22,7 @@ export interface IGenerationRepository {
 	// Library (outputs)
 	findOutputsByWorkspace(
 		workspaceId: string,
+		status?: string,
 	): Promise<(GenerationOutput & { request: GenerationRequest })[]>;
 	findOutputById(id: string): Promise<GenerationOutput | null>;
 	updateOutput(id: string, data: { status: string }): Promise<GenerationOutput>;

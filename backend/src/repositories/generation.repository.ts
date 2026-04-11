@@ -55,12 +55,20 @@ export class GenerationRepository implements IGenerationRepository {
 		});
 	}
 
-	async findOutputsByWorkspace(workspaceId: string) {
+	async findOutputsByWorkspace(workspaceId: string, status?: string) {
+		// Two-step query to avoid Prisma WASM "out of bounds" bug
+		// with deeply nested includes + relation filters
+		const requestIds = await this.prisma.generationRequest.findMany({
+			where: { workspaceId },
+			select: { id: true },
+		});
+
+		if (requestIds.length === 0) return [];
+
 		return this.prisma.generationOutput.findMany({
 			where: {
-				request: {
-					workspaceId,
-				},
+				requestId: { in: requestIds.map((r) => r.id) },
+				...(status ? { status } : {}),
 			},
 			include: {
 				request: {
