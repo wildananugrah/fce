@@ -55,6 +55,35 @@ export function createAiLogRoutes(prisma: PrismaClient) {
 		return c.json({ data: logs, total });
 	});
 
+	// GET /usage — Token usage summary for current user
+	app.get("/usage", async (c) => {
+		const workspaceId = c.get("workspaceId");
+		const userId = c.get("userId");
+
+		const logs = await prisma.aiProviderLog.findMany({
+			where: { workspaceId, userId },
+			select: {
+				inputTokens: true,
+				outputTokens: true,
+				estimatedCost: true,
+			},
+		});
+
+		const totalInput = logs.reduce((sum, l) => sum + (l.inputTokens ?? 0), 0);
+		const totalOutput = logs.reduce((sum, l) => sum + (l.outputTokens ?? 0), 0);
+		const totalCost = logs.reduce((sum, l) => sum + Number(l.estimatedCost ?? 0), 0);
+
+		return c.json({
+			data: {
+				totalInputTokens: totalInput,
+				totalOutputTokens: totalOutput,
+				totalTokens: totalInput + totalOutput,
+				totalCost,
+				generationCount: logs.length,
+			},
+		});
+	});
+
 	// GET /:id — Get full log detail (includes prompts and response)
 	app.get("/:id", async (c) => {
 		const workspaceId = c.get("workspaceId");
