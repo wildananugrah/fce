@@ -870,8 +870,8 @@ const frameworkOptions = [{ value: "", label: "PAS (recommended)" }, ...framewor
             {generations.length > 0 ? (
               <div className="space-y-4">
                 <h2 className="text-sm font-semibold text-gray-800">Recent Generations</h2>
-                <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-                  <table className="w-full">
+                <div className="bg-white border border-gray-200 rounded-xl overflow-x-auto">
+                  <table className="w-full min-w-[640px]">
                     <thead>
                       <tr className="border-b border-gray-100 bg-gray-50">
                         <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-wide">Brand</th>

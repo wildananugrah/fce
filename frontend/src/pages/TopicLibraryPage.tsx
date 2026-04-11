@@ -477,8 +477,8 @@ export function TopicLibraryPage() {
 
                 {/* Topic Table */}
                 {isExpanded && (
-                  <div className="border-t border-gray-100">
-                    <table className="w-full">
+                  <div className="border-t border-gray-100 overflow-x-auto">
+                    <table className="w-full min-w-[640px]">
                       <thead>
                         <tr className="bg-gray-50 border-b border-gray-100">
                           <th className="w-10 px-4 py-2.5">

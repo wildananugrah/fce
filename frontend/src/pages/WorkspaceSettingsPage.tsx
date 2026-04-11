@@ -284,8 +284,8 @@ function TeamTab({ workspaceId, currentUserId, onToast }: TeamTabProps) {
           Your role: <span className="font-medium text-black">{currentMember.role}</span>
         </p>
       )}
-      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="bg-white border border-gray-200 rounded-lg overflow-x-auto">
+        <table className="w-full min-w-[640px] text-sm">
           <thead>
             <tr className="border-b border-gray-200 bg-gray-50">
               <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-wide">

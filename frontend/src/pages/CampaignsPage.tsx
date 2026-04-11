@@ -526,8 +526,8 @@ function StrategyTab({ detail, campaign }: StrategyTabProps) {
       )}
 
       {activeSection === "channels" && hasChannelRoles && (
-        <div className="overflow-auto">
-          <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[640px] text-sm">
             <thead>
               <tr className="border-b border-gray-200 bg-gray-50">
                 <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase">Channel</th>
@@ -549,8 +549,8 @@ function StrategyTab({ detail, campaign }: StrategyTabProps) {
       )}
 
       {activeSection === "deliverables" && hasDeliverables && (
-        <div className="overflow-auto">
-          <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[640px] text-sm">
             <thead>
               <tr className="border-b border-gray-200 bg-gray-50">
                 <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase">Type</th>
@@ -761,8 +761,8 @@ export function CampaignsPage() {
           <p className="text-sm text-gray-400">No campaigns yet. Create your first campaign to get started.</p>
         </div>
       ) : (
-        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-          <table className="w-full">
+        <div className="bg-white border border-gray-200 rounded-lg overflow-x-auto">
+          <table className="w-full min-w-[640px]">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50">
                 <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-wide">Name</th>
