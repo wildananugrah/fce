@@ -7,6 +7,7 @@ import { Select } from "../components/ui/Select";
 import { Spinner } from "../components/ui/Spinner";
 import { Toast } from "../components/ui/Toast";
 import { ActiveSkillsBadges } from "../components/skills/ActiveSkillsBadges";
+import { ReferenceImageUpload, type ImageRef } from "../components/ui/ReferenceImageUpload";
 
 interface Brand {
 	id: string;
@@ -117,6 +118,8 @@ export function TopicsPage() {
 	const [brandId, setBrandId] = useState("");
 	const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
 	const [selectedFormats, setSelectedFormats] = useState<string[]>([]);
+	const [topicPrompt, setTopicPrompt] = useState("");
+	const [referenceImages, setReferenceImages] = useState<ImageRef[]>([]);
 	const [platform, setPlatform] = useState("instagram");
 	const [objective, setObjective] = useState("");
 	const [dateFrom, setDateFrom] = useState(() => {
@@ -269,6 +272,10 @@ export function TopicsPage() {
 						dateFrom,
 						dateTo,
 						count,
+						prompt: topicPrompt.trim() || undefined,
+						referenceImages: referenceImages.filter((i) => !i.uploading).map((i) => i.url).length > 0
+							? referenceImages.filter((i) => !i.uploading).map((i) => i.url)
+							: undefined,
 					}),
 				}
 			);
@@ -688,6 +695,40 @@ export function TopicsPage() {
 									<span>15</span>
 									<span>30</span>
 								</div>
+							</div>
+						</div>
+
+						{/* Additional Direction Section */}
+						<div className="bg-white border border-gray-200 rounded-xl p-5 space-y-4">
+							<div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+								<svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+									<path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />
+								</svg>
+								Additional Direction
+							</div>
+
+							<div>
+								<textarea
+									className="w-full px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 resize-none"
+									rows={3}
+									placeholder="Add any specific instructions, direction, or context..."
+									value={topicPrompt}
+									onChange={(e) => setTopicPrompt(e.target.value)}
+								/>
+								<p className="text-[10px] text-gray-400 mt-1">
+									Tip: You can paste URLs as references and they will be included in the AI context.
+								</p>
+							</div>
+
+							<div>
+								<label className="block text-xs font-medium text-gray-600 uppercase tracking-wide mb-2">
+									Reference Images (optional)
+								</label>
+								<ReferenceImageUpload
+									workspaceId={activeWorkspace!.id}
+									images={referenceImages}
+									onChange={setReferenceImages}
+								/>
 							</div>
 						</div>
 
