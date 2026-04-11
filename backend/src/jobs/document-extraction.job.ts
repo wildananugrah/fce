@@ -47,19 +47,10 @@ export class DocumentExtractionJob {
 	private async extractPdf(fileUrl: string): Promise<string> {
 		const response = await fetch(fileUrl);
 		const buffer = Buffer.from(await response.arrayBuffer());
-		// Handle various module export shapes across Bun/Node environments
-		const pdfParseModule = await import("pdf-parse");
-		let pdfParse: (buf: Buffer) => Promise<{ text: string }>;
-		if (typeof pdfParseModule === "function") {
-			pdfParse = pdfParseModule as any;
-		} else if (typeof pdfParseModule.default === "function") {
-			pdfParse = pdfParseModule.default as any;
-		} else if (typeof (pdfParseModule.default as any)?.default === "function") {
-			pdfParse = (pdfParseModule.default as any).default;
-		} else {
-			throw new Error("pdf-parse module could not be resolved");
-		}
-		const result = await pdfParse(buffer);
+		const { PDFParse } = await import("pdf-parse");
+		const parser = new PDFParse({ data: new Uint8Array(buffer) });
+		await parser.load();
+		const result = await parser.getText();
 		return result.text;
 	}
 
