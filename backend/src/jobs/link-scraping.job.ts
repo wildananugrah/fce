@@ -55,7 +55,7 @@ export class LinkScrapingJob {
 			this.logger.info("Link scraping completed", { documentId, chunkCount: chunks.length });
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
-			this.logger.error("Link scraping failed", { documentId, error: message });
+			this.logger.error(`Link scraping failed: ${message}`, { documentId, url, error: message });
 			await this.documentRepository.updateExtractionStatus(documentId, "failed");
 		}
 	}
