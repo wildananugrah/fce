@@ -151,10 +151,11 @@ model Product {
   createdAt            DateTime @default(now()) @map("created_at")
   updatedAt            DateTime @updatedAt @map("updated_at")
 
-  workspace          Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  brand              Brand                @relation(fields: [brandId], references: [id], onDelete: Cascade)
-  brainVersions      ProductBrainVersion[]
-  generationRequests GenerationRequest[]
+  workspace            Workspace             @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  brand                Brand                 @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  brainVersions        ProductBrainVersion[]
+  generationRequests   GenerationRequest[]
+  contentTopicProducts ContentTopicProduct[]
 
   @@unique([workspaceId, slug])
   @@map("products")
@@ -424,7 +425,6 @@ model ContentTopic {
   id          String    @id @default(uuid())
   workspaceId String    @map("workspace_id")
   brandId     String?   @map("brand_id")
-  productId   String?   @map("product_id")
   title       String
   description String?
   pillar      String?
@@ -436,13 +436,28 @@ model ContentTopic {
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
 
-  workspace          Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  brand              Brand?               @relation(fields: [brandId], references: [id], onDelete: SetNull)
+  workspace          Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  brand              Brand?                 @relation(fields: [brandId], references: [id], onDelete: SetNull)
+  products           ContentTopicProduct[]
   generationRequests GenerationRequest[]
 
   @@index([workspaceId])
   @@index([brandId])
   @@map("content_topics")
+}
+
+model ContentTopicProduct {
+  id             String @id @default(uuid())
+  contentTopicId String @map("content_topic_id")
+  productId      String @map("product_id")
+
+  contentTopic ContentTopic @relation(fields: [contentTopicId], references: [id], onDelete: Cascade)
+  product      Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([contentTopicId, productId])
+  @@index([contentTopicId])
+  @@index([productId])
+  @@map("content_topic_products")
 }
 
 // ─── Document System ────────────────────────────────────────────
