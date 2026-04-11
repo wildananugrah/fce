@@ -73,7 +73,18 @@ export class GeminiProvider
 
 		const response = await this.ai.models.generateContent({
 			model: this.model,
-			contents: `${systemPrompt}\n\n${userPrompt}`,
+			config: {
+				temperature: 0,
+				systemInstruction: systemPrompt,
+			},
+			contents: input.referenceImages?.length
+				? [
+						...input.referenceImages.map((url) => ({
+							fileData: { fileUri: url, mimeType: "image/jpeg" },
+						})),
+						{ text: userPrompt },
+					]
+				: userPrompt,
 		});
 
 		const text = response.text ?? "";
@@ -93,7 +104,11 @@ export class GeminiProvider
 
 		const response = await this.ai.models.generateContent({
 			model: this.model,
-			contents: `${systemPrompt}\n\n${userPrompt}`,
+			config: {
+				temperature: 0,
+				systemInstruction: systemPrompt,
+			},
+			contents: userPrompt,
 		});
 
 		const text = response.text ?? "";
@@ -111,7 +126,18 @@ export class GeminiProvider
 
 		const response = await this.ai.models.generateContent({
 			model: this.model,
-			contents: `${systemPrompt}\n\n${userPrompt}`,
+			config: {
+				temperature: 0,
+				systemInstruction: systemPrompt,
+			},
+			contents: input.referenceImages?.length
+				? [
+						...input.referenceImages.map((url) => ({
+							fileData: { fileUri: url, mimeType: "image/jpeg" },
+						})),
+						{ text: userPrompt },
+					]
+				: userPrompt,
 		});
 
 		const text = response.text ?? "";
@@ -148,7 +174,9 @@ export class GeminiProvider
 			.filter(Boolean)
 			.join("\n");
 
-		const prompt = `You are a product marketing expert. Based on the following product information, generate product brain content for AI-powered content generation.
+		const systemPrompt =
+			"You are a product marketing expert. You MUST respond with ONLY valid JSON. No markdown, no code blocks, no explanations.";
+		const userPrompt = `Based on the following product information, generate product brain content for AI-powered content generation.
 
 ${context}
 
@@ -158,13 +186,12 @@ Return JSON with these fields:
 - rtb (string): Reason to believe — evidence or proof points that support the USP
 - functionalBenefits (array of strings): Practical benefits (e.g. "Saves 10 hours/week")
 - emotionalBenefits (array of strings): Emotional benefits (e.g. "Feel confident", "Peace of mind")
-- targetAudience (string): Who this product is for — demographics, pain points, goals
-
-You MUST respond with ONLY valid JSON. No markdown, no code blocks, no explanations.`;
+- targetAudience (string): Who this product is for — demographics, pain points, goals`;
 
 		const response = await this.ai.models.generateContent({
 			model: this.model,
-			contents: prompt,
+			config: { temperature: 0, systemInstruction: systemPrompt },
+			contents: userPrompt,
 		});
 
 		const text = response.text ?? "";
@@ -186,9 +213,9 @@ You MUST respond with ONLY valid JSON. No markdown, no code blocks, no explanati
 		emotionalBenefits?: string[];
 		targetAudience?: string;
 	}> {
-		const prompt = `You are a product marketing expert. Analyze the provided product URL and extract product information for AI-powered content generation.
-
-Analyze this product URL: ${input.url}
+		const systemPrompt =
+			"You are a product marketing expert. You MUST respond with ONLY valid JSON. No markdown, no code blocks, no explanations.";
+		const userPrompt = `Analyze this product URL and extract product information: ${input.url}
 
 Return JSON with these fields:
 - name (string): Product name
@@ -199,13 +226,12 @@ Return JSON with these fields:
 - rtb (string): Reason to believe — evidence, proof points, credentials
 - functionalBenefits (array of strings): Practical benefits (e.g. "Saves 10 hours/week")
 - emotionalBenefits (array of strings): Emotional benefits (e.g. "Feel confident")
-- targetAudience (string): Who this product is for — demographics, pain points, goals
-
-You MUST respond with ONLY valid JSON. No markdown, no code blocks, no explanations.`;
+- targetAudience (string): Who this product is for — demographics, pain points, goals`;
 
 		const response = await this.ai.models.generateContent({
 			model: this.model,
-			contents: prompt,
+			config: { temperature: 0, systemInstruction: systemPrompt },
+			contents: userPrompt,
 		});
 
 		const text = response.text ?? "";
@@ -217,9 +243,9 @@ You MUST respond with ONLY valid JSON. No markdown, no code blocks, no explanati
 	}
 
 	async scrape(input: BrandScrapingInput): Promise<BrandScrapingOutput> {
-		const prompt = `You are a brand analyst expert. Analyze the provided URL and extract brand identity information.
-
-Analyze this brand URL and extract brand identity information: ${input.url}
+		const systemPrompt =
+			"You are a brand analyst expert. Analyze the provided URL and extract brand identity information. You MUST respond with ONLY valid JSON. No markdown, no code blocks, no explanations.";
+		const userPrompt = `Analyze this brand URL and extract brand identity information: ${input.url}
 
 Return JSON with these fields:
 - name (string): Brand name
@@ -235,13 +261,12 @@ Return JSON with these fields:
 - marketingStrategy (string): Overall marketing approach and focus areas
 - dos (array of strings): Content rules to always follow
 - donts (array of strings): Content rules to always avoid
-- vocabulary (object with: preferred (array of strings), avoided (array of strings)): Brand vocabulary guidelines
-
-You MUST respond with ONLY valid JSON. No markdown, no code blocks, no explanations.`;
+- vocabulary (object with: preferred (array of strings), avoided (array of strings)): Brand vocabulary guidelines`;
 
 		const response = await this.ai.models.generateContent({
 			model: this.model,
-			contents: prompt,
+			config: { temperature: 0, systemInstruction: systemPrompt },
+			contents: userPrompt,
 		});
 
 		const text = response.text ?? "";

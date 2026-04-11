@@ -71,11 +71,22 @@ export class AnthropicProvider
 	private async generateContent(input: ContentGenerationInput): Promise<ContentGenerationOutput> {
 		const { systemPrompt, userPrompt } = buildContentGenerationPrompt(input);
 
+		const userContent = input.referenceImages?.length
+			? [
+					...input.referenceImages.map((url) => ({
+						type: "image" as const,
+						source: { type: "url" as const, url },
+					})),
+					{ type: "text" as const, text: userPrompt },
+				]
+			: userPrompt;
+
 		const response = await this.client.messages.create({
 			model: this.model,
 			max_tokens: 2048,
+			temperature: 0,
 			system: systemPrompt,
-			messages: [{ role: "user", content: userPrompt }],
+			messages: [{ role: "user", content: userContent }],
 		});
 
 		const text = response.content[0].type === "text" ? response.content[0].text : "";
@@ -96,6 +107,7 @@ export class AnthropicProvider
 		const response = await this.client.messages.create({
 			model: this.model,
 			max_tokens: 2048,
+			temperature: 0,
 			system: systemPrompt,
 			messages: [{ role: "user", content: userPrompt }],
 		});
@@ -113,11 +125,22 @@ export class AnthropicProvider
 	private async generateTopics(input: TopicGenerationInput): Promise<TopicGenerationOutput> {
 		const { systemPrompt, userPrompt } = buildTopicGenerationPrompt(input);
 
+		const userContent = input.referenceImages?.length
+			? [
+					...input.referenceImages.map((url) => ({
+						type: "image" as const,
+						source: { type: "url" as const, url },
+					})),
+					{ type: "text" as const, text: userPrompt },
+				]
+			: userPrompt;
+
 		const response = await this.client.messages.create({
 			model: this.model,
 			max_tokens: 2048,
+			temperature: 0,
 			system: systemPrompt,
-			messages: [{ role: "user", content: userPrompt }],
+			messages: [{ role: "user", content: userContent }],
 		});
 
 		const text = response.content[0].type === "text" ? response.content[0].text : "";
@@ -157,6 +180,7 @@ export class AnthropicProvider
 		const response = await this.client.messages.create({
 			model: this.model,
 			max_tokens: 1024,
+			temperature: 0,
 			system:
 				"You are a product marketing expert. You MUST respond with ONLY valid JSON. No markdown, no code blocks, no explanations.",
 			messages: [
@@ -199,6 +223,7 @@ Return JSON with these fields:
 		const response = await this.client.messages.create({
 			model: this.model,
 			max_tokens: 1024,
+			temperature: 0,
 			system:
 				"You are a product marketing expert. You MUST respond with ONLY valid JSON. No markdown, no code blocks, no explanations.",
 			messages: [
@@ -253,6 +278,7 @@ Return JSON with these fields:
 		const response = await this.client.messages.create({
 			model: this.model,
 			max_tokens: 1024,
+			temperature: 0,
 			system: systemPrompt,
 			messages: [{ role: "user", content: userPrompt }],
 		});
