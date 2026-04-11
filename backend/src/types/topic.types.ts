@@ -1,6 +1,6 @@
 export interface CreateTopicInput {
 	brandId?: string;
-	productId?: string;
+	productIds?: string[];
 	title: string;
 	description?: string;
 	pillar?: string;
@@ -12,9 +12,10 @@ export interface CreateTopicInput {
 
 export interface GenerateTopicsInput {
 	brandId?: string;
-	productId?: string;
+	productIds?: string[];
 	platform?: string;
 	objective?: string;
+	formats?: string[];
 	dateFrom?: string;
 	dateTo?: string;
 	count?: number;
@@ -29,4 +30,5 @@ export interface UpdateTopicInput {
 	objective?: string;
 	publishDate?: string;
 	status?: string;
+	productIds?: string[];
 }
