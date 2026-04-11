@@ -2,8 +2,8 @@ import type { PrismaClient } from "@prisma/client";
 import type { ILogger } from "../interfaces/providers/logger.provider.interface";
 import type { ITopicGenerator } from "../interfaces/providers/topic-generator.interface";
 import type { INotificationService } from "../interfaces/services/notification.service.interface";
-import { buildTopicGenerationPrompt } from "../utils/prompt-builder";
 import { logAiActivity } from "../utils/ai-activity-logger";
+import { buildTopicGenerationPrompt } from "../utils/prompt-builder";
 
 interface TopicJobData {
 	workspaceId: string;
@@ -27,7 +27,18 @@ export class TopicGenerationJob {
 	) {}
 
 	async handle(data: TopicJobData): Promise<void> {
-		const { workspaceId, brandId, productIds, platform, objective, formats, dateFrom, dateTo, count, userId } = data;
+		const {
+			workspaceId,
+			brandId,
+			productIds,
+			platform,
+			objective,
+			formats,
+			dateFrom,
+			dateTo,
+			count,
+			userId,
+		} = data;
 
 		try {
 			// Build brand context
@@ -96,23 +107,27 @@ export class TopicGenerationJob {
 			const durationMs = Date.now() - startTime;
 
 			// Log AI activity
-			await logAiActivity(this.prisma, {
-				workspaceId,
-				generator: "topic",
-				provider: process.env.AI_TOPIC_PROVIDER || process.env.AI_PROVIDER || "unknown",
-				userId,
-				systemPrompt,
-				userPrompt,
-				brandId: brandId ?? undefined,
-				productId: productIds?.[0] ?? undefined,
-				platform: platform ?? undefined,
-				skillIds: skillMappings.map((m) => m.skill.id),
-				skillNames: skillMappings.map((m) => m.skill.name),
-			}, {
-				responseJson: output,
-				durationMs,
-				status: "success",
-			});
+			await logAiActivity(
+				this.prisma,
+				{
+					workspaceId,
+					generator: "topic",
+					provider: process.env.AI_TOPIC_PROVIDER || process.env.AI_PROVIDER || "unknown",
+					userId,
+					systemPrompt,
+					userPrompt,
+					brandId: brandId ?? undefined,
+					productId: productIds?.[0] ?? undefined,
+					platform: platform ?? undefined,
+					skillIds: skillMappings.map((m) => m.skill.id),
+					skillNames: skillMappings.map((m) => m.skill.name),
+				},
+				{
+					responseJson: output,
+					durationMs,
+					status: "success",
+				},
+			);
 
 			// Create ContentTopic records for each generated topic
 			await Promise.all(
@@ -129,9 +144,10 @@ export class TopicGenerationJob {
 							objective: topic.objective ?? null,
 							publishDate: topic.publishDate ? new Date(topic.publishDate) : null,
 							status: "draft",
-							products: productIds && productIds.length > 0
-								? { create: productIds.map((productId) => ({ productId })) }
-								: undefined,
+							products:
+								productIds && productIds.length > 0
+									? { create: productIds.map((productId) => ({ productId })) }
+									: undefined,
 						},
 					}),
 				),

@@ -102,28 +102,6 @@ const PILLAR_COLORS = [
 	"bg-orange-50 text-orange-700 border-orange-200",
 ];
 
-function getPillarColor(pillar: string, pillars: string[]) {
-	const idx = pillars.indexOf(pillar);
-	return PILLAR_COLORS[idx >= 0 ? idx % PILLAR_COLORS.length : 0];
-}
-
-function formatDate(dateStr?: string) {
-	if (!dateStr) return "";
-	const d = new Date(dateStr);
-	return d.toLocaleDateString("en-US", { day: "numeric", month: "short" });
-}
-
-function getFormatColor(format?: string) {
-	if (!format) return "bg-gray-100 text-gray-600";
-	const f = format.toLowerCase();
-	if (f.includes("carousel")) return "bg-blue-50 text-blue-700";
-	if (f.includes("reel") || f.includes("video") || f.includes("short"))
-		return "bg-red-50 text-red-700";
-	if (f.includes("story")) return "bg-purple-50 text-purple-700";
-	if (f.includes("single") || f.includes("image"))
-		return "bg-indigo-50 text-indigo-700";
-	return "bg-gray-100 text-gray-600";
-}
 
 export function TopicsPage() {
 	const { activeWorkspace } = useWorkspace();

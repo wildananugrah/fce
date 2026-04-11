@@ -85,7 +85,17 @@ export function createTopicRoutes(topicService: ITopicService) {
 	app.post("/", async (c) => {
 		const workspaceId = c.get("workspaceId");
 		const body = await c.req.json();
-		const { brandId, productIds, title, description, pillar, platform, format, objective, publishDate } = body;
+		const {
+			brandId,
+			productIds,
+			title,
+			description,
+			pillar,
+			platform,
+			format,
+			objective,
+			publishDate,
+		} = body;
 		if (!title) {
 			return c.json({ error: "title is required" }, 400);
 		}

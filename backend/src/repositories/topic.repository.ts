@@ -41,14 +41,18 @@ export class TopicRepository implements ITopicRepository {
 		return this.prisma.contentTopic.create({
 			data: {
 				...topicData,
-				products: productIds && productIds.length > 0
-					? { create: productIds.map((productId) => ({ productId })) }
-					: undefined,
+				products:
+					productIds && productIds.length > 0
+						? { create: productIds.map((productId) => ({ productId })) }
+						: undefined,
 			},
 		});
 	}
 
-	async update(id: string, data: Partial<ContentTopic> & { productIds?: string[] }): Promise<ContentTopic> {
+	async update(
+		id: string,
+		data: Partial<ContentTopic> & { productIds?: string[] },
+	): Promise<ContentTopic> {
 		const { productIds, ...topicData } = data;
 
 		if (productIds !== undefined) {

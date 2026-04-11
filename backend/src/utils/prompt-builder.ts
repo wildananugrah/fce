@@ -95,13 +95,15 @@ ${contextBlock}
 
 ${JSON_ONLY_INSTRUCTION}`;
 
-	const formatLine = input.formats && input.formats.length > 0
-		? `Allowed content formats: ${input.formats.join(", ")}. Assign exactly one format per topic from this list.`
-		: "";
+	const formatLine =
+		input.formats && input.formats.length > 0
+			? `Allowed content formats: ${input.formats.join(", ")}. Assign exactly one format per topic from this list.`
+			: "";
 
-	const multiProductLine = input.productContexts && input.productContexts.length > 1
-		? "The topics should bridge or combine the provided products where relevant."
-		: "";
+	const multiProductLine =
+		input.productContexts && input.productContexts.length > 1
+			? "The topics should bridge or combine the provided products where relevant."
+			: "";
 
 	const userPrompt = `Generate ${count} content topic ideas${input.platform ? ` for ${input.platform}` : ""}.
 ${input.objective ? `Content objective: ${input.objective}` : ""}

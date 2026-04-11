@@ -2,8 +2,8 @@ import type { PrismaClient } from "@prisma/client";
 import type { ILogger } from "../interfaces/providers/logger.provider.interface";
 import type { ITopicGenerator } from "../interfaces/providers/topic-generator.interface";
 import type { INotificationService } from "../interfaces/services/notification.service.interface";
-import { buildTopicGenerationPrompt } from "../utils/prompt-builder";
 import { logAiActivity } from "../utils/ai-activity-logger";
+import { buildTopicGenerationPrompt } from "../utils/prompt-builder";
 
 interface TopicRegenJobData {
 	workspaceId: string;
@@ -27,7 +27,18 @@ export class TopicRegenerationJob {
 	) {}
 
 	async handle(data: TopicRegenJobData): Promise<void> {
-		const { workspaceId, topicId, brandId, productIds, platform, format, objective, hint, preview, userId } = data;
+		const {
+			workspaceId,
+			topicId,
+			brandId,
+			productIds,
+			platform,
+			format,
+			objective,
+			hint,
+			preview,
+			userId,
+		} = data;
 
 		try {
 			// Build brand context
@@ -82,7 +93,8 @@ export class TopicRegenerationJob {
 				count: 1,
 			};
 
-			const { systemPrompt, userPrompt: baseUserPrompt } = buildTopicGenerationPrompt(generationInput);
+			const { systemPrompt, userPrompt: baseUserPrompt } =
+				buildTopicGenerationPrompt(generationInput);
 			const userPrompt = `${baseUserPrompt}\n${existingLine}\n${hintLine}`.trim();
 
 			// Generate single topic
@@ -94,23 +106,27 @@ export class TopicRegenerationJob {
 			const durationMs = Date.now() - startTime;
 
 			// Log AI activity
-			await logAiActivity(this.prisma, {
-				workspaceId,
-				generator: "topic",
-				provider: process.env.AI_TOPIC_PROVIDER || process.env.AI_PROVIDER || "unknown",
-				userId,
-				systemPrompt,
-				userPrompt,
-				brandId: brandId ?? undefined,
-				productId: productIds?.[0] ?? undefined,
-				platform: platform ?? undefined,
-				skillIds: [],
-				skillNames: [],
-			}, {
-				responseJson: output,
-				durationMs,
-				status: "success",
-			});
+			await logAiActivity(
+				this.prisma,
+				{
+					workspaceId,
+					generator: "topic",
+					provider: process.env.AI_TOPIC_PROVIDER || process.env.AI_PROVIDER || "unknown",
+					userId,
+					systemPrompt,
+					userPrompt,
+					brandId: brandId ?? undefined,
+					productId: productIds?.[0] ?? undefined,
+					platform: platform ?? undefined,
+					skillIds: [],
+					skillNames: [],
+				},
+				{
+					responseJson: output,
+					durationMs,
+					status: "success",
+				},
+			);
 
 			const newTopic = output.topics[0];
 			if (!newTopic) {

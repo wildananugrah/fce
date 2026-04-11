@@ -23,35 +23,35 @@ import { BrandRepository } from "./repositories/brand.repository";
 import { CampaignRepository } from "./repositories/campaign.repository";
 import { DocumentRepository } from "./repositories/document.repository";
 import { GenerationRepository } from "./repositories/generation.repository";
-import { RecommendationRepository } from "./repositories/recommendation.repository";
 import { OutputSectionRepository } from "./repositories/output-section.repository";
 import { ProductRepository } from "./repositories/product.repository";
+import { RecommendationRepository } from "./repositories/recommendation.repository";
 import { TaxonomyRepository } from "./repositories/taxonomy.repository";
 import { TopicRepository } from "./repositories/topic.repository";
 import { UserRepository } from "./repositories/user.repository";
 import { WorkspaceRepository } from "./repositories/workspace.repository";
 import { createAdminRoutes } from "./routes/admin.route";
+import { createAiLogRoutes } from "./routes/ai-log.route";
 import { createAuthRoutes } from "./routes/auth.route";
 import { createBrandRoutes } from "./routes/brand.route";
 import { createCampaignRoutes } from "./routes/campaign.route";
+import { createDashboardRoutes } from "./routes/dashboard.route";
 import { createDocumentRoutes } from "./routes/document.route";
 import { createGenerationRoutes } from "./routes/generation.route";
 import { createLibraryRoutes } from "./routes/library.route";
 import { createProductRoutes } from "./routes/product.route";
 import { createRecommendationRoutes } from "./routes/recommendation.route";
+import { createSkillRoutes, createWorkspaceSkillRoutes } from "./routes/skill.route";
 import { createSSERoutes } from "./routes/sse.route";
 import { createTaxonomyRoutes } from "./routes/taxonomy.route";
-import { createDashboardRoutes } from "./routes/dashboard.route";
 import { createTopicRoutes } from "./routes/topic.route";
 import { createWorkspaceRoutes } from "./routes/workspace.route";
-import { createSkillRoutes, createWorkspaceSkillRoutes } from "./routes/skill.route";
-import { createAiLogRoutes } from "./routes/ai-log.route";
 import { AdminService } from "./services/admin.service";
 import { AuthService } from "./services/auth.service";
-import { DashboardService } from "./services/dashboard.service";
 import { BrandService } from "./services/brand.service";
-import { DocumentService } from "./services/document.service";
 import { CampaignService } from "./services/campaign.service";
+import { DashboardService } from "./services/dashboard.service";
+import { DocumentService } from "./services/document.service";
 import { GenerationService } from "./services/generation.service";
 import { LibraryService } from "./services/library.service";
 import { NotificationService } from "./services/notification.service";
@@ -138,7 +138,12 @@ async function main() {
 	const topicService = new TopicService(topicRepository, boss);
 	const dashboardService = new DashboardService(prisma);
 	const notificationService = new NotificationService();
-	const documentService = new DocumentService(documentRepository, storageProvider, boss, env.minioBucket);
+	const documentService = new DocumentService(
+		documentRepository,
+		storageProvider,
+		boss,
+		env.minioBucket,
+	);
 	const adminService = new AdminService(prisma);
 
 	// ─── Job Handlers ────────────────────────────────────────────────
@@ -174,7 +179,11 @@ async function main() {
 		logger,
 	);
 	const documentExtractionJob = new DocumentExtractionJob(documentRepository, logger);
-	const recommendationRecomputeJob = new RecommendationRecomputeJob(prisma, recommendationRepository, logger);
+	const recommendationRecomputeJob = new RecommendationRecomputeJob(
+		prisma,
+		recommendationRepository,
+		logger,
+	);
 
 	// ─── Create PgBoss Queues ───────────────────────────────────────
 	await boss.createQueue("content-generation");
@@ -295,7 +304,10 @@ async function main() {
 	const workspaceScoped = new Hono();
 	workspaceScoped.use("*", wsMiddleware);
 	workspaceScoped.route("/brands", createBrandRoutes(brandService, boss, resolveBrandScraper()));
-	workspaceScoped.route("/products", createProductRoutes(productService, resolveBrandScraper(), storageProvider, env.minioBucket));
+	workspaceScoped.route(
+		"/products",
+		createProductRoutes(productService, resolveBrandScraper(), storageProvider, env.minioBucket),
+	);
 	workspaceScoped.route("/generations", createGenerationRoutes(generationService));
 	workspaceScoped.route("/library", createLibraryRoutes(libraryService));
 	workspaceScoped.route("/campaigns", createCampaignRoutes(campaignService));
