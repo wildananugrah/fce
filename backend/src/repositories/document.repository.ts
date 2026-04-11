@@ -58,4 +58,16 @@ export class DocumentRepository implements IDocumentRepository {
 			orderBy: { chunkIndex: "asc" },
 		});
 	}
+
+	async findByProduct(productId: string) {
+		return this.prisma.brandDocument.findMany({
+			where: { productId },
+			orderBy: { createdAt: "desc" },
+			include: { chunks: { orderBy: { chunkIndex: "asc" } } },
+		});
+	}
+
+	async delete(id: string) {
+		await this.prisma.brandDocument.delete({ where: { id } });
+	}
 }

@@ -9,4 +9,7 @@ export interface IDocumentService {
 	listByBrand(brandId: string): Promise<any[]>;
 	getById(id: string): Promise<any>;
 	getChunks(documentId: string): Promise<any[]>;
+	listByProduct(productId: string): Promise<any[]>;
+	addLink(workspaceId: string, brandId: string, url: string, productId?: string): Promise<any>;
+	delete(id: string): Promise<void>;
 }

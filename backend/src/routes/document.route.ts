@@ -41,5 +41,29 @@ export function createDocumentRoutes(documentService: IDocumentService) {
 		return c.json({ data: chunks });
 	});
 
+	// GET /product/:productId — list documents for a product
+	app.get("/product/:productId", async (c) => {
+		const productId = c.req.param("productId");
+		const docs = await documentService.listByProduct(productId);
+		return c.json({ data: docs });
+	});
+
+	// POST /link — add a link reference
+	app.post("/link", async (c) => {
+		const workspaceId = c.get("workspaceId");
+		const body = await c.req.json();
+		const { brandId, url, productId } = body;
+		if (!brandId || !url) return c.json({ error: "brandId and url are required" }, 400);
+		const doc = await documentService.addLink(workspaceId, brandId, url, productId);
+		return c.json({ data: doc }, 201);
+	});
+
+	// DELETE /:id — delete a document
+	app.delete("/:id", async (c) => {
+		const id = c.req.param("id");
+		await documentService.delete(id);
+		return c.json({ success: true });
+	});
+
 	return app;
 }

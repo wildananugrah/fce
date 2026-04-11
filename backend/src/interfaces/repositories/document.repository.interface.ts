@@ -19,4 +19,6 @@ export interface IDocumentRepository {
 	): Promise<void>;
 	findChunksByDocument(documentId: string): Promise<any[]>;
 	findChunksByBrand(brandId: string): Promise<any[]>;
+	findByProduct(productId: string): Promise<any[]>;
+	delete(id: string): Promise<void>;
 }

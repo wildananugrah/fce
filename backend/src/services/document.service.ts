@@ -53,4 +53,30 @@ export class DocumentService implements IDocumentService {
 	async getChunks(documentId: string) {
 		return this.documentRepository.findChunksByDocument(documentId);
 	}
+
+	async listByProduct(productId: string) {
+		return this.documentRepository.findByProduct(productId);
+	}
+
+	async addLink(workspaceId: string, brandId: string, url: string, productId?: string) {
+		const doc = await this.documentRepository.create({
+			workspaceId,
+			brandId,
+			productId: productId || null,
+			fileName: url,
+			fileType: "text/html",
+			fileUrl: url,
+			fileSize: null,
+			sourceType: "link",
+		});
+		await this.boss.send("link-scraping", {
+			documentId: doc.id,
+			url,
+		});
+		return doc;
+	}
+
+	async delete(id: string) {
+		await this.documentRepository.delete(id);
+	}
 }
