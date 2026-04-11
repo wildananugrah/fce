@@ -45,6 +45,7 @@ import { createSkillRoutes, createWorkspaceSkillRoutes } from "./routes/skill.ro
 import { createSSERoutes } from "./routes/sse.route";
 import { createTaxonomyRoutes } from "./routes/taxonomy.route";
 import { createTopicRoutes } from "./routes/topic.route";
+import { createUploadRoutes } from "./routes/upload.route";
 import { createWorkspaceRoutes } from "./routes/workspace.route";
 import { AdminService } from "./services/admin.service";
 import { AuthService } from "./services/auth.service";
@@ -317,6 +318,7 @@ async function main() {
 	workspaceScoped.route("/recommendations", createRecommendationRoutes(recommendationService));
 	workspaceScoped.route("/skills", createWorkspaceSkillRoutes(prisma));
 	workspaceScoped.route("/ai-logs", createAiLogRoutes(prisma));
+	workspaceScoped.route("/reference-images", createUploadRoutes(storageProvider, env.minioBucket));
 	app.route("/api/workspaces/:workspaceId", workspaceScoped);
 
 	// Health check
