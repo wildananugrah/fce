@@ -36,6 +36,13 @@ export class GenerationRepository implements IGenerationRepository {
 		});
 	}
 
+	async deleteMany(workspaceId: string, ids: string[]): Promise<number> {
+		const result = await this.prisma.generationRequest.deleteMany({
+			where: { workspaceId, id: { in: ids } },
+		});
+		return result.count;
+	}
+
 	async create(data: {
 		workspaceId: string;
 		brandId: string;

@@ -474,25 +474,10 @@ export function GeneratePage() {
     if (selectedGenIds.size === 0 || !activeWorkspace) return;
     setBulkDeleting(true);
     try {
-      // Get output IDs for selected generations by fetching each
-      const outputIds: string[] = [];
-      for (const genId of selectedGenIds) {
-        try {
-          const res = await api<{ data: { outputs: { id: string }[] } }>(
-            `/api/workspaces/${activeWorkspace.id}/generations/${genId}`
-          );
-          const data = (res as any).data ?? res;
-          if (data.outputs?.[0]?.id) outputIds.push(data.outputs[0].id);
-        } catch { /* skip */ }
-      }
-
-      if (outputIds.length > 0) {
-        await api(`/api/workspaces/${activeWorkspace.id}/library/bulk`, {
-          method: "DELETE",
-          body: JSON.stringify({ ids: outputIds }),
-        });
-      }
-
+      await api(`/api/workspaces/${activeWorkspace.id}/generations/bulk`, {
+        method: "DELETE",
+        body: JSON.stringify({ ids: Array.from(selectedGenIds) }),
+      });
       setGenerations((prev) => prev.filter((g) => !selectedGenIds.has(g.id)));
       showToast(`${selectedGenIds.size} generation${selectedGenIds.size > 1 ? "s" : ""} deleted`, "info");
       setSelectedGenIds(new Set());

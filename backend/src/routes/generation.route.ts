@@ -38,6 +38,17 @@ export function createGenerationRoutes(generationService: IGenerationService) {
 		return c.json({ data: request }, 201);
 	});
 
+	// DELETE /bulk — bulk delete generation requests (cascades to outputs, sections)
+	app.delete("/bulk", async (c) => {
+		const workspaceId = c.get("workspaceId");
+		const { ids } = await c.req.json<{ ids: string[] }>();
+		if (!Array.isArray(ids) || ids.length === 0) {
+			return c.json({ error: "ids must be a non-empty array" }, 400);
+		}
+		const deleted = await generationService.deleteMany(workspaceId, ids);
+		return c.json({ deleted });
+	});
+
 	// GET / — list generation requests
 	app.get("/", async (c) => {
 		const workspaceId = c.get("workspaceId");

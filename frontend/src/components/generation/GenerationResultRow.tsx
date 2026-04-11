@@ -203,15 +203,10 @@ export function GenerationResultRow({
   };
 
   const handleDelete = async () => {
-    if (!outputId) {
-      // No output yet — just remove from UI
-      onDeleted(generation.id);
-      return;
-    }
     try {
-      await api(`/api/workspaces/${workspaceId}/library/bulk`, {
+      await api(`/api/workspaces/${workspaceId}/generations/bulk`, {
         method: "DELETE",
-        body: JSON.stringify({ ids: [outputId] }),
+        body: JSON.stringify({ ids: [generation.id] }),
       });
       onDeleted(generation.id);
     } catch {

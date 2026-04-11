@@ -22,6 +22,10 @@ export class GenerationService implements IGenerationService {
 		return request;
 	}
 
+	async deleteMany(workspaceId: string, ids: string[]): Promise<number> {
+		return this.generationRepository.deleteMany(workspaceId, ids);
+	}
+
 	async create(
 		workspaceId: string,
 		userId: string,

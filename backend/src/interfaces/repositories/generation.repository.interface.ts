@@ -3,6 +3,7 @@ import type { GenerationOutput, GenerationRequest, OutputFeedbackEvent } from "@
 export interface IGenerationRepository {
 	findByWorkspace(workspaceId: string): Promise<GenerationRequest[]>;
 	findById(id: string): Promise<(GenerationRequest & { outputs: GenerationOutput[] }) | null>;
+	deleteMany(workspaceId: string, ids: string[]): Promise<number>;
 	create(data: {
 		workspaceId: string;
 		brandId: string;
