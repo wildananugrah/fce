@@ -42,6 +42,7 @@ export class GeminiProvider
 	implements IContentGenerator, ICampaignGenerator, ITopicGenerator, IBrandScraper
 {
 	private ai: GoogleGenAI;
+	public lastUsage: { inputTokens: number; outputTokens: number } | null = null;
 
 	constructor(
 		apiKey: string,
@@ -86,6 +87,10 @@ export class GeminiProvider
 					]
 				: userPrompt,
 		});
+		this.lastUsage = {
+			inputTokens: response.usageMetadata?.promptTokenCount ?? 0,
+			outputTokens: response.usageMetadata?.candidatesTokenCount ?? 0,
+		};
 
 		const text = response.text ?? "";
 		try {
@@ -110,6 +115,10 @@ export class GeminiProvider
 			},
 			contents: userPrompt,
 		});
+		this.lastUsage = {
+			inputTokens: response.usageMetadata?.promptTokenCount ?? 0,
+			outputTokens: response.usageMetadata?.candidatesTokenCount ?? 0,
+		};
 
 		const text = response.text ?? "";
 		try {
@@ -139,6 +148,10 @@ export class GeminiProvider
 					]
 				: userPrompt,
 		});
+		this.lastUsage = {
+			inputTokens: response.usageMetadata?.promptTokenCount ?? 0,
+			outputTokens: response.usageMetadata?.candidatesTokenCount ?? 0,
+		};
 
 		const text = response.text ?? "";
 		try {
@@ -193,6 +206,10 @@ Return JSON with these fields:
 			config: { temperature: 0, systemInstruction: systemPrompt },
 			contents: userPrompt,
 		});
+		this.lastUsage = {
+			inputTokens: response.usageMetadata?.promptTokenCount ?? 0,
+			outputTokens: response.usageMetadata?.candidatesTokenCount ?? 0,
+		};
 
 		const text = response.text ?? "";
 		try {
@@ -233,6 +250,10 @@ Return JSON with these fields:
 			config: { temperature: 0, systemInstruction: systemPrompt },
 			contents: userPrompt,
 		});
+		this.lastUsage = {
+			inputTokens: response.usageMetadata?.promptTokenCount ?? 0,
+			outputTokens: response.usageMetadata?.candidatesTokenCount ?? 0,
+		};
 
 		const text = response.text ?? "";
 		try {
@@ -268,6 +289,10 @@ Return JSON with these fields:
 			config: { temperature: 0, systemInstruction: systemPrompt },
 			contents: userPrompt,
 		});
+		this.lastUsage = {
+			inputTokens: response.usageMetadata?.promptTokenCount ?? 0,
+			outputTokens: response.usageMetadata?.candidatesTokenCount ?? 0,
+		};
 
 		const text = response.text ?? "";
 		try {

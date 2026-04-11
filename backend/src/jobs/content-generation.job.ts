@@ -154,6 +154,7 @@ export class ContentGenerationJob {
 			const startTime = Date.now();
 			const output = await this.contentGenerator.generate(generationInput);
 			const durationMs = Date.now() - startTime;
+			const usage = (this.contentGenerator as any).lastUsage;
 
 			// Log AI activity
 			await logAiActivity(
@@ -177,6 +178,8 @@ export class ContentGenerationJob {
 					responseJson: output.content,
 					durationMs,
 					status: "success",
+					inputTokens: usage?.inputTokens,
+					outputTokens: usage?.outputTokens,
 				},
 			);
 

@@ -154,6 +154,7 @@ export class TopicGenerationJob {
 			const startTime = Date.now();
 			const output = await this.topicGenerator.generate(generationInput);
 			const durationMs = Date.now() - startTime;
+			const usage = (this.topicGenerator as any).lastUsage;
 
 			// Log AI activity
 			await logAiActivity(
@@ -175,6 +176,8 @@ export class TopicGenerationJob {
 					responseJson: output,
 					durationMs,
 					status: "success",
+					inputTokens: usage?.inputTokens,
+					outputTokens: usage?.outputTokens,
 				},
 			);
 

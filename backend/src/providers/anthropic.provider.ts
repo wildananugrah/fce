@@ -42,6 +42,7 @@ export class AnthropicProvider
 	implements IContentGenerator, ICampaignGenerator, ITopicGenerator, IBrandScraper
 {
 	private client: Anthropic;
+	public lastUsage: { inputTokens: number; outputTokens: number } | null = null;
 
 	constructor(
 		apiKey: string,
@@ -88,6 +89,10 @@ export class AnthropicProvider
 			system: systemPrompt,
 			messages: [{ role: "user", content: userContent }],
 		});
+		this.lastUsage = {
+			inputTokens: response.usage.input_tokens,
+			outputTokens: response.usage.output_tokens,
+		};
 
 		const text = response.content[0].type === "text" ? response.content[0].text : "";
 		try {
@@ -111,6 +116,10 @@ export class AnthropicProvider
 			system: systemPrompt,
 			messages: [{ role: "user", content: userPrompt }],
 		});
+		this.lastUsage = {
+			inputTokens: response.usage.input_tokens,
+			outputTokens: response.usage.output_tokens,
+		};
 
 		const text = response.content[0].type === "text" ? response.content[0].text : "";
 		try {
@@ -142,6 +151,10 @@ export class AnthropicProvider
 			system: systemPrompt,
 			messages: [{ role: "user", content: userContent }],
 		});
+		this.lastUsage = {
+			inputTokens: response.usage.input_tokens,
+			outputTokens: response.usage.output_tokens,
+		};
 
 		const text = response.content[0].type === "text" ? response.content[0].text : "";
 		try {
@@ -200,6 +213,10 @@ Return JSON with these fields:
 				},
 			],
 		});
+		this.lastUsage = {
+			inputTokens: response.usage.input_tokens,
+			outputTokens: response.usage.output_tokens,
+		};
 
 		const text = response.content[0].type === "text" ? response.content[0].text : "";
 		try {
@@ -244,6 +261,10 @@ Return JSON with these fields:
 				},
 			],
 		});
+		this.lastUsage = {
+			inputTokens: response.usage.input_tokens,
+			outputTokens: response.usage.output_tokens,
+		};
 
 		const text = response.content[0].type === "text" ? response.content[0].text : "";
 		try {
@@ -282,6 +303,10 @@ Return JSON with these fields:
 			system: systemPrompt,
 			messages: [{ role: "user", content: userPrompt }],
 		});
+		this.lastUsage = {
+			inputTokens: response.usage.input_tokens,
+			outputTokens: response.usage.output_tokens,
+		};
 
 		const text = response.content[0].type === "text" ? response.content[0].text : "";
 		try {
