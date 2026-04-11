@@ -128,7 +128,7 @@ export function LibraryPage() {
     }
     setLoading(true);
     try {
-      const data = await api<LibraryItem[]>(`/api/workspaces/${activeWorkspace.id}/library`);
+      const data = await api<LibraryItem[]>(`/api/workspaces/${activeWorkspace.id}/library?status=approved`);
       setItems(data);
     } catch (e) {
       showToast(e instanceof Error ? e.message : "Failed to load library", "error");
@@ -142,7 +142,17 @@ export function LibraryPage() {
   }, [loadItems]);
 
   const handleStatusChange = (id: string, status: string) => {
-    setItems((prev) => prev.map((item) => (item.id === id ? { ...item, status } : item)));
+    if (status === "approved") {
+      setItems((prev) => prev.map((item) => (item.id === id ? { ...item, status } : item)));
+    } else {
+      setItems((prev) => prev.filter((item) => item.id !== id));
+      showToast(
+        status === "draft"
+          ? "Content moved back to drafts on Content Generator"
+          : "Content rejected and moved back to Content Generator",
+        "info",
+      );
+    }
   };
 
   const toggleSelect = (id: string) => {
@@ -233,7 +243,7 @@ export function LibraryPage() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-black">Content Library</h1>
-        <p className="text-sm text-gray-500 mt-1">Your database of generated social media content.</p>
+        <p className="text-sm text-gray-500 mt-1">Approved content ready for publishing. Manage and preview your finalized posts.</p>
       </div>
 
       {/* Search + Filters */}
