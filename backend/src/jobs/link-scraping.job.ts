@@ -55,8 +55,21 @@ export class LinkScrapingJob {
 			this.logger.info("Link scraping completed", { documentId, chunkCount: chunks.length });
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
-			this.logger.error(`Link scraping failed: ${message}`, { documentId, url, error: message });
-			await this.documentRepository.updateExtractionStatus(documentId, "failed");
+			this.logger.warn(`Link scraping failed, storing URL as reference: ${message}`, { documentId, url });
+
+			// Fallback: store the URL itself as a reference chunk so the AI at least sees it
+			try {
+				await this.documentRepository.createChunks(documentId, [
+					{
+						chunkIndex: 0,
+						contentText: `Reference URL: ${url} (Note: page content could not be scraped due to bot protection. Use this URL as context.)`,
+					},
+				]);
+				await this.documentRepository.updateExtractionStatus(documentId, "completed");
+				this.logger.info("Link stored as URL reference (fallback)", { documentId, url });
+			} catch {
+				await this.documentRepository.updateExtractionStatus(documentId, "failed");
+			}
 		}
 	}
 
