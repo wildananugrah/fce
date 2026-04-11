@@ -47,9 +47,18 @@ export class DocumentExtractionJob {
 	private async extractPdf(fileUrl: string): Promise<string> {
 		const response = await fetch(fileUrl);
 		const buffer = Buffer.from(await response.arrayBuffer());
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		// Handle various module export shapes across Bun/Node environments
 		const pdfParseModule = await import("pdf-parse");
-		const pdfParse = (pdfParseModule as any).default ?? pdfParseModule;
+		let pdfParse: (buf: Buffer) => Promise<{ text: string }>;
+		if (typeof pdfParseModule === "function") {
+			pdfParse = pdfParseModule as any;
+		} else if (typeof pdfParseModule.default === "function") {
+			pdfParse = pdfParseModule.default as any;
+		} else if (typeof (pdfParseModule.default as any)?.default === "function") {
+			pdfParse = (pdfParseModule.default as any).default;
+		} else {
+			throw new Error("pdf-parse module could not be resolved");
+		}
 		const result = await pdfParse(buffer);
 		return result.text;
 	}
