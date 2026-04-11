@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import { Upload, X, Loader2 } from "lucide-react";
+import { getAccessToken } from "../../services/api";
 
 interface ImageRef {
   id: string;
@@ -34,8 +35,9 @@ export function ReferenceImageUpload({ workspaceId, images, onChange }: Referenc
       const res = await fetch(`/api/workspaces/${workspaceId}/reference-images/upload`, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          ...(getAccessToken() ? { Authorization: `Bearer ${getAccessToken()}` } : {}),
         },
+        credentials: "include",
         body: formData,
       });
 

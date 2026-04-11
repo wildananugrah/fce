@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Upload, Link2, Trash2, Loader2, FileText, Image, Globe, ChevronDown, ChevronRight } from "lucide-react";
-import { api } from "../../services/api";
+import { api, getAccessToken } from "../../services/api";
 
 interface DocumentChunk {
   id: string;
@@ -75,9 +75,11 @@ export function ProductReferences({ workspaceId, productId, brandId }: ProductRe
       formData.append("brandId", brandId);
       if (productId) formData.append("productId", productId);
 
+      const token = getAccessToken();
       const res = await fetch(`/api/workspaces/${workspaceId}/documents/upload`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        credentials: "include",
         body: formData,
       });
 
