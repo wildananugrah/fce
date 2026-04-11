@@ -24,3 +24,20 @@ datasources:
     url: http://prometheus:9090
     isDefault: true
     editable: false
+
+  - name: PostgreSQL
+    uid: postgres
+    type: postgres
+    access: proxy
+    url: host.docker.internal:5433
+    isDefault: false
+    editable: false
+    user: fce
+    jsonData:
+      database: fce_dashboard
+      sslmode: disable
+      maxOpenConns: 5
+      maxIdleConns: 2
+      connMaxLifetime: 14400
+    secureJsonData:
+      password: fce_secret

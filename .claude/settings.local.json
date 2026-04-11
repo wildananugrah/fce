@@ -56,7 +56,14 @@
       "Bash(DATABASE_URL=\"postgresql://fce:fce_secret@localhost:5433/fce_dashboard\" bunx prisma db push --accept-data-loss)",
       "Bash(DATABASE_URL=postgresql://fce:fce_secret@localhost:5433/fce_dashboard bunx prisma generate)",
       "Bash(python3)",
-      "Bash(git reset:*)"
+      "Bash(git reset:*)",
+      "Bash(DATABASE_URL=postgresql://fce:fce_secret@localhost:5433/fce_dashboard bunx prisma db push)",
+      "Bash(rm /Users/bellinnn/Documents/projects/fce/.git/index.lock)",
+      "Bash(git -C /Users/bellinnn/Documents/projects/fce add frontend/src/components/library/ContentPreviewModal.tsx)",
+      "Bash(git -C /Users/bellinnn/Documents/projects/fce commit -m \"feat: add edit toggle with editable hook/visual direction/caption to ContentPreviewModal\")",
+      "Bash(git -C /Users/bellinnn/Documents/projects/fce diff frontend/src/components/library/ContentPreviewModal.tsx)",
+      "Bash(unzip -l /Users/bellinnn/Documents/projects/fce/req-to-solution.skill)",
+      "Bash(unzip -o /Users/bellinnn/Documents/projects/fce/req-to-solution.skill -d /Users/bellinnn/Documents/projects/fce/.claude/skills/)"
     ],
     "additionalDirectories": [
       "/Users/wildananugrah/Documents/My-Projects/fce/.git"

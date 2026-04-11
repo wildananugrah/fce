@@ -46,6 +46,8 @@ services:
 
   grafana:
     image: grafana/grafana:11.0.0
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "4000:3000"
     environment:
