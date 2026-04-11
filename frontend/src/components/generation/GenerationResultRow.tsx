@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronRight, ChevronDown, Eye, Check, X, Save, Loader2 } from "lucide-react";
+import { ChevronRight, ChevronDown, Eye, Check, X, Save, Loader2, Trash2 } from "lucide-react";
 import { api } from "../../services/api";
 
 interface Section {
@@ -23,6 +23,7 @@ interface GenerationResultRowProps {
   generation: Generation;
   workspaceId: string;
   onApproved: (id: string) => void;
+  onDeleted: (id: string) => void;
   onViewFull: (generation: Generation) => void;
   getPlatformStyle: (platform: string) => { bg: string; text: string };
   getStatusStyle: (status: string) => string;
@@ -34,6 +35,7 @@ export function GenerationResultRow({
   generation,
   workspaceId,
   onApproved,
+  onDeleted,
   onViewFull,
   getPlatformStyle,
   getStatusStyle,
@@ -193,6 +195,23 @@ export function GenerationResultRow({
     }
   };
 
+  const handleDelete = async () => {
+    if (!outputId) {
+      // No output yet — just remove from UI
+      onDeleted(generation.id);
+      return;
+    }
+    try {
+      await api(`/api/workspaces/${workspaceId}/library/bulk`, {
+        method: "DELETE",
+        body: JSON.stringify({ ids: [outputId] }),
+      });
+      onDeleted(generation.id);
+    } catch {
+      // silently fail
+    }
+  };
+
   const ps = getPlatformStyle(generation.platform);
 
   return (
@@ -272,6 +291,14 @@ export function GenerationResultRow({
                 )}
               </>
             )}
+            <button
+              type="button"
+              onClick={handleDelete}
+              className="p-1.5 text-gray-300 hover:text-red-500 transition-colors rounded-md hover:bg-red-50"
+              title="Delete"
+            >
+              <Trash2 size={14} />
+            </button>
           </div>
         </td>
       </tr>

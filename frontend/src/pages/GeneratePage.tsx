@@ -921,6 +921,10 @@ const frameworkOptions = [{ value: "", label: "PAS (recommended)" }, ...framewor
                           generation={gen}
                           workspaceId={activeWorkspace!.id}
                           onApproved={handleGenerationApproved}
+                          onDeleted={(genId) => {
+                            setGenerations((prev) => prev.filter((g) => g.id !== genId));
+                            showToast("Generation deleted", "info");
+                          }}
                           onViewFull={handleViewGeneration}
                           getPlatformStyle={getPlatformStyle}
                           getStatusStyle={getStatusStyle}
