@@ -76,6 +76,37 @@ export class ContentGenerationJob {
 				? JSON.stringify(brand.brainVersions[0])
 				: JSON.stringify({ name: brand?.name });
 
+			// Fetch product reference content
+			let productReferenceContext = "";
+			const productReferenceImages: string[] = [];
+			const allProductIds = productIds && productIds.length > 0 ? productIds : [];
+			if (allProductIds.length > 0) {
+				const MAX_REFERENCE_CHARS = 5000;
+				let charCount = 0;
+
+				for (const pid of allProductIds) {
+					const docs = await this.prisma.brandDocument.findMany({
+						where: { productId: pid },
+						include: { chunks: { orderBy: { chunkIndex: "asc" } } },
+					});
+
+					for (const doc of docs) {
+						if (doc.sourceType === "image" || doc.fileType.startsWith("image/")) {
+							productReferenceImages.push(doc.fileUrl);
+							continue;
+						}
+
+						for (const chunk of doc.chunks) {
+							if (charCount >= MAX_REFERENCE_CHARS) break;
+							const remaining = MAX_REFERENCE_CHARS - charCount;
+							const text = chunk.contentText.slice(0, remaining);
+							productReferenceContext += text + "\n";
+							charCount += text.length;
+						}
+					}
+				}
+			}
+
 			// Fetch mapped AI skills for content generator
 			const skillMappings = await this.prisma.workspaceSkillMapping.findMany({
 				where: { workspaceId: request.workspaceId, generator: "content", isActive: true },
@@ -105,6 +136,16 @@ export class ContentGenerationJob {
 				prompt: request.prompt ?? undefined,
 				referenceImages,
 			};
+
+			// Inject product reference content into generation input
+			if (productReferenceContext) {
+				generationInput.productContext = (generationInput.productContext ?? "") + `\n\nProduct reference materials:\n${productReferenceContext}`;
+			}
+
+			const allRefImages = [...(referenceImages ?? []), ...productReferenceImages];
+			if (allRefImages.length > 0) {
+				generationInput.referenceImages = allRefImages;
+			}
 
 			// Get prompts for logging
 			const { systemPrompt, userPrompt } = buildContentGenerationPrompt(generationInput);
