@@ -265,28 +265,28 @@ export function ContentPreviewModal({
           )}
         </div>
 
-        {/* Footer — Status controls */}
+        {/* Footer — Status dropdown */}
         <div className="flex items-center gap-3 px-5 py-4 border-t border-gray-100 shrink-0">
           <span className="text-xs font-medium text-gray-500">Status:</span>
-          {["approved", "draft", "rejected"].map((status) => (
-            <button
-              key={status}
-              type="button"
+          <div className="relative">
+            <span className={`absolute left-2.5 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full ${
+              currentStatus === "approved" ? "bg-green-500" :
+              currentStatus === "rejected" ? "bg-red-500" : "bg-gray-400"
+            }`} />
+            <select
+              value={currentStatus}
               disabled={updating}
-              onClick={() => handleStatusChange(status)}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors capitalize ${
-                currentStatus === status
-                  ? getStatusStyle(status)
-                  : "bg-white text-gray-400 border-gray-200 hover:border-gray-300"
-              }`}
+              onChange={(e) => handleStatusChange(e.target.value)}
+              className={`appearance-none pl-6 pr-8 py-1.5 text-xs font-medium border rounded-lg cursor-pointer focus:outline-none focus:ring-1 focus:ring-indigo-400 capitalize ${getStatusStyle(currentStatus)}`}
             >
-              <span className={`w-1.5 h-1.5 rounded-full ${
-                status === "approved" ? "bg-green-500" :
-                status === "rejected" ? "bg-red-500" : "bg-gray-400"
-              }`} />
-              {status}
-            </button>
-          ))}
+              <option value="approved">Approved</option>
+              <option value="draft">Draft</option>
+              <option value="rejected">Rejected</option>
+            </select>
+            <svg className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
         </div>
       </div>
     </div>
