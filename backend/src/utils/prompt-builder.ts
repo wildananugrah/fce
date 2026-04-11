@@ -12,9 +12,9 @@ const JSON_ONLY_INSTRUCTION =
 
 const CONTENT_TYPE_FORMAT_INSTRUCTIONS: Record<string, string> = {
 	single_image: `Return JSON with fields: contentTitle (string), content (object with: hook, headline, body, cta, hashtags (array), visualDirection)`,
-	carousel: `Return JSON with fields: contentTitle (string), content (object with: slides (array of objects with: headline, body, visualDirection))`,
-	video: `Return JSON with fields: contentTitle (string), content (object with: scenes (array of objects with: visualDirection, voiceover, onScreenText))`,
-	story: `Return JSON with fields: contentTitle (string), content (object with: frames (array of objects with: visual, textOverlay))`,
+	carousel: `Return JSON with fields: contentTitle (string), content (object with: hook (string - attention-grabbing opening line shown on first slide), caption (string - the post caption shown below the carousel), hashtags (array of strings), cta (string - call to action), slides (array of objects with: headline, body, visualDirection))`,
+	video: `Return JSON with fields: contentTitle (string), content (object with: hook (string - attention-grabbing opening line), caption (string - the post caption), hashtags (array of strings), cta (string - call to action), scenes (array of objects with: visualDirection, voiceover, onScreenText))`,
+	story: `Return JSON with fields: contentTitle (string), content (object with: hook (string - opening text), caption (string), frames (array of objects with: visual, textOverlay))`,
 };
 
 function buildContextBlock(input: {
