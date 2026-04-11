@@ -20,7 +20,7 @@ interface ProductDrawerProps {
   initial?: ProductFormData;
   productId?: string;
   brandId?: string;
-  onSubmit: (data: ProductFormData) => void;
+  onSubmit: (data: ProductFormData) => Promise<void>;
 }
 
 const TABS = [

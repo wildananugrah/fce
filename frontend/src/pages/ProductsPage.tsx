@@ -5,7 +5,7 @@ import { Button } from "../components/ui/Button";
 import { ProductDrawer } from "../components/products/ProductDrawer";
 import { Spinner } from "../components/ui/Spinner";
 import { Toast } from "../components/ui/Toast";
-import { ProductForm, type ProductFormData } from "../components/products/ProductForm";
+import { type ProductFormData } from "../components/products/ProductForm";
 import { Trash2, ImageOff, Brain } from "lucide-react";
 
 interface Brand {
