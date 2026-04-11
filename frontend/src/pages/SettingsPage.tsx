@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "../hooks/useAuth";
+import { useWorkspace } from "../hooks/useWorkspace";
 import { api } from "../services/api";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
@@ -7,10 +8,31 @@ import { Toast } from "../components/ui/Toast";
 
 export function SettingsPage() {
   const { user } = useAuth();
+  const { activeWorkspace } = useWorkspace();
   const [fullName, setFullName] = useState(user?.fullName || "");
   const [avatarUrl, setAvatarUrl] = useState(user?.avatarUrl || "");
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+  const [tokenUsage, setTokenUsage] = useState<{
+    totalInputTokens: number;
+    totalOutputTokens: number;
+    totalTokens: number;
+    totalCost: number;
+    generationCount: number;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!activeWorkspace) return;
+    (async () => {
+      try {
+        const res = await api<{ data: any }>(`/api/workspaces/${activeWorkspace.id}/ai-logs/usage`);
+        const data = (res as any).data ?? res;
+        setTokenUsage(data);
+      } catch {
+        // silent
+      }
+    })();
+  }, [activeWorkspace]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -50,6 +72,33 @@ export function SettingsPage() {
         <Button onClick={handleSave} loading={saving}>
           Save Changes
         </Button>
+      </div>
+
+      {/* Token Usage */}
+      <div className="mt-8 pt-8 border-t border-gray-200">
+        <h2 className="text-sm font-semibold text-gray-800 mb-4">Token Usage</h2>
+        {tokenUsage ? (
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-gray-50 rounded-lg p-3">
+              <p className="text-[10px] text-gray-400 uppercase tracking-wide">Input Tokens</p>
+              <p className="text-lg font-semibold text-gray-900">{tokenUsage.totalInputTokens.toLocaleString()}</p>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-3">
+              <p className="text-[10px] text-gray-400 uppercase tracking-wide">Output Tokens</p>
+              <p className="text-lg font-semibold text-gray-900">{tokenUsage.totalOutputTokens.toLocaleString()}</p>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-3">
+              <p className="text-[10px] text-gray-400 uppercase tracking-wide">Total Tokens</p>
+              <p className="text-lg font-semibold text-gray-900">{tokenUsage.totalTokens.toLocaleString()}</p>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-3">
+              <p className="text-[10px] text-gray-400 uppercase tracking-wide">Generations</p>
+              <p className="text-lg font-semibold text-gray-900">{tokenUsage.generationCount.toLocaleString()}</p>
+            </div>
+          </div>
+        ) : (
+          <p className="text-xs text-gray-400">Loading usage data...</p>
+        )}
       </div>
 
       {toast && (
