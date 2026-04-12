@@ -67,20 +67,25 @@ export function ResearchRunDetail() {
 	}
 
 	if (!run) {
-		return <p className="text-zinc-400 text-center py-12">Run not found.</p>;
+		return <p className="text-sm text-gray-400 text-center py-12">Run not found.</p>;
 	}
 
 	return (
-		<div className="space-y-6 p-6">
-			<div className="flex items-center gap-4">
-				<button onClick={() => navigate("/research")} className="text-zinc-400 hover:text-zinc-200">
-					<ArrowLeft size={20} />
+		<div className="p-6 max-w-6xl">
+			{/* Header */}
+			<div className="flex items-center gap-4 mb-6">
+				<button
+					type="button"
+					onClick={() => navigate("/research")}
+					className="p-1.5 text-gray-400 hover:text-gray-700 rounded-md hover:bg-gray-100 transition-colors"
+				>
+					<ArrowLeft size={18} />
 				</button>
-				<div className="flex-1">
-					<h1 className="text-xl font-bold text-zinc-100">
+				<div className="flex-1 min-w-0">
+					<h1 className="text-xl font-semibold text-gray-900">
 						{run.actorType.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())} Run
 					</h1>
-					<p className="text-sm text-zinc-400 mt-0.5">
+					<p className="text-sm text-gray-500 mt-0.5">
 						{new Date(run.createdAt).toLocaleString()} · {run.resultCount} results
 					</p>
 				</div>
@@ -88,46 +93,48 @@ export function ResearchRunDetail() {
 			</div>
 
 			{run.errorMessage && (
-				<div className="rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">
+				<div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 mb-6">
 					{run.errorMessage}
 				</div>
 			)}
 
 			{run.results.length === 0 ? (
-				<p className="text-zinc-500 text-center py-12">
-					{run.status === "running" ? "Run in progress, results will appear when complete..." : "No results."}
-				</p>
+				<div className="bg-white border border-gray-200 rounded-lg p-12 text-center">
+					<p className="text-sm text-gray-400">
+						{run.status === "running" ? "Run in progress, results will appear when complete..." : "No results."}
+					</p>
+				</div>
 			) : (
-				<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+				<div className="grid grid-cols-1 md:grid-cols-2 gap-3">
 					{run.results.map((result) => {
 						const meta = result.metadata as Record<string, any>;
 						return (
 							<div
 								key={result.id}
-								className="rounded-xl border border-zinc-700/50 bg-zinc-800/50 p-5 space-y-3"
+								className="rounded-lg border border-gray-200 bg-white p-4 space-y-2.5 hover:border-gray-300 transition-colors"
 							>
 								{result.title && (
-									<h3 className="font-medium text-zinc-100 truncate">{result.title}</h3>
+									<h3 className="text-sm font-semibold text-gray-900 line-clamp-2">{result.title}</h3>
 								)}
-								<p className="text-sm text-zinc-300 line-clamp-4">{result.content}</p>
+								<p className="text-xs text-gray-600 line-clamp-4 leading-relaxed">{result.content}</p>
 
 								{meta.platform && (
-									<div className="flex flex-wrap gap-2 text-xs text-zinc-400">
-										{meta.likesCount != null && <span>Likes: {meta.likesCount.toLocaleString()}</span>}
-										{meta.commentsCount != null && <span>Comments: {meta.commentsCount.toLocaleString()}</span>}
-										{meta.diggCount != null && <span>Likes: {meta.diggCount.toLocaleString()}</span>}
-										{meta.playCount != null && <span>Views: {meta.playCount.toLocaleString()}</span>}
-										{meta.shares != null && <span>Shares: {meta.shares.toLocaleString()}</span>}
-										{meta.position != null && <span>Position: #{meta.position}</span>}
+									<div className="flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-gray-400">
+										{meta.likesCount != null && <span>♡ {meta.likesCount.toLocaleString()}</span>}
+										{meta.commentsCount != null && <span>💬 {meta.commentsCount.toLocaleString()}</span>}
+										{meta.diggCount != null && <span>♡ {meta.diggCount.toLocaleString()}</span>}
+										{meta.playCount != null && <span>▶ {meta.playCount.toLocaleString()}</span>}
+										{meta.shares != null && <span>↗ {meta.shares.toLocaleString()}</span>}
+										{meta.position != null && <span>#{meta.position}</span>}
 										{meta.hashtags?.length > 0 && (
-											<span>#{meta.hashtags.slice(0, 5).join(" #")}</span>
+											<span className="text-indigo-500">#{meta.hashtags.slice(0, 3).join(" #")}</span>
 										)}
 									</div>
 								)}
 
 								<div className="flex items-center gap-2 pt-1">
 									<Button size="sm" onClick={() => handleUseAsInspiration(result)}>
-										<Sparkles size={14} className="mr-1" />
+										<Sparkles size={12} className="mr-1" />
 										Use as Inspiration
 									</Button>
 									{result.url && (
@@ -135,9 +142,9 @@ export function ResearchRunDetail() {
 											href={result.url}
 											target="_blank"
 											rel="noopener noreferrer"
-											className="inline-flex items-center gap-1 text-xs text-zinc-400 hover:text-zinc-200"
+											className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 transition-colors"
 										>
-											<ExternalLink size={12} /> Source
+											<ExternalLink size={11} /> Source
 										</a>
 									)}
 								</div>
