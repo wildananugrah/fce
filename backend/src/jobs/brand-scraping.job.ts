@@ -1,7 +1,9 @@
 import type { PrismaClient } from "@prisma/client";
+import type { IApifyProvider } from "../interfaces/providers/apify.interface";
 import type { IBrandScraper } from "../interfaces/providers/brand-scraper.interface";
 import type { ILogger } from "../interfaces/providers/logger.provider.interface";
 import type { INotificationService } from "../interfaces/services/notification.service.interface";
+import { WebsiteCrawlerParser } from "../providers/apify-parsers/website-crawler.parser";
 
 interface BrandScrapingJobData {
 	brandId: string;
@@ -15,14 +17,71 @@ export class BrandScrapingJob {
 		private brandScraper: IBrandScraper,
 		private notificationService: INotificationService,
 		private logger: ILogger,
+		private apifyProvider?: IApifyProvider,
 	) {}
 
 	async handle(data: BrandScrapingJobData): Promise<void> {
 		const { brandId, url, userId } = data;
 
 		try {
-			// Scrape brand data from URL
-			const scraped = await this.brandScraper.scrape({ url });
+			// Apify pre-step: enrich with structured content if API key available
+			let enrichedContent: string | undefined;
+			if (this.apifyProvider) {
+				try {
+					const settings = await this.prisma.workspaceSetting.findFirst({
+						where: {
+							workspace: {
+								brands: { some: { id: brandId } },
+							},
+						},
+					});
+					if (settings?.apifyApiKey) {
+						this.logger.info("Using Apify to pre-scrape brand URL", { brandId, url });
+						const { runId } = await this.apifyProvider.runActor(
+							"apify/website-content-crawler",
+							{ startUrls: [{ url }], maxCrawlPages: 5 },
+							settings.apifyApiKey,
+						);
+
+						// Wait for Apify completion (max 2 min for brand scraping)
+						let delay = 1000;
+						const start = Date.now();
+						while (Date.now() - start < 120000) {
+							await new Promise((r) => setTimeout(r, delay));
+							const status = await this.apifyProvider.getRunStatus(runId, settings.apifyApiKey);
+							if (status.status === "SUCCEEDED") break;
+							if (status.status === "FAILED" || status.status === "ABORTED") break;
+							delay = Math.min(delay * 2, 15000);
+						}
+
+						const rawResults = await this.apifyProvider.getRunResults(runId, settings.apifyApiKey);
+						const parser = new WebsiteCrawlerParser();
+						const parsed = parser.parse(rawResults);
+						if (parsed.length > 0) {
+							enrichedContent = parsed
+								.slice(0, 5)
+								.map((p) => `## ${p.title || "Page"}\n${p.content}`)
+								.join("\n\n---\n\n")
+								.slice(0, 10000);
+							this.logger.info("Apify enrichment complete", {
+								brandId,
+								pages: parsed.length,
+								chars: enrichedContent.length,
+							});
+						}
+					}
+				} catch (err) {
+					this.logger.warn("Apify pre-step failed, falling back to AI-only scraping", {
+						brandId,
+						error: err instanceof Error ? err.message : String(err),
+					});
+				}
+			}
+
+			// Scrape brand data from URL (with optional enriched content)
+			const scraped = enrichedContent
+				? await this.brandScraper.scrape({ url, enrichedContent } as any)
+				: await this.brandScraper.scrape({ url });
 
 			// Determine next version number
 			const latest = await this.prisma.brandBrainVersion.findFirst({
