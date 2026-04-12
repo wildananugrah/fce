@@ -17,6 +17,7 @@ import {
   Check,
   Plus,
   LogOut,
+  Search,
 } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import { useWorkspace } from "../../hooks/useWorkspace";
@@ -66,6 +67,12 @@ const navSections: NavSection[] = [
       { to: "/content-library", label: "Content Library", icon: Library },
       { to: "/skills", label: "AI Skills", icon: Brain },
       { to: "/learning", label: "Learning Center", icon: GraduationCap },
+    ],
+  },
+  {
+    label: "Research",
+    items: [
+      { to: "/research", label: "Research Hub", icon: Search },
     ],
   },
 ];

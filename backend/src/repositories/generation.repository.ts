@@ -75,7 +75,11 @@ export class GenerationRepository implements IGenerationRepository {
 		return this.prisma.generationOutput.findMany({
 			where: {
 				requestId: { in: requestIds.map((r) => r.id) },
-				...(status ? (status.includes(",") ? { status: { in: status.split(",") } } : { status }) : {}),
+				...(status
+					? status.includes(",")
+						? { status: { in: status.split(",") } }
+						: { status }
+					: {}),
 			},
 			include: {
 				request: {

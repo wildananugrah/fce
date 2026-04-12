@@ -14,4 +14,5 @@ export interface CreateGenerationInput {
 	visualStyle?: string;
 	outputLength?: string;
 	referenceImages?: string[];
+	researchContext?: string;
 }

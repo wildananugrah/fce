@@ -66,7 +66,16 @@
       "Bash(unzip -o /Users/bellinnn/Documents/projects/fce/req-to-solution.skill -d /Users/bellinnn/Documents/projects/fce/.claude/skills/)",
       "Bash(bun -e \"const m = await import\\('pdf-parse'\\); console.log\\('type:', typeof m\\); console.log\\('keys:', Object.keys\\(m\\)\\); console.log\\('type default:', typeof m.default\\); if \\(m.default\\) { console.log\\('default keys:', Object.keys\\(m.default\\)\\); console.log\\('type default.default:', typeof m.default.default\\); }\")",
       "Bash(bun -e \"const m = await import\\('pdf-parse'\\); console.log\\('PDFParse type:', typeof m.PDFParse\\); const p = new m.PDFParse\\(\\); console.log\\('instance methods:', Object.getOwnPropertyNames\\(Object.getPrototypeOf\\(p\\)\\)\\);\")",
-      "Bash(bun -e ':*)"
+      "Bash(bun -e ':*)",
+      "Bash(ls /Users/bellinnn/Documents/projects/fce/.claude/worktrees/zen-allen/backend/.env*)",
+      "Read(//Users/bellinnn/Documents/projects/fce/**)",
+      "Bash(ls /Users/bellinnn/Documents/projects/fce/backend/.env*)",
+      "Bash(bun install:*)",
+      "Bash(tsc -b)",
+      "Bash(ls node_modules/.bin/tsc*)",
+      "Bash(npm install:*)",
+      "Bash(node -e \"const l = require\\('/Users/bellinnn/Documents/projects/fce/.claude/worktrees/zen-allen/frontend/node_modules/lucide-react'\\); const names = Object.keys\\(l\\).filter\\(k => k.toLowerCase\\(\\).includes\\('instagram'\\) || k.toLowerCase\\(\\).includes\\('facebook'\\)\\); console.log\\(names\\);\")",
+      "Bash(node -e \"const l = require\\('/Users/bellinnn/Documents/projects/fce/.claude/worktrees/zen-allen/frontend/node_modules/lucide-react'\\); const names = Object.keys\\(l\\).filter\\(k => /camera|image|user|globe|hash/i.test\\(k\\)\\).slice\\(0,20\\); console.log\\(names\\);\")"
     ],
     "additionalDirectories": [
       "/Users/wildananugrah/Documents/My-Projects/fce/.git"

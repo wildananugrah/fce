@@ -33,6 +33,7 @@ export function createGenerationRoutes(generationService: IGenerationService) {
 			visualStyle: body.visualStyle,
 			outputLength: body.outputLength,
 			referenceImages: body.referenceImages,
+			researchContext: body.researchContext,
 		});
 
 		return c.json({ data: request }, 201);
