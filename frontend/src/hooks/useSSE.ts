@@ -47,6 +47,14 @@ export function useSSE(onEvent: (event: SSEEvent) => void) {
       onEventRef.current({ type: "brand_scraped", data: JSON.parse(e.data) });
     });
 
+    es.addEventListener("research_run_complete", (e) => {
+      onEventRef.current({ type: "research_run_complete", data: JSON.parse(e.data) });
+    });
+
+    es.addEventListener("research_run_failed", (e) => {
+      onEventRef.current({ type: "research_run_failed", data: JSON.parse(e.data) });
+    });
+
     es.onerror = () => {
       es.close();
       // Reconnect after 3s

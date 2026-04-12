@@ -19,6 +19,8 @@ import { LearningPage } from "./pages/LearningPage";
 import { SkillsPage } from "./pages/SkillsPage";
 import { BrandDetailPage } from "./pages/BrandDetailPage";
 import { ProductDetailPage } from "./pages/ProductDetailPage";
+import { ResearchPage } from "./pages/Research/ResearchPage";
+import { ResearchRunDetail } from "./pages/Research/ResearchRunDetail";
 
 export default function App() {
   return (
@@ -39,6 +41,8 @@ export default function App() {
               <Route path="/topics" element={<TopicsPage />} />
               <Route path="/topic-library" element={<TopicLibraryPage />} />
               <Route path="/content-library" element={<LibraryPage />} />
+              <Route path="/research" element={<ResearchPage />} />
+              <Route path="/research/:runId" element={<ResearchRunDetail />} />
               <Route path="/learning" element={<LearningPage />} />
               <Route path="/skills" element={<SkillsPage />} />
               <Route path="/settings" element={<SettingsPage />} />
