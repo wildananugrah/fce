@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Trash2, Globe, Dna } from "lucide-react";
+import { Trash2, Globe, Dna, Copy, ExternalLink, Check } from "lucide-react";
 import { useWorkspace } from "../hooks/useWorkspace";
 import { api } from "../services/api";
 import { Button } from "../components/ui/Button";
@@ -50,6 +50,17 @@ export function BrandsPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [selectedBrand, setSelectedBrand] = useState<Brand | null>(null);
   const [toast, setToast] = useState<ToastState>(null);
+  const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
+
+  const handleCopyUrl = async (url: string) => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedUrl(url);
+      setTimeout(() => setCopiedUrl(null), 1500);
+    } catch {
+      // ignore
+    }
+  };
 
   const showToast = (message: string, type: "success" | "error" | "info") => {
     setToast({ message, type });
@@ -135,9 +146,17 @@ export function BrandsPage() {
                   <Trash2 size={14} />
                 </button>
 
-                <button
+                <div
+                  role="button"
+                  tabIndex={0}
                   onClick={() => setSelectedBrand(brand)}
-                  className="text-left w-full"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setSelectedBrand(brand);
+                    }
+                  }}
+                  className="text-left w-full cursor-pointer"
                 >
                   {/* Header */}
                   <div className="p-4 pb-2.5">
@@ -155,9 +174,42 @@ export function BrandsPage() {
 
                     {/* Website URL */}
                     {brand.websiteUrl && (
-                      <div className="flex items-center gap-1.5 mb-2">
+                      <div className="flex items-center gap-1.5 mb-2 group/url">
                         <Globe size={12} className="text-gray-400 shrink-0" />
-                        <span className="text-xs text-indigo-600 truncate">{brand.websiteUrl}</span>
+                        <a
+                          href={brand.websiteUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-xs text-indigo-600 truncate hover:underline"
+                        >
+                          {brand.websiteUrl}
+                        </a>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleCopyUrl(brand.websiteUrl!);
+                          }}
+                          className="ml-auto p-1 text-gray-300 hover:text-indigo-600 opacity-0 group-hover/url:opacity-100 transition-opacity rounded"
+                          title="Copy URL"
+                        >
+                          {copiedUrl === brand.websiteUrl ? (
+                            <Check size={12} className="text-green-500" />
+                          ) : (
+                            <Copy size={12} />
+                          )}
+                        </button>
+                        <a
+                          href={brand.websiteUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="p-1 text-gray-300 hover:text-indigo-600 opacity-0 group-hover/url:opacity-100 transition-opacity rounded"
+                          title="Open in new tab"
+                        >
+                          <ExternalLink size={12} />
+                        </a>
                       </div>
                     )}
 
@@ -223,7 +275,7 @@ export function BrandsPage() {
                       <p className="text-xs text-gray-400">No brain versions yet</p>
                     </div>
                   )}
-                </button>
+                </div>
               </div>
             );
           })}
