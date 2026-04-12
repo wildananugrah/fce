@@ -23,6 +23,7 @@ model User {
   invitations       WorkspaceInvitation[]
   auditLogs         AuditLog[]
   createdWorkspaces Workspace[]           @relation("WorkspaceCreator")
+  researchRuns      ResearchRun[]
 
   @@map("users")
 }
@@ -53,8 +54,11 @@ model Workspace {
   auditLogs      AuditLog[]
   documents      BrandDocument[]
   savedTemplates SavedTemplate[]
-  skillMappings  WorkspaceSkillMapping[]
-  aiProviderLogs AiProviderLog[]
+  skillMappings    WorkspaceSkillMapping[]
+  aiProviderLogs   AiProviderLog[]
+  workspaceSetting WorkspaceSetting?
+  researchRuns     ResearchRun[]
+  researchResults  ResearchResult[]
 
   @@map("workspaces")
 }
@@ -109,6 +113,7 @@ model Brand {
   products           Product[]
   contentTopics      ContentTopic[]
   generationRequests GenerationRequest[]
+  researchRuns       ResearchRun[]
 
   @@unique([workspaceId, slug])
   @@map("brands")
@@ -636,4 +641,66 @@ model AiProviderLog {
   @@index([generator])
   @@index([createdAt])
   @@map("ai_provider_logs")
+}
+
+// ─── Research / Apify ──────────────────────────────────────────
+
+model WorkspaceSetting {
+  id          String   @id @default(uuid())
+  workspaceId String   @unique @map("workspace_id")
+  apifyApiKey String?  @map("apify_api_key")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@map("workspace_settings")
+}
+
+model ResearchRun {
+  id           String    @id @default(uuid())
+  workspaceId  String    @map("workspace_id")
+  userId       String    @map("user_id")
+  brandId      String?   @map("brand_id")
+  actorType    String    @map("actor_type")
+  actorId      String    @map("actor_id")
+  input        Json
+  apifyRunId   String?   @map("apify_run_id")
+  status       String    @default("pending")
+  errorMessage String?   @map("error_message")
+  resultCount  Int       @default(0) @map("result_count")
+  startedAt    DateTime? @map("started_at")
+  completedAt  DateTime? @map("completed_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  workspace Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  brand     Brand?           @relation(fields: [brandId], references: [id], onDelete: SetNull)
+  results   ResearchResult[]
+
+  @@index([workspaceId])
+  @@index([userId])
+  @@index([brandId])
+  @@index([status])
+  @@map("research_runs")
+}
+
+model ResearchResult {
+  id          String   @id @default(uuid())
+  runId       String   @map("run_id")
+  workspaceId String   @map("workspace_id")
+  dataType    String   @map("data_type")
+  title       String?
+  url         String?
+  content     String
+  metadata    Json     @default("{}")
+  scrapedAt   DateTime @map("scraped_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  run       ResearchRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  workspace Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([runId])
+  @@index([workspaceId])
+  @@map("research_results")
 }
