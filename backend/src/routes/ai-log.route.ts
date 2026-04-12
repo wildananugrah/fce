@@ -84,6 +84,61 @@ export function createAiLogRoutes(prisma: PrismaClient) {
 		});
 	});
 
+	// GET /usage/daily — Daily token usage for current user (last 30 days)
+	app.get("/usage/daily", async (c) => {
+		const workspaceId = c.get("workspaceId");
+		const userId = c.get("userId");
+		const daysParam = Number.parseInt(c.req.query("days") ?? "30");
+		const days = Math.min(Math.max(daysParam, 1), 90);
+
+		const since = new Date();
+		since.setDate(since.getDate() - days);
+		since.setHours(0, 0, 0, 0);
+
+		const logs = await prisma.aiProviderLog.findMany({
+			where: {
+				workspaceId,
+				userId,
+				createdAt: { gte: since },
+			},
+			select: {
+				inputTokens: true,
+				outputTokens: true,
+				createdAt: true,
+			},
+			orderBy: { createdAt: "asc" },
+		});
+
+		// Group by day
+		const byDay = new Map<string, { inputTokens: number; outputTokens: number; count: number }>();
+		for (const log of logs) {
+			const day = log.createdAt.toISOString().slice(0, 10); // YYYY-MM-DD
+			const entry = byDay.get(day) ?? { inputTokens: 0, outputTokens: 0, count: 0 };
+			entry.inputTokens += log.inputTokens ?? 0;
+			entry.outputTokens += log.outputTokens ?? 0;
+			entry.count += 1;
+			byDay.set(day, entry);
+		}
+
+		// Fill in missing days with zeros
+		const result: Array<{ date: string; inputTokens: number; outputTokens: number; totalTokens: number; count: number }> = [];
+		for (let i = 0; i < days; i++) {
+			const d = new Date(since);
+			d.setDate(d.getDate() + i);
+			const key = d.toISOString().slice(0, 10);
+			const entry = byDay.get(key) ?? { inputTokens: 0, outputTokens: 0, count: 0 };
+			result.push({
+				date: key,
+				inputTokens: entry.inputTokens,
+				outputTokens: entry.outputTokens,
+				totalTokens: entry.inputTokens + entry.outputTokens,
+				count: entry.count,
+			});
+		}
+
+		return c.json({ data: result });
+	});
+
 	// GET /:id — Get full log detail (includes prompts and response)
 	app.get("/:id", async (c) => {
 		const workspaceId = c.get("workspaceId");
