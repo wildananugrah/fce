@@ -58,9 +58,12 @@ export class ContentGenerationJob {
 
 			// Build product contexts (multiple)
 			let productContext: string | undefined;
-			const resolvedProductIds = productIds && productIds.length > 0
-				? productIds
-				: request.productId ? [request.productId] : [];
+			const resolvedProductIds =
+				productIds && productIds.length > 0
+					? productIds
+					: request.productId
+						? [request.productId]
+						: [];
 
 			// Split queries to avoid Prisma 7 WASM "Out of bounds memory access" bug
 			const fetchProductSafely = async (pid: string) => {
@@ -100,9 +103,13 @@ export class ContentGenerationJob {
 				for (const pid of resolvedProductIds) {
 					const product = await fetchProductSafely(pid);
 					if (product?.brainVersions[0]) {
-						contexts.push(`Product "${(product as any).name}":\n${JSON.stringify(product.brainVersions[0])}`);
+						contexts.push(
+							`Product "${(product as any).name}":\n${JSON.stringify(product.brainVersions[0])}`,
+						);
 					} else if (product) {
-						contexts.push(`Product "${(product as any).name}":\n${JSON.stringify({ name: (product as any).name })}`);
+						contexts.push(
+							`Product "${(product as any).name}":\n${JSON.stringify({ name: (product as any).name })}`,
+						);
 					}
 				}
 				if (contexts.length > 0) {
@@ -186,7 +193,9 @@ export class ContentGenerationJob {
 
 			// Inject product reference content into generation input
 			if (productReferenceContext) {
-				generationInput.productContext = (generationInput.productContext ?? "") + `\n\nProduct reference materials:\n${productReferenceContext}`;
+				generationInput.productContext =
+					(generationInput.productContext ?? "") +
+					`\n\nProduct reference materials:\n${productReferenceContext}`;
 				this.logger.info("Product references injected into content generation", {
 					requestId,
 					charCount: productReferenceContext.length,

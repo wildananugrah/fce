@@ -49,9 +49,16 @@ export class MockResearchRepository implements IResearchRepository {
 	async createResults(runId: string, workspaceId: string, results: any[]): Promise<number> {
 		for (const r of results) {
 			this.results.push({
-				id: crypto.randomUUID(), runId, workspaceId,
-				dataType: r.dataType, title: r.title ?? null, url: r.url ?? null,
-				content: r.content, metadata: r.metadata, scrapedAt: r.scrapedAt, createdAt: new Date(),
+				id: crypto.randomUUID(),
+				runId,
+				workspaceId,
+				dataType: r.dataType,
+				title: r.title ?? null,
+				url: r.url ?? null,
+				content: r.content,
+				metadata: r.metadata,
+				scrapedAt: r.scrapedAt,
+				createdAt: new Date(),
 			} as any);
 		}
 		return results.length;
@@ -69,16 +76,21 @@ export class MockResearchRepository implements IResearchRepository {
 		return this.settings.find((s) => s.workspaceId === workspaceId) ?? null;
 	}
 
-	async upsertWorkspaceSetting(workspaceId: string, data: { apifyApiKey?: string | null }): Promise<WorkspaceSetting> {
+	async upsertWorkspaceSetting(
+		workspaceId: string,
+		data: { apifyApiKey?: string | null },
+	): Promise<WorkspaceSetting> {
 		const idx = this.settings.findIndex((s) => s.workspaceId === workspaceId);
 		if (idx >= 0) {
 			this.settings[idx] = { ...this.settings[idx], ...data, updatedAt: new Date() } as any;
 			return this.settings[idx];
 		}
 		const setting = {
-			id: crypto.randomUUID(), workspaceId,
+			id: crypto.randomUUID(),
+			workspaceId,
 			apifyApiKey: data.apifyApiKey ?? null,
-			createdAt: new Date(), updatedAt: new Date(),
+			createdAt: new Date(),
+			updatedAt: new Date(),
 		} as WorkspaceSetting;
 		this.settings.push(setting);
 		return setting;

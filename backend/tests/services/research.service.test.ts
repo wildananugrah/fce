@@ -21,14 +21,18 @@ describe("ResearchService", () => {
 	describe("createRun", () => {
 		it("should throw if no Apify key is configured", async () => {
 			await expect(
-				service.createRun(workspaceId, userId, { actorType: "instagram", input: { username: "test" } }),
+				service.createRun(workspaceId, userId, {
+					actorType: "instagram",
+					input: { username: "test" },
+				}),
 			).rejects.toThrow("Apify API key not configured");
 		});
 
 		it("should create a run when Apify key exists", async () => {
 			await repo.upsertWorkspaceSetting(workspaceId, { apifyApiKey: "apify_api_test123" });
 			const run = await service.createRun(workspaceId, userId, {
-				actorType: "instagram", input: { username: "competitor" },
+				actorType: "instagram",
+				input: { username: "competitor" },
 			});
 			expect(run.workspaceId).toBe(workspaceId);
 			expect(run.userId).toBe(userId);
@@ -47,8 +51,14 @@ describe("ResearchService", () => {
 	describe("listRuns", () => {
 		it("should return runs for workspace", async () => {
 			await repo.upsertWorkspaceSetting(workspaceId, { apifyApiKey: "apify_api_test123" });
-			await service.createRun(workspaceId, userId, { actorType: "instagram", input: { username: "a" } });
-			await service.createRun(workspaceId, userId, { actorType: "google_search", input: { query: "test" } });
+			await service.createRun(workspaceId, userId, {
+				actorType: "instagram",
+				input: { username: "a" },
+			});
+			await service.createRun(workspaceId, userId, {
+				actorType: "google_search",
+				input: { query: "test" },
+			});
 			const runs = await service.listRuns(workspaceId);
 			expect(runs).toHaveLength(2);
 		});

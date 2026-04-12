@@ -23,7 +23,18 @@ export function createTopicRoutes(topicService: ITopicService) {
 		const workspaceId = c.get("workspaceId");
 		const userId = c.get("userId");
 		const body = await c.req.json();
-		const { brandId, productIds, platform, objective, formats, dateFrom, dateTo, count, prompt, referenceImages } = body;
+		const {
+			brandId,
+			productIds,
+			platform,
+			objective,
+			formats,
+			dateFrom,
+			dateTo,
+			count,
+			prompt,
+			referenceImages,
+		} = body;
 		const result = await topicService.generate(workspaceId, userId, {
 			brandId,
 			productIds,

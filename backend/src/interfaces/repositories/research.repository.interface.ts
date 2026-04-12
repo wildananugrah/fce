@@ -5,7 +5,12 @@ export interface IResearchRepository {
 	findRunsByWorkspace(
 		workspaceId: string,
 		filters?: ResearchRunFilters,
-	): Promise<(ResearchRun & { brand: { name: string } | null; user: { fullName: string | null; email: string } })[]>;
+	): Promise<
+		(ResearchRun & {
+			brand: { name: string } | null;
+			user: { fullName: string | null; email: string };
+		})[]
+	>;
 	findRunById(id: string): Promise<(ResearchRun & { results: ResearchResult[] }) | null>;
 	createRun(data: {
 		workspaceId: string;
@@ -31,5 +36,8 @@ export interface IResearchRepository {
 	findResultById(id: string): Promise<ResearchResult | null>;
 	findResultsByRun(runId: string, skip?: number, take?: number): Promise<ResearchResult[]>;
 	getWorkspaceSetting(workspaceId: string): Promise<WorkspaceSetting | null>;
-	upsertWorkspaceSetting(workspaceId: string, data: { apifyApiKey?: string | null }): Promise<WorkspaceSetting>;
+	upsertWorkspaceSetting(
+		workspaceId: string,
+		data: { apifyApiKey?: string | null },
+	): Promise<WorkspaceSetting>;
 }

@@ -2,7 +2,11 @@ import type { ResearchResult, ResearchRun } from "@prisma/client";
 import type { CreateResearchRunInput, ResearchRunFilters } from "../../types/research.types";
 
 export interface IResearchService {
-	createRun(workspaceId: string, userId: string, input: CreateResearchRunInput): Promise<ResearchRun>;
+	createRun(
+		workspaceId: string,
+		userId: string,
+		input: CreateResearchRunInput,
+	): Promise<ResearchRun>;
 	listRuns(workspaceId: string, filters?: ResearchRunFilters): Promise<any[]>;
 	getRun(runId: string): Promise<any>;
 	getRunResults(runId: string, skip?: number, take?: number): Promise<ResearchResult[]>;

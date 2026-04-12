@@ -70,7 +70,11 @@ export class ResearchRunJob {
 				if (status.status === "SUCCEEDED") {
 					break;
 				}
-				if (status.status === "FAILED" || status.status === "ABORTED" || status.status === "TIMED-OUT") {
+				if (
+					status.status === "FAILED" ||
+					status.status === "ABORTED" ||
+					status.status === "TIMED-OUT"
+				) {
 					await this.failRun(run.id, run.userId, run.actorType, `Apify run ${status.status}`);
 					return;
 				}
@@ -79,7 +83,12 @@ export class ResearchRunJob {
 			}
 
 			if (Date.now() - startTime >= timeout) {
-				await this.failRun(run.id, run.userId, run.actorType, "Apify run timed out after 5 minutes");
+				await this.failRun(
+					run.id,
+					run.userId,
+					run.actorType,
+					"Apify run timed out after 5 minutes",
+				);
 				return;
 			}
 
@@ -88,18 +97,20 @@ export class ResearchRunJob {
 
 			let resultCount = 0;
 			if (parsed.length > 0) {
-				resultCount = await this.prisma.researchResult.createMany({
-					data: parsed.map((r) => ({
-						runId: run.id,
-						workspaceId: run.workspaceId,
-						dataType: r.dataType,
-						title: r.title ?? null,
-						url: r.url ?? null,
-						content: r.content,
-						metadata: r.metadata,
-						scrapedAt: r.scrapedAt,
-					})),
-				}).then((r) => r.count);
+				resultCount = await this.prisma.researchResult
+					.createMany({
+						data: parsed.map((r) => ({
+							runId: run.id,
+							workspaceId: run.workspaceId,
+							dataType: r.dataType,
+							title: r.title ?? null,
+							url: r.url ?? null,
+							content: r.content,
+							metadata: r.metadata,
+							scrapedAt: r.scrapedAt,
+						})),
+					})
+					.then((r) => r.count);
 			}
 
 			await this.prisma.researchRun.update({

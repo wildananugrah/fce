@@ -2,9 +2,9 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
 	Globe,
-	Instagram,
+	Camera,
 	Music2,
-	Facebook,
+	MessageCircle,
 	TrendingUp,
 	Search,
 	Play,
@@ -34,9 +34,9 @@ interface Brand {
 
 const ACTORS = [
 	{ type: "website_crawler", label: "Website Crawler", description: "Extract content from any website", icon: Globe },
-	{ type: "instagram", label: "Instagram", description: "Scrape posts from an account", icon: Instagram },
+	{ type: "instagram", label: "Instagram", description: "Scrape posts from an account", icon: Camera },
 	{ type: "tiktok", label: "TikTok", description: "Scrape videos from an account", icon: Music2 },
-	{ type: "facebook", label: "Facebook", description: "Scrape posts from a page", icon: Facebook },
+	{ type: "facebook", label: "Facebook", description: "Scrape posts from a page", icon: MessageCircle },
 	{ type: "google_trends", label: "Google Trends", description: "Discover trending topics", icon: TrendingUp },
 	{ type: "google_search", label: "Google Search", description: "Analyze search results", icon: Search },
 ] as const;

@@ -9,11 +9,7 @@ export interface ApifyResultItem {
 }
 
 export interface IApifyProvider {
-	runActor(
-		actorId: string,
-		input: Record<string, any>,
-		apiKey: string,
-	): Promise<{ runId: string }>;
+	runActor(actorId: string, input: Record<string, any>, apiKey: string): Promise<{ runId: string }>;
 	getRunStatus(runId: string, apiKey: string): Promise<ApifyRunStatus>;
 	getRunResults(runId: string, apiKey: string): Promise<ApifyResultItem[]>;
 	testConnection(apiKey: string): Promise<boolean>;

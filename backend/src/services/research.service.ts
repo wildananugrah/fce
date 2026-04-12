@@ -1,6 +1,6 @@
-import type { PgBoss } from "pg-boss";
 import type { ResearchResult, ResearchRun } from "@prisma/client";
-import { APIFY_ACTORS, type ActorType } from "../config/apify-actors";
+import type { PgBoss } from "pg-boss";
+import { type ActorType, APIFY_ACTORS } from "../config/apify-actors";
 import type { IApifyProvider } from "../interfaces/providers/apify.interface";
 import type { ILogger } from "../interfaces/providers/logger.provider.interface";
 import type { IResearchRepository } from "../interfaces/repositories/research.repository.interface";
@@ -15,12 +15,17 @@ export class ResearchService implements IResearchService {
 		private logger: ILogger,
 	) {}
 
-	async createRun(workspaceId: string, userId: string, input: CreateResearchRunInput): Promise<ResearchRun> {
+	async createRun(
+		workspaceId: string,
+		userId: string,
+		input: CreateResearchRunInput,
+	): Promise<ResearchRun> {
 		const actorConfig = APIFY_ACTORS[input.actorType];
 		if (!actorConfig) throw new Error(`Unknown actor type: ${input.actorType}`);
 
 		const settings = await this.researchRepository.getWorkspaceSetting(workspaceId);
-		if (!settings?.apifyApiKey) throw new Error("Apify API key not configured. Set it in workspace settings.");
+		if (!settings?.apifyApiKey)
+			throw new Error("Apify API key not configured. Set it in workspace settings.");
 
 		const run = await this.researchRepository.createRun({
 			workspaceId,
