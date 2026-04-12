@@ -12,6 +12,7 @@ import { Select } from "../components/ui/Select";
 import { Badge } from "../components/ui/Badge";
 import { Spinner } from "../components/ui/Spinner";
 import { Toast } from "../components/ui/Toast";
+import { TokenUsageSection } from "../components/token-usage/TokenUsageSection";
 
 type ToastState = { message: string; type: "success" | "error" | "info" } | null;
 
@@ -33,6 +34,7 @@ const TABS = [
   { key: "general", label: "General" },
   { key: "team", label: "Team" },
   { key: "invitations", label: "Invitations" },
+  { key: "usage", label: "Token Usage" },
   { key: "integrations", label: "Integrations" },
 ];
 
@@ -719,6 +721,15 @@ export function WorkspaceSettingsPage() {
 
         {activeTab === "invitations" && (
           <InvitationsTab workspaceId={activeWorkspace.id} onToast={showToast} />
+        )}
+
+        {activeTab === "usage" && (
+          <TokenUsageSection
+            workspaceId={activeWorkspace.id}
+            scope="workspace"
+            title="Workspace Token Usage"
+            description={`Total tokens consumed by all members in ${activeWorkspace.name}.`}
+          />
         )}
 
         {activeTab === "integrations" && activeWorkspace && (

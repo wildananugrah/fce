@@ -55,13 +55,20 @@ export function createAiLogRoutes(prisma: PrismaClient) {
 		return c.json({ data: logs, total });
 	});
 
-	// GET /usage — Token usage summary for current user
+	// GET /usage — Token usage summary
+	// ?scope=workspace → all users in this workspace; default → current user only
 	app.get("/usage", async (c) => {
 		const workspaceId = c.get("workspaceId");
 		const userId = c.get("userId");
+		const scope = c.req.query("scope") ?? "user";
+
+		const where: Record<string, unknown> = { workspaceId };
+		if (scope !== "workspace") {
+			where.userId = userId;
+		}
 
 		const logs = await prisma.aiProviderLog.findMany({
-			where: { workspaceId, userId },
+			where: where as any,
 			select: {
 				inputTokens: true,
 				outputTokens: true,
@@ -84,12 +91,14 @@ export function createAiLogRoutes(prisma: PrismaClient) {
 		});
 	});
 
-	// GET /usage/daily — Daily token usage for current user (last 30 days)
+	// GET /usage/daily — Daily token usage (last 30 days)
+	// ?scope=workspace → all users in this workspace; default → current user only
 	app.get("/usage/daily", async (c) => {
 		const workspaceId = c.get("workspaceId");
 		const userId = c.get("userId");
 		const daysParam = Number.parseInt(c.req.query("days") ?? "30");
 		const days = Math.min(Math.max(daysParam, 1), 90);
+		const scope = c.req.query("scope") ?? "user";
 
 		// Work entirely in UTC to avoid timezone drift between server local time
 		// and the UTC-stored createdAt timestamps.
@@ -101,12 +110,16 @@ export function createAiLogRoutes(prisma: PrismaClient) {
 		const since = new Date(todayUtc);
 		since.setUTCDate(since.getUTCDate() - (days - 1));
 
+		const where: Record<string, unknown> = {
+			workspaceId,
+			createdAt: { gte: since },
+		};
+		if (scope !== "workspace") {
+			where.userId = userId;
+		}
+
 		const logs = await prisma.aiProviderLog.findMany({
-			where: {
-				workspaceId,
-				userId,
-				createdAt: { gte: since },
-			},
+			where: where as any,
 			select: {
 				inputTokens: true,
 				outputTokens: true,
