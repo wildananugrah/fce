@@ -165,10 +165,13 @@ SELECT
   l.output_tokens,
   l.estimated_cost,
   l.status,
-  l.created_at
+  l.created_at,
+  l.system_prompt,
+  l.response_json,
+  l.user_prompt
 FROM ai_provider_logs l
 JOIN users u ON u.id = l.user_id
-WHERE u.email = 'user@example.com'
+WHERE u.email = 'wildananugrah@gmail.com'
 ORDER BY l.created_at DESC
 LIMIT 20;
 

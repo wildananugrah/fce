@@ -25,3 +25,4 @@ join users u on u.id = uw.user_id
 join workspaces w on w.id = uw.workspace_id;
 
 ```
+
