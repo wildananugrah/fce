@@ -573,8 +573,8 @@ function IntegrationsTab({ workspaceId, showToast }: IntegrationsTabProps) {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-semibold text-zinc-100">Apify</h3>
-        <p className="text-sm text-zinc-400 mt-1">
+        <h3 className="text-lg font-semibold text-gray-900">Apify</h3>
+        <p className="text-sm text-gray-500 mt-1">
           Connect your Apify account to enable competitor research and enhanced brand scraping.
         </p>
       </div>
@@ -582,7 +582,7 @@ function IntegrationsTab({ workspaceId, showToast }: IntegrationsTabProps) {
       {hasKey ? (
         <div className="space-y-4">
           <div className="flex items-center gap-3">
-            <div className="rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-2 text-sm text-zinc-300 font-mono">
+            <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-2 text-sm text-gray-700 font-mono">
               {maskedKey}
             </div>
             <Badge variant="success">Connected</Badge>
@@ -593,8 +593,8 @@ function IntegrationsTab({ workspaceId, showToast }: IntegrationsTabProps) {
             </Button>
             <Button size="sm" variant="danger" onClick={handleRemove}>Remove</Button>
           </div>
-          {testResult === true && <p className="text-sm text-green-400">Connection successful</p>}
-          {testResult === false && <p className="text-sm text-red-400">Connection failed</p>}
+          {testResult === true && <p className="text-sm text-green-600">Connection successful</p>}
+          {testResult === false && <p className="text-sm text-red-600">Connection failed</p>}
         </div>
       ) : (
         <div className="space-y-4">
@@ -608,7 +608,7 @@ function IntegrationsTab({ workspaceId, showToast }: IntegrationsTabProps) {
             />
             <button
               onClick={() => setShowKey(!showKey)}
-              className="text-xs text-zinc-400 hover:text-zinc-200"
+              className="text-xs text-gray-500 hover:text-gray-700"
             >
               {showKey ? "Hide" : "Show"}
             </button>
