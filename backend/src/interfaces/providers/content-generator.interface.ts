@@ -9,6 +9,7 @@ export interface ContentGenerationInput {
 	language: string;
 	prompt?: string;
 	referenceImages?: string[];
+	researchContext?: string;
 }
 
 export interface ContentGenerationOutput {

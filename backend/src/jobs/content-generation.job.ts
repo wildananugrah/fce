@@ -11,6 +11,7 @@ interface ContentJobData {
 	productIds?: string[];
 	userId: string;
 	referenceImages?: string[];
+	researchContext?: string;
 }
 
 export class ContentGenerationJob {
@@ -23,7 +24,7 @@ export class ContentGenerationJob {
 	) {}
 
 	async handle(data: ContentJobData): Promise<void> {
-		const { requestId, productIds, userId, referenceImages } = data;
+		const { requestId, productIds, userId, referenceImages, researchContext } = data;
 
 		try {
 			// Update status to processing
@@ -173,6 +174,15 @@ export class ContentGenerationJob {
 				prompt: request.prompt ?? undefined,
 				referenceImages,
 			};
+
+			// Inject research context (from "Use as Inspiration")
+			if (researchContext) {
+				generationInput.researchContext = researchContext;
+				this.logger.info("Research context injected into content generation", {
+					requestId,
+					charCount: researchContext.length,
+				});
+			}
 
 			// Inject product reference content into generation input
 			if (productReferenceContext) {
