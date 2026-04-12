@@ -120,36 +120,39 @@ function GeneralTab({ workspaceId, workspaceName, initial, onToast, onRefresh, o
   };
 
   return (
-    <div className="space-y-6 pt-4">
-      <div className="space-y-4">
-        <Input
-          label="Workspace Name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="My Workspace"
-        />
-        <Input
-          label="Description"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="What is this workspace for?"
-        />
-        <div className="flex gap-4">
-          <div className="flex-1">
-            <label className="block text-xs font-medium text-gray-600 uppercase tracking-wide mb-1.5">
-              Avatar Color
-            </label>
-            <div className="flex items-center gap-3">
-              <input
-                type="color"
-                value={avatarColor}
-                onChange={(e) => setAvatarColor(e.target.value)}
-                className="w-10 h-10 rounded cursor-pointer border border-gray-300"
-              />
-              <span className="text-sm text-gray-600">{avatarColor}</span>
+    <div className="space-y-8">
+      {/* Profile Section */}
+      <div>
+        <h2 className="text-sm font-semibold text-gray-900 mb-1">Profile</h2>
+        <p className="text-xs text-gray-500 mb-4">Basic information about this workspace.</p>
+        <div className="space-y-4">
+          <Input
+            label="Workspace Name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="My Workspace"
+          />
+          <Input
+            label="Description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="What is this workspace for?"
+          />
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 uppercase tracking-wide mb-1.5">
+                Avatar Color
+              </label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="color"
+                  value={avatarColor}
+                  onChange={(e) => setAvatarColor(e.target.value)}
+                  className="w-10 h-10 rounded cursor-pointer border border-gray-200"
+                />
+                <span className="text-xs text-gray-500 font-mono">{avatarColor}</span>
+              </div>
             </div>
-          </div>
-          <div className="flex-1">
             <Input
               label="Avatar Emoji"
               value={avatarEmoji}
@@ -157,23 +160,31 @@ function GeneralTab({ workspaceId, workspaceName, initial, onToast, onRefresh, o
               placeholder="\uD83D\uDE80"
             />
           </div>
-        </div>
-        <div className="flex justify-end pt-2">
-          <Button onClick={handleSave} loading={saving}>
-            Save Changes
-          </Button>
+          <div className="flex justify-end pt-2">
+            <Button onClick={handleSave} loading={saving}>
+              Save Changes
+            </Button>
+          </div>
         </div>
       </div>
 
       {/* Danger Zone */}
-      <div className="border border-red-200 rounded-lg p-5 space-y-3">
-        <h3 className="text-sm font-semibold text-red-600">Danger Zone</h3>
-        <p className="text-sm text-gray-600">
-          Permanently delete this workspace and all of its data including brands, products, topics, content, and campaigns.
+      <div className="pt-6 border-t border-gray-200">
+        <h2 className="text-sm font-semibold text-red-600 mb-1">Danger Zone</h2>
+        <p className="text-xs text-gray-500 mb-4">
+          Permanently delete this workspace and all of its data.
         </p>
-        <Button variant="danger" size="sm" onClick={() => setShowDeleteModal(true)}>
-          Delete Workspace
-        </Button>
+        <div className="flex items-center justify-between p-4 border border-red-200 bg-red-50/30 rounded-lg">
+          <div>
+            <p className="text-sm font-medium text-gray-900">Delete workspace</p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Removes brands, products, topics, content, and campaigns. Cannot be undone.
+            </p>
+          </div>
+          <Button variant="danger" size="sm" onClick={() => setShowDeleteModal(true)}>
+            Delete
+          </Button>
+        </div>
       </div>
 
       {/* Delete Confirmation Modal */}
@@ -280,12 +291,17 @@ function TeamTab({ workspaceId, currentUserId, onToast }: TeamTabProps) {
   }
 
   return (
-    <div className="pt-4 space-y-4">
-      {currentMember && (
+    <div className="space-y-4">
+      <div>
+        <h2 className="text-sm font-semibold text-gray-900 mb-1">Team Members</h2>
         <p className="text-xs text-gray-500">
-          Your role: <span className="font-medium text-black">{currentMember.role}</span>
+          {currentMember ? (
+            <>Your role: <span className="font-medium text-gray-700 capitalize">{currentMember.role}</span></>
+          ) : (
+            "Members with access to this workspace."
+          )}
         </p>
-      )}
+      </div>
       <div className="bg-white border border-gray-200 rounded-lg overflow-x-auto">
         <table className="w-full min-w-[640px] text-sm">
           <thead>
@@ -414,9 +430,10 @@ function InvitationsTab({ workspaceId, onToast }: InvitationsTabProps) {
   };
 
   return (
-    <div className="pt-4 space-y-6">
-      <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-3">
-        <h3 className="text-sm font-semibold text-black">Invite Member</h3>
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-sm font-semibold text-gray-900 mb-1">Invite Member</h2>
+        <p className="text-xs text-gray-500 mb-4">Send an invitation to join this workspace.</p>
         <div className="flex gap-3 items-end">
           <div className="flex-1">
             <Input
@@ -439,6 +456,11 @@ function InvitationsTab({ workspaceId, onToast }: InvitationsTabProps) {
             Invite
           </Button>
         </div>
+      </div>
+
+      <div className="pt-4 border-t border-gray-200">
+        <h2 className="text-sm font-semibold text-gray-900 mb-1">Sent Invitations</h2>
+        <p className="text-xs text-gray-500 mb-4">All invitations sent for this workspace.</p>
       </div>
 
       {loading ? (
@@ -571,55 +593,56 @@ function IntegrationsTab({ workspaceId, showToast }: IntegrationsTabProps) {
   if (loading) return <Spinner size="sm" />;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div>
-        <h3 className="text-lg font-semibold text-gray-900">Apify</h3>
-        <p className="text-sm text-gray-500 mt-1">
+        <h2 className="text-sm font-semibold text-gray-900 mb-1">Apify</h2>
+        <p className="text-xs text-gray-500 mb-4">
           Connect your Apify account to enable competitor research and enhanced brand scraping.
         </p>
-      </div>
 
-      {hasKey ? (
-        <div className="space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-2 text-sm text-gray-700 font-mono">
-              {maskedKey}
+        {hasKey ? (
+          <div className="space-y-4 p-4 border border-gray-200 rounded-lg">
+            <div className="flex items-center gap-3">
+              <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs text-gray-700 font-mono">
+                {maskedKey}
+              </div>
+              <Badge variant="success">Connected</Badge>
             </div>
-            <Badge variant="success">Connected</Badge>
+            <div className="flex gap-2">
+              <Button size="sm" variant="secondary" onClick={handleTest} loading={testing}>
+                Test Connection
+              </Button>
+              <Button size="sm" variant="danger" onClick={handleRemove}>Remove</Button>
+            </div>
+            {testResult === true && <p className="text-xs text-green-600">Connection successful</p>}
+            {testResult === false && <p className="text-xs text-red-600">Connection failed</p>}
           </div>
-          <div className="flex gap-2">
-            <Button size="sm" variant="secondary" onClick={handleTest} loading={testing}>
-              Test Connection
-            </Button>
-            <Button size="sm" variant="danger" onClick={handleRemove}>Remove</Button>
+        ) : (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <div className="flex-1 relative">
+                <input
+                  type={showKey ? "text" : "password"}
+                  placeholder="apify_api_..."
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  className="w-full px-3 py-2 text-sm bg-white border border-gray-200 rounded-md focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 font-mono"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowKey(!showKey)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-400 hover:text-gray-600"
+                >
+                  {showKey ? "Hide" : "Show"}
+                </button>
+              </div>
+              <Button size="sm" onClick={handleSave} loading={saving} disabled={!apiKey.trim()}>
+                Save
+              </Button>
+            </div>
           </div>
-          {testResult === true && <p className="text-sm text-green-600">Connection successful</p>}
-          {testResult === false && <p className="text-sm text-red-600">Connection failed</p>}
-        </div>
-      ) : (
-        <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <Input
-              type={showKey ? "text" : "password"}
-              placeholder="apify_api_..."
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              className="flex-1"
-            />
-            <button
-              onClick={() => setShowKey(!showKey)}
-              className="text-xs text-gray-500 hover:text-gray-700"
-            >
-              {showKey ? "Hide" : "Show"}
-            </button>
-          </div>
-          <div className="flex gap-2">
-            <Button size="sm" onClick={handleSave} loading={saving} disabled={!apiKey.trim()}>
-              Save Key
-            </Button>
-          </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
@@ -654,15 +677,22 @@ export function WorkspaceSettingsPage() {
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-3xl">
-      <div>
-        <h1 className="text-lg font-semibold text-black">Workspace Settings</h1>
-        <p className="text-sm text-gray-500 mt-0.5">{activeWorkspace.name}</p>
+    <div className="p-6 max-w-3xl">
+      {/* Header */}
+      <div className="mb-6">
+        <h1 className="text-xl font-semibold text-gray-900">Workspace Settings</h1>
+        <p className="text-sm text-gray-500 mt-1">
+          Manage <span className="font-medium text-gray-700">{activeWorkspace.name}</span> settings, team, and integrations.
+        </p>
       </div>
 
-      <div className="bg-white border border-gray-200 rounded-lg p-6">
+      {/* Tabs */}
+      <div className="border-b border-gray-200 mb-6">
         <Tabs tabs={TABS} activeTab={activeTab} onChange={setActiveTab} />
+      </div>
 
+      {/* Tab content */}
+      <div>
         {activeTab === "general" && (
           <GeneralTab
             workspaceId={activeWorkspace.id}
