@@ -9,6 +9,7 @@ import { ContentGenerationJob } from "./jobs/content-generation.job";
 import { DocumentExtractionJob } from "./jobs/document-extraction.job";
 import { LinkScrapingJob } from "./jobs/link-scraping.job";
 import { RecommendationRecomputeJob } from "./jobs/recommendation-recompute.job";
+import { ResearchRunJob } from "./jobs/research-run.job";
 import { TopicGenerationJob } from "./jobs/topic-generation.job";
 import { TopicRegenerationJob } from "./jobs/topic-regeneration.job";
 import { createAdminMiddleware } from "./middlewares/admin.middleware";
@@ -17,6 +18,7 @@ import { createErrorHandlerMiddleware } from "./middlewares/error-handler.middle
 import { createRequestLoggerMiddleware } from "./middlewares/request-logger.middleware";
 import { createWorkspaceMiddleware } from "./middlewares/workspace.middleware";
 import { AnthropicProvider } from "./providers/anthropic.provider";
+import { ApifyProvider } from "./providers/apify.provider";
 import { GeminiProvider } from "./providers/gemini.provider";
 import { MinioStorageProvider } from "./providers/minio.provider";
 import { WinstonLogger } from "./providers/winston-logger.provider";
@@ -27,6 +29,7 @@ import { GenerationRepository } from "./repositories/generation.repository";
 import { OutputSectionRepository } from "./repositories/output-section.repository";
 import { ProductRepository } from "./repositories/product.repository";
 import { RecommendationRepository } from "./repositories/recommendation.repository";
+import { ResearchRepository } from "./repositories/research.repository";
 import { TaxonomyRepository } from "./repositories/taxonomy.repository";
 import { TopicRepository } from "./repositories/topic.repository";
 import { UserRepository } from "./repositories/user.repository";
@@ -42,6 +45,7 @@ import { createGenerationRoutes } from "./routes/generation.route";
 import { createLibraryRoutes } from "./routes/library.route";
 import { createProductRoutes } from "./routes/product.route";
 import { createRecommendationRoutes } from "./routes/recommendation.route";
+import { createResearchRoutes } from "./routes/research.route";
 import { createSkillRoutes, createWorkspaceSkillRoutes } from "./routes/skill.route";
 import { createSSERoutes } from "./routes/sse.route";
 import { createTaxonomyRoutes } from "./routes/taxonomy.route";
@@ -59,6 +63,7 @@ import { LibraryService } from "./services/library.service";
 import { NotificationService } from "./services/notification.service";
 import { ProductService } from "./services/product.service";
 import { RecommendationService } from "./services/recommendation.service";
+import { ResearchService } from "./services/research.service";
 import { TaxonomyService } from "./services/taxonomy.service";
 import { TopicService } from "./services/topic.service";
 import { WorkspaceService } from "./services/workspace.service";
@@ -115,12 +120,14 @@ async function main() {
 	const topicRepository = new TopicRepository(prisma);
 	const recommendationRepository = new RecommendationRepository(prisma);
 	const documentRepository = new DocumentRepository(prisma);
+	const researchRepository = new ResearchRepository(prisma);
 	const storageProvider = new MinioStorageProvider(
 		env.minioEndpoint,
 		env.minioAccessKey,
 		env.minioSecretKey,
 		env.minioPublicUrl,
 	);
+	const apifyProvider = new ApifyProvider();
 
 	// ─── Services ───────────────────────────────────────────────────
 	const authService = new AuthService(userRepository, {
@@ -147,6 +154,7 @@ async function main() {
 		env.minioBucket,
 	);
 	const adminService = new AdminService(prisma);
+	const researchService = new ResearchService(researchRepository, apifyProvider, boss, logger);
 
 	// ─── Job Handlers ────────────────────────────────────────────────
 	const contentGenerationJob = new ContentGenerationJob(
@@ -179,6 +187,7 @@ async function main() {
 		resolveBrandScraper(),
 		notificationService,
 		logger,
+		apifyProvider,
 	);
 	const documentExtractionJob = new DocumentExtractionJob(documentRepository, logger);
 	const linkScrapingJob = new LinkScrapingJob(documentRepository, logger);
@@ -187,6 +196,7 @@ async function main() {
 		recommendationRepository,
 		logger,
 	);
+	const researchRunJob = new ResearchRunJob(prisma, apifyProvider, notificationService, logger);
 
 	// ─── Create PgBoss Queues ───────────────────────────────────────
 	await boss.createQueue("content-generation");
@@ -197,6 +207,7 @@ async function main() {
 	await boss.createQueue("document-extraction");
 	await boss.createQueue("link-scraping");
 	await boss.createQueue("recommendation-recompute");
+	await boss.createQueue("research-run");
 
 	// ─── Register PgBoss Workers ─────────────────────────────────────
 	await boss.work("content-generation", async (jobs) => {
@@ -223,6 +234,9 @@ async function main() {
 	await boss.work("recommendation-recompute", async (jobs) => {
 		for (const job of jobs) await recommendationRecomputeJob.handle(job.data as any);
 	});
+	await boss.work("research-run", async (jobs) => {
+		for (const job of jobs) await researchRunJob.handle(job.data as any);
+	});
 
 	// ─── Middleware Instances ────────────────────────────────────────
 	const authMiddleware = createAuthMiddleware(env.jwtSecret);
@@ -248,6 +262,9 @@ async function main() {
 		"Topic not found",
 		"Document not found",
 		"Brief not found",
+		"Research run not found",
+		"Research result not found",
+		"Apify API key not configured. Set it in workspace settings.",
 	];
 	app.onError((err, c) => {
 		const message = err instanceof Error ? err.message : String(err);
@@ -324,6 +341,7 @@ async function main() {
 	workspaceScoped.route("/recommendations", createRecommendationRoutes(recommendationService));
 	workspaceScoped.route("/skills", createWorkspaceSkillRoutes(prisma));
 	workspaceScoped.route("/ai-logs", createAiLogRoutes(prisma));
+	workspaceScoped.route("/research", createResearchRoutes(researchService));
 	workspaceScoped.route("/reference-images", createUploadRoutes(storageProvider, env.minioBucket));
 	app.route("/api/workspaces/:workspaceId", workspaceScoped);
 
