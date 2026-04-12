@@ -55,8 +55,6 @@ export function DashboardPage() {
     { label: "Campaigns", value: stats.campaignCount, color: "bg-amber-50 text-amber-700" },
   ];
 
-  const usagePercent = stats.apiLimitUsd > 0 ? (stats.apiUsageUsd / stats.apiLimitUsd) * 100 : 0;
-
   return (
     <div className="p-6 space-y-6">
       <h1 className="text-xl font-semibold">Dashboard</h1>
@@ -68,20 +66,6 @@ export function DashboardPage() {
             <p className="text-2xl font-bold mt-1">{card.value}</p>
           </div>
         ))}
-      </div>
-
-      <div className="bg-white border border-gray-200 rounded-lg p-4">
-        <h2 className="text-sm font-medium text-gray-700 mb-2">API Usage</h2>
-        <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
-          <span>${stats.apiUsageUsd.toFixed(2)} used</span>
-          <span>${stats.apiLimitUsd.toFixed(2)} limit</span>
-        </div>
-        <div className="w-full bg-gray-100 rounded-full h-2">
-          <div
-            className={`h-2 rounded-full ${usagePercent > 80 ? "bg-red-500" : "bg-blue-500"}`}
-            style={{ width: `${Math.min(usagePercent, 100)}%` }}
-          />
-        </div>
       </div>
 
       <div className="bg-white border border-gray-200 rounded-lg p-4">
