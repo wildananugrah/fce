@@ -157,7 +157,7 @@ function GeneralTab({ workspaceId, workspaceName, initial, onToast, onRefresh, o
               label="Avatar Emoji"
               value={avatarEmoji}
               onChange={(e) => setAvatarEmoji(e.target.value)}
-              placeholder="\uD83D\uDE80"
+              placeholder="🚀"
             />
           </div>
           <div className="flex justify-end pt-2">
