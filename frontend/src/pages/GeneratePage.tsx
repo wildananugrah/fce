@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Trash2, X } from "lucide-react";
+import { Trash2, X, Sparkles } from "lucide-react";
 import { useWorkspace } from "../hooks/useWorkspace";
 import { useSSE } from "../hooks/useSSE";
 import { api } from "../services/api";
@@ -350,7 +350,9 @@ function BrainContextCard({ tone, usp }: { tone?: string; usp?: string }) {
 
 export function GeneratePage() {
   const { activeWorkspace } = useWorkspace();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const researchContext = searchParams.get("researchContext") || "";
+  const researchTitle = searchParams.get("researchTitle") || "";
 
   // Form state — pre-fill from URL params (e.g., from Topic Library)
   const initialPlatform = normalizePlatform(searchParams.get("platform")) || "instagram";
@@ -607,6 +609,7 @@ export function GeneratePage() {
           visualStyleId: visualStyleId || undefined,
           objective: objective || undefined,
           outputLength: outputLength || undefined,
+          researchContext: researchContext || undefined,
         }),
       });
       showToast("Generation submitted", "success");
@@ -663,6 +666,25 @@ const frameworkOptions = [{ value: "", label: "PAS (recommended)" }, ...framewor
         </div>
       </div>
       <ActiveSkillsBadges generator="content" />
+
+      {researchContext && (
+        <div className="flex items-center justify-between rounded-lg border border-violet-500/30 bg-violet-500/10 px-4 py-3 mb-4">
+          <div className="flex items-center gap-2 text-sm text-violet-300">
+            <Sparkles size={16} />
+            <span>Using research as inspiration: {researchTitle || "Research result"}</span>
+          </div>
+          <button
+            onClick={() => {
+              searchParams.delete("researchContext");
+              searchParams.delete("researchTitle");
+              setSearchParams(searchParams);
+            }}
+            className="text-xs text-violet-400 hover:text-violet-200"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {loading ? (
         <div className="flex justify-center py-12"><Spinner /></div>
