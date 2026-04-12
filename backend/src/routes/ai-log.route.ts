@@ -91,10 +91,15 @@ export function createAiLogRoutes(prisma: PrismaClient) {
 		const daysParam = Number.parseInt(c.req.query("days") ?? "30");
 		const days = Math.min(Math.max(daysParam, 1), 90);
 
-		// Range: from (today - days + 1) to today, inclusive — produces exactly `days` buckets
-		const since = new Date();
-		since.setHours(0, 0, 0, 0);
-		since.setDate(since.getDate() - (days - 1));
+		// Work entirely in UTC to avoid timezone drift between server local time
+		// and the UTC-stored createdAt timestamps.
+		const now = new Date();
+		const todayUtcKey = now.toISOString().slice(0, 10);
+		const todayUtc = new Date(`${todayUtcKey}T00:00:00.000Z`);
+
+		// since = (today UTC) - (days - 1) days, at 00:00 UTC
+		const since = new Date(todayUtc);
+		since.setUTCDate(since.getUTCDate() - (days - 1));
 
 		const logs = await prisma.aiProviderLog.findMany({
 			where: {
@@ -110,10 +115,10 @@ export function createAiLogRoutes(prisma: PrismaClient) {
 			orderBy: { createdAt: "asc" },
 		});
 
-		// Group by day
+		// Group by UTC day (YYYY-MM-DD from ISO string)
 		const byDay = new Map<string, { inputTokens: number; outputTokens: number; count: number }>();
 		for (const log of logs) {
-			const day = log.createdAt.toISOString().slice(0, 10); // YYYY-MM-DD
+			const day = log.createdAt.toISOString().slice(0, 10);
 			const entry = byDay.get(day) ?? { inputTokens: 0, outputTokens: 0, count: 0 };
 			entry.inputTokens += log.inputTokens ?? 0;
 			entry.outputTokens += log.outputTokens ?? 0;
@@ -121,11 +126,11 @@ export function createAiLogRoutes(prisma: PrismaClient) {
 			byDay.set(day, entry);
 		}
 
-		// Fill in all days in the range (including today)
+		// Generate all UTC day keys in the range, inclusive
 		const result: Array<{ date: string; inputTokens: number; outputTokens: number; totalTokens: number; count: number }> = [];
 		for (let i = 0; i < days; i++) {
 			const d = new Date(since);
-			d.setDate(d.getDate() + i);
+			d.setUTCDate(d.getUTCDate() + i);
 			const key = d.toISOString().slice(0, 10);
 			const entry = byDay.get(key) ?? { inputTokens: 0, outputTokens: 0, count: 0 };
 			result.push({
