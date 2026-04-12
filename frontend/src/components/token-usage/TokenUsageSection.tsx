@@ -17,6 +17,16 @@ interface DailyPoint {
   count: number;
 }
 
+interface UserUsage {
+  userId: string;
+  email: string;
+  fullName: string | null;
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  generationCount: number;
+}
+
 interface TokenUsageSectionProps {
   workspaceId: string;
   scope: "user" | "workspace";
@@ -33,18 +43,45 @@ export function TokenUsageSection({
   const [summary, setSummary] = useState<TokenSummary | null>(null);
   const [daily, setDaily] = useState<DailyPoint[]>([]);
   const [days, setDays] = useState(30);
+  const [users, setUsers] = useState<UserUsage[]>([]);
+  const [selectedUserId, setSelectedUserId] = useState<string>("");
 
+  // Fetch the user-breakdown list once (only for workspace scope)
+  useEffect(() => {
+    if (!workspaceId || scope !== "workspace") return;
+    (async () => {
+      try {
+        const res = await api<{ data: UserUsage[] }>(
+          `/api/workspaces/${workspaceId}/ai-logs/usage/by-user`,
+        );
+        setUsers((res as any).data ?? res);
+      } catch {
+        // silent
+      }
+    })();
+  }, [workspaceId, scope]);
+
+  // Fetch summary + daily (re-runs when user filter changes)
   useEffect(() => {
     if (!workspaceId) return;
-    const scopeParam = scope === "workspace" ? "&scope=workspace" : "";
+    const params = new URLSearchParams();
+    if (scope === "workspace") {
+      params.set("scope", "workspace");
+      if (selectedUserId) params.set("userId", selectedUserId);
+    }
+    const summaryQs = params.toString();
+    const dailyParams = new URLSearchParams(params);
+    dailyParams.set("days", String(days));
+    const dailyQs = dailyParams.toString();
+
     (async () => {
       try {
         const [summaryRes, dailyRes] = await Promise.all([
           api<{ data: TokenSummary }>(
-            `/api/workspaces/${workspaceId}/ai-logs/usage?${scopeParam.slice(1)}`,
+            `/api/workspaces/${workspaceId}/ai-logs/usage${summaryQs ? `?${summaryQs}` : ""}`,
           ),
           api<{ data: DailyPoint[] }>(
-            `/api/workspaces/${workspaceId}/ai-logs/usage/daily?days=${days}${scopeParam}`,
+            `/api/workspaces/${workspaceId}/ai-logs/usage/daily?${dailyQs}`,
           ),
         ]);
         setSummary((summaryRes as any).data ?? summaryRes);
@@ -53,14 +90,40 @@ export function TokenUsageSection({
         // silent
       }
     })();
-  }, [workspaceId, scope, days]);
+  }, [workspaceId, scope, days, selectedUserId]);
+
+  const formatUserLabel = (u: UserUsage) => {
+    const name = u.fullName ?? u.email;
+    return `${name} — ${u.totalTokens.toLocaleString()} tokens`;
+  };
 
   return (
     <div className="space-y-6">
       {/* Heading */}
-      <div>
-        <h2 className="text-sm font-semibold text-gray-900 mb-1">{title}</h2>
-        {description && <p className="text-xs text-gray-500">{description}</p>}
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-sm font-semibold text-gray-900 mb-1">{title}</h2>
+          {description && <p className="text-xs text-gray-500">{description}</p>}
+        </div>
+        {scope === "workspace" && users.length > 0 && (
+          <div className="shrink-0">
+            <label className="block text-[10px] text-gray-400 uppercase tracking-wide mb-1">
+              Filter by user
+            </label>
+            <select
+              value={selectedUserId}
+              onChange={(e) => setSelectedUserId(e.target.value)}
+              className="text-xs px-3 py-1.5 bg-white border border-gray-200 rounded-md focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 min-w-[220px]"
+            >
+              <option value="">All users ({users.length})</option>
+              {users.map((u) => (
+                <option key={u.userId} value={u.userId}>
+                  {formatUserLabel(u)}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       {/* Stat cards */}
@@ -102,6 +165,64 @@ export function TokenUsageSection({
           <UsageChart data={daily} />
         </div>
       </div>
+
+      {/* Per-user leaderboard (only for workspace scope, when no user filter applied) */}
+      {scope === "workspace" && !selectedUserId && users.length > 0 && (
+        <div>
+          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+            Usage by Member
+          </h3>
+          <div className="bg-white border border-gray-200 rounded-lg overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-100 bg-gray-50">
+                  <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-wide">
+                    Member
+                  </th>
+                  <th className="text-right px-4 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-wide">
+                    Input
+                  </th>
+                  <th className="text-right px-4 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-wide">
+                    Output
+                  </th>
+                  <th className="text-right px-4 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-wide">
+                    Total
+                  </th>
+                  <th className="text-right px-4 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-wide">
+                    Generations
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {users.map((u) => (
+                  <tr
+                    key={u.userId}
+                    onClick={() => setSelectedUserId(u.userId)}
+                    className="border-b border-gray-50 last:border-0 hover:bg-gray-50 cursor-pointer transition-colors"
+                  >
+                    <td className="px-4 py-2.5">
+                      <p className="text-sm text-gray-800 font-medium">{u.fullName ?? u.email}</p>
+                      {u.fullName && <p className="text-[10px] text-gray-400">{u.email}</p>}
+                    </td>
+                    <td className="px-4 py-2.5 text-right text-sm text-gray-600">
+                      {u.inputTokens.toLocaleString()}
+                    </td>
+                    <td className="px-4 py-2.5 text-right text-sm text-gray-600">
+                      {u.outputTokens.toLocaleString()}
+                    </td>
+                    <td className="px-4 py-2.5 text-right text-sm font-semibold text-gray-900">
+                      {u.totalTokens.toLocaleString()}
+                    </td>
+                    <td className="px-4 py-2.5 text-right text-sm text-gray-600">
+                      {u.generationCount}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

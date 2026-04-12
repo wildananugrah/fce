@@ -56,15 +56,23 @@ export function createAiLogRoutes(prisma: PrismaClient) {
 	});
 
 	// GET /usage — Token usage summary
-	// ?scope=workspace → all users in this workspace; default → current user only
+	// ?scope=workspace → all users in this workspace (optionally filter by ?userId=X)
+	// default → current user only
 	app.get("/usage", async (c) => {
 		const workspaceId = c.get("workspaceId");
-		const userId = c.get("userId");
+		const currentUserId = c.get("userId");
 		const scope = c.req.query("scope") ?? "user";
+		const filterUserId = c.req.query("userId");
 
 		const where: Record<string, unknown> = { workspaceId };
-		if (scope !== "workspace") {
-			where.userId = userId;
+		if (scope === "workspace") {
+			// Admin-scoped query: may filter by explicit userId, otherwise all users
+			if (filterUserId) {
+				where.userId = filterUserId;
+			}
+		} else {
+			// Default: current user only
+			where.userId = currentUserId;
 		}
 
 		const logs = await prisma.aiProviderLog.findMany({
@@ -91,14 +99,71 @@ export function createAiLogRoutes(prisma: PrismaClient) {
 		});
 	});
 
+	// GET /usage/by-user — Per-user token usage breakdown for this workspace
+	app.get("/usage/by-user", async (c) => {
+		const workspaceId = c.get("workspaceId");
+
+		const logs = await prisma.aiProviderLog.findMany({
+			where: { workspaceId },
+			select: {
+				userId: true,
+				inputTokens: true,
+				outputTokens: true,
+			},
+		});
+
+		// Group by userId
+		const byUser = new Map<string, { inputTokens: number; outputTokens: number; count: number }>();
+		for (const log of logs) {
+			if (!log.userId) continue;
+			const entry = byUser.get(log.userId) ?? { inputTokens: 0, outputTokens: 0, count: 0 };
+			entry.inputTokens += log.inputTokens ?? 0;
+			entry.outputTokens += log.outputTokens ?? 0;
+			entry.count += 1;
+			byUser.set(log.userId, entry);
+		}
+
+		const userIds = Array.from(byUser.keys());
+		if (userIds.length === 0) {
+			return c.json({ data: [] });
+		}
+
+		// Fetch user info
+		const users = await prisma.user.findMany({
+			where: { id: { in: userIds } },
+			select: { id: true, email: true, fullName: true },
+		});
+		const userMap = new Map(users.map((u) => [u.id, u]));
+
+		const result = userIds
+			.map((uid) => {
+				const stats = byUser.get(uid)!;
+				const user = userMap.get(uid);
+				return {
+					userId: uid,
+					email: user?.email ?? "Unknown",
+					fullName: user?.fullName ?? null,
+					inputTokens: stats.inputTokens,
+					outputTokens: stats.outputTokens,
+					totalTokens: stats.inputTokens + stats.outputTokens,
+					generationCount: stats.count,
+				};
+			})
+			.sort((a, b) => b.totalTokens - a.totalTokens);
+
+		return c.json({ data: result });
+	});
+
 	// GET /usage/daily — Daily token usage (last 30 days)
-	// ?scope=workspace → all users in this workspace; default → current user only
+	// ?scope=workspace → all users (optionally filter by ?userId=X)
+	// default → current user only
 	app.get("/usage/daily", async (c) => {
 		const workspaceId = c.get("workspaceId");
-		const userId = c.get("userId");
+		const currentUserId = c.get("userId");
 		const daysParam = Number.parseInt(c.req.query("days") ?? "30");
 		const days = Math.min(Math.max(daysParam, 1), 90);
 		const scope = c.req.query("scope") ?? "user";
+		const filterUserId = c.req.query("userId");
 
 		// Work entirely in UTC to avoid timezone drift between server local time
 		// and the UTC-stored createdAt timestamps.
@@ -114,8 +179,12 @@ export function createAiLogRoutes(prisma: PrismaClient) {
 			workspaceId,
 			createdAt: { gte: since },
 		};
-		if (scope !== "workspace") {
-			where.userId = userId;
+		if (scope === "workspace") {
+			if (filterUserId) {
+				where.userId = filterUserId;
+			}
+		} else {
+			where.userId = currentUserId;
 		}
 
 		const logs = await prisma.aiProviderLog.findMany({
