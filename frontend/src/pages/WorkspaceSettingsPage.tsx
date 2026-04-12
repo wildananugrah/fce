@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { researchApi } from "../services/research.service";
 import { useWorkspace } from "../hooks/useWorkspace";
 import { useAuth } from "../hooks/useAuth";
 import { api } from "../services/api";
@@ -32,6 +33,7 @@ const TABS = [
   { key: "general", label: "General" },
   { key: "team", label: "Team" },
   { key: "invitations", label: "Invitations" },
+  { key: "integrations", label: "Integrations" },
 ];
 
 const ROLE_OPTIONS = [
@@ -497,6 +499,131 @@ function InvitationsTab({ workspaceId, onToast }: InvitationsTabProps) {
   );
 }
 
+// ---- Integrations Tab ----
+interface IntegrationsTabProps {
+  workspaceId: string;
+  showToast: (msg: string, type: "success" | "error" | "info") => void;
+}
+
+function IntegrationsTab({ workspaceId, showToast }: IntegrationsTabProps) {
+  const [apiKey, setApiKey] = useState("");
+  const [hasKey, setHasKey] = useState(false);
+  const [maskedKey, setMaskedKey] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<boolean | null>(null);
+  const [showKey, setShowKey] = useState(false);
+
+  useEffect(() => {
+    researchApi.getSettings(workspaceId).then((s) => {
+      setHasKey(s.hasApifyKey);
+      setMaskedKey(s.maskedKey || "");
+      setLoading(false);
+    });
+  }, [workspaceId]);
+
+  const handleSave = async () => {
+    if (!apiKey.trim()) return;
+    setSaving(true);
+    try {
+      await researchApi.setApifyKey(workspaceId, apiKey.trim());
+      const s = await researchApi.getSettings(workspaceId);
+      setHasKey(s.hasApifyKey);
+      setMaskedKey(s.maskedKey || "");
+      setApiKey("");
+      setTestResult(null);
+      showToast("Apify API key saved", "success");
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : "Failed to save", "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleTest = async () => {
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const { connected } = await researchApi.testApifyKey(workspaceId);
+      setTestResult(connected);
+      showToast(connected ? "Connected to Apify!" : "Connection failed \u2014 check your key", connected ? "success" : "error");
+    } catch (e) {
+      setTestResult(false);
+      showToast("Connection test failed", "error");
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  const handleRemove = async () => {
+    try {
+      await researchApi.removeApifyKey(workspaceId);
+      setHasKey(false);
+      setMaskedKey("");
+      setTestResult(null);
+      showToast("Apify API key removed", "info");
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : "Failed to remove", "error");
+    }
+  };
+
+  if (loading) return <Spinner size="sm" />;
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-lg font-semibold text-zinc-100">Apify</h3>
+        <p className="text-sm text-zinc-400 mt-1">
+          Connect your Apify account to enable competitor research and enhanced brand scraping.
+        </p>
+      </div>
+
+      {hasKey ? (
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-2 text-sm text-zinc-300 font-mono">
+              {maskedKey}
+            </div>
+            <Badge variant="success">Connected</Badge>
+          </div>
+          <div className="flex gap-2">
+            <Button size="sm" variant="secondary" onClick={handleTest} loading={testing}>
+              Test Connection
+            </Button>
+            <Button size="sm" variant="danger" onClick={handleRemove}>Remove</Button>
+          </div>
+          {testResult === true && <p className="text-sm text-green-400">Connection successful</p>}
+          {testResult === false && <p className="text-sm text-red-400">Connection failed</p>}
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Input
+              type={showKey ? "text" : "password"}
+              placeholder="apify_api_..."
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              className="flex-1"
+            />
+            <button
+              onClick={() => setShowKey(!showKey)}
+              className="text-xs text-zinc-400 hover:text-zinc-200"
+            >
+              {showKey ? "Hide" : "Show"}
+            </button>
+          </div>
+          <div className="flex gap-2">
+            <Button size="sm" onClick={handleSave} loading={saving} disabled={!apiKey.trim()}>
+              Save Key
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ---- Main Page ----
 export function WorkspaceSettingsPage() {
   const { activeWorkspace, refresh } = useWorkspace();
@@ -562,6 +689,13 @@ export function WorkspaceSettingsPage() {
 
         {activeTab === "invitations" && (
           <InvitationsTab workspaceId={activeWorkspace.id} onToast={showToast} />
+        )}
+
+        {activeTab === "integrations" && activeWorkspace && (
+          <IntegrationsTab
+            workspaceId={activeWorkspace.id}
+            showToast={(msg, type) => setToast({ message: msg, type })}
+          />
         )}
       </div>
 
