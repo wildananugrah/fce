@@ -45,23 +45,26 @@ export class TopicGenerationJob {
 		} = data;
 
 		try {
-			// Build brand context
+			// Build brand context — split queries to avoid Prisma 7 WASM
+			// "Out of bounds memory access" bug with nested includes
 			let brandContext = "{}";
 			if (brandId) {
 				try {
-					const brand = await this.prisma.brand.findUnique({
+					const brandBasic = await this.prisma.brand.findUnique({
 						where: { id: brandId },
-						include: { brainVersions: { where: { isActive: true }, take: 1 } },
+						select: { name: true },
 					});
-					brandContext = brand?.brainVersions[0]
-						? JSON.stringify(brand.brainVersions[0])
-						: JSON.stringify({ name: brand?.name });
+					const activeBrainVersion = await this.prisma.brandBrainVersion.findFirst({
+						where: { brandId, isActive: true },
+					});
+					brandContext = activeBrainVersion
+						? JSON.stringify(activeBrainVersion)
+						: JSON.stringify({ name: brandBasic?.name ?? "Unknown Brand" });
 				} catch (err) {
 					this.logger.warn("Failed to load brand brain version, falling back to name only", {
 						brandId,
 						error: err instanceof Error ? err.message : String(err),
 					});
-					// Fallback: fetch only the name field to avoid corrupted JSON fields
 					const brandBasic = await this.prisma.brand.findUnique({
 						where: { id: brandId },
 						select: { name: true },
@@ -70,19 +73,22 @@ export class TopicGenerationJob {
 				}
 			}
 
-			// Build product contexts (multiple)
+			// Build product contexts — split queries to avoid Prisma 7 WASM bug
 			const productContexts: string[] = [];
 			if (productIds && productIds.length > 0) {
 				for (const pid of productIds) {
 					try {
-						const product = await this.prisma.product.findUnique({
+						const productBasic = await this.prisma.product.findUnique({
 							where: { id: pid },
-							include: { brainVersions: { where: { isActive: true }, take: 1 } },
+							select: { name: true },
 						});
-						if (product?.brainVersions[0]) {
-							productContexts.push(JSON.stringify(product.brainVersions[0]));
-						} else if (product) {
-							productContexts.push(JSON.stringify({ name: product.name }));
+						const activeProductBrain = await this.prisma.productBrainVersion.findFirst({
+							where: { productId: pid, isActive: true },
+						});
+						if (activeProductBrain) {
+							productContexts.push(JSON.stringify(activeProductBrain));
+						} else if (productBasic) {
+							productContexts.push(JSON.stringify({ name: productBasic.name }));
 						}
 					} catch (err) {
 						this.logger.warn("Failed to load product brain version, falling back to name only", {

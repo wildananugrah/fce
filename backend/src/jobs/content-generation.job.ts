@@ -32,23 +32,27 @@ export class ContentGenerationJob {
 				data: { status: "processing" },
 			});
 
-			// Build brand context (with fallback if brain version has corrupted data)
+			// Build brand context — split queries to avoid Prisma 7 WASM bug
 			let brand: any = null;
 			try {
-				brand = await this.prisma.brand.findUnique({
+				const brandBasic = await this.prisma.brand.findUnique({
 					where: { id: request.brandId },
-					include: { brainVersions: { where: { isActive: true }, take: 1 } },
+					select: { name: true },
 				});
+				const activeBrain = await this.prisma.brandBrainVersion.findFirst({
+					where: { brandId: request.brandId, isActive: true },
+				});
+				brand = { ...brandBasic, brainVersions: activeBrain ? [activeBrain] : [] };
 			} catch (err) {
 				this.logger.warn("Failed to load brand brain version, falling back to name only", {
 					brandId: request.brandId,
 					error: err instanceof Error ? err.message : String(err),
 				});
-				brand = await this.prisma.brand.findUnique({
+				const brandBasic = await this.prisma.brand.findUnique({
 					where: { id: request.brandId },
 					select: { name: true },
 				});
-				brand = { ...brand, brainVersions: [] };
+				brand = { ...brandBasic, brainVersions: [] };
 			}
 
 			// Build product contexts (multiple)
@@ -57,12 +61,17 @@ export class ContentGenerationJob {
 				? productIds
 				: request.productId ? [request.productId] : [];
 
+			// Split queries to avoid Prisma 7 WASM "Out of bounds memory access" bug
 			const fetchProductSafely = async (pid: string) => {
 				try {
-					return await this.prisma.product.findUnique({
+					const basic = await this.prisma.product.findUnique({
 						where: { id: pid },
-						include: { brainVersions: { where: { isActive: true }, take: 1 } },
+						select: { name: true },
 					});
+					const activeBrain = await this.prisma.productBrainVersion.findFirst({
+						where: { productId: pid, isActive: true },
+					});
+					return basic ? { ...basic, brainVersions: activeBrain ? [activeBrain] : [] } : null;
 				} catch (err) {
 					this.logger.warn("Failed to load product brain version, falling back to name only", {
 						productId: pid,
