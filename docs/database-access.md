@@ -153,6 +153,82 @@ FROM ai_provider_logs
 ORDER BY created_at DESC
 LIMIT 20;
 
+-- Logs for a specific user by email (latest 20)
+SELECT
+  l.id,
+  l.generator,
+  l.provider,
+  l.model,
+  l.platform,
+  l.content_type,
+  l.input_tokens,
+  l.output_tokens,
+  l.estimated_cost,
+  l.status,
+  l.created_at
+FROM ai_provider_logs l
+JOIN users u ON u.id = l.user_id
+WHERE u.email = 'user@example.com'
+ORDER BY l.created_at DESC
+LIMIT 20;
+
+-- Token usage summary per user
+SELECT
+  u.email,
+  u.full_name,
+  COUNT(l.id) AS generation_count,
+  SUM(l.input_tokens) AS total_input_tokens,
+  SUM(l.output_tokens) AS total_output_tokens,
+  SUM(l.input_tokens + l.output_tokens) AS total_tokens,
+  ROUND(SUM(l.estimated_cost)::numeric, 4) AS total_cost_usd
+FROM ai_provider_logs l
+JOIN users u ON u.id = l.user_id
+GROUP BY u.id, u.email, u.full_name
+ORDER BY total_tokens DESC NULLS LAST;
+
+-- Token usage per user, grouped by generator type
+SELECT
+  u.email,
+  l.generator,
+  COUNT(*) AS count,
+  SUM(l.input_tokens) AS input_tokens,
+  SUM(l.output_tokens) AS output_tokens,
+  ROUND(AVG(l.duration_ms)::numeric, 0) AS avg_duration_ms
+FROM ai_provider_logs l
+JOIN users u ON u.id = l.user_id
+WHERE u.email = 'user@example.com'
+GROUP BY u.email, l.generator
+ORDER BY count DESC;
+
+-- View full prompt for a user's most recent generation
+SELECT
+  l.generator,
+  l.provider,
+  l.model,
+  LEFT(l.system_prompt, 500) AS system_preview,
+  LEFT(l.user_prompt, 1000) AS user_preview,
+  l.input_tokens,
+  l.output_tokens,
+  l.created_at
+FROM ai_provider_logs l
+JOIN users u ON u.id = l.user_id
+WHERE u.email = 'user@example.com'
+ORDER BY l.created_at DESC
+LIMIT 1;
+
+-- Find generations where product references were injected
+SELECT
+  u.email,
+  l.generator,
+  l.created_at,
+  LEFT(l.user_prompt, 300) AS prompt_preview
+FROM ai_provider_logs l
+JOIN users u ON u.id = l.user_id
+WHERE l.user_prompt LIKE '%Product reference materials:%'
+  AND u.email = 'user@example.com'
+ORDER BY l.created_at DESC
+LIMIT 10;
+
 -- Filter by generator
 SELECT id, generator, provider, status, duration_ms, created_at
 FROM ai_provider_logs
@@ -211,4 +287,52 @@ ORDER BY wsm.generator, s.name;
 
 -- Count skills by category
 SELECT category, COUNT(*) FROM ai_skills GROUP BY category ORDER BY category;
+```
+
+```sql
+-- Find the document
+SELECT id, file_name, extraction_status, created_at
+FROM brand_documents
+WHERE file_name LIKE '%personal_brand%';
+
+-- Check its chunks
+SELECT chunk_index, LEFT(content_text, 100) AS preview
+FROM document_chunks
+WHERE document_id = '1749b214-6f7c-4cf6-bdb4-a39a8a3731dc'
+ORDER BY chunk_index
+LIMIT 10;
+
+-- Count total chunks
+SELECT COUNT(*) FROM document_chunks
+WHERE document_id = '1749b214-6f7c-4cf6-bdb4-a39a8a3731dc';
+
+-- In one query
+SELECT
+  d.file_name,
+  d.extraction_status,
+  COUNT(c.id) AS chunk_count
+FROM brand_documents d
+LEFT JOIN document_chunks c ON c.document_id = d.id
+WHERE d.brand_id = 'fc05a131-2c6e-4dec-8eb3-249a946d8ad9'
+GROUP BY d.id, d.file_name, d.extraction_status;
+
+-- See the most recent generation's prompts
+SELECT
+  id,
+  generator,
+  LEFT(system_prompt, 200) AS system_preview,
+  LEFT(user_prompt, 500) AS user_preview,
+  created_at
+FROM ai_provider_logs
+ORDER BY created_at DESC
+LIMIT 1;
+
+SELECT
+  generator,
+  LEFT(user_prompt, 1000) AS prompt_preview
+FROM ai_provider_logs
+ORDER BY created_at DESC
+LIMIT 1;
+
+
 ```
