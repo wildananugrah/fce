@@ -91,9 +91,10 @@ export function createAiLogRoutes(prisma: PrismaClient) {
 		const daysParam = Number.parseInt(c.req.query("days") ?? "30");
 		const days = Math.min(Math.max(daysParam, 1), 90);
 
+		// Range: from (today - days + 1) to today, inclusive — produces exactly `days` buckets
 		const since = new Date();
-		since.setDate(since.getDate() - days);
 		since.setHours(0, 0, 0, 0);
+		since.setDate(since.getDate() - (days - 1));
 
 		const logs = await prisma.aiProviderLog.findMany({
 			where: {
@@ -120,7 +121,7 @@ export function createAiLogRoutes(prisma: PrismaClient) {
 			byDay.set(day, entry);
 		}
 
-		// Fill in missing days with zeros
+		// Fill in all days in the range (including today)
 		const result: Array<{ date: string; inputTokens: number; outputTokens: number; totalTokens: number; count: number }> = [];
 		for (let i = 0; i < days; i++) {
 			const d = new Date(since);
