@@ -5,6 +5,7 @@ import type { IOutputSectionRepository } from "../interfaces/repositories/output
 import type { INotificationService } from "../interfaces/services/notification.service.interface";
 import { logAiActivity } from "../utils/ai-activity-logger";
 import { buildContentGenerationPrompt } from "../utils/prompt-builder";
+import { buildSkillContext } from "../utils/skill-context-builder";
 
 interface ContentJobData {
 	requestId: string;
@@ -153,20 +154,17 @@ export class ContentGenerationJob {
 			}
 
 			// Fetch mapped AI skills for content generator
-			const skillMappings = await this.prisma.workspaceSkillMapping.findMany({
-				where: { workspaceId: request.workspaceId, generator: "content", isActive: true },
-				include: { skill: true },
-			});
-			const skillContext = skillMappings
-				.map((m) => {
-					let ctx = m.skill.content;
-					if (m.skill.referenceFiles) {
-						const refs = m.skill.referenceFiles as { name: string; content: string }[];
-						ctx += "\n\n" + refs.map((r) => `## Reference: ${r.name}\n${r.content}`).join("\n\n");
-					}
-					return `### Skill: ${m.skill.name}\n${ctx}`;
-				})
-				.join("\n\n---\n\n");
+			// Uses character-limited helper that excludes reference files to
+			// prevent prompt bloat when many skills are mapped.
+			const skillResult = await buildSkillContext(this.prisma, request.workspaceId, "content");
+			const skillContext = skillResult.context;
+			if (skillResult.truncatedCount > 0) {
+				this.logger.info("Some skills were truncated due to context limit", {
+					workspaceId: request.workspaceId,
+					includedCount: skillResult.includedCount,
+					truncatedCount: skillResult.truncatedCount,
+				});
+			}
 
 			// Build generation input
 			const generationInput = {
@@ -232,8 +230,8 @@ export class ContentGenerationJob {
 					productId: request.productId ?? undefined,
 					platform: request.platform,
 					contentType: request.contentType,
-					skillIds: skillMappings.map((m) => m.skill.id),
-					skillNames: skillMappings.map((m) => m.skill.name),
+					skillIds: skillResult.skillIds,
+					skillNames: skillResult.skillNames,
 				},
 				{
 					responseJson: output.content,
