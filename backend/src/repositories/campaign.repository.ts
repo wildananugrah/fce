@@ -106,6 +106,9 @@ export class CampaignRepository implements ICampaignRepository {
 				competitiveContext: data.competitiveContext,
 				kpiPreference: data.kpiPreference,
 				toneDirection: data.toneDirection,
+				documentSummary: data.documentSummary,
+				documentUrl: data.documentUrl,
+				documentName: data.documentName,
 			},
 		});
 	}
@@ -129,6 +132,9 @@ export class CampaignRepository implements ICampaignRepository {
 				competitiveContext: data.competitiveContext,
 				kpiPreference: data.kpiPreference,
 				toneDirection: data.toneDirection,
+				documentSummary: data.documentSummary,
+				documentUrl: data.documentUrl,
+				documentName: data.documentName,
 			},
 		});
 	}

@@ -44,6 +44,8 @@ export class MockCampaignRepository implements ICampaignRepository {
 		budgetMin?: number;
 		budgetMax?: number;
 		keyMessage?: string;
+		status?: string;
+		generationStage?: string;
 	}): Promise<Campaign> {
 		const campaign: Campaign = {
 			id: crypto.randomUUID(),
@@ -62,8 +64,8 @@ export class MockCampaignRepository implements ICampaignRepository {
 			budgetMin: data.budgetMin != null ? new Decimal(data.budgetMin) : null,
 			budgetMax: data.budgetMax != null ? new Decimal(data.budgetMax) : null,
 			keyMessage: data.keyMessage ?? null,
-			status: "draft",
-			generationStage: null,
+			status: data.status ?? "draft",
+			generationStage: data.generationStage ?? null,
 			errorMessage: null,
 			createdAt: new Date(),
 			updatedAt: new Date(),
@@ -98,9 +100,9 @@ export class MockCampaignRepository implements ICampaignRepository {
 			competitiveContext: data.competitiveContext ?? null,
 			kpiPreference: data.kpiPreference ?? null,
 			toneDirection: data.toneDirection ?? null,
-			documentSummary: null,
-			documentUrl: null,
-			documentName: null,
+			documentSummary: data.documentSummary ?? null,
+			documentUrl: data.documentUrl ?? null,
+			documentName: data.documentName ?? null,
 			createdAt: new Date(),
 			updatedAt: new Date(),
 		};
@@ -129,6 +131,9 @@ export class MockCampaignRepository implements ICampaignRepository {
 			competitiveContext: data.competitiveContext ?? existing.competitiveContext,
 			kpiPreference: data.kpiPreference ?? existing.kpiPreference,
 			toneDirection: data.toneDirection ?? existing.toneDirection,
+			documentSummary: data.documentSummary ?? existing.documentSummary,
+			documentUrl: data.documentUrl ?? existing.documentUrl,
+			documentName: data.documentName ?? existing.documentName,
 			updatedAt: new Date(),
 		};
 		return this.briefs[index];

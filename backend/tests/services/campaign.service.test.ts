@@ -188,6 +188,27 @@ describe("CampaignService", () => {
 			expect(brief.channelMix).toBeNull();
 			expect(brief.trendContext).toBeNull();
 		});
+
+		it("should create a brief with document fields from a PDF upload", async () => {
+			const workspaceId = crypto.randomUUID();
+			const userId = crypto.randomUUID();
+			const campaign = await campaignService.create(workspaceId, userId, {
+				name: "PDF Campaign",
+			});
+
+			const brief = await campaignService.createBrief(campaign.id, {
+				documentSummary: "This is a Q2 product launch brief covering the new SaaS pricing tier.",
+				documentUrl: "http://minio.local/bucket/q2-brief.pdf",
+				documentName: "q2-brief.pdf",
+			});
+
+			expect(brief.campaignId).toBe(campaign.id);
+			expect(brief.documentSummary).toBe(
+				"This is a Q2 product launch brief covering the new SaaS pricing tier.",
+			);
+			expect(brief.documentUrl).toBe("http://minio.local/bucket/q2-brief.pdf");
+			expect(brief.documentName).toBe("q2-brief.pdf");
+		});
 	});
 
 	describe("getBrief", () => {
@@ -235,6 +256,30 @@ describe("CampaignService", () => {
 			expect(updated.competitiveContext).toBe("New competitor analysis");
 			// toneDirection should be preserved
 			expect(updated.toneDirection).toBe("Casual");
+		});
+
+		it("should preserve document fields on partial update", async () => {
+			const workspaceId = crypto.randomUUID();
+			const userId = crypto.randomUUID();
+			const campaign = await campaignService.create(workspaceId, userId, {
+				name: "Doc Fields Campaign",
+			});
+
+			const brief = await campaignService.createBrief(campaign.id, {
+				documentSummary: "Original summary",
+				documentUrl: "http://minio.local/bucket/original.pdf",
+				documentName: "original.pdf",
+				toneDirection: "Bold",
+			});
+
+			const updated = await campaignService.updateBrief(brief.id, {
+				toneDirection: "Empathetic",
+			});
+
+			expect(updated.toneDirection).toBe("Empathetic");
+			expect(updated.documentSummary).toBe("Original summary");
+			expect(updated.documentUrl).toBe("http://minio.local/bucket/original.pdf");
+			expect(updated.documentName).toBe("original.pdf");
 		});
 	});
 

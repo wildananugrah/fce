@@ -32,6 +32,9 @@ export interface CreateBriefInput {
 	competitiveContext?: string;
 	kpiPreference?: Record<string, any>;
 	toneDirection?: string;
+	documentSummary?: string;
+	documentUrl?: string;
+	documentName?: string;
 }
 
 export interface CreateChannelRoleInput {
