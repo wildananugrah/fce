@@ -306,4 +306,57 @@ describe("CampaignService", () => {
 			).rejects.toThrow("Campaign not found");
 		});
 	});
+
+	describe("createFromBrief", () => {
+		it("should create a campaign with name from filename and enqueue a campaign-pdf-generation job", async () => {
+			const workspaceId = crypto.randomUUID();
+			const userId = crypto.randomUUID();
+			const brandId = crypto.randomUUID();
+			const productId = crypto.randomUUID();
+
+			const campaign = await campaignService.createFromBrief(workspaceId, userId, {
+				brandId,
+				productId,
+				fileName: "Q2 2026 Campaign Brief.pdf",
+				fileUrl: "http://minio.local/bucket/key.pdf",
+				fileSize: 1234,
+				fileType: "application/pdf",
+			});
+
+			expect(campaign.workspaceId).toBe(workspaceId);
+			expect(campaign.brandId).toBe(brandId);
+			expect(campaign.productId).toBe(productId);
+			expect(campaign.name).toBe("Q2 2026 Campaign Brief");
+			expect(campaign.status).toBe("generating");
+
+			// A CampaignBrief row should be created with document fields
+			const brief = await campaignService.getBrief(campaign.id);
+			expect(brief).not.toBeNull();
+			expect(brief!.documentName).toBe("Q2 2026 Campaign Brief.pdf");
+			expect(brief!.documentUrl).toBe("http://minio.local/bucket/key.pdf");
+
+			// The job should be enqueued
+			expect(mockBoss.sentJobs).toHaveLength(1);
+			const job = mockBoss.sentJobs[0];
+			expect(job.name).toBe("campaign-pdf-generation");
+			expect((job.data as any).campaignId).toBe(campaign.id);
+			expect((job.data as any).userId).toBe(userId);
+		});
+
+		it("should strip non-pdf extensions and handle files with no extension", async () => {
+			const workspaceId = crypto.randomUUID();
+			const userId = crypto.randomUUID();
+			const brandId = crypto.randomUUID();
+
+			const campaign = await campaignService.createFromBrief(workspaceId, userId, {
+				brandId,
+				fileName: "campaign-brief-no-extension",
+				fileUrl: "http://minio.local/bucket/key",
+				fileSize: 500,
+				fileType: "application/pdf",
+			});
+
+			expect(campaign.name).toBe("campaign-brief-no-extension");
+		});
+	});
 });

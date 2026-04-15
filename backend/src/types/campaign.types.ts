@@ -50,3 +50,12 @@ export interface CreateDeliverableInput {
 	funnelStage?: string;
 	qtyRecommendation?: number;
 }
+
+export interface CreateFromBriefInput {
+	brandId: string;
+	productId?: string;
+	fileName: string;
+	fileUrl: string;
+	fileSize: number;
+	fileType: string;
+}

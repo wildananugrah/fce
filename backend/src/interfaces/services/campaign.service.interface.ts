@@ -2,6 +2,7 @@ import type { Campaign, CampaignBrief } from "@prisma/client";
 import type {
 	CreateBriefInput,
 	CreateCampaignInput,
+	CreateFromBriefInput,
 	UpdateCampaignInput,
 } from "../../types/campaign.types";
 
@@ -14,4 +15,9 @@ export interface ICampaignService {
 	getBrief(campaignId: string): Promise<CampaignBrief | null>;
 	updateBrief(briefId: string, input: Partial<CreateBriefInput>): Promise<CampaignBrief>;
 	generateFromBrief(campaignId: string, userId: string): Promise<void>;
+	createFromBrief(
+		workspaceId: string,
+		userId: string,
+		input: CreateFromBriefInput,
+	): Promise<Campaign>;
 }

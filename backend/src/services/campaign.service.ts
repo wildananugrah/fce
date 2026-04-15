@@ -5,6 +5,7 @@ import type { ICampaignService } from "../interfaces/services/campaign.service.i
 import type {
 	CreateBriefInput,
 	CreateCampaignInput,
+	CreateFromBriefInput,
 	UpdateCampaignInput,
 } from "../types/campaign.types";
 
@@ -81,5 +82,34 @@ export class CampaignService implements ICampaignService {
 			campaignId,
 			userId,
 		});
+	}
+
+	async createFromBrief(
+		workspaceId: string,
+		userId: string,
+		input: CreateFromBriefInput,
+	): Promise<Campaign> {
+		const name = input.fileName.replace(/\.pdf$/i, "");
+
+		const campaign = await this.campaignRepository.create({
+			workspaceId,
+			brandId: input.brandId,
+			productId: input.productId,
+			name,
+			status: "generating",
+			generationStage: "extracting",
+		});
+
+		await this.campaignRepository.createBrief(campaign.id, {
+			documentName: input.fileName,
+			documentUrl: input.fileUrl,
+		});
+
+		await this.boss.send("campaign-pdf-generation", {
+			campaignId: campaign.id,
+			userId,
+		});
+
+		return campaign;
 	}
 }
