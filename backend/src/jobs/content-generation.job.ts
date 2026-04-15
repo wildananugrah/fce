@@ -3,10 +3,10 @@ import type { IContentGenerator } from "../interfaces/providers/content-generato
 import type { ILogger } from "../interfaces/providers/logger.provider.interface";
 import type { IOutputSectionRepository } from "../interfaces/repositories/output-section.repository.interface";
 import type { INotificationService } from "../interfaces/services/notification.service.interface";
+import type { IUrlInspirationService } from "../interfaces/services/url-inspiration.service.interface";
 import { logAiActivity } from "../utils/ai-activity-logger";
 import { buildContentGenerationPrompt } from "../utils/prompt-builder";
 import { buildSkillContext } from "../utils/skill-context-builder";
-import { scrapeUrlsFromPrompt } from "../utils/url-prompt-scraper";
 
 interface ContentJobData {
 	requestId: string;
@@ -23,6 +23,7 @@ export class ContentGenerationJob {
 		private notificationService: INotificationService,
 		private logger: ILogger,
 		private outputSectionRepository?: IOutputSectionRepository,
+		private urlInspirationService?: IUrlInspirationService,
 	) {}
 
 	async handle(data: ContentJobData): Promise<void> {
@@ -167,17 +168,37 @@ export class ContentGenerationJob {
 				});
 			}
 
-			// Scrape URLs the user pasted into the Additional Direction prompt.
-			const urlScrapeResult = await scrapeUrlsFromPrompt(request.prompt, this.logger);
+			// Get URL inspirations via Apify + Gemini summarizer
 			let enrichedPrompt: string | undefined = request.prompt ?? undefined;
-			if (urlScrapeResult.context) {
-				enrichedPrompt = `${request.prompt ?? ""}\n\n${urlScrapeResult.context}`.trim();
-				this.logger.info("URLs scraped from content prompt", {
-					requestId,
-					urlCount: urlScrapeResult.urls.length,
-					successCount: urlScrapeResult.successCount,
-					failedCount: urlScrapeResult.failedCount,
-				});
+			if (this.urlInspirationService) {
+				const inspirations = await this.urlInspirationService.getInspirationsFromPrompt(
+					request.workspaceId,
+					request.prompt,
+					userId,
+				);
+				const successfulInspirations = inspirations.filter((i) => i.summary !== null);
+				if (successfulInspirations.length > 0) {
+					const block = successfulInspirations
+						.map((i) => {
+							const s = i.summary!;
+							const parts = [
+								`Reference from ${i.url} (${i.kind}):`,
+								`- Angle: ${s.angle}`,
+								`- Tone: ${s.tone}`,
+								`- Key points: ${s.keyPoints.join("; ")}`,
+								`- Format: ${s.format}`,
+							];
+							if (s.hashtags?.length) parts.push(`- Hashtags: ${s.hashtags.join(" ")}`);
+							if (s.engagementSignal) parts.push(`- Engagement: ${s.engagementSignal}`);
+							return parts.join("\n");
+						})
+						.join("\n\n---\n\n");
+					enrichedPrompt = `${request.prompt ?? ""}\n\n=== REFERENCE INSPIRATION ===\n${block}\n\nIMPORTANT: Use the reference inspiration above as direct creative direction. Derive topic angles, themes, and claims from it. At least half of the generated topics should clearly reflect the reference content — not copy it, but build on its angle, tone, or themes for this brand.`;
+					this.logger.info("URL inspirations injected into content generation", {
+						workspaceId: request.workspaceId,
+						count: successfulInspirations.length,
+					});
+				}
 			}
 
 			// Build generation input

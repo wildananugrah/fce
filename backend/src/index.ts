@@ -177,6 +177,7 @@ async function main() {
 		notificationService,
 		logger,
 		outputSectionRepository,
+		urlInspirationService,
 	);
 	const campaignGenerationJob = new CampaignGenerationJob(
 		prisma,
@@ -189,6 +190,7 @@ async function main() {
 		resolveTopicGenerator(),
 		notificationService,
 		logger,
+		urlInspirationService,
 	);
 	const topicRegenerationJob = new TopicRegenerationJob(
 		prisma,

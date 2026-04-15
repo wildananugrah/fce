@@ -2,10 +2,10 @@ import type { PrismaClient } from "@prisma/client";
 import type { ILogger } from "../interfaces/providers/logger.provider.interface";
 import type { ITopicGenerator } from "../interfaces/providers/topic-generator.interface";
 import type { INotificationService } from "../interfaces/services/notification.service.interface";
+import type { IUrlInspirationService } from "../interfaces/services/url-inspiration.service.interface";
 import { logAiActivity } from "../utils/ai-activity-logger";
 import { buildTopicGenerationPrompt } from "../utils/prompt-builder";
 import { buildSkillContext } from "../utils/skill-context-builder";
-import { scrapeUrlsFromPrompt } from "../utils/url-prompt-scraper";
 
 interface TopicJobData {
 	workspaceId: string;
@@ -28,6 +28,7 @@ export class TopicGenerationJob {
 		private topicGenerator: ITopicGenerator,
 		private notificationService: INotificationService,
 		private logger: ILogger,
+		private urlInspirationService: IUrlInspirationService,
 	) {}
 
 	async handle(data: TopicJobData): Promise<void> {
@@ -152,18 +153,34 @@ export class TopicGenerationJob {
 				});
 			}
 
-			// Scrape URLs the user pasted into the Additional Direction prompt.
-			// Extracted text gets appended to the prompt so the AI sees it as
-			// reference material without persisting anything to the database.
-			const urlScrapeResult = await scrapeUrlsFromPrompt(prompt, this.logger);
+			// Get URL inspirations via Apify + Gemini summarizer
+			const inspirations = await this.urlInspirationService.getInspirationsFromPrompt(
+				workspaceId,
+				prompt,
+				userId,
+			);
+			const successfulInspirations = inspirations.filter((i) => i.summary !== null);
 			let enrichedPrompt = prompt;
-			if (urlScrapeResult.context) {
-				enrichedPrompt = `${prompt ?? ""}\n\n${urlScrapeResult.context}`.trim();
-				this.logger.info("URLs scraped from topic prompt", {
+			if (successfulInspirations.length > 0) {
+				const block = successfulInspirations
+					.map((i) => {
+						const s = i.summary!;
+						const parts = [
+							`Reference from ${i.url} (${i.kind}):`,
+							`- Angle: ${s.angle}`,
+							`- Tone: ${s.tone}`,
+							`- Key points: ${s.keyPoints.join("; ")}`,
+							`- Format: ${s.format}`,
+						];
+						if (s.hashtags?.length) parts.push(`- Hashtags: ${s.hashtags.join(" ")}`);
+						if (s.engagementSignal) parts.push(`- Engagement: ${s.engagementSignal}`);
+						return parts.join("\n");
+					})
+					.join("\n\n---\n\n");
+				enrichedPrompt = `${prompt ?? ""}\n\n=== REFERENCE INSPIRATION ===\n${block}\n\nIMPORTANT: Use the reference inspiration above as direct creative direction. Derive topic angles, themes, and claims from it. At least half of the generated topics should clearly reflect the reference content — not copy it, but build on its angle, tone, or themes for this brand.`;
+				this.logger.info("URL inspirations injected into topic generation", {
 					workspaceId,
-					urlCount: urlScrapeResult.urls.length,
-					successCount: urlScrapeResult.successCount,
-					failedCount: urlScrapeResult.failedCount,
+					count: successfulInspirations.length,
 				});
 			}
 
