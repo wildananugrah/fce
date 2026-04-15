@@ -1,4 +1,5 @@
 import { getContentFormatCategory } from "../config/content-formats";
+import type { BriefSummaryInput } from "../interfaces/providers/campaign-brief-summarizer.interface";
 import type { CampaignGenerationInput } from "../interfaces/providers/campaign-generator.interface";
 import type { ContentGenerationInput } from "../interfaces/providers/content-generator.interface";
 import type { TopicGenerationInput } from "../interfaces/providers/topic-generator.interface";
@@ -154,6 +155,36 @@ EVERY topic object MUST contain ALL of these fields. Do NOT leave any field empt
 CRITICAL: Every field above is MANDATORY for every topic. If you cannot determine a value from the brand context, make a reasonable, on-brand choice — but never leave a field empty, null, or missing.
 
 Make topics diverse, engaging, and aligned with the brand voice.`;
+
+	return { systemPrompt, userPrompt };
+}
+
+export function buildBriefSummaryPrompt(input: BriefSummaryInput): PromptPair {
+	const truncated = input.extractedText.length > 60000
+		? `${input.extractedText.slice(0, 60000)}\n\n[…document truncated to fit context window…]`
+		: input.extractedText;
+
+	const systemPrompt = `You are an expert marketing strategist analyzing a client brief. You have the following brand context:
+${input.brandContext}
+${input.productContext ? `\nProduct context:\n${input.productContext}` : ""}
+
+${JSON_ONLY_INSTRUCTION}`;
+
+	const userPrompt = `Read the client brief document below and extract a structured summary.
+
+Return JSON with these exact fields:
+- summary (string): 3-5 sentence description of what this brief is asking for — the campaign purpose, goals, and any critical constraints.
+- objective (string): The primary marketing objective (e.g. "awareness", "engagement", "conversion", "retention", "education"). Infer from the brief if not stated.
+- audienceHint (string): One-sentence description of the target audience — demographics, role, pain points.
+- keyMessage (string): The single most important message the campaign should communicate.
+- budgetHint (string): Budget range if mentioned in the brief, else empty string "".
+- channelHint (array of strings): Array of channel codes mentioned or clearly implied. Use only these codes: "instagram", "tiktok", "youtube", "twitter", "linkedin", "facebook". Empty array if nothing is implied.
+- durationHint (object with: start, end): Campaign start and end dates in ISO format (YYYY-MM-DD) if mentioned. Use null for fields not found.
+
+Do NOT invent facts that are not grounded in the brief or the brand context. If something is not stated, use an empty string, empty array, or null as appropriate.
+
+=== CLIENT BRIEF DOCUMENT ===
+${truncated}`;
 
 	return { systemPrompt, userPrompt };
 }
