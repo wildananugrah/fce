@@ -139,8 +139,90 @@ export class CampaignPdfGenerationJob {
 				},
 			});
 
-			// ── Stage 3: Build campaign plan (placeholder — Task 12) ─────
-			// currentStage = "planning";
+			// ── Stage 3: Build campaign plan ─────────────────────────────
+			currentStage = "planning";
+			await this.setStage(campaignId, userId, "planning");
+
+			// Re-read the campaign so we get the freshly-applied Stage 2 hints.
+			const refreshedCampaign = await this.prisma.campaign.findUnique({
+				where: { id: campaignId },
+			});
+			if (!refreshedCampaign) throw new Error("Campaign disappeared mid-pipeline");
+
+			const planInput = {
+				brandContext: productContext
+					? `${brandContext}\n\nProduct Context: ${productContext}`
+					: brandContext,
+				objective: refreshedCampaign.objective ?? undefined,
+				budget: refreshedCampaign.budget ?? undefined,
+				channelMix: refreshedCampaign.channelMix
+					? (refreshedCampaign.channelMix as string[])
+					: undefined,
+				culturalContext: refreshedCampaign.culturalContext ?? undefined,
+			};
+			const { systemPrompt: planSys, userPrompt: planUser } =
+				buildCampaignGenerationPrompt(planInput);
+
+			const planStart = Date.now();
+			let planOutput: Awaited<ReturnType<ICampaignGenerator["generate"]>>;
+			try {
+				planOutput = await this.campaignGenerator.generate(planInput);
+				const usage = (this.campaignGenerator as any).lastUsage;
+				await logAiActivity(
+					this.prisma,
+					{
+						workspaceId: campaign.workspaceId,
+						generator: "campaign_plan",
+						provider:
+							process.env.AI_CAMPAIGN_PROVIDER || process.env.AI_PROVIDER || "unknown",
+						userId,
+						systemPrompt: planSys,
+						userPrompt: planUser,
+						brandId: campaign.brandId ?? undefined,
+					},
+					{
+						responseJson: planOutput,
+						durationMs: Date.now() - planStart,
+						inputTokens: usage?.inputTokens,
+						outputTokens: usage?.outputTokens,
+						status: "success",
+					},
+				);
+			} catch (err) {
+				const usage = (this.campaignGenerator as any).lastUsage;
+				await logAiActivity(
+					this.prisma,
+					{
+						workspaceId: campaign.workspaceId,
+						generator: "campaign_plan",
+						provider:
+							process.env.AI_CAMPAIGN_PROVIDER || process.env.AI_PROVIDER || "unknown",
+						userId,
+						systemPrompt: planSys,
+						userPrompt: planUser,
+						brandId: campaign.brandId ?? undefined,
+					},
+					{
+						durationMs: Date.now() - planStart,
+						inputTokens: usage?.inputTokens,
+						outputTokens: usage?.outputTokens,
+						status: "error",
+						errorMessage: err instanceof Error ? err.message : String(err),
+					},
+				);
+				throw err;
+			}
+
+			await this.prisma.campaignOutput.create({
+				data: {
+					campaignId,
+					bigIdea: planOutput.bigIdea,
+					messagingPillars: planOutput.messagingPillars as any,
+					funnelJourney: planOutput.funnelJourney as any,
+					channelRoles: planOutput.channelRoles as any,
+					status: "draft",
+				},
+			});
 
 			// ── Stage 4: Generate topics (placeholder — Task 13) ─────────
 			// currentStage = "topics";
