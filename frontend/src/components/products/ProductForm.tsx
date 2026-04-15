@@ -1,9 +1,12 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Save, Brain, Sparkles, Loader2, Upload, X, Globe } from "lucide-react";
 import { Input } from "../ui/Input";
 import { Select } from "../ui/Select";
 import { Button } from "../ui/Button";
 import { api, apiUpload } from "../../services/api";
+import { useAuth } from "../../hooks/useAuth";
+import { ScrapeLanguageToggle } from "../ui/ScrapeLanguageToggle";
+import type { ScrapeLanguage } from "../../types";
 
 interface Brand {
   id: string;
@@ -59,6 +62,16 @@ export function ProductForm({ brands, workspaceId, onSubmit, onCancel, initial, 
 
   const [productUrl, setProductUrl] = useState("");
   const [scraping, setScraping] = useState(false);
+  const { user } = useAuth();
+  const [scrapeLanguage, setScrapeLanguage] = useState<ScrapeLanguage>(
+    user?.defaultScrapeLanguage ?? "indonesian",
+  );
+
+  useEffect(() => {
+    if (user?.defaultScrapeLanguage) {
+      setScrapeLanguage(user.defaultScrapeLanguage);
+    }
+  }, [user?.defaultScrapeLanguage]);
   const [imageUrl, setImageUrl] = useState(initial?.imageUrl ?? "");
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -86,7 +99,7 @@ export function ProductForm({ brands, workspaceId, onSubmit, onCancel, initial, 
         imageUrl?: string;
       }>(`/api/workspaces/${workspaceId}/products/scrape-preview`, {
         method: "POST",
-        body: JSON.stringify({ url: productUrl.trim() }),
+        body: JSON.stringify({ url: productUrl.trim(), language: scrapeLanguage }),
       });
       if (result.name && !name.trim()) {
         setName(result.name);
@@ -256,12 +269,17 @@ export function ProductForm({ brands, workspaceId, onSubmit, onCancel, initial, 
           <p className="text-xs text-gray-500 mb-2">
             Enter a product page URL to auto-fill all fields using AI.
           </p>
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-stretch">
             <input
               value={productUrl}
               onChange={(e) => setProductUrl(e.target.value)}
               placeholder="https://example.com/product"
               className="flex-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-black placeholder-gray-400 focus:border-black focus:ring-1 focus:ring-black focus:outline-none"
+            />
+            <ScrapeLanguageToggle
+              value={scrapeLanguage}
+              onChange={setScrapeLanguage}
+              disabled={scraping}
             />
             <button
               type="button"
