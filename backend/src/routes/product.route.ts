@@ -1,6 +1,8 @@
 import { Hono } from "hono";
+import type { PrismaClient } from "@prisma/client";
 import type { IStorageProvider } from "../interfaces/providers/storage.provider.interface";
 import type { IProductService } from "../interfaces/services/product.service.interface";
+import { logAiActivity } from "../utils/ai-activity-logger";
 
 type Variables = {
 	userId: string;
@@ -42,6 +44,7 @@ export function createProductRoutes(
 	aiGenerator?: ProductAIProvider,
 	storageProvider?: IStorageProvider,
 	storageBucket?: string,
+	prisma?: PrismaClient,
 ) {
 	const app = new Hono<{ Variables: Variables }>();
 
@@ -55,8 +58,61 @@ export function createProductRoutes(
 		if (!url) {
 			return c.json({ error: "url is required" }, 400);
 		}
-		const result = await aiGenerator.scrapeProduct({ url });
-		return c.json({ data: result });
+		const workspaceId = c.get("workspaceId");
+		const userId = c.get("userId");
+		const startTime = Date.now();
+		try {
+			const result = await aiGenerator.scrapeProduct({ url });
+			const durationMs = Date.now() - startTime;
+			if (prisma) {
+				const usage = (aiGenerator as any).lastUsage;
+				await logAiActivity(
+					prisma,
+					{
+						workspaceId,
+						generator: "product_scraping",
+						provider:
+							process.env.AI_BRAND_SCRAPER_PROVIDER || process.env.AI_PROVIDER || "unknown",
+						userId,
+						systemPrompt: "",
+						userPrompt: `Scrape product URL: ${url}`,
+					},
+					{
+						responseJson: result,
+						durationMs,
+						inputTokens: usage?.inputTokens,
+						outputTokens: usage?.outputTokens,
+						status: "success",
+					},
+				);
+			}
+			return c.json({ data: result });
+		} catch (err) {
+			const durationMs = Date.now() - startTime;
+			if (prisma) {
+				const usage = (aiGenerator as any).lastUsage;
+				await logAiActivity(
+					prisma,
+					{
+						workspaceId,
+						generator: "product_scraping",
+						provider:
+							process.env.AI_BRAND_SCRAPER_PROVIDER || process.env.AI_PROVIDER || "unknown",
+						userId,
+						systemPrompt: "",
+						userPrompt: `Scrape product URL: ${url}`,
+					},
+					{
+						inputTokens: usage?.inputTokens,
+						outputTokens: usage?.outputTokens,
+						durationMs,
+						status: "error",
+						errorMessage: err instanceof Error ? err.message : String(err),
+					},
+				);
+			}
+			throw err;
+		}
 	});
 
 	// POST /generate-brain — AI-generate product brain fields
@@ -69,14 +125,67 @@ export function createProductRoutes(
 		if (!productName || !brandName) {
 			return c.json({ error: "productName and brandName are required" }, 400);
 		}
-		const result = await aiGenerator.generateProductBrain({
-			productName,
-			brandName,
-			productType,
-			priceTier,
-			summary,
-		});
-		return c.json({ data: result });
+		const workspaceId = c.get("workspaceId");
+		const userId = c.get("userId");
+		const startTime = Date.now();
+		try {
+			const result = await aiGenerator.generateProductBrain({
+				productName,
+				brandName,
+				productType,
+				priceTier,
+				summary,
+			});
+			const durationMs = Date.now() - startTime;
+			if (prisma) {
+				const usage = (aiGenerator as any).lastUsage;
+				await logAiActivity(
+					prisma,
+					{
+						workspaceId,
+						generator: "product_brain",
+						provider:
+							process.env.AI_BRAND_SCRAPER_PROVIDER || process.env.AI_PROVIDER || "unknown",
+						userId,
+						systemPrompt: "",
+						userPrompt: `Generate product brain for: ${productName} (brand: ${brandName})`,
+					},
+					{
+						responseJson: result,
+						durationMs,
+						inputTokens: usage?.inputTokens,
+						outputTokens: usage?.outputTokens,
+						status: "success",
+					},
+				);
+			}
+			return c.json({ data: result });
+		} catch (err) {
+			const durationMs = Date.now() - startTime;
+			if (prisma) {
+				const usage = (aiGenerator as any).lastUsage;
+				await logAiActivity(
+					prisma,
+					{
+						workspaceId,
+						generator: "product_brain",
+						provider:
+							process.env.AI_BRAND_SCRAPER_PROVIDER || process.env.AI_PROVIDER || "unknown",
+						userId,
+						systemPrompt: "",
+						userPrompt: `Generate product brain for: ${productName} (brand: ${brandName})`,
+					},
+					{
+						inputTokens: usage?.inputTokens,
+						outputTokens: usage?.outputTokens,
+						durationMs,
+						status: "error",
+						errorMessage: err instanceof Error ? err.message : String(err),
+					},
+				);
+			}
+			throw err;
+		}
 	});
 
 	// POST /upload-image — upload product image

@@ -346,7 +346,7 @@ async function main() {
 	workspaceScoped.route("/brands", createBrandRoutes(brandService, boss, resolveBrandScraper()));
 	workspaceScoped.route(
 		"/products",
-		createProductRoutes(productService, resolveBrandScraper(), storageProvider, env.minioBucket),
+		createProductRoutes(productService, resolveBrandScraper(), storageProvider, env.minioBucket, prisma),
 	);
 	workspaceScoped.route("/generations", createGenerationRoutes(generationService));
 	workspaceScoped.route("/library", createLibraryRoutes(libraryService));
