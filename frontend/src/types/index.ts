@@ -1,10 +1,12 @@
+export type ScrapeLanguage = "indonesian" | "english";
+
 export interface User {
   id: string;
   email: string;
   fullName: string | null;
   avatarUrl: string | null;
   isSuperadmin: boolean;
-  defaultScrapeLanguage: "indonesian" | "english";
+  defaultScrapeLanguage: ScrapeLanguage;
 }
 
 export interface AuthResponse {

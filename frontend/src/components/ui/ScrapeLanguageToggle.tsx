@@ -1,4 +1,6 @@
-export type ScrapeLanguage = "indonesian" | "english";
+import type { ScrapeLanguage } from "../../types";
+
+export type { ScrapeLanguage };
 
 interface ScrapeLanguageToggleProps {
   value: ScrapeLanguage;
