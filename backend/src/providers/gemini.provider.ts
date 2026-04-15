@@ -15,6 +15,11 @@ import type {
 	IContentGenerator,
 } from "../interfaces/providers/content-generator.interface";
 import type {
+	BriefSummaryInput,
+	BriefSummaryOutput,
+	ICampaignBriefSummarizer,
+} from "../interfaces/providers/campaign-brief-summarizer.interface";
+import type {
 	IInspirationSummarizer,
 	InspirationSummary,
 } from "../interfaces/providers/inspiration-summarizer.interface";
@@ -24,6 +29,7 @@ import type {
 	TopicGenerationOutput,
 } from "../interfaces/providers/topic-generator.interface";
 import {
+	buildBriefSummaryPrompt,
 	buildCampaignGenerationPrompt,
 	buildContentGenerationPrompt,
 	buildTopicGenerationPrompt,
@@ -57,6 +63,7 @@ export class GeminiProvider
 	implements
 		IContentGenerator,
 		ICampaignGenerator,
+		ICampaignBriefSummarizer,
 		ITopicGenerator,
 		IBrandScraper,
 		IInspirationSummarizer
@@ -386,6 +393,43 @@ ${fetched.content}`;
 		} catch (_err) {
 			throw new Error(
 				`GeminiProvider: Failed to parse brand scraping response as JSON. Raw: ${text}`,
+			);
+		}
+	}
+
+	async summarizeBrief(input: BriefSummaryInput): Promise<BriefSummaryOutput> {
+		const { systemPrompt, userPrompt } = buildBriefSummaryPrompt(input);
+
+		const response = await this.ai.models.generateContent({
+			model: this.model,
+			config: { temperature: 0, systemInstruction: systemPrompt },
+			contents: userPrompt,
+		});
+		this.lastUsage = {
+			inputTokens: response.usageMetadata?.promptTokenCount ?? 0,
+			outputTokens: response.usageMetadata?.candidatesTokenCount ?? 0,
+		};
+		this.lastPrompts = { systemPrompt, userPrompt };
+		this.lastResponseText = response.text ?? "";
+
+		const text = response.text ?? "";
+		try {
+			const parsed = parseJsonResponse(text) as BriefSummaryOutput;
+			return {
+				summary: parsed.summary ?? "",
+				objective: parsed.objective ?? "",
+				audienceHint: parsed.audienceHint ?? "",
+				keyMessage: parsed.keyMessage ?? "",
+				budgetHint: parsed.budgetHint ?? "",
+				channelHint: Array.isArray(parsed.channelHint) ? parsed.channelHint : [],
+				durationHint: {
+					start: parsed.durationHint?.start ?? null,
+					end: parsed.durationHint?.end ?? null,
+				},
+			};
+		} catch (_err) {
+			throw new Error(
+				`GeminiProvider: Failed to parse brief summary response as JSON. Raw: ${text}`,
 			);
 		}
 	}
