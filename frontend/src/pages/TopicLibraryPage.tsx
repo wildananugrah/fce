@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Trash2, RefreshCw, ChevronDown, Sparkles, Calendar, X } from "lucide-react";
+import { Trash2, RefreshCw, ChevronDown, Sparkles, Calendar, X, Eye } from "lucide-react";
 import { useWorkspace } from "../hooks/useWorkspace";
 import { api } from "../services/api";
 import { Button } from "../components/ui/Button";
 import { Modal } from "../components/ui/Modal";
 import { Spinner } from "../components/ui/Spinner";
 import { Toast } from "../components/ui/Toast";
+import { TopicDetailDrawer } from "../components/topics/TopicDetailDrawer";
 
 interface Topic {
   id: string;
@@ -190,6 +191,7 @@ export function TopicLibraryPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   const [bulkActionRunning, setBulkActionRunning] = useState(false);
+  const [viewingTopic, setViewingTopic] = useState<Topic | null>(null);
 
   const showToast = (message: string, type: "success" | "error" | "info") => {
     setToast({ message, type });
@@ -634,6 +636,17 @@ export function TopicLibraryPage() {
                                 <div className="flex items-center gap-2">
                                   <button
                                     type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setViewingTopic(topic);
+                                    }}
+                                    className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:border-gray-300 hover:bg-gray-50 transition-colors"
+                                  >
+                                    <Eye size={12} />
+                                    View
+                                  </button>
+                                  <button
+                                    type="button"
                                     onClick={() => {
                                       const productIds = topic.products?.map((tp) => tp.product.id) ?? [];
                                       const params = new URLSearchParams({
@@ -781,6 +794,19 @@ export function TopicLibraryPage() {
             </div>
           </div>
         </Modal>
+      )}
+
+      {activeWorkspace && (
+        <TopicDetailDrawer
+          isOpen={!!viewingTopic}
+          topic={viewingTopic}
+          workspaceId={activeWorkspace.id}
+          onClose={() => setViewingTopic(null)}
+          onUpdated={(updated) => {
+            setTopics((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
+          }}
+          onToast={showToast}
+        />
       )}
 
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
