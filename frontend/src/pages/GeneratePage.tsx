@@ -12,6 +12,7 @@ import { Toast } from "../components/ui/Toast";
 import { ActiveSkillsBadges } from "../components/skills/ActiveSkillsBadges";
 import { GenerationResultRow } from "../components/generation/GenerationResultRow";
 import { ReferenceImageUpload, type ImageRef } from "../components/ui/ReferenceImageUpload";
+import { UrlInspirationChips } from "../components/url-inspiration/UrlInspirationChips";
 
 interface Brand {
   id: string;
@@ -909,6 +910,12 @@ const frameworkOptions = [{ value: "", label: "PAS (recommended)" }, ...framewor
                 <p className="text-[10px] text-gray-400 mt-1.5">
                   You can paste URLs — the system will scrape the pages and include the extracted text as AI context.
                 </p>
+                {activeWorkspace && (
+                  <UrlInspirationChips
+                    workspaceId={activeWorkspace.id}
+                    prompt={customPrompt}
+                  />
+                )}
               </div>
 
               <div>

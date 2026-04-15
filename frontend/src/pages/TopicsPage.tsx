@@ -8,6 +8,7 @@ import { Spinner } from "../components/ui/Spinner";
 import { Toast } from "../components/ui/Toast";
 import { ActiveSkillsBadges } from "../components/skills/ActiveSkillsBadges";
 import { ReferenceImageUpload, type ImageRef } from "../components/ui/ReferenceImageUpload";
+import { UrlInspirationChips } from "../components/url-inspiration/UrlInspirationChips";
 
 interface Brand {
 	id: string;
@@ -718,6 +719,12 @@ export function TopicsPage() {
 								<p className="text-[10px] text-gray-400 mt-1.5">
 									You can paste URLs — the system will scrape the pages and include the extracted text as AI context.
 								</p>
+								{activeWorkspace && (
+									<UrlInspirationChips
+										workspaceId={activeWorkspace.id}
+										prompt={topicPrompt}
+									/>
+								)}
 							</div>
 
 							<div>
