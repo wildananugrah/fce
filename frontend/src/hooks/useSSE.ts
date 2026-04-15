@@ -6,6 +6,30 @@ interface SSEEvent {
   data: Record<string, unknown>;
 }
 
+// All event types the frontend cares about. Each must match a backend
+// `notificationService.notify(userId, { type, data })` event name.
+const EVENT_TYPES = [
+  // Content generation
+  "generation_complete",
+  "generation_failed",
+  // Campaign
+  "campaign_complete",
+  // Topic generation
+  "topics_generated",
+  "topic_generation_complete",
+  "topic_generation_failed",
+  // Topic regeneration (single topic)
+  "topic_regenerated",
+  "topic_regeneration_failed",
+  "topic_preview_regenerated",
+  "topic_preview_regeneration_failed",
+  // Brand scraping
+  "brand_scraped",
+  // Research runs
+  "research_run_complete",
+  "research_run_failed",
+] as const;
+
 export function useSSE(onEvent: (event: SSEEvent) => void) {
   const eventSourceRef = useRef<EventSource | null>(null);
   const onEventRef = useRef(onEvent);
@@ -19,41 +43,17 @@ export function useSSE(onEvent: (event: SSEEvent) => void) {
     const es = new EventSource(`${baseUrl}/api/sse?token=${token}`);
     eventSourceRef.current = es;
 
-    es.addEventListener("generation_complete", (e) => {
-      onEventRef.current({ type: "generation_complete", data: JSON.parse(e.data) });
-    });
-
-    es.addEventListener("generation_failed", (e) => {
-      onEventRef.current({ type: "generation_failed", data: JSON.parse(e.data) });
-    });
-
-    es.addEventListener("campaign_complete", (e) => {
-      onEventRef.current({ type: "campaign_complete", data: JSON.parse(e.data) });
-    });
-
-    es.addEventListener("topics_generated", (e) => {
-      onEventRef.current({ type: "topics_generated", data: JSON.parse(e.data) });
-    });
-
-    es.addEventListener("topic_generation_complete", (e) => {
-      onEventRef.current({ type: "topic_generation_complete", data: JSON.parse(e.data) });
-    });
-
-    es.addEventListener("topic_generation_failed", (e) => {
-      onEventRef.current({ type: "topic_generation_failed", data: JSON.parse(e.data) });
-    });
-
-    es.addEventListener("brand_scraped", (e) => {
-      onEventRef.current({ type: "brand_scraped", data: JSON.parse(e.data) });
-    });
-
-    es.addEventListener("research_run_complete", (e) => {
-      onEventRef.current({ type: "research_run_complete", data: JSON.parse(e.data) });
-    });
-
-    es.addEventListener("research_run_failed", (e) => {
-      onEventRef.current({ type: "research_run_failed", data: JSON.parse(e.data) });
-    });
+    // Register a listener for each known event type. EventSource only
+    // delivers named events to listeners explicitly subscribed to them.
+    for (const eventType of EVENT_TYPES) {
+      es.addEventListener(eventType, (e) => {
+        try {
+          onEventRef.current({ type: eventType, data: JSON.parse(e.data) });
+        } catch {
+          // ignore malformed events
+        }
+      });
+    }
 
     es.onerror = () => {
       es.close();
