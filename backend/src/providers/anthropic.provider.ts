@@ -5,6 +5,11 @@ import type {
 	IBrandScraper,
 } from "../interfaces/providers/brand-scraper.interface";
 import type {
+	BriefSummaryInput,
+	BriefSummaryOutput,
+	ICampaignBriefSummarizer,
+} from "../interfaces/providers/campaign-brief-summarizer.interface";
+import type {
 	CampaignGenerationInput,
 	CampaignGenerationOutput,
 	ICampaignGenerator,
@@ -20,6 +25,7 @@ import type {
 	TopicGenerationOutput,
 } from "../interfaces/providers/topic-generator.interface";
 import {
+	buildBriefSummaryPrompt,
 	buildCampaignGenerationPrompt,
 	buildContentGenerationPrompt,
 	buildTopicGenerationPrompt,
@@ -48,7 +54,7 @@ function parseJsonResponse(text: string): any {
 }
 
 export class AnthropicProvider
-	implements IContentGenerator, ICampaignGenerator, ITopicGenerator, IBrandScraper
+	implements IContentGenerator, ICampaignGenerator, ICampaignBriefSummarizer, ITopicGenerator, IBrandScraper
 {
 	private client: Anthropic;
 	public lastUsage: { inputTokens: number; outputTokens: number } | null = null;
@@ -369,6 +375,43 @@ ${fetched.content}`;
 		} catch (_err) {
 			throw new Error(
 				`AnthropicProvider: Failed to parse brand scraping response as JSON. Raw: ${text}`,
+			);
+		}
+	}
+
+	async summarizeBrief(input: BriefSummaryInput): Promise<BriefSummaryOutput> {
+		const { systemPrompt, userPrompt } = buildBriefSummaryPrompt(input);
+
+		const response = await this.client.messages.create({
+			model: this.model,
+			max_tokens: 2048,
+			temperature: 0,
+			system: systemPrompt,
+			messages: [{ role: "user", content: userPrompt }],
+		});
+		this.lastUsage = {
+			inputTokens: response.usage.input_tokens,
+			outputTokens: response.usage.output_tokens,
+		};
+
+		const text = response.content[0].type === "text" ? response.content[0].text : "";
+		try {
+			const parsed = parseJsonResponse(text) as BriefSummaryOutput;
+			return {
+				summary: parsed.summary ?? "",
+				objective: parsed.objective ?? "",
+				audienceHint: parsed.audienceHint ?? "",
+				keyMessage: parsed.keyMessage ?? "",
+				budgetHint: parsed.budgetHint ?? "",
+				channelHint: Array.isArray(parsed.channelHint) ? parsed.channelHint : [],
+				durationHint: {
+					start: parsed.durationHint?.start ?? null,
+					end: parsed.durationHint?.end ?? null,
+				},
+			};
+		} catch (_err) {
+			throw new Error(
+				`AnthropicProvider: Failed to parse brief summary response as JSON. Raw: ${text}`,
 			);
 		}
 	}
