@@ -20,6 +20,9 @@ import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
 import { api } from "../../services/api";
 import { ProductReferences } from "../products/ProductReferences";
+import { useAuth } from "../../hooks/useAuth";
+import { ScrapeLanguageToggle } from "../ui/ScrapeLanguageToggle";
+import type { ScrapeLanguage } from "../../types";
 
 // ── Types ──────────────────────────────────────────────────────
 
@@ -307,6 +310,16 @@ export function NewBrandBrainDrawer({
   const [scraping, setScraping] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const { user } = useAuth();
+  const [scrapeLanguage, setScrapeLanguage] = useState<ScrapeLanguage>(
+    user?.defaultScrapeLanguage ?? "indonesian",
+  );
+
+  useEffect(() => {
+    if (user?.defaultScrapeLanguage) {
+      setScrapeLanguage(user.defaultScrapeLanguage);
+    }
+  }, [user?.defaultScrapeLanguage]);
 
   // Load brand data when opening in edit mode
   useEffect(() => {
@@ -402,7 +415,7 @@ export function NewBrandBrainDrawer({
         donts?: string[];
       }>(`/api/workspaces/${workspaceId}/brands/scrape-preview`, {
         method: "POST",
-        body: JSON.stringify({ url: form.websiteUrl.trim() }),
+        body: JSON.stringify({ url: form.websiteUrl.trim(), language: scrapeLanguage }),
       });
 
       setForm((prev) => ({
@@ -570,12 +583,17 @@ export function NewBrandBrainDrawer({
                   <p className="text-xs text-gray-500 mb-3">
                     Enter the brand website URL to auto-fill brand information using AI.
                   </p>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 items-stretch">
                     <input
                       value={form.websiteUrl}
                       onChange={(e) => update("websiteUrl", e.target.value)}
                       placeholder="https://brand.com"
                       className="flex-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-black placeholder-gray-400 focus:border-black focus:ring-1 focus:ring-black focus:outline-none"
+                    />
+                    <ScrapeLanguageToggle
+                      value={scrapeLanguage}
+                      onChange={setScrapeLanguage}
+                      disabled={scraping}
                     />
                     <Button
                       variant="secondary"
