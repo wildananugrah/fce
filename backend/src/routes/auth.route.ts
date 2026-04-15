@@ -66,11 +66,20 @@ export function createAuthRoutes(authService: IAuthService) {
 	app.patch("/profile", async (c) => {
 		const userId = c.get("userId" as any);
 		const body = await c.req.json();
-		const user = await authService.updateProfile(userId, {
-			fullName: body.fullName,
-			avatarUrl: body.avatarUrl,
-		});
-		return c.json({ data: user });
+		try {
+			const user = await authService.updateProfile(userId, {
+				fullName: body.fullName,
+				avatarUrl: body.avatarUrl,
+				defaultScrapeLanguage: body.defaultScrapeLanguage,
+			});
+			return c.json({ data: user });
+		} catch (e) {
+			const message = e instanceof Error ? e.message : "Failed to update profile";
+			if (message.startsWith("Invalid defaultScrapeLanguage")) {
+				return c.json({ error: message }, 400);
+			}
+			throw e;
+		}
 	});
 
 	return app;
