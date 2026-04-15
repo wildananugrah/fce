@@ -681,7 +681,7 @@ export function TopicsPage() {
 								</label>
 								<input
 									type="range"
-									min={5}
+									min={1}
 									max={30}
 									step={1}
 									value={count}
@@ -691,7 +691,7 @@ export function TopicsPage() {
 									className="w-full accent-indigo-600"
 								/>
 								<div className="flex justify-between text-xs text-gray-400 mt-1">
-									<span>5</span>
+									<span>1</span>
 									<span>15</span>
 									<span>30</span>
 								</div>
