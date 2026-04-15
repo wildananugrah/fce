@@ -4,6 +4,7 @@ export interface User {
   fullName: string | null;
   avatarUrl: string | null;
   isSuperadmin: boolean;
+  defaultScrapeLanguage: "indonesian" | "english";
 }
 
 export interface AuthResponse {
