@@ -4,6 +4,7 @@ import type { IBrandScraper } from "../interfaces/providers/brand-scraper.interf
 import type { ILogger } from "../interfaces/providers/logger.provider.interface";
 import type { INotificationService } from "../interfaces/services/notification.service.interface";
 import { WebsiteCrawlerParser } from "../providers/apify-parsers/website-crawler.parser";
+import { logAiActivity } from "../utils/ai-activity-logger";
 
 interface BrandScrapingJobData {
 	brandId: string;
@@ -24,6 +25,13 @@ export class BrandScrapingJob {
 		const { brandId, url, userId } = data;
 
 		try {
+			// Resolve workspaceId from the brand record
+			const brand = await this.prisma.brand.findUnique({
+				where: { id: brandId },
+				select: { workspaceId: true },
+			});
+			const workspaceId = brand?.workspaceId ?? "";
+
 			// Apify pre-step: enrich with structured content if API key available
 			let enrichedContent: string | undefined;
 			if (this.apifyProvider) {
@@ -79,9 +87,59 @@ export class BrandScrapingJob {
 			}
 
 			// Scrape brand data from URL (with optional enriched content)
-			const scraped = enrichedContent
-				? await this.brandScraper.scrape({ url, enrichedContent } as any)
-				: await this.brandScraper.scrape({ url });
+			const startTime = Date.now();
+			let scraped: Awaited<ReturnType<IBrandScraper["scrape"]>>;
+			try {
+				scraped = enrichedContent
+					? await this.brandScraper.scrape({ url, enrichedContent } as any)
+					: await this.brandScraper.scrape({ url });
+				const durationMs = Date.now() - startTime;
+				const usage = (this.brandScraper as any).lastUsage;
+				await logAiActivity(
+					this.prisma,
+					{
+						workspaceId,
+						generator: "brand_scraping",
+						provider:
+							process.env.AI_BRAND_SCRAPER_PROVIDER || process.env.AI_PROVIDER || "unknown",
+						userId,
+						systemPrompt: "",
+						userPrompt: `Scrape URL: ${url}`,
+						brandId,
+					},
+					{
+						responseJson: scraped,
+						durationMs,
+						inputTokens: usage?.inputTokens,
+						outputTokens: usage?.outputTokens,
+						status: "success",
+					},
+				);
+			} catch (err) {
+				const durationMs = Date.now() - startTime;
+				const usage = (this.brandScraper as any).lastUsage;
+				await logAiActivity(
+					this.prisma,
+					{
+						workspaceId,
+						generator: "brand_scraping",
+						provider:
+							process.env.AI_BRAND_SCRAPER_PROVIDER || process.env.AI_PROVIDER || "unknown",
+						userId,
+						systemPrompt: "",
+						userPrompt: `Scrape URL: ${url}`,
+						brandId,
+					},
+					{
+						inputTokens: usage?.inputTokens,
+						outputTokens: usage?.outputTokens,
+						durationMs,
+						status: "error",
+						errorMessage: err instanceof Error ? err.message : String(err),
+					},
+				);
+				throw err;
+			}
 
 			// Determine next version number
 			const latest = await this.prisma.brandBrainVersion.findFirst({
