@@ -4,6 +4,9 @@ import type { AuthResponse, LoginInput, SignupInput } from "../types/auth.types"
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from "../utils/jwt";
 import { hashPassword, verifyPassword } from "../utils/password";
 
+const ALLOWED_SCRAPE_LANGUAGES = ["indonesian", "english"] as const;
+type ScrapeLanguage = (typeof ALLOWED_SCRAPE_LANGUAGES)[number];
+
 interface AuthConfig {
 	jwtSecret: string;
 	jwtRefreshSecret: string;
@@ -43,6 +46,7 @@ export class AuthService implements IAuthService {
 				fullName: user.fullName,
 				avatarUrl: user.avatarUrl,
 				isSuperadmin: user.isSuperadmin,
+				defaultScrapeLanguage: user.defaultScrapeLanguage as ScrapeLanguage,
 			},
 			accessToken,
 		};
@@ -78,6 +82,7 @@ export class AuthService implements IAuthService {
 				fullName: user.fullName,
 				avatarUrl: user.avatarUrl,
 				isSuperadmin: user.isSuperadmin,
+				defaultScrapeLanguage: user.defaultScrapeLanguage as ScrapeLanguage,
 			},
 			accessToken,
 			refreshToken,
@@ -112,11 +117,35 @@ export class AuthService implements IAuthService {
 			fullName: user.fullName,
 			avatarUrl: user.avatarUrl,
 			isSuperadmin: user.isSuperadmin,
+			defaultScrapeLanguage: user.defaultScrapeLanguage as ScrapeLanguage,
 		};
 	}
 
-	async updateProfile(userId: string, data: { fullName?: string; avatarUrl?: string }) {
+	async updateProfile(
+		userId: string,
+		data: {
+			fullName?: string;
+			avatarUrl?: string;
+			defaultScrapeLanguage?: "indonesian" | "english";
+		},
+	): Promise<AuthResponse["user"]> {
+		if (
+			data.defaultScrapeLanguage !== undefined &&
+			!ALLOWED_SCRAPE_LANGUAGES.includes(data.defaultScrapeLanguage as ScrapeLanguage)
+		) {
+			throw new Error(
+				`Invalid defaultScrapeLanguage: ${data.defaultScrapeLanguage}. Allowed: ${ALLOWED_SCRAPE_LANGUAGES.join(", ")}`,
+			);
+		}
+
 		const user = await this.userRepository.update(userId, data);
-		return { id: user.id, email: user.email, fullName: user.fullName, avatarUrl: user.avatarUrl };
+		return {
+			id: user.id,
+			email: user.email,
+			fullName: user.fullName,
+			avatarUrl: user.avatarUrl,
+			isSuperadmin: user.isSuperadmin,
+			defaultScrapeLanguage: user.defaultScrapeLanguage as ScrapeLanguage,
+		};
 	}
 }

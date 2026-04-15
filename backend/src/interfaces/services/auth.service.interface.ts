@@ -5,5 +5,12 @@ export interface IAuthService {
 	login(input: LoginInput): Promise<AuthResponse & { refreshToken: string }>;
 	refresh(refreshToken: string): Promise<{ accessToken: string }>;
 	me(userId: string): Promise<AuthResponse["user"]>;
-	updateProfile(userId: string, data: { fullName?: string; avatarUrl?: string }): Promise<any>;
+	updateProfile(
+		userId: string,
+		data: {
+			fullName?: string;
+			avatarUrl?: string;
+			defaultScrapeLanguage?: "indonesian" | "english";
+		},
+	): Promise<AuthResponse["user"]>;
 }

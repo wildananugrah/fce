@@ -97,4 +97,56 @@ describe("AuthService", () => {
 			await expect(authService.me("nonexistent-id")).rejects.toThrow("User not found");
 		});
 	});
+
+	describe("updateProfile — defaultScrapeLanguage", () => {
+		it("defaults new users to 'indonesian'", async () => {
+			await authService.signup({ email: "lang@example.com", password: "password123" });
+			const signupUser = await userRepo.findByEmail("lang@example.com");
+			expect(signupUser?.defaultScrapeLanguage).toBe("indonesian");
+		});
+
+		it("returns defaultScrapeLanguage from me()", async () => {
+			const signup = await authService.signup({
+				email: "me-lang@example.com",
+				password: "password123",
+			});
+			const me = await authService.me(signup.user.id);
+			expect(me.defaultScrapeLanguage).toBe("indonesian");
+		});
+
+		it("persists a valid language update", async () => {
+			const signup = await authService.signup({
+				email: "update-lang@example.com",
+				password: "password123",
+			});
+			const updated = await authService.updateProfile(signup.user.id, {
+				defaultScrapeLanguage: "english",
+			});
+			expect(updated.defaultScrapeLanguage).toBe("english");
+		});
+
+		it("rejects an invalid language value", async () => {
+			const signup = await authService.signup({
+				email: "bad-lang@example.com",
+				password: "password123",
+			});
+			await expect(
+				authService.updateProfile(signup.user.id, {
+					defaultScrapeLanguage: "french" as any,
+				}),
+			).rejects.toThrow("Invalid defaultScrapeLanguage");
+		});
+
+		it("leaves defaultScrapeLanguage unchanged when other fields are updated", async () => {
+			const signup = await authService.signup({
+				email: "keep-lang@example.com",
+				password: "password123",
+			});
+			await authService.updateProfile(signup.user.id, { defaultScrapeLanguage: "english" });
+			await authService.updateProfile(signup.user.id, { fullName: "New Name" });
+			const me = await authService.me(signup.user.id);
+			expect(me.defaultScrapeLanguage).toBe("english");
+			expect(me.fullName).toBe("New Name");
+		});
+	});
 });
