@@ -49,15 +49,49 @@ export class CampaignRepository implements ICampaignRepository {
 		budgetMin?: number;
 		budgetMax?: number;
 		keyMessage?: string;
+		status?: string;
+		generationStage?: string;
 	}): Promise<Campaign> {
-		return this.prisma.campaign.create({ data });
+		return this.prisma.campaign.create({
+			data: {
+				...data,
+				status: data.status ?? "draft",
+			},
+		});
 	}
 
 	async update(
 		id: string,
-		data: Partial<Pick<Campaign, "name" | "description" | "objective" | "status">>,
+		data: {
+			name?: string;
+			description?: string | null;
+			objective?: string | null;
+			status?: string;
+			generationStage?: string | null;
+			errorMessage?: string | null;
+			audienceSegment?: string | null;
+			keyMessage?: string | null;
+			channelMix?: string[] | null;
+			durationStart?: Date | null;
+			durationEnd?: Date | null;
+		},
 	): Promise<Campaign> {
-		return this.prisma.campaign.update({ where: { id }, data });
+		return this.prisma.campaign.update({
+			where: { id },
+			data: {
+				name: data.name,
+				description: data.description,
+				objective: data.objective,
+				status: data.status,
+				generationStage: data.generationStage,
+				errorMessage: data.errorMessage,
+				audienceSegment: data.audienceSegment,
+				keyMessage: data.keyMessage,
+				channelMix: data.channelMix === undefined ? undefined : (data.channelMix as any),
+				durationStart: data.durationStart,
+				durationEnd: data.durationEnd,
+			},
+		});
 	}
 
 	async createBrief(campaignId: string, data: CreateBriefInput): Promise<CampaignBrief> {

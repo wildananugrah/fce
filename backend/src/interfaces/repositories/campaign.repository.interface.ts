@@ -30,10 +30,24 @@ export interface ICampaignRepository {
 		budgetMin?: number;
 		budgetMax?: number;
 		keyMessage?: string;
+		status?: string;
+		generationStage?: string;
 	}): Promise<Campaign>;
 	update(
 		id: string,
-		data: Partial<Pick<Campaign, "name" | "description" | "objective" | "status">>,
+		data: {
+			name?: string;
+			description?: string | null;
+			objective?: string | null;
+			status?: string;
+			generationStage?: string | null;
+			errorMessage?: string | null;
+			audienceSegment?: string | null;
+			keyMessage?: string | null;
+			channelMix?: string[] | null;
+			durationStart?: Date | null;
+			durationEnd?: Date | null;
+		},
 	): Promise<Campaign>;
 	createBrief(campaignId: string, data: CreateBriefInput): Promise<CampaignBrief>;
 	findBriefByCampaign(campaignId: string): Promise<CampaignBrief | null>;
