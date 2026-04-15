@@ -20,4 +20,5 @@ export interface ICampaignService {
 		userId: string,
 		input: CreateFromBriefInput,
 	): Promise<Campaign>;
+	delete(id: string): Promise<void>;
 }

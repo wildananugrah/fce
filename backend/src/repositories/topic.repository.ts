@@ -4,9 +4,12 @@ import type { ITopicRepository } from "../interfaces/repositories/topic.reposito
 export class TopicRepository implements ITopicRepository {
 	constructor(private prisma: PrismaClient) {}
 
-	async findByWorkspace(workspaceId: string) {
+	async findByWorkspace(workspaceId: string, filters?: { campaignId?: string }) {
 		return this.prisma.contentTopic.findMany({
-			where: { workspaceId },
+			where: {
+				workspaceId,
+				...(filters?.campaignId ? { campaignId: filters.campaignId } : {}),
+			},
 			orderBy: { createdAt: "desc" },
 			include: {
 				brand: { select: { id: true, name: true } },

@@ -57,4 +57,5 @@ export interface ICampaignRepository {
 		campaignOutputId: string,
 		deliverables: CreateDeliverableInput[],
 	): Promise<void>;
+	delete(id: string): Promise<void>;
 }

@@ -9,6 +9,7 @@ import { BrandsPage } from "./pages/BrandsPage";
 import { ProductsPage } from "./pages/ProductsPage";
 import { GeneratePage } from "./pages/GeneratePage";
 import { CampaignsPage } from "./pages/CampaignsPage";
+import { CampaignDetailPage } from "./pages/CampaignDetailPage";
 import { TopicsPage } from "./pages/TopicsPage";
 import { TopicLibraryPage } from "./pages/TopicLibraryPage";
 import { LibraryPage } from "./pages/LibraryPage";
@@ -38,6 +39,7 @@ export default function App() {
               <Route path="/products/:id" element={<ProductDetailPage />} />
               <Route path="/generate" element={<GeneratePage />} />
               <Route path="/campaigns" element={<CampaignsPage />} />
+              <Route path="/campaigns/:id" element={<CampaignDetailPage />} />
               <Route path="/topics" element={<TopicsPage />} />
               <Route path="/topic-library" element={<TopicLibraryPage />} />
               <Route path="/content-library" element={<LibraryPage />} />

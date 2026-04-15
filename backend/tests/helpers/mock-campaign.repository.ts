@@ -165,6 +165,12 @@ export class MockCampaignRepository implements ICampaignRepository {
 		}
 	}
 
+	async delete(id: string): Promise<void> {
+		this.campaigns = this.campaigns.filter((c) => c.id !== id);
+		this.outputs = this.outputs.filter((o) => o.campaignId !== id);
+		this.briefs = this.briefs.filter((b) => b.campaignId !== id);
+	}
+
 	clear(): void {
 		this.campaigns = [];
 		this.outputs = [];

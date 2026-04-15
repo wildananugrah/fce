@@ -112,4 +112,8 @@ export class CampaignService implements ICampaignService {
 
 		return campaign;
 	}
+
+	async delete(id: string): Promise<void> {
+		await this.campaignRepository.delete(id);
+	}
 }

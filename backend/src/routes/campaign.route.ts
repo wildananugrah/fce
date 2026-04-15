@@ -118,6 +118,13 @@ export function createCampaignRoutes(
 		return c.json({ data: campaign });
 	});
 
+	// DELETE /:id — delete a campaign (cascade via onDelete: SetNull on ContentTopic)
+	app.delete("/:id", async (c) => {
+		const id = c.req.param("id");
+		await campaignService.delete(id);
+		return c.json({ success: true });
+	});
+
 	// POST /:id/brief — create campaign brief
 	app.post("/:id/brief", async (c) => {
 		const campaignId = c.req.param("id");

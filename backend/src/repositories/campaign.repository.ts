@@ -168,4 +168,8 @@ export class CampaignRepository implements ICampaignRepository {
 			})),
 		});
 	}
+
+	async delete(id: string): Promise<void> {
+		await this.prisma.campaign.delete({ where: { id } });
+	}
 }

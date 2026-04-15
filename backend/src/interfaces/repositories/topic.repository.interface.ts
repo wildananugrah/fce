@@ -9,7 +9,7 @@ export type TopicWithBrand = ContentTopic & {
 };
 
 export interface ITopicRepository {
-	findByWorkspace(workspaceId: string): Promise<TopicWithBrand[]>;
+	findByWorkspace(workspaceId: string, filters?: { campaignId?: string }): Promise<TopicWithBrand[]>;
 	findById(id: string): Promise<TopicWithBrand | null>;
 	create(data: {
 		workspaceId: string;

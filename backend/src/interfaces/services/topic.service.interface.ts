@@ -7,7 +7,7 @@ import type {
 import type { TopicWithBrand } from "../repositories/topic.repository.interface";
 
 export interface ITopicService {
-	list(workspaceId: string): Promise<TopicWithBrand[]>;
+	list(workspaceId: string, filters?: { campaignId?: string }): Promise<TopicWithBrand[]>;
 	getById(id: string): Promise<TopicWithBrand>;
 	create(workspaceId: string, input: CreateTopicInput): Promise<ContentTopic>;
 	update(id: string, input: UpdateTopicInput): Promise<ContentTopic>;

@@ -14,7 +14,8 @@ export function createTopicRoutes(topicService: ITopicService) {
 	// GET / — list topics
 	app.get("/", async (c) => {
 		const workspaceId = c.get("workspaceId");
-		const topics = await topicService.list(workspaceId);
+		const campaignId = c.req.query("campaignId") || undefined;
+		const topics = await topicService.list(workspaceId, { campaignId });
 		return c.json({ data: topics });
 	});
 
