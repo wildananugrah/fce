@@ -21,6 +21,7 @@ export interface AuthResponse {
 		fullName: string | null;
 		avatarUrl: string | null;
 		isSuperadmin: boolean;
+		defaultScrapeLanguage: "indonesian" | "english";
 	};
 	accessToken: string;
 }
