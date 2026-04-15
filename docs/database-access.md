@@ -171,7 +171,7 @@ SELECT
   l.user_prompt
 FROM ai_provider_logs l
 JOIN users u ON u.id = l.user_id
-WHERE u.email = 'wildananugrah@gmail.com'
+WHERE u.email = 'adam@floothink.com'
 ORDER BY l.created_at DESC
 LIMIT 20;
 

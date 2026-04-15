@@ -71,7 +71,8 @@
       "Bash(PGPASSWORD=fce_secret psql -h localhost -p 5433 -U fce -d fce_dashboard -c \"SELECT user_id, COUNT\\(*\\), SUM\\(input_tokens\\) as input, SUM\\(output_tokens\\) as output, MIN\\(created_at\\) as earliest, MAX\\(created_at\\) as latest FROM ai_provider_logs GROUP BY user_id;\")",
       "Bash(docker compose:*)",
       "Bash(lsof -i :3001 -sTCP:LISTEN)",
-      "Bash(lsof -i :3004 -sTCP:LISTEN)"
+      "Bash(lsof -i :3004 -sTCP:LISTEN)",
+      "Bash(git stash:*)"
     ],
     "additionalDirectories": [
       "/Users/wildananugrah/Documents/My-Projects/fce/.git"
