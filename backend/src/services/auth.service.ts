@@ -1,3 +1,4 @@
+import { ValidationError } from "../errors/validation-error";
 import type { IUserRepository } from "../interfaces/repositories/user.repository.interface";
 import type { IAuthService } from "../interfaces/services/auth.service.interface";
 import type { AuthResponse, LoginInput, SignupInput } from "../types/auth.types";
@@ -133,7 +134,7 @@ export class AuthService implements IAuthService {
 			data.defaultScrapeLanguage !== undefined &&
 			!ALLOWED_SCRAPE_LANGUAGES.includes(data.defaultScrapeLanguage as ScrapeLanguage)
 		) {
-			throw new Error(
+			throw new ValidationError(
 				`Invalid defaultScrapeLanguage: ${data.defaultScrapeLanguage}. Allowed: ${ALLOWED_SCRAPE_LANGUAGES.join(", ")}`,
 			);
 		}

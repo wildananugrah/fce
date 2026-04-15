@@ -99,10 +99,12 @@ describe("AuthService", () => {
 	});
 
 	describe("updateProfile — defaultScrapeLanguage", () => {
-		it("defaults new users to 'indonesian'", async () => {
-			await authService.signup({ email: "lang@example.com", password: "password123" });
-			const signupUser = await userRepo.findByEmail("lang@example.com");
-			expect(signupUser?.defaultScrapeLanguage).toBe("indonesian");
+		it("defaults new users to 'indonesian' in the signup response", async () => {
+			const result = await authService.signup({
+				email: "lang@example.com",
+				password: "password123",
+			});
+			expect(result.user.defaultScrapeLanguage).toBe("indonesian");
 		});
 
 		it("returns defaultScrapeLanguage from me()", async () => {
