@@ -15,6 +15,10 @@ import type {
 	IContentGenerator,
 } from "../interfaces/providers/content-generator.interface";
 import type {
+	IInspirationSummarizer,
+	InspirationSummary,
+} from "../interfaces/providers/inspiration-summarizer.interface";
+import type {
 	ITopicGenerator,
 	TopicGenerationInput,
 	TopicGenerationOutput,
@@ -39,10 +43,20 @@ function parseJsonResponse(text: string): any {
 }
 
 export class GeminiProvider
-	implements IContentGenerator, ICampaignGenerator, ITopicGenerator, IBrandScraper
+	implements
+		IContentGenerator,
+		ICampaignGenerator,
+		ITopicGenerator,
+		IBrandScraper,
+		IInspirationSummarizer
 {
 	private ai: GoogleGenAI;
 	public lastUsage: { inputTokens: number; outputTokens: number } | null = null;
+	// Exposed after each call so callers can log the exact prompts and response
+	// sent to / received from the AI. Used by UrlInspirationService to log to
+	// AiProviderLog for dispute resolution and token tracking.
+	public lastPrompts: { systemPrompt: string; userPrompt: string } | null = null;
+	public lastResponseText: string | null = null;
 
 	constructor(
 		apiKey: string,
@@ -300,6 +314,50 @@ Return JSON with these fields:
 		} catch (_err) {
 			throw new Error(
 				`GeminiProvider: Failed to parse brand scraping response as JSON. Raw: ${text}`,
+			);
+		}
+	}
+
+	async summarizeInspiration(rawData: unknown): Promise<InspirationSummary> {
+		const systemPrompt = `You are a content strategist. Analyze social media posts and articles to extract their creative essence so another creator can generate similar ideas.
+
+You MUST respond with ONLY valid JSON. No markdown, no code blocks, no explanations.`;
+
+		const userPrompt = `Analyze the following source data and extract its creative essence.
+
+SOURCE DATA:
+${JSON.stringify(rawData).slice(0, 6000)}
+
+Return JSON with these fields:
+- angle (string): What is this post about? What's the hook?
+- tone (string): Tone and style (e.g., "Educational, warm, confident")
+- keyPoints (array of strings): 2-5 core claims or messages from the post
+- format (string): Format clues — carousel, reel, article, short video, long-form post, etc.
+- hashtags (array of strings, optional): Top hashtags used if present in source data
+- engagementSignal (string, optional): Only include if engagement metrics suggest a standout post (e.g., "High engagement: 50k+ likes")`;
+
+		const response = await this.ai.models.generateContent({
+			model: this.model,
+			config: {
+				temperature: 0,
+				systemInstruction: systemPrompt,
+			},
+			contents: userPrompt,
+		});
+
+		this.lastUsage = {
+			inputTokens: response.usageMetadata?.promptTokenCount ?? 0,
+			outputTokens: response.usageMetadata?.candidatesTokenCount ?? 0,
+		};
+		this.lastPrompts = { systemPrompt, userPrompt };
+		this.lastResponseText = response.text ?? "";
+
+		const text = response.text ?? "";
+		try {
+			return parseJsonResponse(text) as InspirationSummary;
+		} catch (_err) {
+			throw new Error(
+				`GeminiProvider: Failed to parse inspiration summary. Raw: ${text}`,
 			);
 		}
 	}
