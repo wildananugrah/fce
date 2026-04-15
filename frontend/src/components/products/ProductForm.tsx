@@ -1,12 +1,11 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { Save, Brain, Sparkles, Loader2, Upload, X, Globe } from "lucide-react";
 import { Input } from "../ui/Input";
 import { Select } from "../ui/Select";
 import { Button } from "../ui/Button";
 import { api, apiUpload } from "../../services/api";
-import { useAuth } from "../../hooks/useAuth";
+import { useScrapeLanguage } from "../../hooks/useScrapeLanguage";
 import { ScrapeLanguageToggle } from "../ui/ScrapeLanguageToggle";
-import type { ScrapeLanguage } from "../../types";
 
 interface Brand {
   id: string;
@@ -62,16 +61,7 @@ export function ProductForm({ brands, workspaceId, onSubmit, onCancel, initial, 
 
   const [productUrl, setProductUrl] = useState("");
   const [scraping, setScraping] = useState(false);
-  const { user } = useAuth();
-  const [scrapeLanguage, setScrapeLanguage] = useState<ScrapeLanguage>(
-    user?.defaultScrapeLanguage ?? "indonesian",
-  );
-
-  useEffect(() => {
-    if (user?.defaultScrapeLanguage) {
-      setScrapeLanguage(user.defaultScrapeLanguage);
-    }
-  }, [user?.defaultScrapeLanguage]);
+  const [scrapeLanguage, setScrapeLanguage] = useScrapeLanguage();
   const [imageUrl, setImageUrl] = useState(initial?.imageUrl ?? "");
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);

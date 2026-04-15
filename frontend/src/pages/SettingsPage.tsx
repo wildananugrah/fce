@@ -30,7 +30,8 @@ export function SettingsPage() {
       });
       await refreshUser();
       setToast({ message: "Profile updated successfully", type: "success" });
-    } catch {
+    } catch (err) {
+      console.error("Failed to update profile", err);
       setToast({ message: "Failed to update profile", type: "error" });
     } finally {
       setSaving(false);

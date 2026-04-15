@@ -20,9 +20,8 @@ import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
 import { api } from "../../services/api";
 import { ProductReferences } from "../products/ProductReferences";
-import { useAuth } from "../../hooks/useAuth";
+import { useScrapeLanguage } from "../../hooks/useScrapeLanguage";
 import { ScrapeLanguageToggle } from "../ui/ScrapeLanguageToggle";
-import type { ScrapeLanguage } from "../../types";
 
 // ── Types ──────────────────────────────────────────────────────
 
@@ -310,16 +309,7 @@ export function NewBrandBrainDrawer({
   const [scraping, setScraping] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const { user } = useAuth();
-  const [scrapeLanguage, setScrapeLanguage] = useState<ScrapeLanguage>(
-    user?.defaultScrapeLanguage ?? "indonesian",
-  );
-
-  useEffect(() => {
-    if (user?.defaultScrapeLanguage) {
-      setScrapeLanguage(user.defaultScrapeLanguage);
-    }
-  }, [user?.defaultScrapeLanguage]);
+  const [scrapeLanguage, setScrapeLanguage] = useScrapeLanguage();
 
   // Load brand data when opening in edit mode
   useEffect(() => {

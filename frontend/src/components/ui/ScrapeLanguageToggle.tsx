@@ -1,7 +1,5 @@
 import type { ScrapeLanguage } from "../../types";
 
-export type { ScrapeLanguage };
-
 interface ScrapeLanguageToggleProps {
   value: ScrapeLanguage;
   onChange: (value: ScrapeLanguage) => void;
