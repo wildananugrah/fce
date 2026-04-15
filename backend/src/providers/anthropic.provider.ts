@@ -24,6 +24,7 @@ import {
 	buildContentGenerationPrompt,
 	buildTopicGenerationPrompt,
 } from "../utils/prompt-builder";
+import { fetchUrlContent } from "../utils/url-fetcher";
 
 function parseJsonResponse(text: string): any {
 	let cleaned = text.trim();
@@ -237,29 +238,40 @@ Return JSON with these fields:
 		emotionalBenefits?: string[];
 		targetAudience?: string;
 	}> {
+		// Fetch actual page content via Jina Reader (with HTML fallback)
+		const fetched = await fetchUrlContent(input.url);
+		if (fetched.source === "failed" || !fetched.content) {
+			throw new Error(
+				`AnthropicProvider: Could not fetch content from ${input.url}: ${fetched.error ?? "unknown error"}`,
+			);
+		}
+
+		const userPrompt = `Based on the extracted product page content below, extract structured product information.
+
+Use empty string "" or empty array [] for fields you cannot determine from the content. Do not hallucinate facts.
+
+Return JSON with these exact fields:
+- name (string): Product name
+- type (string): Product type (e.g. "Service", "SaaS", "Physical", "Insurance")
+- priceTier (string): Price tier if detectable (e.g. "Premium", "Mid-range", "Budget")
+- summary (string): What this product does, who it's for, key value proposition (2-3 sentences)
+- usp (string): Unique selling proposition — what makes it uniquely valuable
+- rtb (string): Reason to believe — evidence, proof points, credentials
+- functionalBenefits (array of strings): 3-6 practical benefits
+- emotionalBenefits (array of strings): 3-6 emotional benefits
+- targetAudience (string): Who this product is for — demographics, pain points, goals
+
+=== EXTRACTED PRODUCT PAGE CONTENT ===
+=== Source: ${fetched.url} (fetched via ${fetched.source}) ===
+${fetched.content}`;
+
 		const response = await this.client.messages.create({
 			model: this.model,
-			max_tokens: 1024,
+			max_tokens: 1500,
 			temperature: 0,
 			system:
 				"You are a product marketing expert. You MUST respond with ONLY valid JSON. No markdown, no code blocks, no explanations.",
-			messages: [
-				{
-					role: "user",
-					content: `Analyze this product URL and extract product information: ${input.url}
-
-Return JSON with these fields:
-- name (string): Product name
-- type (string): Product type (e.g. Service, SaaS, Physical, Insurance)
-- priceTier (string): Price tier if detectable (e.g. Premium, Mid-range, Budget)
-- summary (string): What this product does, who it's for, key value proposition
-- usp (string): Unique selling proposition — what makes it uniquely valuable
-- rtb (string): Reason to believe — evidence, proof points, credentials
-- functionalBenefits (array of strings): Practical benefits
-- emotionalBenefits (array of strings): Emotional benefits
-- targetAudience (string): Who this product is for`,
-				},
-			],
+			messages: [{ role: "user", content: userPrompt }],
 		});
 		this.lastUsage = {
 			inputTokens: response.usage.input_tokens,
@@ -275,30 +287,44 @@ Return JSON with these fields:
 	}
 
 	async scrape(input: BrandScrapingInput): Promise<BrandScrapingOutput> {
-		const systemPrompt = `You are a brand analyst expert. Analyze the provided URL and extract brand identity information.
+		// Fetch actual page content via Jina Reader (with HTML fallback)
+		const fetched = await fetchUrlContent(input.url);
+		if (fetched.source === "failed" || !fetched.content) {
+			throw new Error(
+				`AnthropicProvider: Could not fetch content from ${input.url}: ${fetched.error ?? "unknown error"}`,
+			);
+		}
+
+		const systemPrompt = `You are a brand analyst expert. Analyze the provided website content and extract structured brand identity information.
 You MUST respond with ONLY valid JSON. No markdown, no code blocks, no explanations.`;
 
-		const userPrompt = `Analyze this brand URL and extract brand identity information: ${input.url}
+		const userPrompt = `Based on the extracted website content below, extract structured brand information.
 
-Return JSON with these fields:
+Use empty string "" or empty array [] for fields you cannot determine from the content. Do not hallucinate facts.
+
+Return JSON with these exact fields:
 - name (string): Brand name
-- category (string): Industry or product category
-- summary (string): What the brand does, who they serve, their mission
-- personality (string): Brand personality traits (e.g. "The Trusted Expert, Bold Innovator")
-- tone (string): Communication tone and style (e.g. "Professional, Friendly, Empathetic")
-- targetAudience (string): Who this brand serves — demographics, pain points, goals
-- brandPromise (string): The core promise to customers
-- usp (string): Unique selling points and key differentiators
-- values (array of strings): Core brand values
-- contentPillars (array of strings): Recurring content themes the brand should communicate about
+- category (string): Industry or product category (e.g. "SaaS", "F&B", "Fashion", "Healthcare", "Insurance")
+- summary (string): 2-3 sentence brand description covering what they do, who they serve, and their mission
+- personality (string): Brand personality traits (e.g. "The Trusted Expert", "Bold Disruptor", "Friendly Guide")
+- tone (string): Communication tone and style (e.g. "Professional, Conversational", "Bold, Playful", "Empathetic, Informative")
+- targetAudience (string): Description of primary target audience — demographics, pain points, goals
+- brandPromise (string): Core brand promise or positioning statement
+- usp (string): Unique selling points and key differentiators vs competitors
+- values (array of strings): 3-6 core brand values
+- contentPillars (array of strings): 3-6 recurring content themes the brand should communicate about
 - marketingStrategy (string): Overall marketing approach and focus areas
-- dos (array of strings): Content rules to always follow
-- donts (array of strings): Content rules to always avoid
-- vocabulary (object with: preferred (array of strings), avoided (array of strings)): Brand vocabulary guidelines`;
+- dos (array of strings): 3-6 content rules to always follow when creating content for this brand
+- donts (array of strings): 3-6 content rules to always avoid
+- vocabulary (object with: preferred (array of strings), avoided (array of strings)): Brand vocabulary guidelines — preferred words/phrases and words to avoid
+
+=== EXTRACTED WEBSITE CONTENT ===
+=== Source: ${fetched.url} (fetched via ${fetched.source}) ===
+${fetched.content}`;
 
 		const response = await this.client.messages.create({
 			model: this.model,
-			max_tokens: 1024,
+			max_tokens: 2048,
 			temperature: 0,
 			system: systemPrompt,
 			messages: [{ role: "user", content: userPrompt }],

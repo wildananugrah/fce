@@ -72,6 +72,32 @@ Same pattern applies to campaigns, topics, and brand scraping jobs.
 
 Brands and products have versioned "brain" configurations (personality, tone, audience, messaging rules). Each entity tracks an `activeBrainVersionId` for rollback support.
 
+### URL Scraping Strategies
+
+Different features use different URL fetch strategies depending on their latency tolerance and content requirements:
+
+**Brand/Product brain auto-fill** (`scrape-preview` routes) — **Jina Reader only**
+- Primary: [Jina Reader](https://jina.ai/reader/) at `https://r.jina.ai/<url>` returns clean markdown for most websites (1–3s, free tier)
+- Fallback: direct `fetch()` + HTML stripping if Jina is unavailable
+- **Does NOT use Apify** — brand brain auto-fill is a synchronous UI action where users wait on a spinner, so the 30–90s Apify run is too slow
+- Implementation: `backend/src/utils/url-fetcher.ts` (`fetchUrlContent`, `fetchMultipleUrls`)
+
+**URL inspiration** (Additional Direction field in topic/content generation) — **Apify + cache**
+- Primary: Apify actor routed by hostname (Instagram, TikTok, Facebook, website-content-crawler)
+- Fallback: plain `fetch()` + HTML stripping if Apify is unavailable
+- Results cached 24h in `url_scrape_cache` table keyed by SHA-256 URL hash
+- Async-tolerant — runs inside a pg-boss generation job where users already expect a wait
+- Implementation: `backend/src/services/url-inspiration.service.ts`
+
+**Reference link uploads** (Brand/Product references tab) — **pg-boss background job**
+- User adds a link → stored as `BrandDocument` → background job scrapes page, stores chunks
+- Uses direct `fetch()` with Cloudflare-friendly User-Agent, falls back to storing the URL as a single chunk if scraping fails
+- Implementation: `backend/src/jobs/link-scraping.job.ts`
+
+### AI Activity Logging
+
+Every AI provider call (content, topic, campaign, brand scraping, product scraping, product brain, URL inspiration) is logged to the `ai_provider_logs` table via `logAiActivity()` (`backend/src/utils/ai-activity-logger.ts`). Each log row captures: workspace, user, generator type, provider, model, system/user prompt, response, input/output tokens, duration, estimated cost, and status. Used for token usage tracking (profile/workspace settings pages) and dispute resolution.
+
 ### Frontend Structure
 
 - **Pages** (`src/pages/`) — 12 pages (Dashboard, Brands, Products, Generate, Campaigns, Topics, Library, etc.)
