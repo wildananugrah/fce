@@ -63,6 +63,8 @@ export class MockCampaignRepository implements ICampaignRepository {
 			budgetMax: data.budgetMax != null ? new Decimal(data.budgetMax) : null,
 			keyMessage: data.keyMessage ?? null,
 			status: "draft",
+			generationStage: null,
+			errorMessage: null,
 			createdAt: new Date(),
 			updatedAt: new Date(),
 		};
@@ -96,6 +98,9 @@ export class MockCampaignRepository implements ICampaignRepository {
 			competitiveContext: data.competitiveContext ?? null,
 			kpiPreference: data.kpiPreference ?? null,
 			toneDirection: data.toneDirection ?? null,
+			documentSummary: null,
+			documentUrl: null,
+			documentName: null,
 			createdAt: new Date(),
 			updatedAt: new Date(),
 		};
