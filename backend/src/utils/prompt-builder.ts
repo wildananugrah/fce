@@ -95,26 +95,48 @@ ${contextBlock}
 
 ${JSON_ONLY_INSTRUCTION}`;
 
-	const formatLine =
-		input.formats && input.formats.length > 0
-			? `Allowed content formats: ${input.formats.join(", ")}. Assign exactly one format per topic from this list.`
-			: "";
-
 	const multiProductLine =
 		input.productContexts && input.productContexts.length > 1
 			? "The topics should bridge or combine the provided products where relevant."
 			: "";
 
-	const userPrompt = `Generate ${count} content topic ideas${input.platform ? ` for ${input.platform}` : ""}.
-${input.objective ? `Content objective: ${input.objective}` : ""}
-${input.dateFrom && input.dateTo ? `Schedule date range: ${input.dateFrom} to ${input.dateTo}. Distribute publishDate values evenly across this range.` : ""}
-${formatLine}
+	const platformInstruction = input.platform
+		? `Set "platform" to "${input.platform}" for every topic.`
+		: `Set "platform" to the most appropriate social media platform (instagram, tiktok, youtube, twitter, linkedin, or facebook) for each topic.`;
+
+	const objectiveInstruction = input.objective
+		? `Set "objective" to "${input.objective}" for every topic.`
+		: `Set "objective" to one of: awareness, engagement, education, conversion, retention.`;
+
+	const formatInstruction =
+		input.formats && input.formats.length > 0
+			? `Set "format" to one of: ${input.formats.join(", ")}. Distribute formats across the ${count} topics.`
+			: `Set "format" to the most appropriate content format (e.g., single_image, carousel, reels, story, video).`;
+
+	const dateInstruction =
+		input.dateFrom && input.dateTo
+			? `Set "publishDate" as an ISO 8601 date (YYYY-MM-DD) between ${input.dateFrom} and ${input.dateTo}. Distribute the ${count} publishDate values EVENLY across this range.`
+			: `Set "publishDate" to an ISO 8601 date (YYYY-MM-DD) within the next 30 days.`;
+
+	const userPrompt = `Generate ${count} content topic ideas.
 ${multiProductLine}
+${input.prompt ? `\nAdditional user instructions: ${input.prompt}` : ""}
 
 Return JSON with a single field:
-- topics (array of ${count} objects, each with: title, description, pillar, platform, format, objective, publishDate)
+- topics: array of ${count} objects
 
-${input.prompt ? `\nAdditional instructions: ${input.prompt}` : ""}
+EVERY topic object MUST contain ALL of these fields. Do NOT leave any field empty or null:
+
+1. "title" (string, REQUIRED): A compelling, specific topic title (5-12 words). Never empty.
+2. "description" (string, REQUIRED): 2-3 sentences describing what the content will cover and why it matters to the audience. Never empty.
+3. "pillar" (string, REQUIRED): The content pillar/theme this topic belongs to (e.g., "Education", "Product Showcase", "Customer Story", "Industry News"). Pick one appropriate pillar. Never empty.
+4. "platform" (string, REQUIRED): ${platformInstruction}
+5. "format" (string, REQUIRED): ${formatInstruction}
+6. "objective" (string, REQUIRED): ${objectiveInstruction}
+7. "publishDate" (string, REQUIRED): ${dateInstruction}
+
+CRITICAL: Every field above is MANDATORY for every topic. If you cannot determine a value from the brand context, make a reasonable, on-brand choice — but never leave a field empty, null, or missing.
+
 Make topics diverse, engaging, and aligned with the brand voice.`;
 
 	return { systemPrompt, userPrompt };
