@@ -224,8 +224,112 @@ export class CampaignPdfGenerationJob {
 				},
 			});
 
-			// ── Stage 4: Generate topics (placeholder — Task 13) ─────────
-			// currentStage = "topics";
+			// ── Stage 4: Generate topics ─────────────────────────────────
+			currentStage = "topics";
+			await this.setStage(campaignId, userId, "topics");
+
+			const pillarsLine = Array.isArray(planOutput.messagingPillars)
+				? planOutput.messagingPillars
+						.map((p: any) => p.name ?? p.description ?? "")
+						.filter(Boolean)
+						.join(", ")
+				: "";
+
+			const topicPromptPrefix = [
+				`Campaign big idea: ${planOutput.bigIdea ?? ""}`,
+				pillarsLine ? `Messaging pillars: ${pillarsLine}` : "",
+				summary.keyMessage ? `Key message: ${summary.keyMessage}` : "",
+				summary.audienceHint ? `Audience: ${summary.audienceHint}` : "",
+			]
+				.filter(Boolean)
+				.join("\n");
+
+			const topicInput = {
+				brandContext,
+				productContexts: productContext ? [productContext] : undefined,
+				prompt: topicPromptPrefix,
+				count: 8,
+			};
+
+			const { systemPrompt: topSys, userPrompt: topUser } =
+				buildTopicGenerationPrompt(topicInput);
+
+			const topicStart = Date.now();
+			let topicOutput: Awaited<ReturnType<ITopicGenerator["generate"]>>;
+			try {
+				topicOutput = await this.topicGenerator.generate(topicInput);
+				const usage = (this.topicGenerator as any).lastUsage;
+				await logAiActivity(
+					this.prisma,
+					{
+						workspaceId: campaign.workspaceId,
+						generator: "campaign_topics",
+						provider:
+							process.env.AI_TOPIC_PROVIDER || process.env.AI_PROVIDER || "unknown",
+						userId,
+						systemPrompt: topSys,
+						userPrompt: topUser,
+						brandId: campaign.brandId ?? undefined,
+					},
+					{
+						responseJson: topicOutput,
+						durationMs: Date.now() - topicStart,
+						inputTokens: usage?.inputTokens,
+						outputTokens: usage?.outputTokens,
+						status: "success",
+					},
+				);
+			} catch (err) {
+				const usage = (this.topicGenerator as any).lastUsage;
+				await logAiActivity(
+					this.prisma,
+					{
+						workspaceId: campaign.workspaceId,
+						generator: "campaign_topics",
+						provider:
+							process.env.AI_TOPIC_PROVIDER || process.env.AI_PROVIDER || "unknown",
+						userId,
+						systemPrompt: topSys,
+						userPrompt: topUser,
+						brandId: campaign.brandId ?? undefined,
+					},
+					{
+						durationMs: Date.now() - topicStart,
+						inputTokens: usage?.inputTokens,
+						outputTokens: usage?.outputTokens,
+						status: "error",
+						errorMessage: err instanceof Error ? err.message : String(err),
+					},
+				);
+				throw err;
+			}
+
+			// Persist topics — linked to this campaign
+			for (const t of topicOutput.topics ?? []) {
+				const created = await this.prisma.contentTopic.create({
+					data: {
+						workspaceId: campaign.workspaceId,
+						brandId: campaign.brandId,
+						campaignId,
+						title: t.title ?? "",
+						description: t.description ?? "",
+						pillar: t.pillar ?? null,
+						platform: t.platform ?? null,
+						format: t.format ?? null,
+						objective: t.objective ?? null,
+						publishDate: t.publishDate ? new Date(t.publishDate) : null,
+						status: "draft",
+					},
+				});
+				if (campaign.productId) {
+					await this.prisma.contentTopicProduct.create({
+						data: {
+							contentTopicId: created.id,
+							productId: campaign.productId,
+						},
+					});
+				}
+			}
 
 			// ── Completion ────────────────────────────────────────────────
 			await this.prisma.campaign.update({
