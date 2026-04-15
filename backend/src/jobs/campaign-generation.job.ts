@@ -2,6 +2,8 @@ import type { PrismaClient } from "@prisma/client";
 import type { ICampaignGenerator } from "../interfaces/providers/campaign-generator.interface";
 import type { ILogger } from "../interfaces/providers/logger.provider.interface";
 import type { INotificationService } from "../interfaces/services/notification.service.interface";
+import { logAiActivity } from "../utils/ai-activity-logger";
+import { buildCampaignGenerationPrompt } from "../utils/prompt-builder";
 
 interface CampaignJobData {
 	campaignId: string;
@@ -110,8 +112,61 @@ export class CampaignGenerationJob {
 				}
 			}
 
-			// Generate campaign
-			const output = await this.campaignGenerator.generate(generationInput);
+			// Get prompts for logging
+			const { systemPrompt, userPrompt } = buildCampaignGenerationPrompt(generationInput);
+
+			// Generate campaign with timing and AI activity logging
+			const startTime = Date.now();
+			let output: Awaited<ReturnType<ICampaignGenerator["generate"]>>;
+			try {
+				output = await this.campaignGenerator.generate(generationInput);
+				const durationMs = Date.now() - startTime;
+				const usage = (this.campaignGenerator as any).lastUsage;
+				await logAiActivity(
+					this.prisma,
+					{
+						workspaceId: campaign.workspaceId,
+						generator: "campaign",
+						provider:
+							process.env.AI_CAMPAIGN_PROVIDER || process.env.AI_PROVIDER || "unknown",
+						userId,
+						systemPrompt,
+						userPrompt,
+						brandId: campaign.brandId ?? undefined,
+					},
+					{
+						responseJson: output,
+						durationMs,
+						inputTokens: usage?.inputTokens,
+						outputTokens: usage?.outputTokens,
+						status: "success",
+					},
+				);
+			} catch (err) {
+				const durationMs = Date.now() - startTime;
+				const usage = (this.campaignGenerator as any).lastUsage;
+				await logAiActivity(
+					this.prisma,
+					{
+						workspaceId: campaign.workspaceId,
+						generator: "campaign",
+						provider:
+							process.env.AI_CAMPAIGN_PROVIDER || process.env.AI_PROVIDER || "unknown",
+						userId,
+						systemPrompt,
+						userPrompt,
+						brandId: campaign.brandId ?? undefined,
+					},
+					{
+						durationMs,
+						inputTokens: usage?.inputTokens,
+						outputTokens: usage?.outputTokens,
+						status: "error",
+						errorMessage: err instanceof Error ? err.message : String(err),
+					},
+				);
+				throw err;
+			}
 
 			// Save campaign output
 			const campaignOutput = await this.prisma.campaignOutput.create({
