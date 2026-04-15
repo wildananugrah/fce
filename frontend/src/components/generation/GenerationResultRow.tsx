@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { ChevronRight, ChevronDown, Eye, Check, X, Save, Loader2, Trash2 } from "lucide-react";
 import { api } from "../../services/api";
+import { isVideoContentType } from "../../config/video-content-types";
+import { VisualScriptTable } from "./VisualScriptTable";
+import { SectionImageCell, PostImageGenerator } from "./SectionImageCell";
 
 interface Section {
   id: string;
@@ -151,6 +154,21 @@ export function GenerationResultRow({
   const slides = getSectionsByType("slide");
   const scenes = getSectionsByType("scene");
   const frames = getSectionsByType("frame");
+  const postImage = sections?.find((s) => s.sectionType === "post_image") ?? null;
+
+  // Helper used by SectionImageCell to patch a section's JSON in place after
+  // image generation. Clears any pending local edit for that section since
+  // the server already rewrote the contentText.
+  const applySectionUpdate = (sectionId: string, contentText: string) => {
+    setSections((prev) =>
+      prev ? prev.map((s) => (s.id === sectionId ? { ...s, contentText } : s)) : prev,
+    );
+    setEditedSections((prev) => {
+      const next = { ...prev };
+      delete next[sectionId];
+      return next;
+    });
+  };
 
   const handleSave = async () => {
     if (!outputId || !isDirty) return;
@@ -324,10 +342,10 @@ export function GenerationResultRow({
                 <Loader2 size={18} className="animate-spin text-gray-400" />
               </div>
             ) : sections && sections.length > 0 ? (
-              <div className="space-y-3 max-w-2xl">
+              <div className="space-y-3">
                 {/* ─── Single-format fields (hook, visual direction, caption) ─── */}
                 {hasTopLevelFields && (
-                  <>
+                  <div className="max-w-2xl space-y-3">
                     <div>
                       <label className="block text-[10px] font-medium text-gray-400 uppercase tracking-wide mb-1">
                         Copy in Visual (Hook)
@@ -364,45 +382,60 @@ export function GenerationResultRow({
                         placeholder="No caption generated"
                       />
                     </div>
-                  </>
+                  </div>
                 )}
 
                 {/* ─── Slides (carousel, thread, carousel_post, etc.) ─── */}
-                {slides.length > 0 && (
+                {slides.length > 0 && outputId && (
                   <div className="space-y-3">
                     <label className="block text-[10px] font-medium text-gray-400 uppercase tracking-wide">
                       Slides ({slides.length})
                     </label>
                     {slides.map((slide) => {
                       const num = getJsonField(slide.id, slide.contentText, "slideNumber");
+                      const imageUrl = getJsonField(slide.id, slide.contentText, "referenceImageUrl");
                       return (
-                        <div key={slide.id} className="bg-white border border-gray-200 rounded-lg p-3 space-y-2">
-                          <p className="text-[10px] font-semibold text-indigo-500 uppercase">Slide {num}</p>
-                          <div>
-                            <label className="block text-[10px] text-gray-400 mb-0.5">Headline</label>
-                            <input
-                              type="text"
-                              value={getJsonField(slide.id, slide.contentText, "headline")}
-                              onChange={(e) => handleJsonFieldChange(slide.id, slide.contentText, "headline", e.target.value)}
-                              className="w-full px-2.5 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:border-indigo-400"
-                            />
+                        <div key={slide.id} className="bg-white border border-gray-200 rounded-lg p-3 flex gap-3">
+                          <div className="flex-1 space-y-2">
+                            <p className="text-[10px] font-semibold text-indigo-500 uppercase">Slide {num}</p>
+                            <div>
+                              <label className="block text-[10px] text-gray-400 mb-0.5">Headline</label>
+                              <input
+                                type="text"
+                                value={getJsonField(slide.id, slide.contentText, "headline")}
+                                onChange={(e) => handleJsonFieldChange(slide.id, slide.contentText, "headline", e.target.value)}
+                                className="w-full px-2.5 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:border-indigo-400"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] text-gray-400 mb-0.5">Body</label>
+                              <textarea
+                                value={getJsonField(slide.id, slide.contentText, "body")}
+                                onChange={(e) => handleJsonFieldChange(slide.id, slide.contentText, "body", e.target.value)}
+                                rows={2}
+                                className="w-full px-2.5 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:border-indigo-400 resize-none"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] text-gray-400 mb-0.5">Visual Direction</label>
+                              <textarea
+                                value={getJsonField(slide.id, slide.contentText, "visualDirection")}
+                                onChange={(e) => handleJsonFieldChange(slide.id, slide.contentText, "visualDirection", e.target.value)}
+                                rows={1}
+                                className="w-full px-2.5 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:border-indigo-400 resize-none"
+                              />
+                            </div>
                           </div>
-                          <div>
-                            <label className="block text-[10px] text-gray-400 mb-0.5">Body</label>
-                            <textarea
-                              value={getJsonField(slide.id, slide.contentText, "body")}
-                              onChange={(e) => handleJsonFieldChange(slide.id, slide.contentText, "body", e.target.value)}
-                              rows={2}
-                              className="w-full px-2.5 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:border-indigo-400 resize-none"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-[10px] text-gray-400 mb-0.5">Visual Direction</label>
-                            <textarea
-                              value={getJsonField(slide.id, slide.contentText, "visualDirection")}
-                              onChange={(e) => handleJsonFieldChange(slide.id, slide.contentText, "visualDirection", e.target.value)}
-                              rows={1}
-                              className="w-full px-2.5 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:border-indigo-400 resize-none"
+                          <div className="w-32 shrink-0">
+                            <SectionImageCell
+                              sectionId={slide.id}
+                              imageUrl={imageUrl}
+                              label={`Slide ${num}`}
+                              workspaceId={workspaceId}
+                              outputId={outputId}
+                              onSectionUpdated={applySectionUpdate}
+                              onError={() => {}}
+                              aspectRatio="1/1"
                             />
                           </div>
                         </div>
@@ -412,41 +445,119 @@ export function GenerationResultRow({
                 )}
 
                 {/* ─── Scenes (reels, video, shorts, etc.) ─── */}
-                {scenes.length > 0 && (
+                {scenes.length > 0 && outputId &&
+                  (isVideoContentType(generation.contentType) ? (
+                    <VisualScriptTable
+                      scenes={scenes}
+                      workspaceId={workspaceId}
+                      outputId={outputId}
+                      getJsonField={getJsonField}
+                      onJsonFieldChange={handleJsonFieldChange}
+                      onSectionUpdated={(sectionId, contentText) => {
+                        setSections((prev) =>
+                          prev
+                            ? prev.map((s) =>
+                                s.id === sectionId ? { ...s, contentText } : s,
+                              )
+                            : prev,
+                        );
+                        // Clear any pending edit for this section since the
+                        // server just overwrote it with the new image URL.
+                        setEditedSections((prev) => {
+                          const next = { ...prev };
+                          delete next[sectionId];
+                          return next;
+                        });
+                      }}
+                      onError={() => {
+                        /* errors surface via inline button state */
+                      }}
+                    />
+                  ) : (
+                    <div className="space-y-3">
+                      <label className="block text-[10px] font-medium text-gray-400 uppercase tracking-wide">
+                        Scenes ({scenes.length})
+                      </label>
+                      {scenes.map((scene) => {
+                        const num = getJsonField(scene.id, scene.contentText, "sceneNumber");
+                        return (
+                          <div key={scene.id} className="bg-white border border-gray-200 rounded-lg p-3 space-y-2">
+                            <p className="text-[10px] font-semibold text-red-500 uppercase">Scene {num}</p>
+                            <div>
+                              <label className="block text-[10px] text-gray-400 mb-0.5">Visual Direction</label>
+                              <textarea
+                                value={getJsonField(scene.id, scene.contentText, "visualDirection")}
+                                onChange={(e) => handleJsonFieldChange(scene.id, scene.contentText, "visualDirection", e.target.value)}
+                                rows={2}
+                                className="w-full px-2.5 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:border-indigo-400 resize-none"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] text-gray-400 mb-0.5">Voiceover</label>
+                              <textarea
+                                value={getJsonField(scene.id, scene.contentText, "voiceover")}
+                                onChange={(e) => handleJsonFieldChange(scene.id, scene.contentText, "voiceover", e.target.value)}
+                                rows={2}
+                                className="w-full px-2.5 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:border-indigo-400 resize-none"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] text-gray-400 mb-0.5">On-Screen Text</label>
+                              <input
+                                type="text"
+                                value={getJsonField(scene.id, scene.contentText, "onScreenText")}
+                                onChange={(e) => handleJsonFieldChange(scene.id, scene.contentText, "onScreenText", e.target.value)}
+                                className="w-full px-2.5 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:border-indigo-400"
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ))}
+
+                {/* ─── Frames (story, story_image, story_video) ─── */}
+                {frames.length > 0 && outputId && (
                   <div className="space-y-3">
                     <label className="block text-[10px] font-medium text-gray-400 uppercase tracking-wide">
-                      Scenes ({scenes.length})
+                      Frames ({frames.length})
                     </label>
-                    {scenes.map((scene) => {
-                      const num = getJsonField(scene.id, scene.contentText, "sceneNumber");
+                    {frames.map((frame) => {
+                      const num = getJsonField(frame.id, frame.contentText, "frameNumber");
+                      const imageUrl = getJsonField(frame.id, frame.contentText, "referenceImageUrl");
                       return (
-                        <div key={scene.id} className="bg-white border border-gray-200 rounded-lg p-3 space-y-2">
-                          <p className="text-[10px] font-semibold text-red-500 uppercase">Scene {num}</p>
-                          <div>
-                            <label className="block text-[10px] text-gray-400 mb-0.5">Visual Direction</label>
-                            <textarea
-                              value={getJsonField(scene.id, scene.contentText, "visualDirection")}
-                              onChange={(e) => handleJsonFieldChange(scene.id, scene.contentText, "visualDirection", e.target.value)}
-                              rows={2}
-                              className="w-full px-2.5 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:border-indigo-400 resize-none"
-                            />
+                        <div key={frame.id} className="bg-white border border-gray-200 rounded-lg p-3 flex gap-3">
+                          <div className="flex-1 space-y-2">
+                            <p className="text-[10px] font-semibold text-purple-500 uppercase">Frame {num}</p>
+                            <div>
+                              <label className="block text-[10px] text-gray-400 mb-0.5">Visual</label>
+                              <textarea
+                                value={getJsonField(frame.id, frame.contentText, "visual")}
+                                onChange={(e) => handleJsonFieldChange(frame.id, frame.contentText, "visual", e.target.value)}
+                                rows={2}
+                                className="w-full px-2.5 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:border-indigo-400 resize-none"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] text-gray-400 mb-0.5">Text Overlay</label>
+                              <input
+                                type="text"
+                                value={getJsonField(frame.id, frame.contentText, "textOverlay")}
+                                onChange={(e) => handleJsonFieldChange(frame.id, frame.contentText, "textOverlay", e.target.value)}
+                                className="w-full px-2.5 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:border-indigo-400"
+                              />
+                            </div>
                           </div>
-                          <div>
-                            <label className="block text-[10px] text-gray-400 mb-0.5">Voiceover</label>
-                            <textarea
-                              value={getJsonField(scene.id, scene.contentText, "voiceover")}
-                              onChange={(e) => handleJsonFieldChange(scene.id, scene.contentText, "voiceover", e.target.value)}
-                              rows={2}
-                              className="w-full px-2.5 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:border-indigo-400 resize-none"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-[10px] text-gray-400 mb-0.5">On-Screen Text</label>
-                            <input
-                              type="text"
-                              value={getJsonField(scene.id, scene.contentText, "onScreenText")}
-                              onChange={(e) => handleJsonFieldChange(scene.id, scene.contentText, "onScreenText", e.target.value)}
-                              className="w-full px-2.5 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:border-indigo-400"
+                          <div className="w-28 shrink-0">
+                            <SectionImageCell
+                              sectionId={frame.id}
+                              imageUrl={imageUrl}
+                              label={`Frame ${num}`}
+                              workspaceId={workspaceId}
+                              outputId={outputId}
+                              onSectionUpdated={applySectionUpdate}
+                              onError={() => {}}
+                              aspectRatio="9/16"
                             />
                           </div>
                         </div>
@@ -455,38 +566,36 @@ export function GenerationResultRow({
                   </div>
                 )}
 
-                {/* ─── Frames (story, story_image, story_video) ─── */}
-                {frames.length > 0 && (
-                  <div className="space-y-3">
-                    <label className="block text-[10px] font-medium text-gray-400 uppercase tracking-wide">
-                      Frames ({frames.length})
+                {/* ─── Post image (single_image, single_post, feed_post, story_image) ─── */}
+                {outputId && slides.length === 0 && frames.length === 0 && scenes.length === 0 && (
+                  <div className="max-w-2xl">
+                    <label className="block text-[10px] font-medium text-gray-400 uppercase tracking-wide mb-1">
+                      Post Image
                     </label>
-                    {frames.map((frame) => {
-                      const num = getJsonField(frame.id, frame.contentText, "frameNumber");
-                      return (
-                        <div key={frame.id} className="bg-white border border-gray-200 rounded-lg p-3 space-y-2">
-                          <p className="text-[10px] font-semibold text-purple-500 uppercase">Frame {num}</p>
-                          <div>
-                            <label className="block text-[10px] text-gray-400 mb-0.5">Visual</label>
-                            <textarea
-                              value={getJsonField(frame.id, frame.contentText, "visual")}
-                              onChange={(e) => handleJsonFieldChange(frame.id, frame.contentText, "visual", e.target.value)}
-                              rows={2}
-                              className="w-full px-2.5 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:border-indigo-400 resize-none"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-[10px] text-gray-400 mb-0.5">Text Overlay</label>
-                            <input
-                              type="text"
-                              value={getJsonField(frame.id, frame.contentText, "textOverlay")}
-                              onChange={(e) => handleJsonFieldChange(frame.id, frame.contentText, "textOverlay", e.target.value)}
-                              className="w-full px-2.5 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:border-indigo-400"
-                            />
-                          </div>
-                        </div>
-                      );
-                    })}
+                    <div className="bg-white border border-gray-200 rounded-lg p-3">
+                      <div className="w-64">
+                        {postImage ? (
+                          <SectionImageCell
+                            sectionId={postImage.id}
+                            imageUrl={getJsonField(postImage.id, postImage.contentText, "referenceImageUrl")}
+                            label="Post Image"
+                            workspaceId={workspaceId}
+                            outputId={outputId}
+                            onSectionUpdated={applySectionUpdate}
+                            onError={() => {}}
+                            aspectRatio="1/1"
+                          />
+                        ) : (
+                          <PostImageGenerator
+                            workspaceId={workspaceId}
+                            outputId={outputId}
+                            onSectionCreated={(section) => {
+                              setSections((prev) => (prev ? [...prev, section] : [section]));
+                            }}
+                          />
+                        )}
+                      </div>
+                    </div>
                   </div>
                 )}
 

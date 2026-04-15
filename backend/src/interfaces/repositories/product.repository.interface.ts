@@ -28,6 +28,7 @@ export interface IProductRepository {
 		>,
 	): Promise<Product>;
 
+	delete(id: string): Promise<void>;
 	findActiveBrainVersion(productId: string): Promise<ProductBrainVersion | null>;
 	createBrainVersion(productId: string, version: number, data: any): Promise<ProductBrainVersion>;
 	getNextVersionNumber(productId: string): Promise<number>;

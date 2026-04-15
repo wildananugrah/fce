@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ChevronLeft, ChevronRight, ImageIcon, Heart, MessageCircle, Share2, Bookmark, Music } from "lucide-react";
 import type { PreviewProps } from "./PreviewRegistry";
+import { extractSlides } from "./VisualScriptScenes";
 
 function getSectionText(sections: PreviewProps["sections"], type: string): string {
   return sections
@@ -11,9 +12,7 @@ function getSectionText(sections: PreviewProps["sections"], type: string): strin
 }
 
 export function TikTokCarousel({ content, sections, brandName }: PreviewProps) {
-  const slides = Array.isArray(content.slides)
-    ? (content.slides as { headline?: string; body?: string; visualDirection?: string }[])
-    : [];
+  const slides = extractSlides(sections, content);
   const [current, setCurrent] = useState(0);
   const total = slides.length || 1;
 
@@ -28,8 +27,16 @@ export function TikTokCarousel({ content, sections, brandName }: PreviewProps) {
       {/* TikTok carousel mockup */}
       <div className="relative bg-black rounded-2xl overflow-hidden mx-auto" style={{ maxWidth: 340, aspectRatio: "9/16" }}>
         {/* Image area */}
-        <div className="absolute inset-0 flex items-center justify-center bg-gray-900 group">
-          <ImageIcon size={48} className="text-gray-600" />
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-900 group overflow-hidden">
+          {currentSlide?.referenceImageUrl ? (
+            <img
+              src={currentSlide.referenceImageUrl}
+              alt={`Slide ${current + 1}`}
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+          ) : (
+            <ImageIcon size={48} className="text-gray-600" />
+          )}
 
           {/* Slide headline overlay */}
           {currentSlide?.headline && (

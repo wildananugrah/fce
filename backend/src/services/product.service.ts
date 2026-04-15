@@ -42,6 +42,17 @@ export class ProductService implements IProductService {
 		return this.productRepository.update(id, input);
 	}
 
+	async delete(workspaceId: string, id: string): Promise<void> {
+		const product = await this.productRepository.findById(id);
+		if (!product) {
+			throw new Error("Product not found");
+		}
+		if (product.workspaceId !== workspaceId) {
+			throw new Error("Product not found");
+		}
+		await this.productRepository.delete(id);
+	}
+
 	async createBrainVersion(
 		productId: string,
 		input: CreateProductBrainVersionInput,

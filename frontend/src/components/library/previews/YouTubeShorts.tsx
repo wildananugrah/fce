@@ -1,6 +1,6 @@
-import { useState } from "react";
 import { Play, ThumbsUp, ThumbsDown, MessageCircle, Share2 } from "lucide-react";
 import type { PreviewProps } from "./PreviewRegistry";
+import { VisualScriptScenes, extractScenes } from "./VisualScriptScenes";
 
 function getSectionText(sections: PreviewProps["sections"], type: string): string {
   return sections
@@ -11,10 +11,7 @@ function getSectionText(sections: PreviewProps["sections"], type: string): strin
 }
 
 export function YouTubeShorts({ content, sections, brandName }: PreviewProps) {
-  const scenes = Array.isArray(content.scenes)
-    ? (content.scenes as { voiceover?: string; onScreenText?: string; visualDirection?: string }[])
-    : [];
-  const [currentScene, setCurrentScene] = useState(0);
+  const scenes = extractScenes(sections, content);
 
   const hook = getSectionText(sections, "hook") || (content.hook as string) || "";
   const caption = getSectionText(sections, "caption") || (content.caption as string) || (content.body as string) || "";
@@ -77,36 +74,7 @@ export function YouTubeShorts({ content, sections, brandName }: PreviewProps) {
         </div>
       </div>
 
-      {/* Scene list */}
-      {scenes.length > 0 && (
-        <div>
-          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">
-            Scenes ({scenes.length})
-          </p>
-          <div className="space-y-2">
-            {scenes.map((scene, i) => (
-              <button
-                key={i}
-                type="button"
-                onClick={() => setCurrentScene(i)}
-                className={`w-full text-left p-3 rounded-lg border transition-colors ${
-                  i === currentScene ? "border-red-300 bg-red-50" : "border-gray-200 bg-white hover:bg-gray-50"
-                }`}
-              >
-                <div className="flex items-start gap-2">
-                  <span className="text-[10px] font-bold text-white bg-red-600 w-5 h-5 rounded flex items-center justify-center shrink-0">
-                    {i + 1}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    {scene.voiceover && <p className="text-xs text-gray-800">{scene.voiceover}</p>}
-                    {scene.onScreenText && <p className="text-[10px] text-red-600 mt-0.5">{scene.onScreenText}</p>}
-                  </div>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+      <VisualScriptScenes scenes={scenes} accentClass="text-red-600" />
 
       {scenes.length === 0 && caption && (
         <div className="bg-gray-50 rounded-lg p-3">

@@ -83,6 +83,7 @@ export function ProductForm({ brands, workspaceId, onSubmit, onCancel, initial, 
         functionalBenefits?: string[];
         emotionalBenefits?: string[];
         targetAudience?: string;
+        imageUrl?: string;
       }>(`/api/workspaces/${workspaceId}/products/scrape-preview`, {
         method: "POST",
         body: JSON.stringify({ url: productUrl.trim() }),
@@ -105,6 +106,9 @@ export function ProductForm({ brands, workspaceId, onSubmit, onCancel, initial, 
         if (eb) setEmotionalBenefits(eb);
       }
       if (result.targetAudience) setTargetAudience(result.targetAudience);
+      // og:image / twitter:image extracted server-side. Only auto-fill if
+      // the user hasn't already set or uploaded one.
+      if (result.imageUrl && !imageUrl) setImageUrl(result.imageUrl);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Auto-fill failed");
     } finally {

@@ -381,6 +381,29 @@ export class ContentGenerationJob {
 			});
 		}
 
+		// ─── Post image (single-image formats: single_image, single_post,
+		// feed_post, story_image). One image per post, populated lazily when
+		// the user clicks "Generate image". Only emit if there are no
+		// multi-part outputs (slides/scenes/frames) to avoid duplication.
+		const hasMultipart =
+			Array.isArray(result.slides) ||
+			Array.isArray(result.scenes) ||
+			Array.isArray(result.frames);
+		if (!hasMultipart) {
+			const prompt =
+				(typeof result.visualDirection === "string" ? result.visualDirection : "") ||
+				(typeof result.visual === "string" ? result.visual : "") ||
+				"";
+			sections.push({
+				sectionType: "post_image",
+				sectionOrder: order++,
+				contentText: JSON.stringify({
+					prompt,
+					referenceImageUrl: "",
+				}),
+			});
+		}
+
 		// ─── Slides (carousel, carousel_post, carousel_ad, tiktok_carousel, thread) ───
 		if (Array.isArray(result.slides)) {
 			for (let i = 0; i < result.slides.length; i++) {
@@ -393,6 +416,7 @@ export class ContentGenerationJob {
 						headline: slide.headline ?? "",
 						body: slide.body ?? "",
 						visualDirection: slide.visualDirection ?? "",
+						referenceImageUrl: "",
 					}),
 				});
 			}
@@ -407,9 +431,12 @@ export class ContentGenerationJob {
 					sectionOrder: order++,
 					contentText: JSON.stringify({
 						sceneNumber: i + 1,
+						timeRange: scene.timeRange ?? "",
 						visualDirection: scene.visualDirection ?? "",
 						voiceover: scene.voiceover ?? "",
 						onScreenText: scene.onScreenText ?? "",
+						visualReference: scene.visualReference ?? "",
+						referenceImageUrl: scene.referenceImageUrl ?? "",
 					}),
 				});
 			}
@@ -426,6 +453,7 @@ export class ContentGenerationJob {
 						frameNumber: i + 1,
 						visual: frame.visual ?? "",
 						textOverlay: frame.textOverlay ?? "",
+						referenceImageUrl: "",
 					}),
 				});
 			}

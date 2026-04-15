@@ -1,6 +1,17 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Trash2, RefreshCw, ChevronDown, Sparkles, Calendar, X, Eye } from "lucide-react";
+import {
+  Trash2,
+  RefreshCw,
+  ChevronDown,
+  Sparkles,
+  Calendar,
+  X,
+  Eye,
+  Table as TableIcon,
+  CalendarDays,
+  CalendarRange,
+} from "lucide-react";
 import { useWorkspace } from "../hooks/useWorkspace";
 import { api } from "../services/api";
 import { Button } from "../components/ui/Button";
@@ -8,6 +19,9 @@ import { Modal } from "../components/ui/Modal";
 import { Spinner } from "../components/ui/Spinner";
 import { Toast } from "../components/ui/Toast";
 import { TopicDetailDrawer } from "../components/topics/TopicDetailDrawer";
+import { TopicCalendarView } from "../components/topics/TopicCalendarView";
+
+type ViewMode = "table" | "month" | "week";
 
 interface Topic {
   id: string;
@@ -184,6 +198,7 @@ export function TopicLibraryPage() {
   const [loading, setLoading] = useState(true);
   const [platformFilter, setPlatformFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [brandFilter, setBrandFilter] = useState("");
   const [expandedBrands, setExpandedBrands] = useState<Set<string>>(new Set());
   const [toast, setToast] = useState<ToastState>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
@@ -192,6 +207,7 @@ export function TopicLibraryPage() {
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   const [bulkActionRunning, setBulkActionRunning] = useState(false);
   const [viewingTopic, setViewingTopic] = useState<Topic | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>("table");
 
   const showToast = (message: string, type: "success" | "error" | "info") => {
     setToast({ message, type });
@@ -230,6 +246,25 @@ export function TopicLibraryPage() {
       setTopics((prev) => prev.map((t) => (t.id === topicId ? { ...t, status } : t)));
     } catch (e) {
       showToast(e instanceof Error ? e.message : "Failed to update status", "error");
+    }
+  };
+
+  const handleReschedule = async (topicId: string, newDate: string | null) => {
+    if (!activeWorkspace) return;
+    const previous = topics;
+    const isoDate = newDate ? `${newDate}T00:00:00.000Z` : null;
+    setTopics((prev) =>
+      prev.map((t) => (t.id === topicId ? { ...t, publishDate: isoDate } : t)),
+    );
+    try {
+      await api(`/api/workspaces/${activeWorkspace.id}/topics/${topicId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ publishDate: newDate }),
+      });
+      showToast(newDate ? "Topic rescheduled" : "Publish date cleared", "success");
+    } catch (e) {
+      setTopics(previous);
+      showToast(e instanceof Error ? e.message : "Failed to reschedule", "error");
     }
   };
 
@@ -329,10 +364,28 @@ export function TopicLibraryPage() {
     );
   }
 
+  // Build brand options from the topics currently loaded, so the dropdown
+  // only lists brands the user actually has topics for.
+  const brandOptions = (() => {
+    const seen = new Map<string, string>();
+    for (const t of topics) {
+      const id = t.brand?.id ?? t.brandId ?? "unknown";
+      const name = t.brand?.name ?? "Unknown Brand";
+      if (!seen.has(id)) seen.set(id, name);
+    }
+    return Array.from(seen, ([id, name]) => ({ id, name })).sort((a, b) =>
+      a.name.localeCompare(b.name),
+    );
+  })();
+
   // Filter
   const filteredTopics = topics.filter((t) => {
     if (platformFilter && t.platform !== platformFilter) return false;
     if (statusFilter && t.status !== statusFilter) return false;
+    if (brandFilter) {
+      const brandId = t.brand?.id ?? t.brandId ?? "unknown";
+      if (brandId !== brandFilter) return false;
+    }
     return true;
   });
 
@@ -404,30 +457,65 @@ export function TopicLibraryPage() {
         ))}
       </div>
 
-      {/* Filters */}
-      <div className="flex gap-3">
-        <select
-          className="px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg text-gray-700 focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
-          value={platformFilter}
-          onChange={(e) => setPlatformFilter(e.target.value)}
-        >
-          {PLATFORM_FILTER_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
+      {/* Filters + View Toggle */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex gap-3">
+          <select
+            className="px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg text-gray-700 focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
+            value={brandFilter}
+            onChange={(e) => setBrandFilter(e.target.value)}
+          >
+            <option value="">All Brands</option>
+            {brandOptions.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </select>
+          <select
+            className="px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg text-gray-700 focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
+            value={platformFilter}
+            onChange={(e) => setPlatformFilter(e.target.value)}
+          >
+            {PLATFORM_FILTER_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+          <select
+            className="px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg text-gray-700 focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            {STATUS_FILTER_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="inline-flex bg-white border border-gray-300 rounded-lg p-0.5">
+          {[
+            { mode: "table" as const, icon: TableIcon, label: "Table" },
+            { mode: "month" as const, icon: CalendarDays, label: "Month" },
+            { mode: "week" as const, icon: CalendarRange, label: "Week" },
+          ].map(({ mode, icon: Icon, label }) => (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => setViewMode(mode)}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                viewMode === mode
+                  ? "bg-gray-900 text-white"
+                  : "text-gray-600 hover:bg-gray-50"
+              }`}
+            >
+              <Icon size={13} />
+              {label}
+            </button>
           ))}
-        </select>
-        <select
-          className="px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg text-gray-700 focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-        >
-          {STATUS_FILTER_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
+        </div>
       </div>
 
       {/* Content */}
@@ -438,7 +526,7 @@ export function TopicLibraryPage() {
       ) : filteredTopics.length === 0 ? (
         <div className="bg-white border border-gray-200 rounded-xl p-12 text-center">
           <p className="text-sm text-gray-400">
-            {platformFilter || statusFilter ? "No topics match the current filters." : "No topics yet. Generate some from the Topic Generator."}
+            {platformFilter || statusFilter || brandFilter ? "No topics match the current filters." : "No topics yet. Generate some from the Topic Generator."}
           </p>
         </div>
       ) : (
@@ -477,8 +565,21 @@ export function TopicLibraryPage() {
                   />
                 </button>
 
+                {/* Calendar view */}
+                {isExpanded && viewMode !== "table" && (
+                  <div className="border-t border-gray-100 p-5">
+                    <TopicCalendarView
+                      topics={group.topics}
+                      mode={viewMode}
+                      onTopicClick={(t) => setViewingTopic(t)}
+                      onReschedule={handleReschedule}
+                      getPillarColor={getPillarColor}
+                    />
+                  </div>
+                )}
+
                 {/* Topic Table */}
-                {isExpanded && (
+                {isExpanded && viewMode === "table" && (
                   <div className="border-t border-gray-100 overflow-x-auto">
                     <table className="w-full min-w-[640px]">
                       <thead>

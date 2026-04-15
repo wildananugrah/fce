@@ -72,7 +72,14 @@
       "Bash(docker compose:*)",
       "Bash(lsof -i :3001 -sTCP:LISTEN)",
       "Bash(lsof -i :3004 -sTCP:LISTEN)",
-      "Bash(git stash:*)"
+      "Bash(git stash:*)",
+      "Bash(echo \"EXIT=$?\")",
+      "Bash(grep -l \"generateImages\\\\|Imagen\" node_modules/@google/genai/dist/*.d.ts)",
+      "Bash(wc -l frontend/src/components/library/previews/*.tsx)",
+      "Bash(curl -sL \"https://api.github.com/repos/blader/humanizer/contents/\")",
+      "Bash(curl -sL \"https://raw.githubusercontent.com/blader/humanizer/main/SKILL.md\" -o /tmp/humanizer-skill.md)",
+      "Bash(curl -sL \"https://icar.co.id/v23\" -A \"Mozilla/5.0 \\(Macintosh; Intel Mac OS X 10_15_7\\) AppleWebKit/537.36 \\(KHTML, like Gecko\\) Chrome/120.0.0.0 Safari/537.36\" -o /tmp/icar.html)",
+      "Bash(bun -e \"import\\('./src/utils/url-fetcher'\\).then\\(async \\(m\\) => { const r = await m.extractOgImage\\('https://icar.co.id/v23'\\); console.log\\('Result:', r\\); }\\)\")"
     ],
     "additionalDirectories": [
       "/Users/wildananugrah/Documents/My-Projects/fce/.git"

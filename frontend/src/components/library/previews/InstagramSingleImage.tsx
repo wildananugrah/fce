@@ -1,5 +1,6 @@
 import { ImageIcon } from "lucide-react";
 import type { PreviewProps } from "./PreviewRegistry";
+import { extractPostImage } from "./VisualScriptScenes";
 
 function getSectionText(sections: PreviewProps["sections"], type: string): string {
   return sections
@@ -15,6 +16,7 @@ export function InstagramSingleImage({ content, sections, brandName }: PreviewPr
   const hashtags = getSectionText(sections, "hashtag") || (Array.isArray(content.hashtags) ? (content.hashtags as string[]).join(" ") : "");
   const cta = getSectionText(sections, "cta") || (content.cta as string) || "";
   const visualDirection = getSectionText(sections, "visual_direction") || (content.visualDirection as string) || "";
+  const postImage = extractPostImage(sections);
 
   const brandSlug = brandName.toLowerCase().replace(/\s+/g, "");
 
@@ -33,10 +35,14 @@ export function InstagramSingleImage({ content, sections, brandName }: PreviewPr
         </div>
 
         {/* Image */}
-        <div className="relative aspect-square bg-gray-100 flex items-center justify-center">
-          <ImageIcon size={48} className="text-gray-300" />
+        <div className="relative aspect-square bg-gray-100 flex items-center justify-center overflow-hidden">
+          {postImage ? (
+            <img src={postImage} alt="Post" className="absolute inset-0 w-full h-full object-cover" />
+          ) : (
+            <ImageIcon size={48} className="text-gray-300" />
+          )}
           {hook && (
-            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4">
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4 z-10">
               <p className="text-white text-sm font-semibold">{hook}</p>
             </div>
           )}

@@ -26,6 +26,7 @@ export const env = {
 	anthropicModel: optionalEnv("ANTHROPIC_MODEL", "claude-sonnet-4-20250514"),
 	geminiApiKey: optionalEnv("GEMINI_API_KEY"),
 	geminiModel: optionalEnv("GEMINI_MODEL", "gemini-2.0-flash"),
+	geminiImageModel: optionalEnv("GEMINI_IMAGE_MODEL", "gemini-2.5-flash-image"),
 	minioEndpoint: optionalEnv("MINIO_ENDPOINT", "http://localhost:9000"),
 	minioPublicUrl: optionalEnv("MINIO_PUBLIC_URL"),
 	minioPort: Number.parseInt(optionalEnv("MINIO_PORT", "9000"), 10),

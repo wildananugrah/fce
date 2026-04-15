@@ -36,7 +36,7 @@ Bugs:
 6. number of topics bisa star dari 1
 
 Discussion:
-1. Di Topic Library ini view nya bisa dalam calender atau table. 
+1. Di Topic Library ini view nya bisa dalam calender atau table. [o]
 2. Workspace untuk pembatas antara client-client yang lain. 
 3. Beda workspace jangan beda skills, skills di buat untuk general. 
 4. Context untuk pemahaman AI itu di level workspace. 

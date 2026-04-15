@@ -54,6 +54,10 @@ export class ProductRepository implements IProductRepository {
 		return this.prisma.product.update({ where: { id }, data });
 	}
 
+	async delete(id: string): Promise<void> {
+		await this.prisma.product.delete({ where: { id } });
+	}
+
 	async findActiveBrainVersion(productId: string): Promise<ProductBrainVersion | null> {
 		return this.prisma.productBrainVersion.findFirst({
 			where: { productId, isActive: true },

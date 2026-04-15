@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import type { ILibraryService } from "../interfaces/services/library.service.interface";
+import type { SceneImageService } from "../services/scene-image.service";
 
 type Variables = {
 	userId: string;
@@ -8,7 +9,10 @@ type Variables = {
 	workspaceRole: string;
 };
 
-export function createLibraryRoutes(libraryService: ILibraryService) {
+export function createLibraryRoutes(
+	libraryService: ILibraryService,
+	sceneImageService?: SceneImageService,
+) {
 	const app = new Hono<{ Variables: Variables }>();
 
 	// GET / — list outputs
@@ -77,6 +81,27 @@ export function createLibraryRoutes(libraryService: ILibraryService) {
 		return c.json({ data: feedback }, 201);
 	});
 
+	// POST /:id/sections — create a new section lazily (for cases where an
+	// older output lacks a dedicated section but has the data in content.*).
+	app.post("/:id/sections", async (c) => {
+		const userId = c.get("userId");
+		const body = await c.req.json();
+		const { sectionType, contentText } = body as {
+			sectionType?: string;
+			contentText?: string;
+		};
+		if (!sectionType || typeof contentText !== "string") {
+			return c.json({ error: "sectionType and contentText are required" }, 400);
+		}
+		const section = await libraryService.createSection(
+			c.req.param("id"),
+			sectionType,
+			contentText,
+			userId,
+		);
+		return c.json({ data: section }, 201);
+	});
+
 	// GET /:id/sections — get sections for an output
 	app.get("/:id/sections", async (c) => {
 		const sections = await libraryService.getSections(c.req.param("id"));
@@ -97,6 +122,59 @@ export function createLibraryRoutes(libraryService: ILibraryService) {
 			userId,
 		);
 		return c.json({ data: section });
+	});
+
+	// POST /:id/post-image/generate — ensure a post_image section exists for
+	// single-image content (creating it lazily for older outputs), then
+	// generate the image. Returns the updated section so the frontend can
+	// inject it into local state.
+	app.post("/:id/post-image/generate", async (c) => {
+		if (!sceneImageService) {
+			return c.json({ error: "Scene image generation is not configured" }, 501);
+		}
+		const workspaceId = c.get("workspaceId");
+		const userId = c.get("userId");
+		try {
+			const result = await sceneImageService.ensureAndGenerateForPostImage(
+				workspaceId,
+				c.req.param("id"),
+				userId,
+			);
+			// Look up the full section so the client can add it to its list.
+			const section = await libraryService.getSections(c.req.param("id"));
+			const created = section.find((s) => s.id === result.sectionId);
+			return c.json({ data: { ...result, section: created } });
+		} catch (e) {
+			return c.json(
+				{ error: e instanceof Error ? e.message : "Failed to generate image" },
+				400,
+			);
+		}
+	});
+
+	// POST /:id/sections/:sectionId/generate-image — synchronously generate an
+	// image for a video-script scene via Imagen, upload to MinIO, and patch the
+	// section JSON with the new referenceImageUrl.
+	app.post("/:id/sections/:sectionId/generate-image", async (c) => {
+		if (!sceneImageService) {
+			return c.json({ error: "Scene image generation is not configured" }, 501);
+		}
+		const workspaceId = c.get("workspaceId");
+		const userId = c.get("userId");
+		try {
+			const result = await sceneImageService.generateForSection(
+				workspaceId,
+				c.req.param("id"),
+				c.req.param("sectionId"),
+				userId,
+			);
+			return c.json({ data: result });
+		} catch (e) {
+			return c.json(
+				{ error: e instanceof Error ? e.message : "Failed to generate image" },
+				400,
+			);
+		}
 	});
 
 	// PATCH /:id/sections/bulk — bulk update section texts

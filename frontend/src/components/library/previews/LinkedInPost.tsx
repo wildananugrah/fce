@@ -1,5 +1,6 @@
 import { ThumbsUp, MessageCircle, Repeat2, Send, Globe } from "lucide-react";
 import type { PreviewProps } from "./PreviewRegistry";
+import { VisualScriptScenes, extractScenes, extractSlides, extractPostImage } from "./VisualScriptScenes";
 
 function getSectionText(sections: PreviewProps["sections"], type: string): string {
   return sections
@@ -57,6 +58,7 @@ export function LinkedInPost({ content, sections, brandName }: PreviewProps) {
   const caption = getSectionText(sections, "caption") || (content.caption as string) || (content.body as string) || "";
   const hashtags = getSectionText(sections, "hashtag") || (Array.isArray(content.hashtags) ? (content.hashtags as string[]).join(" ") : "");
   const cta = getSectionText(sections, "cta") || (content.cta as string) || "";
+  const postImage = extractPostImage(sections);
 
   const text = [hook, caption, cta].filter(Boolean).join("\n\n");
 
@@ -66,14 +68,20 @@ export function LinkedInPost({ content, sections, brandName }: PreviewProps) {
         <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">{text}</p>
         {hashtags && <p className="text-sm text-blue-600">{hashtags}</p>}
       </div>
+      {postImage && (
+        <img
+          src={postImage}
+          alt="Post"
+          className="w-full object-cover"
+          style={{ aspectRatio: "1.91/1" }}
+        />
+      )}
     </LinkedInWrapper>
   );
 }
 
 export function LinkedInCarouselPost({ content, sections, brandName }: PreviewProps) {
-  const slides = Array.isArray(content.slides)
-    ? (content.slides as { headline?: string; body?: string }[])
-    : [];
+  const slides = extractSlides(sections, content);
   const hook = getSectionText(sections, "hook") || (content.hook as string) || "";
   const hashtags = getSectionText(sections, "hashtag") || (Array.isArray(content.hashtags) ? (content.hashtags as string[]).join(" ") : "");
 
@@ -83,10 +91,23 @@ export function LinkedInCarouselPost({ content, sections, brandName }: PreviewPr
       {/* Carousel slides horizontal scroll */}
       <div className="flex gap-2 px-4 pb-3 overflow-x-auto">
         {slides.map((slide, i) => (
-          <div key={i} className="shrink-0 w-48 bg-blue-50 border border-blue-100 rounded-lg p-3">
-            <p className="text-[10px] text-blue-500 font-medium mb-1">Slide {i + 1}</p>
-            {slide.headline && <p className="text-xs font-semibold text-gray-900">{slide.headline}</p>}
-            {slide.body && <p className="text-[11px] text-gray-600 mt-1 line-clamp-3">{slide.body}</p>}
+          <div
+            key={i}
+            className="shrink-0 w-48 bg-blue-50 border border-blue-100 rounded-lg overflow-hidden flex flex-col"
+          >
+            {slide.referenceImageUrl && (
+              <img
+                src={slide.referenceImageUrl}
+                alt={`Slide ${i + 1}`}
+                className="w-full object-cover"
+                style={{ aspectRatio: "1/1" }}
+              />
+            )}
+            <div className="p-3">
+              <p className="text-[10px] text-blue-500 font-medium mb-1">Slide {i + 1}</p>
+              {slide.headline && <p className="text-xs font-semibold text-gray-900">{slide.headline}</p>}
+              {slide.body && <p className="text-[11px] text-gray-600 mt-1 line-clamp-3">{slide.body}</p>}
+            </div>
           </div>
         ))}
         {slides.length === 0 && (
@@ -102,24 +123,28 @@ export function LinkedInVideo({ content, sections, brandName }: PreviewProps) {
   const hook = getSectionText(sections, "hook") || (content.hook as string) || "";
   const caption = getSectionText(sections, "caption") || (content.caption as string) || (content.body as string) || "";
   const hashtags = getSectionText(sections, "hashtag") || (Array.isArray(content.hashtags) ? (content.hashtags as string[]).join(" ") : "");
+  const scenes = extractScenes(sections, content);
 
   return (
-    <LinkedInWrapper brandName={brandName}>
-      {(hook || caption) && (
-        <p className="px-4 pb-2 text-sm text-gray-800 line-clamp-3">
-          {hook || caption}
-        </p>
-      )}
-      {/* Video placeholder */}
-      <div className="relative bg-gray-900 mx-0" style={{ aspectRatio: "16/9" }}>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center">
-            <Send size={24} className="text-white ml-1 rotate-[-30deg]" />
+    <div className="space-y-4">
+      <LinkedInWrapper brandName={brandName}>
+        {(hook || caption) && (
+          <p className="px-4 pb-2 text-sm text-gray-800 line-clamp-3">
+            {hook || caption}
+          </p>
+        )}
+        {/* Video placeholder */}
+        <div className="relative bg-gray-900 mx-0" style={{ aspectRatio: "16/9" }}>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center">
+              <Send size={24} className="text-white ml-1 rotate-[-30deg]" />
+            </div>
           </div>
         </div>
-      </div>
-      {hashtags && <p className="px-4 py-2 text-sm text-blue-600">{hashtags}</p>}
-    </LinkedInWrapper>
+        {hashtags && <p className="px-4 py-2 text-sm text-blue-600">{hashtags}</p>}
+      </LinkedInWrapper>
+      <VisualScriptScenes scenes={scenes} accentClass="text-blue-600" />
+    </div>
   );
 }
 

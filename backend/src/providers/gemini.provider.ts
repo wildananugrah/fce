@@ -28,7 +28,17 @@ import {
 	buildContentGenerationPrompt,
 	buildTopicGenerationPrompt,
 } from "../utils/prompt-builder";
-import { fetchUrlContent } from "../utils/url-fetcher";
+import { extractOgImage, fetchMultipleUrls, fetchUrlContent } from "../utils/url-fetcher";
+
+// Map a language code from the UI to a directive sentence appended to AI
+// scraping prompts. Defaults to Bahasa Indonesia.
+function languageDirective(language?: string): string {
+	const normalized = (language ?? "indonesian").toLowerCase();
+	if (normalized === "english" || normalized === "en") {
+		return "Write all extracted text fields in English.";
+	}
+	return "Write all extracted text fields in Bahasa Indonesia.";
+}
 
 function parseJsonResponse(text: string): any {
 	let cleaned = text.trim();
@@ -234,7 +244,11 @@ Return JSON with these fields:
 		}
 	}
 
-	async scrapeProduct(input: { url: string }): Promise<{
+	async scrapeProduct(input: {
+		url?: string;
+		urls?: string[];
+		language?: string;
+	}): Promise<{
 		name?: string;
 		type?: string;
 		priceTier?: string;
@@ -244,35 +258,53 @@ Return JSON with these fields:
 		functionalBenefits?: string[];
 		emotionalBenefits?: string[];
 		targetAudience?: string;
+		imageUrl?: string;
 	}> {
-		// Fetch actual page content via Jina Reader (with HTML fallback)
-		const fetched = await fetchUrlContent(input.url);
-		if (fetched.source === "failed" || !fetched.content) {
+		// Collect all source URLs. Supports both legacy { url } and the
+		// multi-source { urls } form so callers can pass a brand website plus
+		// social profiles for richer extraction.
+		const sourceUrls =
+			input.urls && input.urls.length > 0 ? input.urls : input.url ? [input.url] : [];
+		if (sourceUrls.length === 0) {
+			throw new Error("GeminiProvider: at least one URL is required for product scraping");
+		}
+
+		// Fetch page text and the og:image hero in parallel — image extraction
+		// uses the raw HTML that Jina Reader strips out.
+		const [{ combined, results }, ogImageUrl] = await Promise.all([
+			fetchMultipleUrls(sourceUrls),
+			extractOgImage(sourceUrls[0]),
+		]);
+		const anySuccess = results.some((r) => r.source !== "failed" && r.content);
+		if (!anySuccess) {
 			throw new Error(
-				`GeminiProvider: Could not fetch content from ${input.url}: ${fetched.error ?? "unknown error"}`,
+				`GeminiProvider: Could not fetch content from any of: ${sourceUrls.join(", ")}`,
 			);
 		}
 
 		const systemPrompt =
-			"You are a product marketing expert. You MUST respond with ONLY valid JSON. No markdown, no code blocks, no explanations.";
-		const userPrompt = `Based on the extracted product page content below, extract structured product information.
+			"You are a product analyst. You MUST respond with ONLY valid JSON. No markdown, no code blocks, no explanations.";
+		const userPrompt = `You are a product analyst. Based on the extracted website and social media content below, extract structured product information.
 
-Use empty string "" or empty array [] for fields you cannot determine from the content. Do not hallucinate facts.
+Return ONLY a valid JSON object with these exact fields (use empty string "" or empty array [] if not found):
+{
+  "name": "Product name",
+  "type": "Type of product (e.g. SaaS, Physical Product, Service, Mobile App, Insurance)",
+  "priceTier": "Pricing positioning (e.g. Premium, Mid-range, Budget, Freemium, Enterprise)",
+  "summary": "2-3 sentence description of what this product does and who it's for",
+  "usp": "The single most compelling reason to choose this product over alternatives",
+  "rtb": "Evidence or proof points backing up the USP (e.g. stats, awards, testimonials, certifications)",
+  "functionalBenefits": ["Tangible benefit #1", "Tangible benefit #2", "Tangible benefit #3"],
+  "emotionalBenefits": ["Emotional benefit #1", "Emotional benefit #2"],
+  "targetAudience": "Description of the primary target customer (demographics, psychographics, job role, pain points)"
+}
 
-Return JSON with these exact fields:
-- name (string): Product name
-- type (string): Product type (e.g. "Service", "SaaS", "Physical", "Insurance")
-- priceTier (string): Price tier if detectable (e.g. "Premium", "Mid-range", "Budget")
-- summary (string): What this product does, who it's for, key value proposition (2-3 sentences)
-- usp (string): Unique selling proposition — what makes it uniquely valuable
-- rtb (string): Reason to believe — evidence, proof points, credentials, certifications
-- functionalBenefits (array of strings): 3-6 practical benefits (e.g. "Saves 10 hours/week", "Covers up to $1M in liability")
-- emotionalBenefits (array of strings): 3-6 emotional benefits (e.g. "Feel confident", "Peace of mind", "Sense of security")
-- targetAudience (string): Who this product is for — demographics, pain points, goals
+Do not hallucinate. If the content does not support a field, leave it as "" or [].
 
-=== EXTRACTED PRODUCT PAGE CONTENT ===
-=== Source: ${fetched.url} (fetched via ${fetched.source}) ===
-${fetched.content}`;
+${languageDirective(input.language)}
+
+=== EXTRACTED WEBSITE AND SOCIAL MEDIA CONTENT ===
+${combined}`;
 
 		const response = await this.ai.models.generateContent({
 			model: this.model,
@@ -288,7 +320,9 @@ ${fetched.content}`;
 
 		const text = response.text ?? "";
 		try {
-			return parseJsonResponse(text);
+			const parsed = parseJsonResponse(text) as Record<string, unknown>;
+			if (ogImageUrl) parsed.imageUrl = ogImageUrl;
+			return parsed;
 		} catch {
 			throw new Error("Failed to parse AI response for product scraping");
 		}
@@ -327,6 +361,8 @@ Return JSON with these exact fields:
 - dos (array of strings): 3-6 content rules to always follow when creating content for this brand
 - donts (array of strings): 3-6 content rules to always avoid
 - vocabulary (object with: preferred (array of strings), avoided (array of strings)): Brand vocabulary guidelines — preferred words/phrases and words to avoid
+
+${languageDirective(input.language)}
 
 === EXTRACTED WEBSITE CONTENT ===
 === Source: ${fetched.url} (fetched via ${fetched.source}) ===

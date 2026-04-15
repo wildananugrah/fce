@@ -1,3 +1,4 @@
+import { getContentFormatCategory } from "../config/content-formats";
 import type { CampaignGenerationInput } from "../interfaces/providers/campaign-generator.interface";
 import type { ContentGenerationInput } from "../interfaces/providers/content-generator.interface";
 import type { TopicGenerationInput } from "../interfaces/providers/topic-generator.interface";
@@ -13,7 +14,18 @@ const JSON_ONLY_INSTRUCTION =
 const CONTENT_TYPE_FORMAT_INSTRUCTIONS: Record<string, string> = {
 	single_image: `Return JSON with fields: contentTitle (string), content (object with: hook, headline, body, cta, hashtags (array), visualDirection)`,
 	carousel: `Return JSON with fields: contentTitle (string), content (object with: hook (string - attention-grabbing opening line shown on first slide), caption (string - the post caption shown below the carousel), hashtags (array of strings), cta (string - call to action), slides (array of objects with: headline, body, visualDirection))`,
-	video: `Return JSON with fields: contentTitle (string), content (object with: hook (string - attention-grabbing opening line), caption (string - the post caption), hashtags (array of strings), cta (string - call to action), scenes (array of objects with: visualDirection, voiceover, onScreenText))`,
+	video: `Return JSON with fields: contentTitle (string), content (object with:
+- hook (string — attention-grabbing opening line)
+- caption (string — the post caption)
+- hashtags (array of strings)
+- cta (string — call to action)
+- scenes (array of 4–8 objects — one per shot/beat in the video). Each scene MUST contain:
+  - timeRange (string — "MM:SS – MM:SS" format indicating when this scene plays, starting from 00:00)
+  - visualDirection (string — concrete, vivid description of what is shown on screen in this scene)
+  - voiceover (string — narration or dialogue spoken during this scene, in the requested content language)
+  - onScreenText (string — the caption/text overlay that appears on screen during this scene)
+  - visualReference (string — a concise image-generation prompt, max 25 words, describing the single hero frame of this scene so an image generator can visualise it. Write this field in English regardless of the content language. Include subject, setting, mood, lighting, framing.)
+)`,
 	story: `Return JSON with fields: contentTitle (string), content (object with: hook (string - opening text), caption (string), frames (array of objects with: visual, textOverlay))`,
 };
 
@@ -39,8 +51,12 @@ function buildContextBlock(input: {
 
 export function buildContentGenerationPrompt(input: ContentGenerationInput): PromptPair {
 	const contextBlock = buildContextBlock(input);
+	// Resolve the canonical contentType (e.g. "reels", "tiktok_video") to a
+	// format category ("video", "carousel", "story", "single_image") so the
+	// prompt matches the actual output shape the AI should produce.
+	const formatCategory = getContentFormatCategory(input.contentType);
 	const formatInstruction =
-		CONTENT_TYPE_FORMAT_INSTRUCTIONS[input.contentType] ||
+		CONTENT_TYPE_FORMAT_INSTRUCTIONS[formatCategory] ||
 		CONTENT_TYPE_FORMAT_INSTRUCTIONS.single_image;
 
 	const systemPrompt = `You are an expert content creator. You have the following brand context:

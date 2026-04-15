@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ThumbsUp, MessageCircle, Share2, Play, ImageIcon, ChevronLeft, ChevronRight, Globe } from "lucide-react";
 import type { PreviewProps } from "./PreviewRegistry";
+import { VisualScriptScenes, extractScenes, extractSlides, extractPostImage } from "./VisualScriptScenes";
 
 function getSectionText(sections: PreviewProps["sections"], type: string): string {
   return sections
@@ -56,6 +57,7 @@ export function FacebookFeedPost({ content, sections, brandName }: PreviewProps)
   const caption = getSectionText(sections, "caption") || (content.caption as string) || (content.body as string) || "";
   const hashtags = getSectionText(sections, "hashtag") || (Array.isArray(content.hashtags) ? (content.hashtags as string[]).join(" ") : "");
   const cta = getSectionText(sections, "cta") || (content.cta as string) || "";
+  const postImage = extractPostImage(sections);
 
   const text = [hook, caption].filter(Boolean).join("\n\n");
 
@@ -65,9 +67,13 @@ export function FacebookFeedPost({ content, sections, brandName }: PreviewProps)
         <p className="text-sm text-gray-800 whitespace-pre-wrap">{text}</p>
         {hashtags && <p className="text-sm text-blue-600">{hashtags}</p>}
       </div>
-      {/* Image placeholder */}
-      <div className="bg-gray-100 flex items-center justify-center" style={{ aspectRatio: "16/9" }}>
-        <ImageIcon size={40} className="text-gray-300" />
+      {/* Image */}
+      <div className="relative bg-gray-100 flex items-center justify-center overflow-hidden" style={{ aspectRatio: "16/9" }}>
+        {postImage ? (
+          <img src={postImage} alt="Post" className="absolute inset-0 w-full h-full object-cover" />
+        ) : (
+          <ImageIcon size={40} className="text-gray-300" />
+        )}
       </div>
       {cta && (
         <div className="px-4 py-2 bg-gray-50 border-t border-gray-200 flex items-center justify-between">
@@ -85,19 +91,26 @@ export function FacebookFeedPost({ content, sections, brandName }: PreviewProps)
 }
 
 export function FacebookCarouselAd({ content, sections, brandName }: PreviewProps) {
-  const slides = Array.isArray(content.slides)
-    ? (content.slides as { headline?: string; body?: string; visualDirection?: string }[])
-    : [];
+  const slides = extractSlides(sections, content);
   const [current, setCurrent] = useState(0);
   const total = slides.length || 1;
   const hook = getSectionText(sections, "hook") || (content.hook as string) || "";
+  const currentImage = slides[current]?.referenceImageUrl;
 
   return (
     <FacebookWrapper brandName={brandName}>
       {hook && <p className="px-4 pb-2 text-sm text-gray-800">{hook}</p>}
       {/* Carousel */}
-      <div className="relative bg-gray-100 flex items-center justify-center group" style={{ aspectRatio: "1/1" }}>
-        <ImageIcon size={40} className="text-gray-300" />
+      <div className="relative bg-gray-100 flex items-center justify-center group overflow-hidden" style={{ aspectRatio: "1/1" }}>
+        {currentImage ? (
+          <img
+            src={currentImage}
+            alt={`Slide ${current + 1}`}
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        ) : (
+          <ImageIcon size={40} className="text-gray-300" />
+        )}
         {slides[current]?.headline && (
           <div className="absolute bottom-0 left-0 right-0 bg-white px-4 py-3 border-t border-gray-200">
             <p className="text-sm font-semibold text-gray-900">{slides[current].headline}</p>
@@ -125,9 +138,7 @@ export function FacebookCarouselAd({ content, sections, brandName }: PreviewProp
 }
 
 export function FacebookReel({ content, sections, brandName }: PreviewProps) {
-  const scenes = Array.isArray(content.scenes)
-    ? (content.scenes as { voiceover?: string; onScreenText?: string; visualDirection?: string }[])
-    : [];
+  const scenes = extractScenes(sections, content);
   const hook = getSectionText(sections, "hook") || (content.hook as string) || "";
   const caption = getSectionText(sections, "caption") || (content.caption as string) || (content.body as string) || "";
 
@@ -156,25 +167,7 @@ export function FacebookReel({ content, sections, brandName }: PreviewProps) {
         </div>
       </div>
 
-      {/* Scenes */}
-      {scenes.length > 0 && (
-        <div>
-          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Scenes ({scenes.length})</p>
-          <div className="space-y-2">
-            {scenes.map((scene, i) => (
-              <div key={i} className="p-3 rounded-lg border border-gray-200 bg-white">
-                <div className="flex items-start gap-2">
-                  <span className="text-[10px] font-bold text-white bg-blue-600 w-5 h-5 rounded flex items-center justify-center shrink-0">{i + 1}</span>
-                  <div>
-                    {scene.voiceover && <p className="text-xs text-gray-800">{scene.voiceover}</p>}
-                    {scene.onScreenText && <p className="text-[10px] text-blue-600 mt-0.5">{scene.onScreenText}</p>}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      <VisualScriptScenes scenes={scenes} accentClass="text-blue-600" />
 
       {scenes.length === 0 && caption && (
         <div className="bg-gray-50 rounded-lg p-3">
@@ -190,6 +183,8 @@ export function FacebookStory({ content, sections, brandName }: PreviewProps) {
   const cta = getSectionText(sections, "cta") || (content.cta as string) || "";
   const caption = getSectionText(sections, "caption") || (content.caption as string) || (content.body as string) || "";
   const visualDirection = getSectionText(sections, "visual_direction") || (content.visualDirection as string) || "";
+  const scenes = extractScenes(sections, content);
+  const postImage = extractPostImage(sections);
 
   return (
     <div className="space-y-4">
@@ -206,9 +201,18 @@ export function FacebookStory({ content, sections, brandName }: PreviewProps) {
           <p className="text-white text-sm font-semibold">{brandName}</p>
         </div>
         {/* Center */}
-        <div className="absolute inset-0 flex items-center justify-center">
-          <ImageIcon size={48} className="text-gray-600" />
-        </div>
+        {postImage && (
+          <img
+            src={postImage}
+            alt="Story"
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        )}
+        {!postImage && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <ImageIcon size={48} className="text-gray-600" />
+          </div>
+        )}
         {/* Hook overlay */}
         {hook && (
           <div className="absolute top-1/3 left-4 right-4 z-10">
@@ -239,6 +243,7 @@ export function FacebookStory({ content, sections, brandName }: PreviewProps) {
           <p className="text-xs text-gray-600">{visualDirection}</p>
         </div>
       )}
+      <VisualScriptScenes scenes={scenes} accentClass="text-blue-600" />
     </div>
   );
 }

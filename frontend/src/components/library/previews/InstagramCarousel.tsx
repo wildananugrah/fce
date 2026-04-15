@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ChevronLeft, ChevronRight, ImageIcon } from "lucide-react";
 import type { PreviewProps } from "./PreviewRegistry";
+import { extractSlides } from "./VisualScriptScenes";
 
 function getSectionText(sections: PreviewProps["sections"], type: string): string {
   return sections
@@ -11,9 +12,7 @@ function getSectionText(sections: PreviewProps["sections"], type: string): strin
 }
 
 export function InstagramCarousel({ content, sections, brandName }: PreviewProps) {
-  const slides = Array.isArray(content.slides)
-    ? (content.slides as { headline?: string; body?: string; visualDirection?: string }[])
-    : [];
+  const slides = extractSlides(sections, content);
   const [current, setCurrent] = useState(0);
   const total = slides.length || 1;
 
@@ -40,8 +39,16 @@ export function InstagramCarousel({ content, sections, brandName }: PreviewProps
         </div>
 
         {/* Image Area */}
-        <div className="relative aspect-square bg-gray-100 flex items-center justify-center group">
-          <ImageIcon size={48} className="text-gray-300" />
+        <div className="relative aspect-square bg-gray-100 flex items-center justify-center group overflow-hidden">
+          {currentSlide?.referenceImageUrl ? (
+            <img
+              src={currentSlide.referenceImageUrl}
+              alt={`Slide ${current + 1}`}
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+          ) : (
+            <ImageIcon size={48} className="text-gray-300" />
+          )}
 
           {/* Slide headline overlay */}
           {currentSlide?.headline && (

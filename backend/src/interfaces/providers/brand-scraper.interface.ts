@@ -1,5 +1,9 @@
 export interface BrandScrapingInput {
 	url: string;
+	// "indonesian" | "english". Controls the language of the AI-extracted
+	// fields (summary, tone, dos/donts, etc). Defaults to indonesian when
+	// omitted to match the rest of the app.
+	language?: string;
 }
 
 export interface BrandScrapingOutput {

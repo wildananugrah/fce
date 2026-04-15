@@ -19,6 +19,7 @@ import { createRequestLoggerMiddleware } from "./middlewares/request-logger.midd
 import { createWorkspaceMiddleware } from "./middlewares/workspace.middleware";
 import { AnthropicProvider } from "./providers/anthropic.provider";
 import { ApifyProvider } from "./providers/apify.provider";
+import { GeminiImageProvider } from "./providers/gemini-image.provider";
 import { GeminiProvider } from "./providers/gemini.provider";
 import { MinioStorageProvider } from "./providers/minio.provider";
 import { WinstonLogger } from "./providers/winston-logger.provider";
@@ -66,6 +67,7 @@ import { NotificationService } from "./services/notification.service";
 import { ProductService } from "./services/product.service";
 import { RecommendationService } from "./services/recommendation.service";
 import { ResearchService } from "./services/research.service";
+import { SceneImageService } from "./services/scene-image.service";
 import { UrlInspirationService } from "./services/url-inspiration.service";
 import { TaxonomyService } from "./services/taxonomy.service";
 import { TopicService } from "./services/topic.service";
@@ -145,6 +147,18 @@ async function main() {
 	const taxonomyService = new TaxonomyService(taxonomyRepository);
 	const generationService = new GenerationService(generationRepository, boss);
 	const libraryService = new LibraryService(generationRepository, outputSectionRepository, boss);
+	// Scene image generator (Imagen via @google/genai). Only enabled when a
+	// Gemini API key is configured; otherwise the route returns 501.
+	const sceneImageService = env.geminiApiKey
+		? new SceneImageService(
+				prisma,
+				new GeminiImageProvider(env.geminiApiKey, env.geminiImageModel),
+				storageProvider,
+				env.minioBucket,
+				logger,
+				"gemini",
+			)
+		: undefined;
 	const recommendationService = new RecommendationService(recommendationRepository);
 	const campaignService = new CampaignService(campaignRepository, boss);
 	const topicService = new TopicService(topicRepository, boss);
@@ -349,7 +363,7 @@ async function main() {
 		createProductRoutes(productService, resolveBrandScraper(), storageProvider, env.minioBucket, prisma),
 	);
 	workspaceScoped.route("/generations", createGenerationRoutes(generationService));
-	workspaceScoped.route("/library", createLibraryRoutes(libraryService));
+	workspaceScoped.route("/library", createLibraryRoutes(libraryService, sceneImageService));
 	workspaceScoped.route("/campaigns", createCampaignRoutes(campaignService));
 	workspaceScoped.route("/topics", createTopicRoutes(topicService));
 	workspaceScoped.route("/dashboard", createDashboardRoutes(dashboardService));

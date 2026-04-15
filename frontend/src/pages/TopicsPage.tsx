@@ -789,7 +789,7 @@ export function TopicsPage() {
 								</div>
 
 								{/* Topic cards grid */}
-								<div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+								<div className="grid grid-cols-1 gap-4">
 									{generatedTopics.map((topic) => (
 										<div
 											key={topic.id}
@@ -856,8 +856,8 @@ export function TopicsPage() {
 												value={topic.description ?? ""}
 												onChange={(e) => handleTopicFieldChange(topic.id, "description", e.target.value)}
 												placeholder="Add a description..."
-												rows={2}
-												className="w-full text-xs text-gray-600 bg-transparent border border-transparent hover:border-gray-200 focus:border-indigo-400 focus:outline-none rounded-md p-1 resize-none transition-colors"
+												rows={5}
+												className="w-full text-sm text-gray-700 leading-relaxed bg-transparent border border-transparent hover:border-gray-200 focus:border-indigo-400 focus:outline-none rounded-md p-2 resize-y transition-colors"
 											/>
 
 											<div className="grid grid-cols-2 gap-2">

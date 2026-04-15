@@ -163,6 +163,13 @@ const PLATFORM_FORMATS: Record<string, FormatOption[]> = {
   ],
 };
 
+// Language defaults to Bahasa Indonesia — most users here write in
+// Indonesian, but English is the common override.
+const LANGUAGE_OPTIONS = [
+  { value: "indonesian", label: "Bahasa Indonesia" },
+  { value: "english", label: "English" },
+];
+
 const OBJECTIVE_OPTIONS = [
   { value: "", label: "Select Objective" },
   { value: "awareness", label: "Awareness" },
@@ -369,7 +376,7 @@ export function GeneratePage() {
   const [contentType, setContentType] = useState(initialContentType);
   const [frameworkId, setFrameworkId] = useState("");
   const [hookTypeId, setHookTypeId] = useState("");
-  const [language] = useState("indonesian");
+  const [language, setLanguage] = useState("indonesian");
   const [contentTopicId, setContentTopicId] = useState(searchParams.get("topicId") ?? "");
   const [customPrompt, setCustomPrompt] = useState("");
   const [referenceImages, setReferenceImages] = useState<ImageRef[]>([]);
@@ -842,6 +849,14 @@ const frameworkOptions = [{ value: "", label: "PAS (recommended)" }, ...framewor
                 options={OBJECTIVE_OPTIONS}
                 value={objective}
                 onChange={(e) => setObjective(e.target.value)}
+              />
+
+              {/* Language */}
+              <Select
+                label="Language"
+                options={LANGUAGE_OPTIONS}
+                value={language}
+                onChange={(e) => setLanguage(e.target.value)}
               />
             </div>
 

@@ -8,29 +8,30 @@ export class DashboardService implements IDashboardService {
 	constructor(private prisma: PrismaClient) {}
 
 	async getStats(workspaceId: string): Promise<DashboardStats> {
-		const [brandCount, productCount, generationCount, campaignCount, workspace, recentGenerations] =
-			await Promise.all([
-				this.prisma.brand.count({ where: { workspaceId } }),
-				this.prisma.product.count({ where: { workspaceId } }),
-				this.prisma.generationRequest.count({ where: { workspaceId } }),
-				this.prisma.campaign.count({ where: { workspaceId } }),
-				this.prisma.workspace.findUnique({
-					where: { id: workspaceId },
-					select: { apiUsageUsd: true, apiLimitUsd: true },
-				}),
-				this.prisma.generationRequest.findMany({
-					where: { workspaceId },
-					orderBy: { createdAt: "desc" },
-					take: 10,
-					select: {
-						id: true,
-						platform: true,
-						contentType: true,
-						status: true,
-						createdAt: true,
-					},
-				}),
-			]);
+		// Queries are split sequentially to avoid the Prisma 7 WASM
+		// "Out of bounds memory access" bug triggered by Promise.all.
+		const brandCount = await this.prisma.brand.count({ where: { workspaceId } });
+		const productCount = await this.prisma.product.count({ where: { workspaceId } });
+		const generationCount = await this.prisma.generationRequest.count({
+			where: { workspaceId },
+		});
+		const campaignCount = await this.prisma.campaign.count({ where: { workspaceId } });
+		const workspace = await this.prisma.workspace.findUnique({
+			where: { id: workspaceId },
+			select: { apiUsageUsd: true, apiLimitUsd: true },
+		});
+		const recentGenerations = await this.prisma.generationRequest.findMany({
+			where: { workspaceId },
+			orderBy: { createdAt: "desc" },
+			take: 10,
+			select: {
+				id: true,
+				platform: true,
+				contentType: true,
+				status: true,
+				createdAt: true,
+			},
+		});
 
 		return {
 			brandCount,

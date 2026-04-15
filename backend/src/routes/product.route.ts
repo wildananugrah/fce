@@ -26,7 +26,11 @@ type ProductAIProvider = {
 		targetAudience?: string;
 		summary?: string;
 	}>;
-	scrapeProduct(input: { url: string }): Promise<{
+	scrapeProduct(input: {
+		url?: string;
+		urls?: string[];
+		language?: string;
+	}): Promise<{
 		name?: string;
 		type?: string;
 		priceTier?: string;
@@ -36,6 +40,7 @@ type ProductAIProvider = {
 		functionalBenefits?: string[];
 		emotionalBenefits?: string[];
 		targetAudience?: string;
+		imageUrl?: string;
 	}>;
 };
 
@@ -54,15 +59,20 @@ export function createProductRoutes(
 			return c.json({ error: "AI provider not configured" }, 500);
 		}
 		const body = await c.req.json();
-		const { url } = body;
-		if (!url) {
-			return c.json({ error: "url is required" }, 400);
+		const { url, urls, language } = body as {
+			url?: string;
+			urls?: string[];
+			language?: string;
+		};
+		const urlList = Array.isArray(urls) && urls.length > 0 ? urls : url ? [url] : [];
+		if (urlList.length === 0) {
+			return c.json({ error: "url or urls is required" }, 400);
 		}
 		const workspaceId = c.get("workspaceId");
 		const userId = c.get("userId");
 		const startTime = Date.now();
 		try {
-			const result = await aiGenerator.scrapeProduct({ url });
+			const result = await aiGenerator.scrapeProduct({ urls: urlList, language });
 			const durationMs = Date.now() - startTime;
 			if (prisma) {
 				const usage = (aiGenerator as any).lastUsage;
@@ -75,7 +85,7 @@ export function createProductRoutes(
 							process.env.AI_BRAND_SCRAPER_PROVIDER || process.env.AI_PROVIDER || "unknown",
 						userId,
 						systemPrompt: "",
-						userPrompt: `Scrape product URL: ${url}`,
+						userPrompt: `Scrape product URLs: ${urlList.join(", ")}`,
 					},
 					{
 						responseJson: result,
@@ -100,7 +110,7 @@ export function createProductRoutes(
 							process.env.AI_BRAND_SCRAPER_PROVIDER || process.env.AI_PROVIDER || "unknown",
 						userId,
 						systemPrompt: "",
-						userPrompt: `Scrape product URL: ${url}`,
+						userPrompt: `Scrape product URLs: ${urlList.join(", ")}`,
 					},
 					{
 						inputTokens: usage?.inputTokens,
@@ -243,6 +253,15 @@ export function createProductRoutes(
 		const body = await c.req.json();
 		const product = await productService.update(c.req.param("id"), body);
 		return c.json({ data: product });
+	});
+
+	// DELETE /:id — delete product (cascades to brain versions, content
+	// topic links; sets generation_requests.product_id and
+	// brand_documents.product_id to NULL where present).
+	app.delete("/:id", async (c) => {
+		const workspaceId = c.get("workspaceId");
+		await productService.delete(workspaceId, c.req.param("id"));
+		return c.json({ deleted: true });
 	});
 
 	// POST /:id/brain-versions — create new brain version

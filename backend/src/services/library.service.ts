@@ -68,6 +68,40 @@ export class LibraryService implements ILibraryService {
 		return this.outputSectionRepository.findByOutputId(outputId);
 	}
 
+	// Creates a new section for an output (used when the user edits a field
+	// whose section doesn't exist yet — e.g. older outputs where caption
+	// lives in content.caption but has no OutputSection row).
+	async createSection(
+		outputId: string,
+		sectionType: string,
+		contentText: string,
+		userId: string,
+	): Promise<any> {
+		if (!this.outputSectionRepository) {
+			throw new Error("Output section repository not available");
+		}
+		const existing = await this.outputSectionRepository.findByOutputId(outputId);
+		const maxOrder = existing.reduce((acc, s) => Math.max(acc, s.sectionOrder), -1);
+		await this.outputSectionRepository.createMany(outputId, [
+			{ sectionType, sectionOrder: maxOrder + 1, contentText },
+		]);
+		const refreshed = await this.outputSectionRepository.findByOutputId(outputId);
+		const created = refreshed.find(
+			(s) => s.sectionType === sectionType && s.sectionOrder === maxOrder + 1,
+		);
+		if (!created) {
+			throw new Error("Failed to create section");
+		}
+		await this.generationRepository.addFeedback({
+			outputId,
+			eventType: "section_create",
+			userId,
+			before: null,
+			after: { sectionType, contentText },
+		});
+		return created;
+	}
+
 	async updateSection(sectionId: string, contentText: string, userId: string): Promise<any> {
 		if (!this.outputSectionRepository) {
 			throw new Error("Output section repository not available");

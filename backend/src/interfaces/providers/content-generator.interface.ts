@@ -22,7 +22,14 @@ export interface ContentGenerationOutput {
 		hashtags?: string[];
 		visualDirection?: string;
 		slides?: Array<{ headline: string; body: string; visualDirection?: string }>;
-		scenes?: Array<{ visualDirection: string; voiceover: string; onScreenText?: string }>;
+		scenes?: Array<{
+			timeRange?: string;
+			visualDirection: string;
+			voiceover: string;
+			onScreenText?: string;
+			visualReference?: string;
+			referenceImageUrl?: string;
+		}>;
 		frames?: Array<{ visual: string; textOverlay?: string }>;
 	};
 }

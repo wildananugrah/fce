@@ -68,11 +68,11 @@ export function createBrandRoutes(
 			return c.json({ error: "Brand scraper not configured" }, 500);
 		}
 		const body = await c.req.json();
-		const { url } = body;
+		const { url, language } = body as { url?: string; language?: string };
 		if (!url) {
 			return c.json({ error: "url is required" }, 400);
 		}
-		const result = await brandScraper.scrape({ url });
+		const result = await brandScraper.scrape({ url, language });
 		return c.json({ data: result });
 	});
 

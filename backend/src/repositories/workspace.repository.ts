@@ -50,6 +50,22 @@ export class WorkspaceRepository implements IWorkspaceRepository {
 			await tx.userWorkspaceRole.create({
 				data: { workspaceId: workspace.id, userId: ownerUserId, role: "admin" },
 			});
+			// Auto-map default system skills (e.g. humanizer) to the new
+			// workspace's content generator. Slugs must match prisma/seed.ts.
+			const defaultSkills = await tx.aiSkill.findMany({
+				where: { slug: { in: ["humanizer"] }, isSystem: true },
+				select: { id: true },
+			});
+			for (const skill of defaultSkills) {
+				await tx.workspaceSkillMapping.create({
+					data: {
+						workspaceId: workspace.id,
+						skillId: skill.id,
+						generator: "content",
+						isActive: true,
+					},
+				});
+			}
 			return workspace;
 		});
 	}

@@ -1,5 +1,6 @@
 import { ImageIcon, Play } from "lucide-react";
 import type { PreviewProps } from "./PreviewRegistry";
+import { VisualScriptScenes, extractScenes, extractPostImage, extractFrames } from "./VisualScriptScenes";
 
 function getSectionText(sections: PreviewProps["sections"], type: string): string {
   return sections
@@ -15,6 +16,11 @@ export function InstagramStory({ content, sections, brandName, contentType }: Pr
   const caption = getSectionText(sections, "caption") || (content.caption as string) || (content.body as string) || "";
   const cta = getSectionText(sections, "cta") || (content.cta as string) || "";
   const visualDirection = getSectionText(sections, "visual_direction") || (content.visualDirection as string) || "";
+  const scenes = isVideo ? extractScenes(sections, content) : [];
+  const postImage = extractPostImage(sections);
+  const frames = extractFrames(sections, content);
+  // The first frame's image doubles as the cover for image-story previews.
+  const coverImage = postImage || frames[0]?.referenceImageUrl || "";
 
   const brandSlug = brandName.toLowerCase().replace(/\s+/g, "");
 
@@ -42,13 +48,20 @@ export function InstagramStory({ content, sections, brandName, contentType }: Pr
         </div>
 
         {/* Center content */}
+        {coverImage && (
+          <img
+            src={coverImage}
+            alt="Story cover"
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        )}
         <div className="absolute inset-0 flex items-center justify-center">
           {isVideo ? (
             <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center">
               <Play size={32} className="text-white ml-1" />
             </div>
           ) : (
-            <ImageIcon size={48} className="text-gray-600" />
+            !coverImage && <ImageIcon size={48} className="text-gray-600" />
           )}
         </div>
 
@@ -92,6 +105,8 @@ export function InstagramStory({ content, sections, brandName, contentType }: Pr
           <p className="text-xs text-gray-600">{visualDirection}</p>
         </div>
       )}
+
+      <VisualScriptScenes scenes={scenes} accentClass="text-pink-500" />
     </div>
   );
 }

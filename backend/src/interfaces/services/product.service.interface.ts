@@ -11,6 +11,7 @@ export interface IProductService {
 	getById(id: string): Promise<Product & { brainVersions: ProductBrainVersion[] }>;
 	create(workspaceId: string, input: CreateProductInput): Promise<Product>;
 	update(id: string, input: UpdateProductInput): Promise<Product>;
+	delete(workspaceId: string, id: string): Promise<void>;
 	createBrainVersion(
 		productId: string,
 		input: CreateProductBrainVersionInput,

@@ -1,5 +1,6 @@
 import { Heart, MessageCircle, Repeat2, Share } from "lucide-react";
 import type { PreviewProps } from "./PreviewRegistry";
+import { extractSlides, type SlideLike } from "./VisualScriptScenes";
 
 function getSectionText(sections: PreviewProps["sections"], type: string): string {
   return sections
@@ -10,24 +11,26 @@ function getSectionText(sections: PreviewProps["sections"], type: string): strin
 }
 
 export function TwitterThread({ content, sections, brandName }: PreviewProps) {
-  const slides = Array.isArray(content.slides)
-    ? (content.slides as { headline?: string; body?: string }[])
-    : [];
+  const slides = extractSlides(sections, content);
   const hook = getSectionText(sections, "hook") || (content.hook as string) || "";
   const caption = getSectionText(sections, "caption") || (content.caption as string) || (content.body as string) || "";
   const hashtags = getSectionText(sections, "hashtag") || (Array.isArray(content.hashtags) ? (content.hashtags as string[]).join(" ") : "");
 
   const brandHandle = `@${brandName.toLowerCase().replace(/\s+/g, "")}`;
 
-  // Build thread tweets from slides or fallback to hook + caption
-  const tweets: string[] = [];
+  // Build thread tweets from slides or fallback to hook + caption. Each tweet
+  // keeps a reference to its source slide so we can render its image.
+  const tweets: { text: string; slide?: SlideLike }[] = [];
   if (slides.length > 0) {
     for (const slide of slides) {
-      tweets.push([slide.headline, slide.body].filter(Boolean).join("\n\n"));
+      tweets.push({
+        text: [slide.headline, slide.body].filter(Boolean).join("\n\n"),
+        slide,
+      });
     }
   } else {
-    if (hook) tweets.push(hook);
-    if (caption) tweets.push(caption);
+    if (hook) tweets.push({ text: hook });
+    if (caption) tweets.push({ text: caption });
   }
 
   return (
@@ -57,7 +60,17 @@ export function TwitterThread({ content, sections, brandName }: PreviewProps) {
               </div>
 
               {/* Tweet body */}
-              <p className="text-[15px] text-gray-900 whitespace-pre-wrap leading-relaxed mt-1">{tweet}</p>
+              <p className="text-[15px] text-gray-900 whitespace-pre-wrap leading-relaxed mt-1">{tweet.text}</p>
+
+              {/* Tweet image */}
+              {tweet.slide?.referenceImageUrl && (
+                <img
+                  src={tweet.slide.referenceImageUrl}
+                  alt={`Tweet ${i + 1}`}
+                  className="mt-2 w-full max-w-md rounded-xl border border-gray-200 object-cover"
+                  style={{ aspectRatio: "1/1" }}
+                />
+              )}
 
               {/* Hashtags on last tweet */}
               {i === tweets.length - 1 && hashtags && (

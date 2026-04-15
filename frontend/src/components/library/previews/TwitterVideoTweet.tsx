@@ -1,5 +1,6 @@
 import { Play, Heart, MessageCircle, Repeat2, Share, BarChart3 } from "lucide-react";
 import type { PreviewProps } from "./PreviewRegistry";
+import { VisualScriptScenes, extractScenes } from "./VisualScriptScenes";
 
 function getSectionText(sections: PreviewProps["sections"], type: string): string {
   return sections
@@ -14,11 +15,13 @@ export function TwitterVideoTweet({ content, sections, brandName }: PreviewProps
   const caption = getSectionText(sections, "caption") || (content.caption as string) || (content.body as string) || "";
   const hashtags = getSectionText(sections, "hashtag") || (Array.isArray(content.hashtags) ? (content.hashtags as string[]).join(" ") : "");
   const cta = getSectionText(sections, "cta") || (content.cta as string) || "";
+  const scenes = extractScenes(sections, content);
 
   const brandHandle = `@${brandName.toLowerCase().replace(/\s+/g, "")}`;
   const tweetText = [hook, caption, cta].filter(Boolean).join("\n\n");
 
   return (
+    <div className="space-y-4">
     <div className="bg-white border border-gray-200 rounded-2xl p-4 space-y-3">
       {/* Header */}
       <div className="flex items-start gap-3">
@@ -58,6 +61,8 @@ export function TwitterVideoTweet({ content, sections, brandName }: PreviewProps
           <Icon key={i} size={16} className="text-gray-500" />
         ))}
       </div>
+    </div>
+    <VisualScriptScenes scenes={scenes} accentClass="text-blue-500" />
     </div>
   );
 }
