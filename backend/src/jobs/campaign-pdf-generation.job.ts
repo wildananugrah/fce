@@ -53,8 +53,91 @@ export class CampaignPdfGenerationJob {
 			await this.setStage(campaignId, userId, "extracting");
 			const extractedText = await this.extractPdfText(brief.documentUrl);
 
-			// ── Stage 2: Summarize brief (placeholder — Task 11) ─────────
+			// ── Stage 2: Summarize brief ─────────────────────────────────
 			currentStage = "summarizing";
+			await this.setStage(campaignId, userId, "summarizing");
+
+			const summarizeStart = Date.now();
+			const { systemPrompt: sumSys, userPrompt: sumUser } = buildBriefSummaryPrompt({
+				extractedText,
+				brandContext,
+				productContext,
+			});
+			let summary: Awaited<ReturnType<ICampaignBriefSummarizer["summarizeBrief"]>>;
+			try {
+				summary = await this.briefSummarizer.summarizeBrief({
+					extractedText,
+					brandContext,
+					productContext,
+				});
+				const usage = (this.briefSummarizer as any).lastUsage;
+				await logAiActivity(
+					this.prisma,
+					{
+						workspaceId: campaign.workspaceId,
+						generator: "campaign_brief_summary",
+						provider:
+							process.env.AI_CAMPAIGN_PROVIDER || process.env.AI_PROVIDER || "unknown",
+						userId,
+						systemPrompt: sumSys,
+						userPrompt: sumUser,
+						brandId: campaign.brandId ?? undefined,
+					},
+					{
+						responseJson: summary,
+						durationMs: Date.now() - summarizeStart,
+						inputTokens: usage?.inputTokens,
+						outputTokens: usage?.outputTokens,
+						status: "success",
+					},
+				);
+			} catch (err) {
+				const usage = (this.briefSummarizer as any).lastUsage;
+				await logAiActivity(
+					this.prisma,
+					{
+						workspaceId: campaign.workspaceId,
+						generator: "campaign_brief_summary",
+						provider:
+							process.env.AI_CAMPAIGN_PROVIDER || process.env.AI_PROVIDER || "unknown",
+						userId,
+						systemPrompt: sumSys,
+						userPrompt: sumUser,
+						brandId: campaign.brandId ?? undefined,
+					},
+					{
+						durationMs: Date.now() - summarizeStart,
+						inputTokens: usage?.inputTokens,
+						outputTokens: usage?.outputTokens,
+						status: "error",
+						errorMessage: err instanceof Error ? err.message : String(err),
+					},
+				);
+				throw err;
+			}
+
+			// Persist summary to CampaignBrief and Campaign fields (only fill if empty)
+			await this.prisma.campaignBrief.update({
+				where: { id: brief.id },
+				data: { documentSummary: summary.summary },
+			});
+			await this.prisma.campaign.update({
+				where: { id: campaignId },
+				data: {
+					objective: campaign.objective || summary.objective || undefined,
+					audienceSegment: campaign.audienceSegment || summary.audienceHint || undefined,
+					keyMessage: campaign.keyMessage || summary.keyMessage || undefined,
+					channelMix:
+						campaign.channelMix ||
+						(summary.channelHint.length > 0 ? (summary.channelHint as any) : undefined),
+					durationStart:
+						campaign.durationStart ||
+						(summary.durationHint.start ? new Date(summary.durationHint.start) : undefined),
+					durationEnd:
+						campaign.durationEnd ||
+						(summary.durationHint.end ? new Date(summary.durationHint.end) : undefined),
+				},
+			});
 
 			// ── Stage 3: Build campaign plan (placeholder — Task 12) ─────
 			// currentStage = "planning";
