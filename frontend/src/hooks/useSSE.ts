@@ -28,6 +28,10 @@ const EVENT_TYPES = [
   // Research runs
   "research_run_complete",
   "research_run_failed",
+  // Campaign PDF generation
+  "campaign_pdf_progress",
+  "campaign_pdf_complete",
+  "campaign_pdf_failed",
 ] as const;
 
 export function useSSE(onEvent: (event: SSEEvent) => void) {
