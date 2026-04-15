@@ -5,6 +5,7 @@ import { cors } from "hono/cors";
 import { PgBoss } from "pg-boss";
 import { BrandScrapingJob } from "./jobs/brand-scraping.job";
 import { CampaignGenerationJob } from "./jobs/campaign-generation.job";
+import { CampaignPdfGenerationJob } from "./jobs/campaign-pdf-generation.job";
 import { ContentGenerationJob } from "./jobs/content-generation.job";
 import { DocumentExtractionJob } from "./jobs/document-extraction.job";
 import { LinkScrapingJob } from "./jobs/link-scraping.job";
@@ -83,6 +84,13 @@ function resolveContentGenerator() {
 }
 
 function resolveCampaignGenerator() {
+	const name = env.aiCampaignProvider || env.aiProvider;
+	if (name === "anthropic") return new AnthropicProvider(env.anthropicApiKey, env.anthropicModel);
+	if (name === "gemini") return new GeminiProvider(env.geminiApiKey, env.geminiModel);
+	throw new Error(`Unknown AI provider: ${name}`);
+}
+
+function resolveBriefSummarizer() {
 	const name = env.aiCampaignProvider || env.aiProvider;
 	if (name === "anthropic") return new AnthropicProvider(env.anthropicApiKey, env.anthropicModel);
 	if (name === "gemini") return new GeminiProvider(env.geminiApiKey, env.geminiModel);
@@ -199,6 +207,14 @@ async function main() {
 		notificationService,
 		logger,
 	);
+	const campaignPdfGenerationJob = new CampaignPdfGenerationJob(
+		prisma,
+		resolveBriefSummarizer(),
+		resolveCampaignGenerator(),
+		resolveTopicGenerator(),
+		notificationService,
+		logger,
+	);
 	const topicGenerationJob = new TopicGenerationJob(
 		prisma,
 		resolveTopicGenerator(),
@@ -231,6 +247,7 @@ async function main() {
 	// ─── Create PgBoss Queues ───────────────────────────────────────
 	await boss.createQueue("content-generation");
 	await boss.createQueue("campaign-generation");
+	await boss.createQueue("campaign-pdf-generation");
 	await boss.createQueue("topic-generation");
 	await boss.createQueue("topic-regeneration");
 	await boss.createQueue("brand-scraping");
@@ -245,6 +262,9 @@ async function main() {
 	});
 	await boss.work("campaign-generation", async (jobs) => {
 		for (const job of jobs) await campaignGenerationJob.handle(job.data as any);
+	});
+	await boss.work("campaign-pdf-generation", async (jobs) => {
+		for (const job of jobs) await campaignPdfGenerationJob.handle(job.data as any);
 	});
 	await boss.work("topic-generation", async (jobs) => {
 		for (const job of jobs) await topicGenerationJob.handle(job.data as any);
@@ -364,7 +384,10 @@ async function main() {
 	);
 	workspaceScoped.route("/generations", createGenerationRoutes(generationService));
 	workspaceScoped.route("/library", createLibraryRoutes(libraryService, sceneImageService));
-	workspaceScoped.route("/campaigns", createCampaignRoutes(campaignService));
+	workspaceScoped.route(
+		"/campaigns",
+		createCampaignRoutes(campaignService, storageProvider, env.minioBucket),
+	);
 	workspaceScoped.route("/topics", createTopicRoutes(topicService));
 	workspaceScoped.route("/dashboard", createDashboardRoutes(dashboardService));
 	workspaceScoped.route("/documents", createDocumentRoutes(documentService));
