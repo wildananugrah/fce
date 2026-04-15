@@ -5,6 +5,7 @@ import type { INotificationService } from "../interfaces/services/notification.s
 import { logAiActivity } from "../utils/ai-activity-logger";
 import { buildTopicGenerationPrompt } from "../utils/prompt-builder";
 import { buildSkillContext } from "../utils/skill-context-builder";
+import { scrapeUrlsFromPrompt } from "../utils/url-prompt-scraper";
 
 interface TopicJobData {
 	workspaceId: string;
@@ -151,6 +152,21 @@ export class TopicGenerationJob {
 				});
 			}
 
+			// Scrape URLs the user pasted into the Additional Direction prompt.
+			// Extracted text gets appended to the prompt so the AI sees it as
+			// reference material without persisting anything to the database.
+			const urlScrapeResult = await scrapeUrlsFromPrompt(prompt, this.logger);
+			let enrichedPrompt = prompt;
+			if (urlScrapeResult.context) {
+				enrichedPrompt = `${prompt ?? ""}\n\n${urlScrapeResult.context}`.trim();
+				this.logger.info("URLs scraped from topic prompt", {
+					workspaceId,
+					urlCount: urlScrapeResult.urls.length,
+					successCount: urlScrapeResult.successCount,
+					failedCount: urlScrapeResult.failedCount,
+				});
+			}
+
 			// Build generation input
 			const generationInput = {
 				brandContext,
@@ -162,7 +178,7 @@ export class TopicGenerationJob {
 				dateFrom,
 				dateTo,
 				count,
-				prompt,
+				prompt: enrichedPrompt,
 				referenceImages,
 			};
 

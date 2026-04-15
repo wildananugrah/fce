@@ -6,6 +6,7 @@ import type { INotificationService } from "../interfaces/services/notification.s
 import { logAiActivity } from "../utils/ai-activity-logger";
 import { buildContentGenerationPrompt } from "../utils/prompt-builder";
 import { buildSkillContext } from "../utils/skill-context-builder";
+import { scrapeUrlsFromPrompt } from "../utils/url-prompt-scraper";
 
 interface ContentJobData {
 	requestId: string;
@@ -166,6 +167,19 @@ export class ContentGenerationJob {
 				});
 			}
 
+			// Scrape URLs the user pasted into the Additional Direction prompt.
+			const urlScrapeResult = await scrapeUrlsFromPrompt(request.prompt, this.logger);
+			let enrichedPrompt: string | undefined = request.prompt ?? undefined;
+			if (urlScrapeResult.context) {
+				enrichedPrompt = `${request.prompt ?? ""}\n\n${urlScrapeResult.context}`.trim();
+				this.logger.info("URLs scraped from content prompt", {
+					requestId,
+					urlCount: urlScrapeResult.urls.length,
+					successCount: urlScrapeResult.successCount,
+					failedCount: urlScrapeResult.failedCount,
+				});
+			}
+
 			// Build generation input
 			const generationInput = {
 				brandContext,
@@ -176,7 +190,7 @@ export class ContentGenerationJob {
 				framework: request.framework,
 				hookType: request.hookType,
 				language: request.language,
-				prompt: request.prompt ?? undefined,
+				prompt: enrichedPrompt,
 				referenceImages,
 			};
 

@@ -709,14 +709,14 @@ export function TopicsPage() {
 
 							<div>
 								<textarea
-									className="w-full px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 resize-none"
-									rows={3}
-									placeholder="Add any specific instructions, direction, or context..."
+									className="w-full px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 resize-y min-h-[140px] leading-relaxed"
+									rows={6}
+									placeholder="Add any specific instructions, direction, or context...&#10;&#10;Tip: Paste URLs here — they'll be scraped and used as reference material."
 									value={topicPrompt}
 									onChange={(e) => setTopicPrompt(e.target.value)}
 								/>
-								<p className="text-[10px] text-gray-400 mt-1">
-									Tip: You can paste URLs as references and they will be included in the AI context.
+								<p className="text-[10px] text-gray-400 mt-1.5">
+									You can paste URLs — the system will scrape the pages and include the extracted text as AI context.
 								</p>
 							</div>
 
