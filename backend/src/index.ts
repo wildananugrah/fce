@@ -30,6 +30,7 @@ import { OutputSectionRepository } from "./repositories/output-section.repositor
 import { ProductRepository } from "./repositories/product.repository";
 import { RecommendationRepository } from "./repositories/recommendation.repository";
 import { ResearchRepository } from "./repositories/research.repository";
+import { UrlScrapeCacheRepository } from "./repositories/url-scrape-cache.repository";
 import { TaxonomyRepository } from "./repositories/taxonomy.repository";
 import { TopicRepository } from "./repositories/topic.repository";
 import { UserRepository } from "./repositories/user.repository";
@@ -46,6 +47,7 @@ import { createLibraryRoutes } from "./routes/library.route";
 import { createProductRoutes } from "./routes/product.route";
 import { createRecommendationRoutes } from "./routes/recommendation.route";
 import { createResearchRoutes } from "./routes/research.route";
+import { createUrlInspirationRoutes } from "./routes/url-inspiration.route";
 import { createSkillRoutes, createWorkspaceSkillRoutes } from "./routes/skill.route";
 import { createSSERoutes } from "./routes/sse.route";
 import { createTaxonomyRoutes } from "./routes/taxonomy.route";
@@ -64,6 +66,7 @@ import { NotificationService } from "./services/notification.service";
 import { ProductService } from "./services/product.service";
 import { RecommendationService } from "./services/recommendation.service";
 import { ResearchService } from "./services/research.service";
+import { UrlInspirationService } from "./services/url-inspiration.service";
 import { TaxonomyService } from "./services/taxonomy.service";
 import { TopicService } from "./services/topic.service";
 import { WorkspaceService } from "./services/workspace.service";
@@ -155,6 +158,17 @@ async function main() {
 	);
 	const adminService = new AdminService(prisma);
 	const researchService = new ResearchService(researchRepository, apifyProvider, boss, logger);
+
+	// URL inspiration pipeline — cache + Apify + Gemini summarizer
+	const urlScrapeCacheRepository = new UrlScrapeCacheRepository(prisma);
+	const urlInspirationService = new UrlInspirationService(
+		prisma,
+		apifyProvider,
+		researchService,
+		resolveContentGenerator() as any,
+		urlScrapeCacheRepository,
+		logger,
+	);
 
 	// ─── Job Handlers ────────────────────────────────────────────────
 	const contentGenerationJob = new ContentGenerationJob(
@@ -342,6 +356,7 @@ async function main() {
 	workspaceScoped.route("/skills", createWorkspaceSkillRoutes(prisma));
 	workspaceScoped.route("/ai-logs", createAiLogRoutes(prisma));
 	workspaceScoped.route("/research", createResearchRoutes(researchService));
+	workspaceScoped.route("/url-inspiration", createUrlInspirationRoutes(urlInspirationService));
 	workspaceScoped.route("/reference-images", createUploadRoutes(storageProvider, env.minioBucket));
 	app.route("/api/workspaces/:workspaceId", workspaceScoped);
 
