@@ -4,14 +4,19 @@ import { useWorkspace } from "../hooks/useWorkspace";
 import { api } from "../services/api";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
+import { Select } from "../components/ui/Select";
 import { Toast } from "../components/ui/Toast";
 import { TokenUsageSection } from "../components/token-usage/TokenUsageSection";
+import type { ScrapeLanguage } from "../types";
 
 export function SettingsPage() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const { activeWorkspace } = useWorkspace();
   const [fullName, setFullName] = useState(user?.fullName || "");
   const [avatarUrl, setAvatarUrl] = useState(user?.avatarUrl || "");
+  const [defaultScrapeLanguage, setDefaultScrapeLanguage] = useState<ScrapeLanguage>(
+    user?.defaultScrapeLanguage ?? "indonesian",
+  );
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
@@ -21,8 +26,9 @@ export function SettingsPage() {
       await api("/api/auth/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fullName, avatarUrl }),
+        body: JSON.stringify({ fullName, avatarUrl, defaultScrapeLanguage }),
       });
+      await refreshUser();
       setToast({ message: "Profile updated successfully", type: "success" });
     } catch {
       setToast({ message: "Failed to update profile", type: "error" });
@@ -49,13 +55,25 @@ export function SettingsPage() {
           onChange={(e) => setAvatarUrl(e.target.value)}
           placeholder="https://example.com/avatar.png"
         />
+        <Select
+          label="Default auto-fill language"
+          value={defaultScrapeLanguage}
+          onChange={(e) => setDefaultScrapeLanguage(e.target.value as ScrapeLanguage)}
+          options={[
+            { value: "indonesian", label: "Bahasa Indonesia" },
+            { value: "english", label: "English" },
+          ]}
+        />
+        <p className="text-xs text-gray-500 -mt-2">
+          Controls the language used when auto-filling brand and product forms from a URL. You can
+          still override this per click using the toggle next to each Auto-fill button.
+        </p>
 
         <Button onClick={handleSave} loading={saving}>
           Save Changes
         </Button>
       </div>
 
-      {/* Token Usage — Personal (this user in the active workspace) */}
       {activeWorkspace && (
         <div className="mt-8 pt-8 border-t border-gray-200">
           <TokenUsageSection
