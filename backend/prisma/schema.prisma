@@ -505,6 +505,23 @@ model DocumentChunk {
   @@map("document_chunks")
 }
 
+// ─── URL Scrape Cache ───────────────────────────────────────────
+
+model UrlScrapeCache {
+  id        String   @id @default(uuid())
+  urlHash   String   @unique @map("url_hash")
+  url       String   @db.Text
+  kind      String
+  rawData   Json     @map("raw_data")
+  summary   String?  @db.Text
+  scrapedAt DateTime @default(now()) @map("scraped_at")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([expiresAt])
+  @@map("url_scrape_cache")
+}
+
 // ─── Templates ──────────────────────────────────────────────────
 
 model SavedTemplate {
