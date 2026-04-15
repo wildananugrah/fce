@@ -1,8 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import { Sparkles } from "lucide-react";
 import { useWorkspace } from "../hooks/useWorkspace";
 import { useSSE } from "../hooks/useSSE";
 import { api } from "../services/api";
 import { Button } from "../components/ui/Button";
+import { UploadBriefModal } from "../components/campaigns/UploadBriefModal";
 import { Input } from "../components/ui/Input";
 import { Select } from "../components/ui/Select";
 import { Badge } from "../components/ui/Badge";
@@ -704,7 +707,9 @@ export function CampaignsPage() {
   const [brands, setBrands] = useState<Brand[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
+  const [showUploadBrief, setShowUploadBrief] = useState(false);
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
+  const navigate = useNavigate();
   const [toast, setToast] = useState<ToastState>(null);
 
   const showToast = (message: string, type: "success" | "error" | "info") => {
@@ -751,14 +756,31 @@ export function CampaignsPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold text-black">Campaigns</h1>
-        <Button onClick={() => setShowCreate(true)}>New Campaign</Button>
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={() => setShowCreate(true)}>
+            Create Manually
+          </Button>
+          <Button onClick={() => setShowUploadBrief(true)}>
+            <Sparkles size={14} className="mr-1.5" />
+            Upload Brief (PDF)
+          </Button>
+        </div>
       </div>
 
       {loading ? (
         <div className="flex justify-center py-12"><Spinner /></div>
       ) : campaigns.length === 0 ? (
-        <div className="bg-white border border-gray-200 rounded-lg p-12 text-center">
-          <p className="text-sm text-gray-400">No campaigns yet. Create your first campaign to get started.</p>
+        <div className="bg-white border border-gray-200 rounded-lg p-12 text-center space-y-4">
+          <p className="text-sm text-gray-400">No campaigns yet. Start a new campaign.</p>
+          <div className="flex justify-center gap-2">
+            <Button variant="secondary" onClick={() => setShowCreate(true)}>
+              Create Manually
+            </Button>
+            <Button onClick={() => setShowUploadBrief(true)}>
+              <Sparkles size={14} className="mr-1.5" />
+              Upload Brief (PDF)
+            </Button>
+          </div>
         </div>
       ) : (
         <div className="bg-white border border-gray-200 rounded-lg overflow-x-auto">
@@ -776,7 +798,7 @@ export function CampaignsPage() {
                 <tr
                   key={campaign.id}
                   className="border-b border-gray-50 cursor-pointer hover:bg-gray-50"
-                  onClick={() => setSelectedCampaign(campaign)}
+                  onClick={() => navigate(`/campaigns/${campaign.id}`)}
                 >
                   <td className="px-4 py-2.5 text-sm font-medium text-gray-900">{campaign.name}</td>
                   <td className="px-4 py-2.5 text-sm text-gray-700">{getBrandName(campaign)}</td>
@@ -799,6 +821,18 @@ export function CampaignsPage() {
           brands={brands}
           onCreated={loadData}
           onClose={() => setShowCreate(false)}
+          onToast={showToast}
+        />
+      )}
+
+      {showUploadBrief && (
+        <UploadBriefModal
+          workspaceId={activeWorkspace.id}
+          onClose={() => setShowUploadBrief(false)}
+          onCreated={(campaignId) => {
+            setShowUploadBrief(false);
+            navigate(`/campaigns/${campaignId}`);
+          }}
           onToast={showToast}
         />
       )}
