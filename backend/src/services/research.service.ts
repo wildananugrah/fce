@@ -81,6 +81,11 @@ export class ResearchService implements IResearchService {
 		return { hasApifyKey: true, maskedKey: masked };
 	}
 
+	async getRawApifyKey(workspaceId: string): Promise<string | null> {
+		const settings = await this.researchRepository.getWorkspaceSetting(workspaceId);
+		return settings?.apifyApiKey ?? null;
+	}
+
 	async setApifyKey(workspaceId: string, apiKey: string): Promise<void> {
 		await this.researchRepository.upsertWorkspaceSetting(workspaceId, { apifyApiKey: apiKey });
 	}

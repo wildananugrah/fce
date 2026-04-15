@@ -13,6 +13,7 @@ export interface IResearchService {
 	getResult(resultId: string): Promise<ResearchResult>;
 	getResultAsContext(resultId: string): Promise<string>;
 	getSettings(workspaceId: string): Promise<{ hasApifyKey: boolean; maskedKey?: string }>;
+	getRawApifyKey(workspaceId: string): Promise<string | null>;
 	setApifyKey(workspaceId: string, apiKey: string): Promise<void>;
 	testApifyKey(workspaceId: string): Promise<boolean>;
 	removeApifyKey(workspaceId: string): Promise<void>;
