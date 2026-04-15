@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import type { IStorageProvider } from "../interfaces/providers/storage.provider.interface";
 import type { ICampaignService } from "../interfaces/services/campaign.service.interface";
 
 type Variables = {
@@ -8,7 +9,11 @@ type Variables = {
 	workspaceRole: string;
 };
 
-export function createCampaignRoutes(campaignService: ICampaignService) {
+export function createCampaignRoutes(
+	campaignService: ICampaignService,
+	storageProvider: IStorageProvider,
+	bucket: string,
+) {
 	const app = new Hono<{ Variables: Variables }>();
 
 	// GET / — list campaigns
@@ -61,6 +66,43 @@ export function createCampaignRoutes(campaignService: ICampaignService) {
 			generate,
 		});
 		return c.json({ data: campaign }, 201);
+	});
+
+	// POST /upload-brief — accept PDF, upload to MinIO, create campaign, enqueue PDF generation
+	app.post("/upload-brief", async (c) => {
+		const workspaceId = c.get("workspaceId");
+		const userId = c.get("userId");
+		const formData = await c.req.parseBody();
+
+		const file = formData.file as File | undefined;
+		const brandId = formData.brandId as string | undefined;
+		const productId = (formData.productId as string) || undefined;
+
+		if (!file || !brandId) {
+			return c.json({ error: "file and brandId are required" }, 400);
+		}
+		if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+			return c.json({ error: "only PDF files are supported" }, 400);
+		}
+		const MAX_SIZE = 10 * 1024 * 1024;
+		if (file.size > MAX_SIZE) {
+			return c.json({ error: "file must be 10 MB or smaller" }, 400);
+		}
+
+		const buffer = Buffer.from(await file.arrayBuffer());
+		const key = `${workspaceId}/campaigns/${Date.now()}-${file.name}`;
+		const fileUrl = await storageProvider.upload(bucket, key, buffer, file.type);
+
+		const campaign = await campaignService.createFromBrief(workspaceId, userId, {
+			brandId,
+			productId,
+			fileName: file.name,
+			fileUrl,
+			fileSize: file.size,
+			fileType: file.type,
+		});
+
+		return c.json({ data: { campaignId: campaign.id } }, 201);
 	});
 
 	// GET /:id — get campaign with outputs
