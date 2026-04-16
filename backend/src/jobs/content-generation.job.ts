@@ -341,8 +341,8 @@ export class ContentGenerationJob {
 			}
 		}
 
-		if (result.caption || result.mainCopy || result.content) {
-			const caption = result.caption || result.mainCopy || result.content;
+		if (result.caption || result.mainCopy || result.body || result.content) {
+			const caption = result.caption || result.mainCopy || result.body || result.content;
 			sections.push({
 				sectionType: "caption",
 				sectionOrder: order++,

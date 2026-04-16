@@ -13,7 +13,7 @@ const JSON_ONLY_INSTRUCTION =
 	"You MUST respond with ONLY valid JSON. No markdown, no code blocks, no explanations.";
 
 const CONTENT_TYPE_FORMAT_INSTRUCTIONS: Record<string, string> = {
-	single_image: `Return JSON with fields: contentTitle (string), content (object with: hook, headline, body, cta, hashtags (array), visualDirection)`,
+	single_image: `Return JSON with fields: contentTitle (string), content (object with: hook (string - attention-grabbing opening line shown on the image), caption (string - the post caption shown below the image), cta (string - call to action), hashtags (array of strings), visualDirection (string - concrete description of what is shown in the image))`,
 	carousel: `Return JSON with fields: contentTitle (string), content (object with: hook (string - attention-grabbing opening line shown on first slide), caption (string - the post caption shown below the carousel), hashtags (array of strings), cta (string - call to action), slides (array of objects with: headline, body, visualDirection))`,
 	video: `Return JSON with fields: contentTitle (string), content (object with:
 - hook (string — attention-grabbing opening line)
