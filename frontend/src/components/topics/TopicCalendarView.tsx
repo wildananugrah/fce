@@ -36,11 +36,6 @@ function toDateKey(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
-function parseDateKey(key: string): Date {
-  const [y, m, d] = key.split("-").map(Number);
-  return new Date(y, m - 1, d);
-}
-
 function startOfMonth(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth(), 1);
 }

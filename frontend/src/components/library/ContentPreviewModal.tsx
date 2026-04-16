@@ -91,7 +91,7 @@ export function ContentPreviewModal({
     return editedSections[section.id] ?? section.contentText;
   };
 
-  const getJsonField = (sectionId: string, contentText: string, field: string): string => {
+  const getJsonField = (_sectionId: string, contentText: string, field: string): string => {
     try {
       const data = JSON.parse(contentText);
       return (data[field] as string) ?? "";
