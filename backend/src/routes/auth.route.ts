@@ -44,6 +44,17 @@ export function createAuthRoutes(authService: IAuthService) {
 		return c.json({ data: result });
 	});
 
+	app.post("/logout", (c) => {
+		setCookie(c, "refreshToken", "", {
+			httpOnly: true,
+			secure: false,
+			sameSite: "Lax",
+			path: "/api/auth/refresh",
+			maxAge: 0,
+		});
+		return c.json({ success: true });
+	});
+
 	app.post("/refresh", async (c) => {
 		const refreshToken = getCookie(c, "refreshToken");
 		if (!refreshToken) {
