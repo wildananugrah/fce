@@ -471,6 +471,12 @@ export function GeneratePage() {
     showToast("Content approved and moved to library", "success");
   };
 
+  const handleGenerationRejected = (genId: string) => {
+    setGenerations((prev) => prev.filter((g) => g.id !== genId));
+    setSelectedGenIds((prev) => { const next = new Set(prev); next.delete(genId); return next; });
+    showToast("Content rejected", "info");
+  };
+
   const toggleSelectGen = (id: string) => {
     setSelectedGenIds((prev) => {
       const next = new Set(prev);
@@ -1017,6 +1023,7 @@ const frameworkOptions = [{ value: "", label: "PAS (recommended)" }, ...framewor
                           selected={selectedGenIds.has(gen.id)}
                           onSelect={toggleSelectGen}
                           onApproved={handleGenerationApproved}
+                          onRejected={handleGenerationRejected}
                           onDeleted={(genId) => {
                             setGenerations((prev) => prev.filter((g) => g.id !== genId));
                             showToast("Generation deleted", "info");

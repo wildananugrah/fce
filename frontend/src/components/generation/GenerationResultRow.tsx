@@ -28,6 +28,7 @@ interface GenerationResultRowProps {
   selected?: boolean;
   onSelect?: (id: string) => void;
   onApproved: (id: string) => void;
+  onRejected: (id: string) => void;
   onDeleted: (id: string) => void;
   onViewFull: (generation: Generation) => void;
   getPlatformStyle: (platform: string) => { bg: string; text: string };
@@ -42,6 +43,7 @@ export function GenerationResultRow({
   selected,
   onSelect,
   onApproved,
+  onRejected,
   onDeleted,
   onViewFull,
   getPlatformStyle,
@@ -212,9 +214,11 @@ export function GenerationResultRow({
       });
       if (newStatus === "approved") {
         onApproved(generation.id);
+      } else if (newStatus === "rejected") {
+        onRejected(generation.id);
       }
-    } catch {
-      // silently fail
+    } catch (e) {
+      console.error("Failed to update generation status", e);
     } finally {
       setStatusUpdating(false);
     }
