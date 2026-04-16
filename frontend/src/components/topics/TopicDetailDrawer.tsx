@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Drawer } from "../ui/Drawer";
 import { Button } from "../ui/Button";
 import { api } from "../../services/api";
-import { Save, Tag, Layers, Globe, Target, Calendar, Package, FileText } from "lucide-react";
+import { Save, Tag, Layers, Globe, Target, Calendar, Package, FileText, Sparkles } from "lucide-react";
 
 interface Topic {
   id: string;
@@ -82,6 +83,7 @@ export function TopicDetailDrawer({
   const [publishDate, setPublishDate] = useState("");
   const [status, setStatus] = useState("draft");
   const [saving, setSaving] = useState(false);
+  const navigate = useNavigate();
 
   // Reset form whenever a new topic is opened
   useEffect(() => {
@@ -309,15 +311,33 @@ export function TopicDetailDrawer({
           </p>
         </div>
 
-        {/* Save button */}
-        <div className="flex justify-end gap-2 pt-2">
-          <Button variant="secondary" onClick={onClose}>
-            Cancel
+        {/* Action buttons */}
+        <div className="flex justify-between items-center gap-2 pt-2">
+          <Button
+            variant="secondary"
+            onClick={() => {
+              const params = new URLSearchParams();
+              params.set("topicId", topic.id);
+              if (topic.brandId) params.set("brandId", topic.brandId);
+              if (platform) params.set("platform", platform);
+              if (format.trim()) params.set("format", format.trim());
+              if (objective) params.set("objective", objective);
+              topic.products?.forEach((tp) => params.append("productId", tp.product.id));
+              navigate(`/generate?${params.toString()}`);
+            }}
+          >
+            <Sparkles size={14} className="mr-1.5" />
+            Generate Content
           </Button>
-          <Button onClick={handleSave} loading={saving} disabled={!isDirty}>
-            <Save size={14} className="mr-1.5" />
-            Save Changes
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="secondary" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button onClick={handleSave} loading={saving} disabled={!isDirty}>
+              <Save size={14} className="mr-1.5" />
+              Save Changes
+            </Button>
+          </div>
         </div>
       </div>
     </Drawer>
