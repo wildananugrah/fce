@@ -35,6 +35,7 @@ export function UploadBriefModal({
   const [file, setFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [dragActive, setDragActive] = useState(false);
 
   useEffect(() => {
     api<Brand[]>(`/api/workspaces/${workspaceId}/brands`)
@@ -167,10 +168,46 @@ export function UploadBriefModal({
               </button>
             </div>
           ) : (
-            <label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg py-8 cursor-pointer hover:border-indigo-400">
-              <Upload size={24} className="text-gray-400 mb-2" />
-              <span className="text-sm text-gray-500">Click to select a PDF</span>
-              <span className="text-xs text-gray-400 mt-1">Up to 10 MB</span>
+            <label
+              onDragEnter={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setDragActive(true);
+              }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setDragActive(true);
+              }}
+              onDragLeave={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setDragActive(false);
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setDragActive(false);
+                handleFile(e.dataTransfer.files?.[0] ?? null);
+              }}
+              className={`flex flex-col items-center justify-center border-2 border-dashed rounded-lg py-10 cursor-pointer transition-colors ${
+                dragActive
+                  ? "border-indigo-500 bg-indigo-50"
+                  : "border-gray-300 hover:border-indigo-400 hover:bg-gray-50"
+              }`}
+            >
+              <Upload
+                size={28}
+                className={dragActive ? "text-indigo-600 mb-2" : "text-gray-400 mb-2"}
+              />
+              <span
+                className={`text-sm font-medium ${dragActive ? "text-indigo-700" : "text-gray-700"}`}
+              >
+                {dragActive ? "Drop your PDF here" : "Drag & drop a PDF here"}
+              </span>
+              <span className="text-xs text-gray-400 mt-1">
+                or <span className="text-indigo-600 underline">click to browse</span> · up to 10 MB
+              </span>
               <input
                 type="file"
                 accept="application/pdf,.pdf"
