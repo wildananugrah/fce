@@ -351,17 +351,21 @@ ${combined}`;
 
 		const userPrompt = `Based on the extracted website content below, extract structured brand information.
 
-Use empty string "" or empty array [] for fields you cannot determine from the content. Do not hallucinate facts.
+There are two groups of fields. Treat them differently:
 
-Return JSON with these exact fields:
+=== TIER 1 — FACTUAL FIELDS (must be grounded in the page) ===
+Only fill these if the website content actually states them. If not stated, use empty string "". Do NOT invent product names, founders, dates, metrics, claims, or quotes.
 - name (string): Brand name
 - category (string): Industry or product category (e.g. "SaaS", "F&B", "Fashion", "Healthcare", "Insurance")
 - summary (string): 2-3 sentence brand description covering what they do, who they serve, and their mission
+- brandPromise (string): Core brand promise or positioning statement (only if the page conveys one)
+- usp (string): Unique selling points and key differentiators (only if stated or strongly implied by the page)
+
+=== TIER 2 — STRATEGIC / SUBJECTIVE FIELDS (infer from Tier 1) ===
+These are brand-strategy interpretations, not factual claims. Derive them from the brand's category, summary, and positioning. EVERY Tier 2 field MUST be populated with a reasonable, professional value appropriate for this kind of brand — never empty. If the page is minimal, use sensible defaults for the inferred category (e.g. a life-insurance brand → tone "Trustworthy, Reassuring, Professional"; dos "Lead with safety and peace of mind"; donts "Avoid fear-based or aggressive sales language").
 - personality (string): Brand personality traits (e.g. "The Trusted Expert", "Bold Disruptor", "Friendly Guide")
 - tone (string): Communication tone and style (e.g. "Professional, Conversational", "Bold, Playful", "Empathetic, Informative")
 - targetAudience (string): Description of primary target audience — demographics, pain points, goals
-- brandPromise (string): Core brand promise or positioning statement
-- usp (string): Unique selling points and key differentiators vs competitors
 - values (array of strings): 3-6 core brand values
 - contentPillars (array of strings): 3-6 recurring content themes the brand should communicate about
 - marketingStrategy (string): Overall marketing approach and focus areas
