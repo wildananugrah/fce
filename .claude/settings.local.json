@@ -79,7 +79,16 @@
       "Bash(curl -sL \"https://api.github.com/repos/blader/humanizer/contents/\")",
       "Bash(curl -sL \"https://raw.githubusercontent.com/blader/humanizer/main/SKILL.md\" -o /tmp/humanizer-skill.md)",
       "Bash(curl -sL \"https://icar.co.id/v23\" -A \"Mozilla/5.0 \\(Macintosh; Intel Mac OS X 10_15_7\\) AppleWebKit/537.36 \\(KHTML, like Gecko\\) Chrome/120.0.0.0 Safari/537.36\" -o /tmp/icar.html)",
-      "Bash(bun -e \"import\\('./src/utils/url-fetcher'\\).then\\(async \\(m\\) => { const r = await m.extractOgImage\\('https://icar.co.id/v23'\\); console.log\\('Result:', r\\); }\\)\")"
+      "Bash(bun -e \"import\\('./src/utils/url-fetcher'\\).then\\(async \\(m\\) => { const r = await m.extractOgImage\\('https://icar.co.id/v23'\\); console.log\\('Result:', r\\); }\\)\")",
+      "Bash(npx eslint:*)",
+      "Bash(DATABASE_URL=\"postgresql://fce:fce_secret@localhost:5433/fce_dashboard\" bunx prisma generate)",
+      "Bash(DATABASE_URL=\"postgresql://placeholder:placeholder@localhost:5433/fce\" bunx --cwd backend prisma validate --schema backend/prisma/schema.prisma)",
+      "Bash(DATABASE_URL=\"postgresql://placeholder:placeholder@localhost:5433/fce\" bunx prisma validate --schema backend/prisma/schema.prisma)",
+      "Bash(git restore:*)",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(git fetch:*)",
+      "Bash(git checkout:*)",
+      "Bash(git merge:*)"
     ],
     "additionalDirectories": [
       "/Users/wildananugrah/Documents/My-Projects/fce/.git"
