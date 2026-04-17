@@ -23,6 +23,7 @@ import { BrandDetailPage } from "./pages/BrandDetailPage";
 import { ProductDetailPage } from "./pages/ProductDetailPage";
 import { ResearchPage } from "./pages/Research/ResearchPage";
 import { ResearchRunDetail } from "./pages/Research/ResearchRunDetail";
+import { AcceptInvitationPage } from "./pages/AcceptInvitationPage";
 
 export default function App() {
   return (
@@ -33,6 +34,7 @@ export default function App() {
             <Route path="/landing" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<SignupPage />} />
+            <Route path="/accept-invitation" element={<AcceptInvitationPage />} />
             <Route element={<AppShell />}>
               <Route path="/" element={<DashboardPage />} />
               <Route path="/brands" element={<BrandsPage />} />
