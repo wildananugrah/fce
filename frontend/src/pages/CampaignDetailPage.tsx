@@ -10,6 +10,7 @@ import { CampaignProgressPanel } from "../components/campaigns/CampaignProgressP
 import { CampaignSummaryCard } from "../components/campaigns/CampaignSummaryCard";
 import { CampaignPlanCard } from "../components/campaigns/CampaignPlanCard";
 import { CampaignTopicsList } from "../components/campaigns/CampaignTopicsList";
+import { ChatPanel } from "../components/campaigns/chat/ChatPanel";
 
 type Stage = "extracting" | "summarizing" | "planning" | "topics";
 
@@ -182,6 +183,11 @@ export function CampaignDetailPage() {
               messagingPillars: output?.messagingPillars ?? [],
             }}
             onToast={showToast}
+          />
+          <ChatPanel
+            workspaceId={activeWorkspace.id}
+            campaignId={campaign.id}
+            onPlanEdit={() => loadCampaign()}
           />
           <CampaignTopicsList topics={topics} />
         </>
