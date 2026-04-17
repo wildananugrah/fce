@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { RevisionsPanel } from "../components/campaigns/revisions/RevisionsPanel";
 import { useParams, useNavigate } from "react-router-dom";
 import { ChevronLeft, Loader2, Trash2 } from "lucide-react";
 import { api } from "../services/api";
@@ -61,6 +62,7 @@ export function CampaignDetailPage() {
     message: string;
     type: "success" | "error" | "info";
   } | null>(null);
+  const [revisionsRefreshKey, setRevisionsRefreshKey] = useState(0);
 
   const showToast = useCallback(
     (message: string, type: "success" | "error" | "info") => {
@@ -138,7 +140,7 @@ export function CampaignDetailPage() {
     campaign.status === "generating" || campaign.status === "failed";
 
   return (
-    <div className="p-6 space-y-6 max-w-4xl">
+    <div className="p-6 space-y-6 max-w-6xl">
       <div className="flex items-center justify-between">
         <button
           type="button"
@@ -164,34 +166,51 @@ export function CampaignDetailPage() {
           onRetry={handleDelete}
         />
       ) : (
-        <>
-          {brief && (
-            <CampaignSummaryCard
-              summary={brief.documentSummary ?? ""}
-              documentName={brief.documentName}
-              documentUrl={brief.documentUrl}
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_260px] gap-6">
+          <div className="space-y-6 min-w-0">
+            {brief && (
+              <CampaignSummaryCard
+                summary={brief.documentSummary ?? ""}
+                documentName={brief.documentName}
+                documentUrl={brief.documentUrl}
+              />
+            )}
+            <CampaignPlanCard
+              key={revisionsRefreshKey}
+              workspaceId={activeWorkspace.id}
+              campaignId={campaign.id}
+              initial={{
+                objective: campaign.objective ?? "",
+                audienceSegment: campaign.audienceSegment ?? "",
+                keyMessage: campaign.keyMessage ?? "",
+                bigIdea: output?.bigIdea ?? "",
+                messagingPillars: output?.messagingPillars ?? [],
+              }}
+              onToast={showToast}
             />
-          )}
-          <CampaignPlanCard
-            workspaceId={activeWorkspace.id}
-            campaignId={campaign.id}
-            initial={{
-              objective: campaign.objective ?? "",
-              audienceSegment: campaign.audienceSegment ?? "",
-              keyMessage: campaign.keyMessage ?? "",
-              bigIdea: output?.bigIdea ?? "",
-              messagingPillars: output?.messagingPillars ?? [],
-            }}
-            onToast={showToast}
-          />
-          <ChatPanel
-            workspaceId={activeWorkspace.id}
-            campaignId={campaign.id}
-            brandId={campaign.brandId}
-            onPlanEdit={() => loadCampaign()}
-          />
-          <CampaignTopicsList topics={topics} />
-        </>
+            <ChatPanel
+              workspaceId={activeWorkspace.id}
+              campaignId={campaign.id}
+              brandId={campaign.brandId}
+              onPlanEdit={() => {
+                loadCampaign();
+                setRevisionsRefreshKey((k) => k + 1);
+              }}
+            />
+            <CampaignTopicsList topics={topics} />
+          </div>
+          <div>
+            <RevisionsPanel
+              workspaceId={activeWorkspace.id}
+              campaignId={campaign.id}
+              refreshKey={revisionsRefreshKey}
+              onRestored={() => {
+                loadCampaign();
+                setRevisionsRefreshKey((k) => k + 1);
+              }}
+            />
+          </div>
+        </div>
       )}
 
       {toast && (

@@ -1,5 +1,6 @@
 import { User, Sparkles, Loader2 } from "lucide-react";
 import type { ChatMessage } from "../../../hooks/useChatStream";
+import { PlanEditBlock } from "./blocks/PlanEditBlock";
 import { TextBlock } from "./blocks/TextBlock";
 import { TopicsBlock } from "./blocks/TopicsBlock";
 
@@ -35,6 +36,8 @@ export function Message({
                   brandId={brandId}
                 />
               );
+            if (b.type === "plan_edit")
+              return <PlanEditBlock key={i} revisionId={b.revisionId} summary={b.summary} />;
             return null;
           })}
           {message.error && (
