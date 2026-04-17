@@ -12,6 +12,12 @@ export interface PromptPair {
 const JSON_ONLY_INSTRUCTION =
 	"You MUST respond with ONLY valid JSON. No markdown, no code blocks, no explanations.";
 
+function normalizeLanguage(raw?: string): string {
+	const v = (raw ?? "").toLowerCase().trim();
+	if (v === "en" || v === "english") return "English";
+	return "Bahasa Indonesia";
+}
+
 const CONTENT_TYPE_FORMAT_INSTRUCTIONS: Record<string, string> = {
 	single_image: `Return JSON with fields: contentTitle (string), content (object with: hook (string - attention-grabbing opening line shown on the image), caption (string - the post caption shown below the image), cta (string - call to action), hashtags (array of strings), visualDirection (string - concrete description of what is shown in the image))`,
 	carousel: `Return JSON with fields: contentTitle (string), content (object with: hook (string - attention-grabbing opening line shown on first slide), caption (string - the post caption shown below the carousel), hashtags (array of strings), cta (string - call to action), slides (array of objects with: headline, body, visualDirection))`,
@@ -65,15 +71,18 @@ ${contextBlock}
 
 ${JSON_ONLY_INSTRUCTION}`;
 
-	const userPrompt = `Create ${input.contentType} content for ${input.platform} platform.
+	const humanLanguage = normalizeLanguage(input.language);
+	const userPrompt = `CRITICAL LANGUAGE REQUIREMENT: Write ALL user-facing copy (hook, caption, CTA, hashtags, slide/scene text, on-screen text, voiceover) in ${humanLanguage}. This overrides any language signal in the brand context. Do NOT switch languages mid-output.
+
+Create ${input.contentType} content for ${input.platform} platform.
 Framework: ${input.framework}
 Hook type: ${input.hookType}
-Language: ${input.language}
+Language: ${humanLanguage}
 ${input.prompt ? `\nAdditional instructions: ${input.prompt}` : ""}
 
 ${formatInstruction}
 
-Apply the ${input.framework} framework and use a ${input.hookType} hook style. Write all copy in ${input.language}.`;
+Apply the ${input.framework} framework and use a ${input.hookType} hook style.`;
 
 	return { systemPrompt, userPrompt };
 }
@@ -160,9 +169,10 @@ Make topics diverse, engaging, and aligned with the brand voice.`;
 }
 
 export function buildBriefSummaryPrompt(input: BriefSummaryInput): PromptPair {
-	const truncated = input.extractedText.length > 60000
-		? `${input.extractedText.slice(0, 60000)}\n\n[…document truncated to fit context window…]`
-		: input.extractedText;
+	const truncated =
+		input.extractedText.length > 60000
+			? `${input.extractedText.slice(0, 60000)}\n\n[…document truncated to fit context window…]`
+			: input.extractedText;
 
 	const systemPrompt = `You are an expert marketing strategist analyzing a client brief. You have the following brand context:
 ${input.brandContext}
