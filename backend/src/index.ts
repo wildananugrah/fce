@@ -18,6 +18,7 @@ import { createAuthMiddleware } from "./middlewares/auth.middleware";
 import { createErrorHandlerMiddleware } from "./middlewares/error-handler.middleware";
 import { createRequestLoggerMiddleware } from "./middlewares/request-logger.middleware";
 import { createWorkspaceMiddleware } from "./middlewares/workspace.middleware";
+import { AnthropicChatProvider } from "./providers/anthropic-chat.provider";
 import { AnthropicProvider } from "./providers/anthropic.provider";
 import { GeminiChatProvider } from "./providers/gemini-chat.provider";
 import { ApifyProvider } from "./providers/apify.provider";
@@ -123,13 +124,11 @@ function resolveBrandScraper() {
 	throw new Error(`Unknown AI provider: ${name}`);
 }
 
-function resolveChatProvider(): GeminiChatProvider {
-	// Phase 3: Gemini only. Anthropic added in Phase 8.
+function resolveChatProvider(): GeminiChatProvider | AnthropicChatProvider {
 	const name = env.aiChatProvider || env.aiProvider;
-	if (name === "gemini") {
-		return new GeminiChatProvider(env.geminiApiKey, env.geminiModel);
+	if (name === "anthropic") {
+		return new AnthropicChatProvider(env.anthropicApiKey, env.anthropicModel);
 	}
-	// Fallback so dev envs without AI_CHAT_PROVIDER still boot.
 	return new GeminiChatProvider(env.geminiApiKey, env.geminiModel);
 }
 
