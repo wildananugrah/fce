@@ -10,7 +10,7 @@ import type {
 	UploadAttachmentInput,
 	UploadAttachmentResult,
 } from "../interfaces/services/chat.service.interface";
-import type { ChatBlock, ChatMessage, ToolDefinition } from "../types/chat.types";
+import type { ChatAttachment, ChatBlock, ChatMessage, ToolDefinition } from "../types/chat.types";
 import { PDF_EXTRACT_MAX_CHARS, extractPdfText, truncateExtractedText } from "../utils/pdf-extractor";
 
 interface ChatConfig {
@@ -153,11 +153,18 @@ export class ChatService implements IChatService {
 
 	private async buildHistory(campaignId: string): Promise<ChatMessage[]> {
 		const rows = await this.messageRepo.findLatestByCampaign(campaignId, this.config.historyWindow);
-		return rows.map((m) => ({
-			role: m.role as "user" | "assistant",
-			text: flattenBlocks(m.contentBlocks as ChatBlock[]),
-			attachments: (m.attachments as any) ?? [],
-		}));
+		return rows.map((m) => {
+			const atts = (m.attachments as unknown as ChatAttachment[]) ?? [];
+			const attachmentText = atts
+				.filter((a) => a.extractedText && a.extractedText.length > 0)
+				.map((a) => `\n\n[Attached file "${a.fileName}"]\n${a.extractedText}`)
+				.join("");
+			return {
+				role: m.role as "user" | "assistant",
+				text: flattenBlocks(m.contentBlocks as ChatBlock[]) + attachmentText,
+				attachments: atts,
+			};
+		});
 	}
 
 	private getTools(): ToolDefinition[] {
