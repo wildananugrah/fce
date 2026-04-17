@@ -803,6 +803,31 @@ export function TopicsPage() {
 												</div>
 											)}
 
+											{topicsSaved && (
+												<div className="flex justify-start">
+													<a
+														href={(() => {
+															const params = new URLSearchParams();
+															if (brandId) params.set("brandId", brandId);
+															for (const pid of selectedProductIds) params.append("productId", pid);
+															params.set("topicId", topic.id);
+															if (topic.platform ?? platform) params.set("platform", topic.platform ?? platform);
+															if (topic.format) params.set("format", topic.format);
+															if (topic.objective ?? objective) params.set("objective", topic.objective ?? objective);
+															return `/generate?${params.toString()}`;
+														})()}
+														target="_blank"
+														rel="noopener noreferrer"
+														className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors"
+													>
+														<svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+															<path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+														</svg>
+														Generate Content
+													</a>
+												</div>
+											)}
+
 											<div className="flex justify-end gap-2">
 												<button
 													type="button"
