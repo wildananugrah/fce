@@ -297,9 +297,42 @@ export class ChatService implements IChatService {
 		};
 	}
 
-	async *restoreRevision(): AsyncIterable<ChatStreamEmission> {
-		// Implemented in Phase 7.
-		throw new Error("restoreRevision not implemented until Phase 7");
+	async *restoreRevision(input: {
+		workspaceId: string;
+		campaignId: string;
+		revisionId: string;
+		userId: string;
+	}): AsyncIterable<ChatStreamEmission> {
+		const target = await this.revisionRepo.findById(input.revisionId);
+		if (!target || target.campaignId !== input.campaignId) {
+			yield { type: "error", message: "Revision not found" };
+			return;
+		}
+
+		const snap = target.snapshot as any;
+		const result = await this.executeApplyPlanEdit(input.campaignId, null, {
+			objective: snap.objective ?? undefined,
+			audienceSegment: snap.audienceSegment ?? undefined,
+			keyMessage: snap.keyMessage ?? undefined,
+			bigIdea: snap.bigIdea ?? undefined,
+			messagingPillars: snap.messagingPillars ?? undefined,
+			label: `Reverted to revision ${target.revisionNumber}`,
+		});
+
+		const assistant = await this.messageRepo.create({
+			campaignId: input.campaignId,
+			role: "assistant",
+			contentBlocks: [{ type: "plan_edit", revisionId: result.revisionId, summary: result.summary }],
+		});
+
+		yield {
+			type: "plan_edit",
+			block: { type: "plan_edit", revisionId: result.revisionId, summary: result.summary },
+			revisionId: result.revisionId,
+			revisionNumber: result.revisionNumber,
+			snapshot: result.snapshot,
+		};
+		yield { type: "done", messageId: assistant.id };
 	}
 
 	private async buildSystemPrompt(campaignId: string): Promise<string> {
