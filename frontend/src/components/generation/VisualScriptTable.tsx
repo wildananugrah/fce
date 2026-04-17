@@ -37,7 +37,7 @@ export function VisualScriptTable({
   onSectionUpdated,
   onError,
 }: VisualScriptTableProps) {
-  const [generatingId, setGeneratingId] = useState<string | null>(null);
+  const [generatingIds, setGeneratingIds] = useState<Set<string>>(new Set());
   const [preview, setPreview] = useState<{
     imageUrl: string;
     sceneNumber: string;
@@ -46,7 +46,11 @@ export function VisualScriptTable({
   } | null>(null);
 
   const handleGenerate = async (sectionId: string) => {
-    setGeneratingId(sectionId);
+    setGeneratingIds((prev) => {
+      const next = new Set(prev);
+      next.add(sectionId);
+      return next;
+    });
     try {
       const res = await api<{
         data: { sectionId: string; contentText: string; imageUrl: string };
@@ -59,7 +63,11 @@ export function VisualScriptTable({
     } catch (e) {
       onError(e instanceof Error ? e.message : "Failed to generate image");
     } finally {
-      setGeneratingId(null);
+      setGeneratingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(sectionId);
+        return next;
+      });
     }
   };
 
@@ -94,7 +102,7 @@ export function VisualScriptTable({
             {scenes.map((scene) => {
               const num = getJsonField(scene.id, scene.contentText, "sceneNumber");
               const imageUrl = getJsonField(scene.id, scene.contentText, "referenceImageUrl");
-              const busy = generatingId === scene.id;
+              const busy = generatingIds.has(scene.id);
               return (
                 <tr key={scene.id} className="border-b border-gray-100 last:border-0 align-top">
                   <td className="px-2 py-2 align-top" style={{ width: 180, minWidth: 180 }}>
