@@ -1,16 +1,21 @@
 import type { CampaignChatMessage, CampaignPlanRevision, PrismaClient } from "@prisma/client";
 import type { IChatAiProvider } from "../interfaces/providers/chat-ai.provider.interface";
+import type { IStorageProvider } from "../interfaces/providers/storage.provider.interface";
 import type { IChatMessageRepository } from "../interfaces/repositories/chat-message.repository.interface";
 import type { ICampaignRevisionRepository } from "../interfaces/repositories/campaign-revision.repository.interface";
 import type {
 	ChatStreamEmission,
 	IChatService,
 	SendChatMessageInput,
+	UploadAttachmentInput,
+	UploadAttachmentResult,
 } from "../interfaces/services/chat.service.interface";
 import type { ChatBlock, ChatMessage, ToolDefinition } from "../types/chat.types";
+import { PDF_EXTRACT_MAX_CHARS, extractPdfText, truncateExtractedText } from "../utils/pdf-extractor";
 
 interface ChatConfig {
 	historyWindow: number;
+	bucket: string;
 }
 
 export class ChatService implements IChatService {
@@ -19,6 +24,7 @@ export class ChatService implements IChatService {
 		private messageRepo: IChatMessageRepository,
 		private revisionRepo: ICampaignRevisionRepository,
 		private chatProvider: IChatAiProvider,
+		private storage: IStorageProvider,
 		private config: ChatConfig,
 	) {}
 
@@ -28,6 +34,44 @@ export class ChatService implements IChatService {
 
 	async listRevisions(campaignId: string): Promise<CampaignPlanRevision[]> {
 		return this.revisionRepo.findByCampaign(campaignId);
+	}
+
+	async uploadAttachment(input: UploadAttachmentInput): Promise<UploadAttachmentResult> {
+		const allowed = [
+			"application/pdf",
+			"image/png",
+			"image/jpeg",
+			"image/webp",
+		];
+		if (!allowed.includes(input.file.type)) {
+			throw new Error(`Unsupported file type: ${input.file.type}`);
+		}
+		if (input.file.size > 10 * 1024 * 1024) {
+			throw new Error("File exceeds 10 MB limit");
+		}
+
+		const ext = input.file.name.split(".").pop() || "bin";
+		const key = `chat-uploads/${input.campaignId}/${Date.now()}-${crypto.randomUUID()}.${ext}`;
+		const buffer = Buffer.from(await input.file.arrayBuffer());
+		const fileUrl = await this.storage.upload(this.config.bucket, key, buffer, input.file.type);
+
+		let extractedText: string | undefined;
+		if (input.file.type === "application/pdf") {
+			try {
+				const raw = await extractPdfText(fileUrl);
+				extractedText = truncateExtractedText(raw, PDF_EXTRACT_MAX_CHARS);
+			} catch {
+				extractedText = undefined;
+			}
+		}
+
+		return {
+			fileUrl,
+			fileName: input.file.name,
+			fileType: input.file.type,
+			fileSize: input.file.size,
+			extractedText,
+		};
 	}
 
 	async *sendMessage(input: SendChatMessageInput): AsyncIterable<ChatStreamEmission> {

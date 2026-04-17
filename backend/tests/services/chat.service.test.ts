@@ -31,7 +31,14 @@ describe("ChatService.sendMessage (text-only)", () => {
 		chatProvider = new MockChatAiProvider();
 		messageRepo = new MockChatMessageRepository();
 		revisionRepo = new MockCampaignRevisionRepository();
-		service = new ChatService(prisma, messageRepo, revisionRepo, chatProvider, { historyWindow: 20 });
+		const mockStorage = {
+			upload: async (_b: string, _k: string, _buf: Buffer, _t: string) => `http://minio/${_k}`,
+			init: async () => new Map(),
+		} as any;
+		service = new ChatService(prisma, messageRepo, revisionRepo, chatProvider, mockStorage, {
+			historyWindow: 20,
+			bucket: "test-bucket",
+		});
 	});
 
 	afterEach(() => {

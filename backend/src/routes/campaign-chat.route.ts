@@ -58,6 +58,23 @@ export function createCampaignChatRoutes(chatService: IChatService) {
 		});
 	});
 
+	// POST /:id/chat/upload — multipart file upload.
+	app.post("/:id/chat/upload", async (c) => {
+		const workspaceId = c.get("workspaceId");
+		const campaignId = c.req.param("id");
+		const form = await c.req.formData();
+		const file = form.get("file");
+		if (!(file instanceof File)) {
+			return c.json({ error: "file is required" }, 400);
+		}
+		try {
+			const result = await chatService.uploadAttachment({ workspaceId, campaignId, file });
+			return c.json({ data: result });
+		} catch (e) {
+			return c.json({ error: e instanceof Error ? e.message : "Upload failed" }, 400);
+		}
+	});
+
 	// GET /:id/revisions — list plan revisions.
 	app.get("/:id/revisions", async (c) => {
 		const campaignId = c.req.param("id");

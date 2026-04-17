@@ -222,7 +222,8 @@ async function main() {
 		chatMessageRepository,
 		campaignRevisionRepository,
 		resolveChatProvider(),
-		{ historyWindow: env.chatHistoryWindow },
+		storageProvider,
+		{ historyWindow: env.chatHistoryWindow, bucket: env.minioBucket },
 	);
 
 	// URL inspiration pipeline — cache + Apify + Gemini summarizer

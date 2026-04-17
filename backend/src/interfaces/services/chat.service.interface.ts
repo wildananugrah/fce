@@ -16,6 +16,20 @@ export interface SendChatMessageInput {
 	attachments?: ChatAttachment[];
 }
 
+export interface UploadAttachmentInput {
+	workspaceId: string;
+	campaignId: string;
+	file: File;
+}
+
+export interface UploadAttachmentResult {
+	fileUrl: string;
+	fileName: string;
+	fileType: string;
+	fileSize: number;
+	extractedText?: string;
+}
+
 export interface IChatService {
 	listMessages(campaignId: string): Promise<CampaignChatMessage[]>;
 	sendMessage(input: SendChatMessageInput): AsyncIterable<ChatStreamEmission>;
@@ -26,4 +40,5 @@ export interface IChatService {
 		revisionId: string;
 		userId: string;
 	}): AsyncIterable<ChatStreamEmission>;
+	uploadAttachment(input: UploadAttachmentInput): Promise<UploadAttachmentResult>;
 }
