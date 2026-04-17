@@ -25,6 +25,7 @@ model User {
   auditLogs         AuditLog[]
   createdWorkspaces Workspace[]           @relation("WorkspaceCreator")
   researchRuns      ResearchRun[]
+  chatMessages      CampaignChatMessage[]
 
   @@map("users")
 }
@@ -336,10 +337,12 @@ model Campaign {
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
 
-  workspace Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  outputs   CampaignOutput[]
-  briefs    CampaignBrief[]
-  topics    ContentTopic[]
+  workspace      Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  outputs        CampaignOutput[]
+  briefs         CampaignBrief[]
+  topics         ContentTopic[]
+  chatMessages   CampaignChatMessage[]
+  planRevisions  CampaignPlanRevision[]
 
   @@index([workspaceId])
   @@map("campaigns")
@@ -429,6 +432,41 @@ model CampaignFeedbackEvent {
 
   @@index([campaignOutputId])
   @@map("campaign_feedback_events")
+}
+
+model CampaignChatMessage {
+  id             String   @id @default(uuid())
+  campaignId     String   @map("campaign_id")
+  role           String   // "user" | "assistant"
+  userId         String?  @map("user_id")
+  contentBlocks  Json     @map("content_blocks")
+  attachments    Json     @default("[]")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  user     User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  planRevisions CampaignPlanRevision[] @relation("TriggerMessage")
+
+  @@index([campaignId, createdAt])
+  @@map("campaign_chat_messages")
+}
+
+model CampaignPlanRevision {
+  id                String   @id @default(uuid())
+  campaignId        String   @map("campaign_id")
+  revisionNumber    Int      @map("revision_number")
+  triggerMessageId  String?  @map("trigger_message_id")
+  label             String
+  snapshot          Json
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  campaign       Campaign             @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  triggerMessage CampaignChatMessage? @relation("TriggerMessage", fields: [triggerMessageId], references: [id], onDelete: SetNull)
+
+  @@unique([campaignId, revisionNumber])
+  @@index([campaignId])
+  @@map("campaign_plan_revisions")
 }
 
 // ─── Content Planning ───────────────────────────────────────────
