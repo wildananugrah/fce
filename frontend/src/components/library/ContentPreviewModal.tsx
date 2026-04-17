@@ -31,6 +31,7 @@ interface ContentPreviewModalProps {
   onClose: () => void;
   onStatusChange: (id: string, status: string) => void;
   onToast: (msg: string, type: "success" | "error" | "info") => void;
+  onSectionsUpdated?: (itemId: string, sections: Section[]) => void;
 }
 
 function getStatusStyle(status: string) {
@@ -46,6 +47,7 @@ export function ContentPreviewModal({
   onClose,
   onStatusChange,
   onToast,
+  onSectionsUpdated,
 }: ContentPreviewModalProps) {
   const [currentStatus, setCurrentStatus] = useState(item.status);
   const [copied, setCopied] = useState(false);
@@ -101,9 +103,11 @@ export function ContentPreviewModal({
   };
 
   const applySectionUpdate = (sectionId: string, contentText: string) => {
-    setLocalSections((prev) =>
-      prev.map((s) => (s.id === sectionId ? { ...s, contentText } : s)),
-    );
+    setLocalSections((prev) => {
+      const next = prev.map((s) => (s.id === sectionId ? { ...s, contentText } : s));
+      onSectionsUpdated?.(item.id, next);
+      return next;
+    });
     // Image regenerations are persisted server-side as part of the generate
     // call, so the text-edit "Save Changes" button stays disabled. Toast so
     // the user knows the image was saved.
@@ -177,9 +181,21 @@ export function ContentPreviewModal({
         const created = (res as any).data ?? res;
         createdSections.push(created);
       }
+      const finalSections =
+        createdSections.length > 0 ? [...localSections, ...createdSections] : localSections;
+      const withEdits = finalSections.map((s) =>
+        editedSections[s.id] !== undefined ? { ...s, contentText: editedSections[s.id] } : s,
+      );
       if (createdSections.length > 0) {
-        setLocalSections((prev) => [...prev, ...createdSections]);
+        setLocalSections(withEdits);
+      } else {
+        setLocalSections((prev) =>
+          prev.map((s) =>
+            editedSections[s.id] !== undefined ? { ...s, contentText: editedSections[s.id] } : s,
+          ),
+        );
       }
+      onSectionsUpdated?.(item.id, withEdits);
       setEditedSections({});
       setPendingNewByType({});
       onToast("Changes saved", "success");
@@ -372,9 +388,13 @@ export function ContentPreviewModal({
                       <PostImageGenerator
                         workspaceId={workspaceId}
                         outputId={item.id}
-                        onSectionCreated={(section) =>
-                          setLocalSections((prev) => [...prev, section])
-                        }
+                        onSectionCreated={(section) => {
+                          setLocalSections((prev) => {
+                            const next = [...prev, section];
+                            onSectionsUpdated?.(item.id, next);
+                            return next;
+                          });
+                        }}
                       />
                     )}
                   </div>

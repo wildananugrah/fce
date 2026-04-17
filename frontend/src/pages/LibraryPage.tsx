@@ -428,6 +428,12 @@ export function LibraryPage() {
           onClose={() => setSelectedItem(null)}
           onStatusChange={handleStatusChange}
           onToast={showToast}
+          onSectionsUpdated={(id, sections) => {
+            setItems((prev) =>
+              prev.map((it) => (it.id === id ? { ...it, sections } : it)),
+            );
+            setSelectedItem((prev) => (prev && prev.id === id ? { ...prev, sections } : prev));
+          }}
         />
       )}
 
