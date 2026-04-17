@@ -13,13 +13,13 @@ export function createAuthRoutes(authService: IAuthService) {
 
 	app.post("/signup", async (c) => {
 		const body = await c.req.json();
-		const { email, password, fullName } = body;
+		const { email, password, fullName, invitationToken } = body;
 
 		if (!email || !password) {
 			return c.json({ error: "Email and password are required" }, 400);
 		}
 
-		const result = await authService.signup({ email, password, fullName });
+		const result = await authService.signup({ email, password, fullName, invitationToken });
 		return c.json({ data: result }, 201);
 	});
 

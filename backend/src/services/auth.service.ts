@@ -1,6 +1,7 @@
 import { ValidationError } from "../errors/validation-error";
 import type { IUserRepository } from "../interfaces/repositories/user.repository.interface";
 import type { IAuthService } from "../interfaces/services/auth.service.interface";
+import type { IWorkspaceService } from "../interfaces/services/workspace.service.interface";
 import type { AuthResponse, LoginInput, SignupInput } from "../types/auth.types";
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from "../utils/jwt";
 import { hashPassword, verifyPassword } from "../utils/password";
@@ -19,6 +20,7 @@ export class AuthService implements IAuthService {
 	constructor(
 		private userRepository: IUserRepository,
 		private config: AuthConfig,
+		private workspaceService: IWorkspaceService,
 	) {}
 
 	async signup(input: SignupInput): Promise<AuthResponse> {
@@ -33,6 +35,21 @@ export class AuthService implements IAuthService {
 			passwordHash,
 			fullName: input.fullName,
 		});
+
+		// If an invitation token was supplied and matches this email,
+		// auto-accept so the user lands on the workspace immediately.
+		if (input.invitationToken) {
+			try {
+				await this.workspaceService.acceptInvitation(
+					input.invitationToken,
+					user.id,
+					user.email,
+				);
+			} catch {
+				// Don't block signup on a bad / expired invitation — the user
+				// can still log in; the banner will hide expired ones.
+			}
+		}
 
 		const accessToken = signAccessToken(
 			{ userId: user.id, email: user.email },

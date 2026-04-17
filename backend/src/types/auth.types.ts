@@ -2,6 +2,7 @@ export interface SignupInput {
 	email: string;
 	password: string;
 	fullName?: string;
+	invitationToken?: string;
 }
 
 export interface LoginInput {

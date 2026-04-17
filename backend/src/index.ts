@@ -150,12 +150,6 @@ async function main() {
 	const apifyProvider = new ApifyProvider();
 
 	// ─── Services ───────────────────────────────────────────────────
-	const authService = new AuthService(userRepository, {
-		jwtSecret: env.jwtSecret,
-		jwtRefreshSecret: env.jwtRefreshSecret,
-		jwtExpiry: env.jwtExpiry,
-		jwtRefreshExpiry: env.jwtRefreshExpiry,
-	});
 	const emailProvider = env.resendApiKey
 		? new ResendEmailProvider(env.resendApiKey, env.emailFrom)
 		: new NoopEmailProvider(logger);
@@ -164,6 +158,16 @@ async function main() {
 		emailProvider,
 		userRepository,
 		{ appUrl: env.appUrl, tokenExpiry: env.invitationTokenExpiry },
+	);
+	const authService = new AuthService(
+		userRepository,
+		{
+			jwtSecret: env.jwtSecret,
+			jwtRefreshSecret: env.jwtRefreshSecret,
+			jwtExpiry: env.jwtExpiry,
+			jwtRefreshExpiry: env.jwtRefreshExpiry,
+		},
+		workspaceService,
 	);
 	const brandService = new BrandService(brandRepository);
 	const productService = new ProductService(productRepository);

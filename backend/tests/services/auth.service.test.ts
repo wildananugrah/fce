@@ -7,12 +7,19 @@ const JWT_REFRESH_SECRET = "test-refresh-secret-key-for-testing";
 
 describe("AuthService", () => {
 	const userRepo = new MockUserRepository();
-	const authService = new AuthService(userRepo, {
-		jwtSecret: JWT_SECRET,
-		jwtRefreshSecret: JWT_REFRESH_SECRET,
-		jwtExpiry: "15m",
-		jwtRefreshExpiry: "7d",
-	});
+	const workspaceServiceStub = {
+		acceptInvitation: async () => {},
+	} as any;
+	const authService = new AuthService(
+		userRepo,
+		{
+			jwtSecret: JWT_SECRET,
+			jwtRefreshSecret: JWT_REFRESH_SECRET,
+			jwtExpiry: "15m",
+			jwtRefreshExpiry: "7d",
+		},
+		workspaceServiceStub,
+	);
 
 	afterEach(() => {
 		userRepo.clear();
