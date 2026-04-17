@@ -850,20 +850,52 @@ const frameworkOptions = [{ value: "", label: "PAS (recommended)" }, ...framewor
               )}
 
               {/* Objective */}
-              <Select
-                label="Objective"
-                options={OBJECTIVE_OPTIONS}
-                value={objective}
-                onChange={(e) => setObjective(e.target.value)}
-              />
+              <div>
+                <label className="block text-xs font-medium text-gray-600 uppercase tracking-wide mb-2">
+                  Objective
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {OBJECTIVE_OPTIONS.filter((o) => o.value).map((o) => (
+                    <button
+                      key={o.value}
+                      type="button"
+                      onClick={() =>
+                        setObjective(objective === o.value ? "" : o.value)
+                      }
+                      className={`px-3.5 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                        objective === o.value
+                          ? "bg-indigo-600 text-white border-indigo-600"
+                          : "bg-white text-gray-600 border-gray-300 hover:border-gray-400"
+                      }`}
+                    >
+                      {o.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
               {/* Language */}
-              <Select
-                label="Language"
-                options={LANGUAGE_OPTIONS}
-                value={language}
-                onChange={(e) => setLanguage(e.target.value)}
-              />
+              <div>
+                <label className="block text-xs font-medium text-gray-600 uppercase tracking-wide mb-2">
+                  Language
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {LANGUAGE_OPTIONS.map((l) => (
+                    <button
+                      key={l.value}
+                      type="button"
+                      onClick={() => setLanguage(l.value)}
+                      className={`px-3.5 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                        language === l.value
+                          ? "bg-indigo-600 text-white border-indigo-600"
+                          : "bg-white text-gray-600 border-gray-300 hover:border-gray-400"
+                      }`}
+                    >
+                      {l.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
 
             {/* Advanced Mode — Strategy Controls */}
