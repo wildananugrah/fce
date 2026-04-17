@@ -5,6 +5,7 @@ import type { ILogger } from "../interfaces/providers/logger.provider.interface"
 import type { ITopicGenerator } from "../interfaces/providers/topic-generator.interface";
 import type { INotificationService } from "../interfaces/services/notification.service.interface";
 import { logAiActivity } from "../utils/ai-activity-logger";
+import { extractPdfText } from "../utils/pdf-extractor";
 import {
 	buildBriefSummaryPrompt,
 	buildCampaignGenerationPrompt,
@@ -51,7 +52,7 @@ export class CampaignPdfGenerationJob {
 
 			// ── Stage 1: Extract PDF text ─────────────────────────────────
 			await this.setStage(campaignId, userId, "extracting");
-			const extractedText = await this.extractPdfText(brief.documentUrl);
+			const extractedText = await extractPdfText(brief.documentUrl);
 
 			// ── Stage 2: Summarize brief ─────────────────────────────────
 			currentStage = "summarizing";
@@ -397,16 +398,4 @@ export class CampaignPdfGenerationJob {
 			: JSON.stringify({ name: product.name });
 	}
 
-	private async extractPdfText(url: string): Promise<string> {
-		const response = await fetch(url);
-		if (!response.ok) {
-			throw new Error(`Could not fetch PDF from ${url}: ${response.status}`);
-		}
-		const buffer = Buffer.from(await response.arrayBuffer());
-		const { PDFParse } = await import("pdf-parse");
-		const parser = new PDFParse({ data: new Uint8Array(buffer) });
-		await parser.load();
-		const result = await parser.getText();
-		return result.text;
-	}
 }
