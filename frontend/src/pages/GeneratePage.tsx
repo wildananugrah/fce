@@ -593,11 +593,10 @@ export function GeneratePage() {
   const filteredProducts = products.filter((p) => !brandId || p.brandId === brandId);
   const currentFormats = PLATFORM_FORMATS[platform] ?? [];
 
-  const canGenerate = brandId && selectedProductIds.length > 0 && platform && contentType && objective;
+  const canGenerate = brandId && platform && contentType && objective;
 
   const handleSubmit = async () => {
     if (!brandId) { showToast("Please select a brand", "error"); return; }
-    if (selectedProductIds.length === 0) { showToast("Please select at least one product", "error"); return; }
     if (!platform) { showToast("Please select a platform", "error"); return; }
     if (!contentType) { showToast("Please select an output format", "error"); return; }
     if (!objective) { showToast("Please select an objective", "error"); return; }
@@ -730,7 +729,7 @@ const frameworkOptions = [{ value: "", label: "PAS (recommended)" }, ...framewor
                       Products
                     </label>
                     <p className="text-[11px] text-gray-400 mb-2">
-                      Select one or more products
+                      Select one or more products (optional)
                     </p>
                     <div className="flex flex-wrap gap-2">
                       {filteredProducts.map((p) => (
@@ -1005,7 +1004,7 @@ const frameworkOptions = [{ value: "", label: "PAS (recommended)" }, ...framewor
 
             {!canGenerate && (
               <p className="text-xs text-gray-400 text-center -mt-2">
-                Select brand, product, platform, format and objective to continue
+                Select brand, platform, format and objective to continue
               </p>
             )}
           </div>
