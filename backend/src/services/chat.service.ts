@@ -168,8 +168,35 @@ export class ChatService implements IChatService {
 	}
 
 	private getTools(): ToolDefinition[] {
-		// Empty in Phase 3. Populated in Phase 6 (propose_topics) and Phase 7 (apply_plan_edit).
-		return [];
+		return [
+			{
+				name: "propose_topics",
+				description:
+					"Propose a list of content topics for this campaign. Topics auto-save to the Topic Library.",
+				inputSchema: {
+					type: "object",
+					properties: {
+						topics: {
+							type: "array",
+							items: {
+								type: "object",
+								properties: {
+									title: { type: "string" },
+									description: { type: "string" },
+									pillar: { type: "string" },
+									platform: { type: "string" },
+									format: { type: "string" },
+									objective: { type: "string" },
+									publishDate: { type: "string" },
+								},
+								required: ["title", "description", "pillar", "platform", "format", "objective"],
+							},
+						},
+					},
+					required: ["topics"],
+				},
+			},
+		];
 	}
 }
 

@@ -23,13 +23,19 @@ export class GeminiChatProvider implements IChatAiProvider {
 
 	async *stream(input: ChatStreamInput): AsyncIterable<ChatStreamEvent> {
 		const contents = this.buildContents(input.messages);
+		const functionDeclarations = input.tools.map((t) => ({
+			name: t.name,
+			description: t.description,
+			parameters: t.inputSchema as any,
+		}));
+
 		try {
 			const response = await this.client.models.generateContentStream({
 				model: this.model,
 				contents,
 				config: {
 					systemInstruction: input.systemPrompt,
-					// Tools will be wired in later phases.
+					tools: functionDeclarations.length > 0 ? [{ functionDeclarations }] : undefined,
 				},
 			});
 
@@ -39,6 +45,19 @@ export class GeminiChatProvider implements IChatAiProvider {
 			for await (const chunk of response) {
 				const text = chunk.text;
 				if (text) yield { type: "text_delta", delta: text };
+
+				// Surface any function calls in this chunk.
+				const calls = (chunk as any).functionCalls;
+				if (Array.isArray(calls)) {
+					for (const call of calls) {
+						yield {
+							type: "tool_call",
+							id: call.id || crypto.randomUUID(),
+							name: call.name,
+							input: call.args ?? call.arguments ?? {},
+						};
+					}
+				}
 
 				const usage = chunk.usageMetadata;
 				if (usage) {
