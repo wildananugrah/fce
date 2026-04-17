@@ -110,6 +110,7 @@ export function SectionImageCell({
 }: SectionImageCellProps) {
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState(false);
+  const [regeneratedAt, setRegeneratedAt] = useState(0);
 
   const handleGenerate = async () => {
     setBusy(true);
@@ -122,12 +123,19 @@ export function SectionImageCell({
       );
       const data = (res as any).data ?? res;
       onSectionUpdated(data.sectionId, data.contentText);
+      setRegeneratedAt(Date.now());
     } catch (e) {
       onError(e instanceof Error ? e.message : "Failed to generate image");
     } finally {
       setBusy(false);
     }
   };
+
+  const bustedImageUrl = imageUrl
+    ? regeneratedAt > 0
+      ? `${imageUrl}${imageUrl.includes("?") ? "&" : "?"}v=${regeneratedAt}`
+      : imageUrl
+    : "";
 
   return (
     <div className={className}>
@@ -141,7 +149,8 @@ export function SectionImageCell({
             title="Click to view full size"
           >
             <img
-              src={imageUrl}
+              key={bustedImageUrl}
+              src={bustedImageUrl}
               alt={label ?? "Reference"}
               className="w-full h-full object-cover"
             />
@@ -200,13 +209,14 @@ export function SectionImageCell({
             </div>
             <div className="overflow-y-auto">
               <img
-                src={imageUrl}
+                key={bustedImageUrl}
+                src={bustedImageUrl}
                 alt={label ?? "Reference"}
                 className="w-full object-contain bg-gray-50"
               />
               <div className="p-5">
                 <a
-                  href={imageUrl}
+                  href={bustedImageUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
