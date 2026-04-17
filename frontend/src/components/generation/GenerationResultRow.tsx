@@ -362,18 +362,20 @@ export function GenerationResultRow({
                         placeholder="No hook generated"
                       />
                     </div>
-                    <div>
-                      <label className="block text-[10px] font-medium text-gray-400 uppercase tracking-wide mb-1">
-                        Visual Direction
-                      </label>
-                      <textarea
-                        value={getSectionText("visual_direction")}
-                        onChange={(e) => handleFieldChange("visual_direction", e.target.value)}
-                        rows={2}
-                        className="w-full px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 resize-none"
-                        placeholder="No visual direction generated"
-                      />
-                    </div>
+                    {slides.length === 0 && scenes.length === 0 && frames.length === 0 && (
+                      <div>
+                        <label className="block text-[10px] font-medium text-gray-400 uppercase tracking-wide mb-1">
+                          Visual Direction
+                        </label>
+                        <textarea
+                          value={getSectionText("visual_direction")}
+                          onChange={(e) => handleFieldChange("visual_direction", e.target.value)}
+                          rows={2}
+                          className="w-full px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 resize-none"
+                          placeholder="No visual direction generated"
+                        />
+                      </div>
+                    )}
                     <div>
                       <label className="block text-[10px] font-medium text-gray-400 uppercase tracking-wide mb-1">
                         Caption
