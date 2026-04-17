@@ -131,6 +131,17 @@ export class ChatService implements IChatService {
 							topics: result.topics,
 						};
 						toolResults.push({ toolUseId: call.id, result: { ok: true, topicCount: result.topics.length } });
+					} else if (call.name === "apply_plan_edit") {
+						const result = await this.executeApplyPlanEdit(input.campaignId, null, call.input as any);
+						finalBlocks.push({ type: "plan_edit", revisionId: result.revisionId, summary: result.summary });
+						yield {
+							type: "plan_edit",
+							block: { type: "plan_edit", revisionId: result.revisionId, summary: result.summary },
+							revisionId: result.revisionId,
+							revisionNumber: result.revisionNumber,
+							snapshot: result.snapshot,
+						};
+						toolResults.push({ toolUseId: call.id, result: { ok: true, revisionId: result.revisionId, revisionNumber: result.revisionNumber } });
 					} else {
 						yield { type: "error", message: `Unknown tool: ${call.name}`, toolName: call.name };
 						toolResults.push({ toolUseId: call.id, result: { ok: false, error: "unknown tool" } });
@@ -205,6 +216,87 @@ export class ChatService implements IChatService {
 		};
 	}
 
+	private async executeApplyPlanEdit(
+		campaignId: string,
+		triggerMessageId: string | null,
+		args: {
+			objective?: string;
+			audienceSegment?: string;
+			keyMessage?: string;
+			bigIdea?: string;
+			messagingPillars?: Array<{ name: string; description: string }>;
+			label: string;
+		},
+	): Promise<{ revisionId: string; revisionNumber: number; summary: string; snapshot: any }> {
+		// Load current state.
+		const campaign = await this.prisma.campaign.findUnique({
+			where: { id: campaignId },
+			include: { outputs: { take: 1, orderBy: { createdAt: "desc" } } },
+		});
+		if (!campaign) throw new Error("Campaign not found");
+		const output = campaign.outputs[0];
+
+		// Seed Rev 1 if none exists.
+		const existingCount = await this.revisionRepo.countByCampaign(campaignId);
+		if (existingCount === 0) {
+			await this.revisionRepo.create({
+				campaignId,
+				triggerMessageId: null,
+				label: "Initial plan",
+				snapshot: {
+					objective: campaign.objective ?? null,
+					audienceSegment: campaign.audienceSegment ?? null,
+					keyMessage: campaign.keyMessage ?? null,
+					bigIdea: output?.bigIdea ?? null,
+					messagingPillars: (output?.messagingPillars as any) ?? null,
+				},
+			});
+		}
+
+		// Apply changes.
+		const campaignPatch: any = {};
+		if (args.objective !== undefined) campaignPatch.objective = args.objective;
+		if (args.audienceSegment !== undefined) campaignPatch.audienceSegment = args.audienceSegment;
+		if (args.keyMessage !== undefined) campaignPatch.keyMessage = args.keyMessage;
+		if (Object.keys(campaignPatch).length > 0) {
+			await this.prisma.campaign.update({ where: { id: campaignId }, data: campaignPatch });
+		}
+
+		if (args.bigIdea !== undefined || args.messagingPillars !== undefined) {
+			const outputPatch: any = {};
+			if (args.bigIdea !== undefined) outputPatch.bigIdea = args.bigIdea;
+			if (args.messagingPillars !== undefined) outputPatch.messagingPillars = args.messagingPillars as any;
+			await this.prisma.campaignOutput.upsert({
+				where: { id: output?.id ?? "__none__" },
+				create: { campaignId, ...outputPatch },
+				update: outputPatch,
+			});
+		}
+
+		// Build post-change snapshot.
+		const snapshot = {
+			objective: args.objective ?? campaign.objective ?? null,
+			audienceSegment: args.audienceSegment ?? campaign.audienceSegment ?? null,
+			keyMessage: args.keyMessage ?? campaign.keyMessage ?? null,
+			bigIdea: args.bigIdea ?? output?.bigIdea ?? null,
+			messagingPillars: args.messagingPillars ?? (output?.messagingPillars as any) ?? null,
+		};
+
+		const newRev = await this.revisionRepo.create({
+			campaignId,
+			triggerMessageId,
+			label: args.label,
+			snapshot,
+		});
+
+		return {
+			revisionId: newRev.id,
+			revisionNumber: newRev.revisionNumber,
+			summary: args.label,
+			snapshot,
+		};
+	}
+
 	async *restoreRevision(): AsyncIterable<ChatStreamEmission> {
 		// Implemented in Phase 7.
 		throw new Error("restoreRevision not implemented until Phase 7");
@@ -255,9 +347,32 @@ export class ChatService implements IChatService {
 	private getTools(): ToolDefinition[] {
 		return [
 			{
-				name: "propose_topics",
+				name: "apply_plan_edit",
 				description:
-					"Propose a list of content topics for this campaign. Topics auto-save to the Topic Library.",
+					"Update one or more fields on the campaign plan. Omit fields you're not changing. Always include a short human-readable label.",
+				inputSchema: {
+					type: "object",
+					properties: {
+						objective:       { type: "string" },
+						audienceSegment: { type: "string" },
+						keyMessage:      { type: "string" },
+						bigIdea:         { type: "string" },
+						messagingPillars: {
+							type: "array",
+							items: {
+								type: "object",
+								properties: { name: { type: "string" }, description: { type: "string" } },
+								required: ["name", "description"],
+							},
+						},
+						label: { type: "string" },
+					},
+					required: ["label"],
+				},
+			},
+			{
+				name: "propose_topics",
+				description: "Propose a list of content topics for this campaign. Topics auto-save to the Topic Library.",
 				inputSchema: {
 					type: "object",
 					properties: {
@@ -266,12 +381,8 @@ export class ChatService implements IChatService {
 							items: {
 								type: "object",
 								properties: {
-									title: { type: "string" },
-									description: { type: "string" },
-									pillar: { type: "string" },
-									platform: { type: "string" },
-									format: { type: "string" },
-									objective: { type: "string" },
+									title: { type: "string" }, description: { type: "string" }, pillar: { type: "string" },
+									platform: { type: "string" }, format: { type: "string" }, objective: { type: "string" },
 									publishDate: { type: "string" },
 								},
 								required: ["title", "description", "pillar", "platform", "format", "objective"],

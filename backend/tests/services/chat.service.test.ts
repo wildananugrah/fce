@@ -155,3 +155,71 @@ describe("ChatService.sendMessage (propose_topics)", () => {
 		expect(topicsBlock?.topicIds).toHaveLength(2);
 	});
 });
+
+describe("ChatService.sendMessage (apply_plan_edit)", () => {
+  let chatProvider: MockChatAiProvider;
+  let messageRepo: MockChatMessageRepository;
+  let revisionRepo: MockCampaignRevisionRepository;
+  let service: ChatService;
+  let lastCampaignUpdate: any = null;
+  let lastOutputUpsert: any = null;
+
+  const prisma = {
+    campaign: {
+      findUnique: async () => ({
+        id: "c1", workspaceId: "w1", name: "Test", brandId: null,
+        objective: "old", audienceSegment: "old", keyMessage: "old",
+        outputs: [{ bigIdea: "old idea", messagingPillars: [{ name: "A", description: "a" }] }],
+        briefs: [],
+      }),
+      update: async (args: any) => { lastCampaignUpdate = args; return {}; },
+    },
+    campaignOutput: {
+      findFirst: async () => ({ id: "o1", bigIdea: "old idea", messagingPillars: [{ name: "A", description: "a" }] }),
+      upsert: async (args: any) => { lastOutputUpsert = args; return {}; },
+    },
+    brandBrainVersion: { findFirst: async () => null },
+    contentTopic: { findMany: async () => [], create: async (a: any) => ({ id: crypto.randomUUID(), ...a.data }) },
+  } as unknown as PrismaClient;
+  const mockStorage = { upload: async () => "http://minio/x", init: async () => new Map() } as any;
+
+  beforeEach(() => {
+    chatProvider = new MockChatAiProvider();
+    messageRepo = new MockChatMessageRepository();
+    revisionRepo = new MockCampaignRevisionRepository();
+    lastCampaignUpdate = null;
+    lastOutputUpsert = null;
+    service = new ChatService(prisma, messageRepo, revisionRepo, chatProvider, mockStorage, { historyWindow: 20, bucket: "b" });
+  });
+
+  it("seeds Rev 1 on first edit and applies change as Rev 2", async () => {
+    chatProvider.queue([
+      {
+        type: "tool_call", id: "call-1", name: "apply_plan_edit",
+        input: { bigIdea: "new big idea", label: "Reframed big idea" },
+      },
+      { type: "done" },
+    ]);
+    chatProvider.queue([
+      { type: "text_delta", delta: "Updated." },
+      { type: "done" },
+    ]);
+
+    const emissions: any[] = [];
+    for await (const e of service.sendMessage({
+      workspaceId: "w1", campaignId: "c1", userId: "u1", content: "Change big idea",
+    })) emissions.push(e);
+
+    const revisions = await revisionRepo.findByCampaign("c1");
+    expect(revisions).toHaveLength(2);
+    const rev1 = revisions.find((r) => r.revisionNumber === 1)!;
+    const rev2 = revisions.find((r) => r.revisionNumber === 2)!;
+    expect(rev1.label).toBe("Initial plan");
+    expect(rev2.label).toBe("Reframed big idea");
+    expect((rev2.snapshot as any).bigIdea).toBe("new big idea");
+
+    const planEditEmission = emissions.find((e) => e.type === "plan_edit");
+    expect(planEditEmission).toBeTruthy();
+    expect(planEditEmission.revisionNumber).toBe(2);
+  });
+});
