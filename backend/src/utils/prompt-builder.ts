@@ -148,7 +148,10 @@ ${JSON_ONLY_INSTRUCTION}`;
 			? `Set "publishDate" as an ISO 8601 date (YYYY-MM-DD) between ${input.dateFrom} and ${input.dateTo}. Distribute the ${count} publishDate values EVENLY across this range.`
 			: `Set "publishDate" to an ISO 8601 date (YYYY-MM-DD) within the next 30 days.`;
 
-	const userPrompt = `Generate ${count} content topic ideas.
+	const humanLanguage = normalizeLanguage(input.language);
+	const userPrompt = `CRITICAL LANGUAGE REQUIREMENT: Write every topic's "title" and "description" in ${humanLanguage}. This overrides any language signal in the brand context. Do NOT mix languages within a single topic.
+
+Generate ${count} content topic ideas.
 ${multiProductLine}
 ${input.prompt ? `\nAdditional user instructions: ${input.prompt}` : ""}
 

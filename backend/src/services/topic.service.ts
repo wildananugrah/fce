@@ -60,6 +60,7 @@ export class TopicService implements ITopicService {
 			objective: input.objective,
 			formats: input.formats,
 			pillar: input.pillar,
+			language: input.language,
 			dateFrom: input.dateFrom,
 			dateTo: input.dateTo,
 			count: input.count ?? 10,
@@ -109,6 +110,7 @@ export class TopicService implements ITopicService {
 			format?: string;
 			objective?: string;
 			pillar?: string;
+			language?: string;
 		},
 		hint?: string,
 	): Promise<{ jobId: string }> {
@@ -120,6 +122,7 @@ export class TopicService implements ITopicService {
 			format: params.format,
 			objective: params.objective,
 			pillar: params.pillar,
+			language: params.language,
 			hint,
 			preview: true,
 			userId,

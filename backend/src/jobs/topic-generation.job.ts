@@ -15,6 +15,7 @@ interface TopicJobData {
 	objective?: string;
 	formats?: string[];
 	pillar?: string;
+	language?: string;
 	dateFrom?: string;
 	dateTo?: string;
 	count: number;
@@ -41,6 +42,7 @@ export class TopicGenerationJob {
 			objective,
 			formats,
 			pillar,
+			language,
 			dateFrom,
 			dateTo,
 			count,
@@ -195,6 +197,7 @@ export class TopicGenerationJob {
 				objective,
 				formats,
 				pillar,
+				language,
 				dateFrom,
 				dateTo,
 				count,

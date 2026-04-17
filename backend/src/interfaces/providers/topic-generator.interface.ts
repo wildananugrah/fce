@@ -6,6 +6,7 @@ export interface TopicGenerationInput {
 	objective?: string;
 	formats?: string[];
 	pillar?: string;
+	language?: string;
 	dateFrom?: string;
 	dateTo?: string;
 	count?: number;

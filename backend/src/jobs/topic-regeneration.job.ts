@@ -14,6 +14,7 @@ interface TopicRegenJobData {
 	format?: string;
 	objective?: string;
 	pillar?: string;
+	language?: string;
 	hint?: string;
 	preview: boolean;
 	userId: string;
@@ -37,6 +38,7 @@ export class TopicRegenerationJob {
 			format,
 			objective,
 			pillar,
+			language,
 			hint,
 			preview,
 			userId,
@@ -93,6 +95,7 @@ export class TopicRegenerationJob {
 				objective,
 				formats: format ? [format] : undefined,
 				pillar,
+				language,
 				count: 1,
 			};
 
