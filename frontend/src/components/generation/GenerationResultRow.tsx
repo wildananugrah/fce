@@ -622,9 +622,6 @@ export function GenerationResultRow({
                     )}
                     {saving ? "Saving..." : "Save Changes"}
                   </button>
-                  {isDirty && (
-                    <span className="text-[10px] text-amber-500">Unsaved changes</span>
-                  )}
                 </div>
                 <p className="text-[10px] text-gray-400 mt-2">
                   View token usage details on the Settings page.
