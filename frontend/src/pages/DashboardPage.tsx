@@ -34,30 +34,65 @@ export function DashboardPage() {
       .finally(() => setLoading(false));
   }, [activeWorkspace]);
 
+  const pendingInvitationsBanner =
+    pendingInvitations.length > 0 ? (
+      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
+        <p className="text-sm font-semibold text-amber-900">
+          You have {pendingInvitations.length} pending workspace invitation{pendingInvitations.length > 1 ? "s" : ""}
+        </p>
+        <ul className="mt-2 space-y-1">
+          {pendingInvitations.map((inv) => (
+            <li key={inv.id} className="text-xs flex items-center justify-between">
+              <span className="text-amber-800">
+                <strong>{inv.workspace.name}</strong> as {inv.role}
+              </span>
+              <Link
+                to={`/accept-invitation?token=${inv.id}`}
+                className="text-amber-700 hover:text-amber-900 font-medium"
+              >
+                View →
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </div>
+    ) : null;
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Spinner size="lg" />
-      </div>
+      <>
+        {pendingInvitationsBanner && <div className="p-6">{pendingInvitationsBanner}</div>}
+        <div className="flex items-center justify-center h-64">
+          <Spinner size="lg" />
+        </div>
+      </>
     );
   }
 
   if (!activeWorkspace) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center space-y-3">
-          <div className="text-4xl">🏢</div>
-          <h2 className="text-lg font-semibold text-black">No workspace yet</h2>
-          <p className="text-sm text-gray-500 max-w-sm">
-            Create a workspace to get started. Click the <strong>"No workspace"</strong> dropdown in the sidebar, then select <strong>"Create workspace"</strong>.
-          </p>
+      <>
+        {pendingInvitationsBanner && <div className="p-6">{pendingInvitationsBanner}</div>}
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center space-y-3">
+            <div className="text-4xl">🏢</div>
+            <h2 className="text-lg font-semibold text-black">No workspace yet</h2>
+            <p className="text-sm text-gray-500 max-w-sm">
+              Create a workspace to get started. Click the <strong>"No workspace"</strong> dropdown in the sidebar, then select <strong>"Create workspace"</strong>.
+            </p>
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
   if (!stats) {
-    return <div className="p-6 text-gray-500">Failed to load dashboard data.</div>;
+    return (
+      <>
+        {pendingInvitationsBanner && <div className="p-6">{pendingInvitationsBanner}</div>}
+        <div className="p-6 text-gray-500">Failed to load dashboard data.</div>
+      </>
+    );
   }
 
   const kpiCards = [
@@ -69,28 +104,7 @@ export function DashboardPage() {
 
   return (
     <div className="p-6 space-y-6">
-      {pendingInvitations.length > 0 && (
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
-          <p className="text-sm font-semibold text-amber-900">
-            You have {pendingInvitations.length} pending workspace invitation{pendingInvitations.length > 1 ? "s" : ""}
-          </p>
-          <ul className="mt-2 space-y-1">
-            {pendingInvitations.map((inv) => (
-              <li key={inv.id} className="text-xs flex items-center justify-between">
-                <span className="text-amber-800">
-                  <strong>{inv.workspace.name}</strong> as {inv.role}
-                </span>
-                <Link
-                  to={`/accept-invitation?token=${inv.id}`}
-                  className="text-amber-700 hover:text-amber-900 font-medium"
-                >
-                  View →
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+      {pendingInvitationsBanner}
       <h1 className="text-xl font-semibold">Dashboard</h1>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
