@@ -14,6 +14,8 @@ import {
   Settings,
   Shield,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Check,
   Plus,
   LogOut,
@@ -82,6 +84,27 @@ export function AppShell() {
   const { workspaces, activeWorkspace, setActiveWorkspace, isLoading: wsLoading, refresh } = useWorkspace();
   const [workspaceSwitcherOpen, setWorkspaceSwitcherOpen] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem("fce:sidebar-collapsed") === "1";
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleCollapsed = () => {
+    setCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("fce:sidebar-collapsed", next ? "1" : "0");
+      } catch {
+        // ignore quota / disabled storage
+      }
+      // Close the workspace dropdown when collapsing so it doesn't linger off-screen
+      if (next) setWorkspaceSwitcherOpen(false);
+      return next;
+    });
+  };
   const [newName, setNewName] = useState("");
   const [newSlug, setNewSlug] = useState("");
   const [creating, setCreating] = useState(false);
@@ -127,21 +150,31 @@ export function AppShell() {
       isActive
         ? "bg-[#333] text-white"
         : "text-gray-400 hover:text-white hover:bg-[#1a1a1a]"
-    }`;
+    } ${collapsed ? "justify-center" : ""}`;
 
   return (
     <div className="min-h-screen flex bg-[#f5f5f5]">
-      <aside className="w-[220px] bg-[#111] flex flex-col shrink-0 h-screen sticky top-0">
+      <aside className={`${collapsed ? "w-[60px]" : "w-[220px]"} bg-[#111] flex flex-col shrink-0 h-screen sticky top-0 transition-[width] duration-200`}>
         {/* Logo */}
-        <div className="px-4 py-4 border-b border-gray-800">
-          <span className="text-white font-bold text-sm tracking-tight">FCE Dashboard</span>
+        <div className={`${collapsed ? "px-2" : "px-4"} py-4 border-b border-gray-800 flex items-center ${collapsed ? "justify-center" : "justify-between"}`}>
+          {!collapsed && (
+            <span className="text-white font-bold text-sm tracking-tight truncate">FCE Dashboard</span>
+          )}
+          <button
+            type="button"
+            onClick={toggleCollapsed}
+            className="text-gray-400 hover:text-white transition-colors p-1 rounded hover:bg-[#1a1a1a]"
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+          </button>
         </div>
 
         {/* Main Navigation */}
         <nav className="flex-1 px-3 py-3 overflow-y-auto space-y-4">
           {navSections.map((section, i) => (
             <div key={section.label ?? i}>
-              {section.label && (
+              {section.label && !collapsed && (
                 <p className="px-2 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-500">
                   {section.label}
                 </p>
@@ -153,9 +186,10 @@ export function AppShell() {
                     to={item.to}
                     end={item.exact}
                     className={navLinkClass}
+                    title={collapsed ? item.label : undefined}
                   >
                     <item.icon size={14} />
-                    <span>{item.label}</span>
+                    {!collapsed && <span>{item.label}</span>}
                   </NavLink>
                 ))}
               </div>
@@ -165,18 +199,18 @@ export function AppShell() {
 
         {/* Bottom nav — Settings */}
         <div className="px-3 pb-1 space-y-0.5">
-          <NavLink to="/workspace-settings" className={navLinkClass}>
+          <NavLink to="/workspace-settings" className={navLinkClass} title={collapsed ? "Workspace Settings" : undefined}>
             <Settings size={14} />
-            <span>Workspace Settings</span>
+            {!collapsed && <span>Workspace Settings</span>}
           </NavLink>
-          <NavLink to="/settings" className={navLinkClass}>
+          <NavLink to="/settings" className={navLinkClass} title={collapsed ? "Profile Settings" : undefined}>
             <Settings size={14} />
-            <span>Profile Settings</span>
+            {!collapsed && <span>Profile Settings</span>}
           </NavLink>
           {user.isSuperadmin && (
-            <NavLink to="/admin" className={navLinkClass}>
+            <NavLink to="/admin" className={navLinkClass} title={collapsed ? "Admin" : undefined}>
               <Shield size={14} />
-              <span>Admin</span>
+              {!collapsed && <span>Admin</span>}
             </NavLink>
           )}
         </div>
@@ -191,8 +225,15 @@ export function AppShell() {
           ) : (
             <div className="relative">
               <button
-                onClick={() => setWorkspaceSwitcherOpen((o) => !o)}
-                className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-[#1a1a1a] transition-colors text-left"
+                onClick={() => {
+                  if (collapsed) {
+                    toggleCollapsed();
+                  } else {
+                    setWorkspaceSwitcherOpen((o) => !o);
+                  }
+                }}
+                className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-[#1a1a1a] transition-colors text-left ${collapsed ? "justify-center" : ""}`}
+                title={collapsed && activeWorkspace ? activeWorkspace.name : undefined}
               >
                 {activeWorkspace ? (
                   <>
@@ -202,17 +243,24 @@ export function AppShell() {
                     >
                       {activeWorkspace.avatarEmoji || activeWorkspace.name.charAt(0).toUpperCase()}
                     </div>
-                    <span className="text-xs text-gray-300 truncate flex-1">
-                      {activeWorkspace.name}
-                    </span>
+                    {!collapsed && (
+                      <>
+                        <span className="text-xs text-gray-300 truncate flex-1">
+                          {activeWorkspace.name}
+                        </span>
+                        <ChevronDown size={12} className="text-gray-500 shrink-0" />
+                      </>
+                    )}
                   </>
                 ) : (
-                  <span className="text-xs text-gray-500">No workspace</span>
+                  !collapsed && <span className="text-xs text-gray-500">No workspace</span>
                 )}
-                <ChevronDown size={12} className="text-gray-500 shrink-0" />
+                {!activeWorkspace && collapsed && (
+                  <span className="text-xs text-gray-500">·</span>
+                )}
               </button>
 
-              {workspaceSwitcherOpen && (
+              {!collapsed && workspaceSwitcherOpen && (
                 <div className="absolute bottom-full left-0 right-0 mb-1 bg-[#1a1a1a] border border-gray-700 rounded-md shadow-lg overflow-hidden z-10">
                   {workspaces.map((ws) => (
                     <button
@@ -252,12 +300,12 @@ export function AppShell() {
         </div>
 
         {/* User email + logout */}
-        <div className="px-4 py-3 border-t border-gray-800 flex items-center justify-between">
-          <p className="text-gray-500 text-xs truncate flex-1">{user.email}</p>
+        <div className={`${collapsed ? "px-2" : "px-4"} py-3 border-t border-gray-800 flex items-center ${collapsed ? "justify-center" : "justify-between"}`}>
+          {!collapsed && <p className="text-gray-500 text-xs truncate flex-1">{user.email}</p>}
           <button
             onClick={logout}
-            title="Logout"
-            className="text-gray-500 hover:text-white transition-colors ml-2 shrink-0"
+            title={collapsed ? `Logout (${user.email})` : "Logout"}
+            className={`text-gray-500 hover:text-white transition-colors ${collapsed ? "" : "ml-2"} shrink-0`}
           >
             <LogOut size={14} />
           </button>
