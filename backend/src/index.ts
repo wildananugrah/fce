@@ -19,6 +19,7 @@ import { createErrorHandlerMiddleware } from "./middlewares/error-handler.middle
 import { createRequestLoggerMiddleware } from "./middlewares/request-logger.middleware";
 import { createWorkspaceMiddleware } from "./middlewares/workspace.middleware";
 import { AnthropicProvider } from "./providers/anthropic.provider";
+import { GeminiChatProvider } from "./providers/gemini-chat.provider";
 import { ApifyProvider } from "./providers/apify.provider";
 import { NoopEmailProvider } from "./providers/noop-email.provider";
 import { ResendEmailProvider } from "./providers/resend-email.provider";
@@ -27,6 +28,8 @@ import { GeminiProvider } from "./providers/gemini.provider";
 import { MinioStorageProvider } from "./providers/minio.provider";
 import { WinstonLogger } from "./providers/winston-logger.provider";
 import { BrandRepository } from "./repositories/brand.repository";
+import { CampaignRevisionRepository } from "./repositories/campaign-revision.repository";
+import { ChatMessageRepository } from "./repositories/chat-message.repository";
 import { CampaignRepository } from "./repositories/campaign.repository";
 import { DocumentRepository } from "./repositories/document.repository";
 import { GenerationRepository } from "./repositories/generation.repository";
@@ -43,6 +46,7 @@ import { createAdminRoutes } from "./routes/admin.route";
 import { createAiLogRoutes } from "./routes/ai-log.route";
 import { createAuthRoutes } from "./routes/auth.route";
 import { createBrandRoutes } from "./routes/brand.route";
+import { createCampaignChatRoutes } from "./routes/campaign-chat.route";
 import { createCampaignRoutes } from "./routes/campaign.route";
 import { createDashboardRoutes } from "./routes/dashboard.route";
 import { createDocumentRoutes } from "./routes/document.route";
@@ -65,6 +69,7 @@ import {
 import { createWorkspaceRoutes } from "./routes/workspace.route";
 import { AdminService } from "./services/admin.service";
 import { AuthService } from "./services/auth.service";
+import { ChatService } from "./services/chat.service";
 import { BrandService } from "./services/brand.service";
 import { CampaignService } from "./services/campaign.service";
 import { DashboardService } from "./services/dashboard.service";
@@ -118,6 +123,16 @@ function resolveBrandScraper() {
 	throw new Error(`Unknown AI provider: ${name}`);
 }
 
+function resolveChatProvider(): GeminiChatProvider {
+	// Phase 3: Gemini only. Anthropic added in Phase 8.
+	const name = env.aiChatProvider || env.aiProvider;
+	if (name === "gemini") {
+		return new GeminiChatProvider(env.geminiApiKey, env.geminiModel);
+	}
+	// Fallback so dev envs without AI_CHAT_PROVIDER still boot.
+	return new GeminiChatProvider(env.geminiApiKey, env.geminiModel);
+}
+
 // ─── Main Async Setup ────────────────────────────────────────────
 async function main() {
 	const adapter = new PrismaPg({ connectionString: env.databaseUrl });
@@ -141,6 +156,8 @@ async function main() {
 	const recommendationRepository = new RecommendationRepository(prisma);
 	const documentRepository = new DocumentRepository(prisma);
 	const researchRepository = new ResearchRepository(prisma);
+	const chatMessageRepository = new ChatMessageRepository(prisma);
+	const campaignRevisionRepository = new CampaignRevisionRepository(prisma);
 	const storageProvider = new MinioStorageProvider(
 		env.minioEndpoint,
 		env.minioAccessKey,
@@ -199,6 +216,14 @@ async function main() {
 	);
 	const adminService = new AdminService(prisma);
 	const researchService = new ResearchService(researchRepository, apifyProvider, boss, logger);
+
+	const chatService = new ChatService(
+		prisma,
+		chatMessageRepository,
+		campaignRevisionRepository,
+		resolveChatProvider(),
+		{ historyWindow: env.chatHistoryWindow },
+	);
 
 	// URL inspiration pipeline — cache + Apify + Gemini summarizer
 	const urlScrapeCacheRepository = new UrlScrapeCacheRepository(prisma);
@@ -418,6 +443,7 @@ async function main() {
 		"/campaigns",
 		createCampaignRoutes(campaignService, storageProvider, env.minioBucket),
 	);
+	workspaceScoped.route("/campaigns", createCampaignChatRoutes(chatService));
 	workspaceScoped.route("/topics", createTopicRoutes(topicService));
 	workspaceScoped.route("/dashboard", createDashboardRoutes(dashboardService));
 	workspaceScoped.route("/documents", createDocumentRoutes(documentService));
