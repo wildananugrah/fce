@@ -88,7 +88,15 @@
       "Bash(echo \"EXIT: $?\")",
       "Bash(git fetch:*)",
       "Bash(git checkout:*)",
-      "Bash(git merge:*)"
+      "Bash(git merge:*)",
+      "Bash(git -c commit.gpgsign=false commit -m ' *)",
+      "Bash(tsc -b --noEmit)",
+      "Bash(node -e ' *)",
+      "Bash(cat)",
+      "Bash(node /tmp/test_hono_order.js)",
+      "Bash(tsc --noEmit)",
+      "Bash(git show *)",
+      "Bash(npm install *)"
     ],
     "additionalDirectories": [
       "/Users/wildananugrah/Documents/My-Projects/fce/.git"
