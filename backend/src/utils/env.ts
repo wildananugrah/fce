@@ -22,6 +22,8 @@ export const env = {
 	aiCampaignProvider: optionalEnv("AI_CAMPAIGN_PROVIDER"),
 	aiTopicProvider: optionalEnv("AI_TOPIC_PROVIDER"),
 	aiBrandScraperProvider: optionalEnv("AI_BRAND_SCRAPER_PROVIDER"),
+	aiChatProvider: optionalEnv("AI_CHAT_PROVIDER"),
+	chatHistoryWindow: Number.parseInt(optionalEnv("CHAT_HISTORY_WINDOW", "20"), 10),
 	anthropicApiKey: optionalEnv("ANTHROPIC_API_KEY"),
 	anthropicModel: optionalEnv("ANTHROPIC_MODEL", "claude-sonnet-4-20250514"),
 	geminiApiKey: optionalEnv("GEMINI_API_KEY"),
