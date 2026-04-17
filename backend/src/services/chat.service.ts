@@ -76,7 +76,7 @@ export class ChatService implements IChatService {
 
 	async *sendMessage(input: SendChatMessageInput): AsyncIterable<ChatStreamEmission> {
 		// 1. Persist the user message.
-		await this.messageRepo.create({
+		const userMsg = await this.messageRepo.create({
 			campaignId: input.campaignId,
 			role: "user",
 			userId: input.userId,
@@ -84,40 +84,125 @@ export class ChatService implements IChatService {
 			attachments: input.attachments,
 		});
 
-		// 2. Build system prompt + history.
 		const systemPrompt = await this.buildSystemPrompt(input.campaignId);
-		const history = await this.buildHistory(input.campaignId);
+		let history = await this.buildHistory(input.campaignId);
 
-		// 3. Stream. Text-only v1 — tool handling added in later phases.
-		const blocks: ChatBlock[] = [];
+		const finalBlocks: ChatBlock[] = [];
 		let currentText = "";
+		let safety = 0;
 
-		for await (const evt of this.chatProvider.stream({
-			systemPrompt,
-			messages: history,
-			tools: this.getTools(),
-		})) {
-			if (evt.type === "text_delta") {
-				currentText += evt.delta;
-				yield { type: "token", delta: evt.delta };
-			} else if (evt.type === "error") {
-				yield { type: "error", message: evt.message };
-			} else if (evt.type === "done") {
-				if (currentText.length > 0) {
-					blocks.push({ type: "text", content: currentText });
+		while (safety++ < 4) {
+			let sawToolCall = false;
+			const toolCalls: Array<{ id: string; name: string; input: unknown }> = [];
+
+			for await (const evt of this.chatProvider.stream({
+				systemPrompt,
+				messages: history,
+				tools: this.getTools(),
+			})) {
+				if (evt.type === "text_delta") {
+					currentText += evt.delta;
+					yield { type: "token", delta: evt.delta };
+				} else if (evt.type === "tool_call") {
+					sawToolCall = true;
+					toolCalls.push({ id: evt.id, name: evt.name, input: evt.input });
+				} else if (evt.type === "error") {
+					yield { type: "error", message: evt.message };
+				} else if (evt.type === "done") {
+					if (currentText.length > 0) {
+						finalBlocks.push({ type: "text", content: currentText });
+						currentText = "";
+					}
 				}
 			}
-			// tool_call ignored in Phase 3 — handled in Phase 6/7.
+
+			if (!sawToolCall) break;
+
+			// Execute each tool call.
+			const toolResults: Array<{ toolUseId: string; result: unknown }> = [];
+			for (const call of toolCalls) {
+				try {
+					if (call.name === "propose_topics") {
+						const result = await this.executeProposeTopics(input.campaignId, call.input as any);
+						finalBlocks.push({ type: "topics", topicIds: result.topicIds });
+						yield {
+							type: "topics",
+							block: { type: "topics", topicIds: result.topicIds },
+							topics: result.topics,
+						};
+						toolResults.push({ toolUseId: call.id, result: { ok: true, topicCount: result.topics.length } });
+					} else {
+						yield { type: "error", message: `Unknown tool: ${call.name}`, toolName: call.name };
+						toolResults.push({ toolUseId: call.id, result: { ok: false, error: "unknown tool" } });
+					}
+				} catch (e) {
+					const msg = e instanceof Error ? e.message : String(e);
+					yield { type: "error", message: msg, toolName: call.name };
+					toolResults.push({ toolUseId: call.id, result: { ok: false, error: msg } });
+				}
+			}
+
+			// Feed the tool results back into history so the provider can wrap up.
+			history = [
+				...history,
+				{ role: "assistant", text: `[invoked tools: ${toolCalls.map((c) => c.name).join(", ")}]` },
+				{ role: "user", text: `[tool results: ${JSON.stringify(toolResults.map((r) => r.result))}]` },
+			];
 		}
 
-		// 4. Persist assistant message.
 		const assistant = await this.messageRepo.create({
 			campaignId: input.campaignId,
 			role: "assistant",
-			contentBlocks: blocks,
+			contentBlocks: finalBlocks,
 		});
 
 		yield { type: "done", messageId: assistant.id };
+		void userMsg;
+	}
+
+	private async executeProposeTopics(
+		campaignId: string,
+		args: { topics: Array<{ title: string; description: string; pillar: string; platform: string; format: string; objective: string; publishDate?: string }> },
+	): Promise<{ topicIds: string[]; topics: Array<{ id: string; title: string; description: string | null; pillar: string | null; platform: string | null; format: string | null; objective: string | null; publishDate: string | null }> }> {
+		const campaign = await this.prisma.campaign.findUnique({
+			where: { id: campaignId },
+			select: { workspaceId: true, brandId: true },
+		});
+		if (!campaign) throw new Error("Campaign not found");
+
+		const created: any[] = [];
+		for (const t of args.topics) {
+			const row = await this.prisma.contentTopic.create({
+				data: {
+					workspaceId: campaign.workspaceId,
+					brandId: campaign.brandId,
+					campaignId,
+					title: t.title,
+					description: t.description,
+					pillar: t.pillar,
+					platform: t.platform,
+					format: t.format,
+					objective: t.objective,
+					publishDate: t.publishDate ? new Date(t.publishDate) : null,
+					status: "draft",
+				},
+			});
+			created.push(row);
+		}
+
+		return {
+			topicIds: created.map((r) => r.id),
+			topics: created.map((r) => ({
+				id: r.id,
+				title: r.title,
+				description: r.description,
+				pillar: r.pillar,
+				platform: r.platform,
+				format: r.format,
+				objective: r.objective,
+				publishDate: r.publishDate ? r.publishDate.toISOString().slice(0, 10) : null,
+			})),
+		};
 	}
 
 	async *restoreRevision(): AsyncIterable<ChatStreamEmission> {

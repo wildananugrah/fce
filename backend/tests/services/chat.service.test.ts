@@ -82,3 +82,76 @@ describe("ChatService.sendMessage (text-only)", () => {
 		expect(blocks).toEqual([{ type: "text", content: "Hello, world." }]);
 	});
 });
+
+describe("ChatService.sendMessage (propose_topics)", () => {
+	let chatProvider: MockChatAiProvider;
+	let messageRepo: MockChatMessageRepository;
+	let revisionRepo: MockCampaignRevisionRepository;
+	let service: ChatService;
+	const createdTopics: any[] = [];
+	const prisma = {
+		campaign: {
+			findUnique: async () => ({ id: "c1", workspaceId: "w1", name: "Test", objective: null, audienceSegment: null, keyMessage: null, outputs: [], briefs: [], brandId: null }),
+		},
+		campaignOutput: { findFirst: async () => null, upsert: async () => ({}) },
+		brandBrainVersion: { findFirst: async () => null },
+		contentTopic: {
+			findMany: async () => [],
+			create: async (args: any) => {
+				const row = { id: crypto.randomUUID(), ...args.data };
+				createdTopics.push(row);
+				return row;
+			},
+		},
+	} as unknown as PrismaClient;
+	const mockStorage = { upload: async () => "http://minio/x", init: async () => new Map() } as any;
+
+	beforeEach(() => {
+		chatProvider = new MockChatAiProvider();
+		messageRepo = new MockChatMessageRepository();
+		revisionRepo = new MockCampaignRevisionRepository();
+		createdTopics.length = 0;
+		service = new ChatService(prisma, messageRepo, revisionRepo, chatProvider, mockStorage, { historyWindow: 20, bucket: "b" });
+	});
+
+	it("creates ContentTopic rows and emits a topics block", async () => {
+		chatProvider.queue([
+			{ type: "text_delta", delta: "Here are some ideas:" },
+			{
+				type: "tool_call",
+				id: "call-1",
+				name: "propose_topics",
+				input: {
+					topics: [
+						{ title: "Topic 1", description: "desc 1", pillar: "Education", platform: "instagram", format: "single_image", objective: "awareness" },
+						{ title: "Topic 2", description: "desc 2", pillar: "Education", platform: "tiktok", format: "tiktok_video", objective: "engagement" },
+					],
+				},
+			},
+			{ type: "done" },
+		]);
+		// The provider is called AGAIN after the tool call to finish the turn.
+		chatProvider.queue([
+			{ type: "text_delta", delta: "Let me know what you think." },
+			{ type: "done" },
+		]);
+
+		const emissions: any[] = [];
+		for await (const e of service.sendMessage({
+			workspaceId: "w1", campaignId: "c1", userId: "u1", content: "Give me topic ideas",
+		})) emissions.push(e);
+
+		expect(createdTopics).toHaveLength(2);
+		expect(createdTopics[0].title).toBe("Topic 1");
+
+		const topicsEmission = emissions.find((e) => e.type === "topics");
+		expect(topicsEmission).toBeTruthy();
+		expect(topicsEmission.topics).toHaveLength(2);
+
+		const msgs = await messageRepo.findByCampaign("c1");
+		const assistant = msgs.find((m) => m.role === "assistant")!;
+		const blocks = assistant.contentBlocks as any[];
+		const topicsBlock = blocks.find((b) => b.type === "topics");
+		expect(topicsBlock?.topicIds).toHaveLength(2);
+	});
+});
