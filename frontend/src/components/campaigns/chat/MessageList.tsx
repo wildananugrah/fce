@@ -2,7 +2,15 @@ import { useEffect, useRef } from "react";
 import type { ChatMessage } from "../../../hooks/useChatStream";
 import { Message } from "./Message";
 
-export function MessageList({ messages }: { messages: ChatMessage[] }) {
+export function MessageList({
+  messages,
+  workspaceId,
+  brandId,
+}: {
+  messages: ChatMessage[];
+  workspaceId: string;
+  brandId: string | null;
+}) {
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const pausedRef = useRef(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -30,7 +38,9 @@ export function MessageList({ messages }: { messages: ChatMessage[] }) {
           Ask me anything about this campaign.
         </p>
       ) : (
-        messages.map((m) => <Message key={m.id} message={m} />)
+        messages.map((m) => (
+          <Message key={m.id} message={m} workspaceId={workspaceId} brandId={brandId} />
+        ))
       )}
       <div ref={bottomRef} />
     </div>

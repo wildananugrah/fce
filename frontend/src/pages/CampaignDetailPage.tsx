@@ -187,6 +187,7 @@ export function CampaignDetailPage() {
           <ChatPanel
             workspaceId={activeWorkspace.id}
             campaignId={campaign.id}
+            brandId={campaign.brandId}
             onPlanEdit={() => loadCampaign()}
           />
           <CampaignTopicsList topics={topics} />

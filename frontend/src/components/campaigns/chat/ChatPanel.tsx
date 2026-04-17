@@ -7,6 +7,7 @@ import { ChatInput } from "./ChatInput";
 interface ChatPanelProps {
   workspaceId: string;
   campaignId: string;
+  brandId: string | null;
   onPlanEdit?: (revisionId: string) => void;
 }
 
@@ -18,7 +19,7 @@ interface PersistedMessage {
   createdAt: string;
 }
 
-export function ChatPanel({ workspaceId, campaignId, onPlanEdit }: ChatPanelProps) {
+export function ChatPanel({ workspaceId, campaignId, brandId, onPlanEdit }: ChatPanelProps) {
   const { messages, isStreaming, send, replaceAll } = useChatStream({
     workspaceId,
     campaignId,
@@ -45,7 +46,7 @@ export function ChatPanel({ workspaceId, campaignId, onPlanEdit }: ChatPanelProp
 
   return (
     <div className="flex flex-col h-[600px] bg-gray-50 border border-gray-200 rounded-xl overflow-hidden">
-      <MessageList messages={messages} />
+      <MessageList messages={messages} workspaceId={workspaceId} brandId={brandId} />
       <ChatInput
         workspaceId={workspaceId}
         campaignId={campaignId}
