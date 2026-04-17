@@ -106,6 +106,15 @@ export function createWorkspaceRoutes(workspaceService: IWorkspaceService) {
 		return c.json({ data: invitation });
 	});
 
+	// POST /:id/invitations/:invId/resend — resend invitation email (admin only)
+	app.post("/:id/invitations/:invId/resend", async (c) => {
+		const userId = c.get("userId");
+		const workspaceId = c.req.param("id");
+		const invitationId = c.req.param("invId");
+		await workspaceService.resendInvitation(workspaceId, invitationId, userId);
+		return c.json({ data: { status: "sent" } });
+	});
+
 	// DELETE /:id/members/:memberId — remove member
 	app.delete("/:id/members/:memberId", async (c) => {
 		const userId = c.get("userId");

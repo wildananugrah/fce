@@ -57,6 +57,11 @@ import { createSSERoutes } from "./routes/sse.route";
 import { createTaxonomyRoutes } from "./routes/taxonomy.route";
 import { createTopicRoutes } from "./routes/topic.route";
 import { createUploadRoutes } from "./routes/upload.route";
+import {
+	createAuthenticatedInvitationRoutes,
+	createMeInvitationRoutes,
+	createPublicInvitationRoutes,
+} from "./routes/invitation.route";
 import { createWorkspaceRoutes } from "./routes/workspace.route";
 import { AdminService } from "./services/admin.service";
 import { AuthService } from "./services/auth.service";
@@ -317,6 +322,10 @@ async function main() {
 		"Cannot remove the last admin",
 		"Invitation not found",
 		"Email does not match invitation",
+		"Invitation email does not match",
+		"Invitation has expired",
+		"Invitation is no longer pending",
+		"Only admins can resend invitations",
 		"Generation request not found",
 		"Campaign not found",
 		"Topic not found",
@@ -365,6 +374,9 @@ async function main() {
 	// SSE route (handles its own auth via query parameter token)
 	app.route("/api/sse", createSSERoutes(notificationService, env.jwtSecret));
 
+	// Public invitation info (no auth — token is unguessable)
+	app.route("/api/invitations", createPublicInvitationRoutes(workspaceService));
+
 	// Protected routes
 	app.use("/api/*", authMiddleware);
 
@@ -374,6 +386,9 @@ async function main() {
 	adminScoped.use("*", adminMiddleware);
 	adminScoped.route("/", createAdminRoutes(adminService));
 	app.route("/api/admin", adminScoped);
+
+	app.route("/api/invitations", createAuthenticatedInvitationRoutes(workspaceService));
+	app.route("/api/me", createMeInvitationRoutes(workspaceService));
 
 	// Workspace routes (auth protected)
 	app.route("/api/workspaces", createWorkspaceRoutes(workspaceService));
