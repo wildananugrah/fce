@@ -1,4 +1,6 @@
 import type { Workspace, WorkspaceInvitation } from "@prisma/client";
+import type { IEmailProvider } from "../interfaces/providers/email.provider.interface";
+import type { IUserRepository } from "../interfaces/repositories/user.repository.interface";
 import type { IWorkspaceRepository } from "../interfaces/repositories/workspace.repository.interface";
 import type { IWorkspaceService } from "../interfaces/services/workspace.service.interface";
 import type {
@@ -7,9 +9,20 @@ import type {
 	UpdateWorkspaceInput,
 	WorkspaceSummary,
 } from "../types/workspace.types";
+import { parseDuration } from "../utils/duration";
+
+interface InvitationConfig {
+	appUrl: string;
+	tokenExpiry: string; // e.g. "7d"
+}
 
 export class WorkspaceService implements IWorkspaceService {
-	constructor(private workspaceRepository: IWorkspaceRepository) {}
+	constructor(
+		private workspaceRepository: IWorkspaceRepository,
+		private emailProvider: IEmailProvider,
+		private userRepository: IUserRepository,
+		private invitationConfig: InvitationConfig,
+	) {}
 
 	async listByUser(userId: string): Promise<WorkspaceSummary[]> {
 		const workspaces = await this.workspaceRepository.findByUserId(userId);
@@ -116,12 +129,32 @@ export class WorkspaceService implements IWorkspaceService {
 		invitedBy: string,
 		input: InviteMemberInput,
 	): Promise<WorkspaceInvitation> {
-		return this.workspaceRepository.createInvitation({
+		const invitation = await this.workspaceRepository.createInvitation({
 			workspaceId,
 			email: input.email,
 			role: input.role ?? "editor",
 			invitedBy,
 		});
+
+		try {
+			const workspace = await this.workspaceRepository.findById(workspaceId);
+			const inviter = await this.userRepository.findById(invitedBy);
+			if (workspace) {
+				await this.emailProvider.sendInvitation({
+					to: invitation.email,
+					workspaceName: workspace.name,
+					inviterName: inviter?.fullName ?? "",
+					inviterEmail: inviter?.email ?? "",
+					role: invitation.role,
+					acceptUrl: `${this.invitationConfig.appUrl}/accept-invitation?token=${invitation.id}`,
+					expiryHuman: this.humanExpiry(),
+				});
+			}
+		} catch {
+			// Email failure doesn't roll back — admin can resend via the UI.
+		}
+
+		return invitation;
 	}
 
 	async acceptInvitation(invitationId: string, userId: string, userEmail: string): Promise<void> {
@@ -134,6 +167,10 @@ export class WorkspaceService implements IWorkspaceService {
 		}
 		if (invitation.status !== "pending") {
 			throw new Error("Invitation is no longer pending");
+		}
+		if (this.isExpired(invitation.createdAt)) {
+			await this.workspaceRepository.updateInvitation(invitationId, { status: "expired" });
+			throw new Error("Invitation has expired");
 		}
 
 		await this.workspaceRepository.updateInvitation(invitationId, { status: "accepted" });
@@ -161,5 +198,75 @@ export class WorkspaceService implements IWorkspaceService {
 
 	async listInvitations(workspaceId: string): Promise<WorkspaceInvitation[]> {
 		return this.workspaceRepository.findInvitations(workspaceId);
+	}
+
+	private isExpired(createdAt: Date): boolean {
+		const ttl = parseDuration(this.invitationConfig.tokenExpiry);
+		return createdAt.getTime() + ttl < Date.now();
+	}
+
+	private humanExpiry(): string {
+		const match = /^(\d+)([smhd])$/.exec(this.invitationConfig.tokenExpiry);
+		if (!match) return this.invitationConfig.tokenExpiry;
+		const [, n, u] = match;
+		const unitLabel: Record<string, string> = { s: "second", m: "minute", h: "hour", d: "day" };
+		const label = unitLabel[u];
+		return `${n} ${label}${Number.parseInt(n, 10) === 1 ? "" : "s"}`;
+	}
+
+	async getInvitationByToken(token: string) {
+		const invitation = await this.workspaceRepository.findInvitationById(token);
+		if (!invitation) return null;
+
+		const workspace = await this.workspaceRepository.findById(invitation.workspaceId);
+		if (!workspace) return null;
+
+		const inviter = await this.userRepository.findById(invitation.invitedBy);
+
+		return {
+			id: invitation.id,
+			workspaceName: workspace.name,
+			role: invitation.role,
+			inviterName: inviter?.fullName ?? null,
+			inviterEmail: inviter?.email ?? "",
+			inviteeEmail: invitation.email,
+			status: invitation.status,
+			isExpired: invitation.status === "pending" && this.isExpired(invitation.createdAt),
+		};
+	}
+
+	async resendInvitation(workspaceId: string, invitationId: string, userId: string): Promise<void> {
+		const allowed = await this.canManage(userId, workspaceId);
+		if (!allowed) {
+			throw new Error("Only admins can resend invitations");
+		}
+
+		const invitation = await this.workspaceRepository.findInvitationById(invitationId);
+		if (!invitation || invitation.workspaceId !== workspaceId) {
+			throw new Error("Invitation not found");
+		}
+		if (invitation.status !== "pending") {
+			throw new Error("Invitation is no longer pending");
+		}
+
+		const workspace = await this.workspaceRepository.findById(workspaceId);
+		if (!workspace) throw new Error("Workspace not found");
+
+		const inviter = await this.userRepository.findById(invitation.invitedBy);
+
+		await this.emailProvider.sendInvitation({
+			to: invitation.email,
+			workspaceName: workspace.name,
+			inviterName: inviter?.fullName ?? "",
+			inviterEmail: inviter?.email ?? "",
+			role: invitation.role,
+			acceptUrl: `${this.invitationConfig.appUrl}/accept-invitation?token=${invitation.id}`,
+			expiryHuman: this.humanExpiry(),
+		});
+	}
+
+	async listPendingForEmail(email: string) {
+		const pending = await this.workspaceRepository.findPendingInvitationsByEmail(email);
+		return pending.filter((inv) => !this.isExpired(inv.createdAt));
 	}
 }

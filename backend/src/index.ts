@@ -20,6 +20,8 @@ import { createRequestLoggerMiddleware } from "./middlewares/request-logger.midd
 import { createWorkspaceMiddleware } from "./middlewares/workspace.middleware";
 import { AnthropicProvider } from "./providers/anthropic.provider";
 import { ApifyProvider } from "./providers/apify.provider";
+import { NoopEmailProvider } from "./providers/noop-email.provider";
+import { ResendEmailProvider } from "./providers/resend-email.provider";
 import { GeminiImageProvider } from "./providers/gemini-image.provider";
 import { GeminiProvider } from "./providers/gemini.provider";
 import { MinioStorageProvider } from "./providers/minio.provider";
@@ -149,7 +151,15 @@ async function main() {
 		jwtExpiry: env.jwtExpiry,
 		jwtRefreshExpiry: env.jwtRefreshExpiry,
 	});
-	const workspaceService = new WorkspaceService(workspaceRepository);
+	const emailProvider = env.resendApiKey
+		? new ResendEmailProvider(env.resendApiKey, env.emailFrom)
+		: new NoopEmailProvider(logger);
+	const workspaceService = new WorkspaceService(
+		workspaceRepository,
+		emailProvider,
+		userRepository,
+		{ appUrl: env.appUrl, tokenExpiry: env.invitationTokenExpiry },
+	);
 	const brandService = new BrandService(brandRepository);
 	const productService = new ProductService(productRepository);
 	const taxonomyService = new TaxonomyService(taxonomyRepository);

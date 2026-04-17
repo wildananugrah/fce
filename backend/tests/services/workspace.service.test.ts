@@ -1,13 +1,26 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import { WorkspaceService } from "../../src/services/workspace.service";
+import { MockUserRepository } from "../helpers/mock-user.repository";
 import { MockWorkspaceRepository } from "../helpers/mock-workspace.repository";
 
 describe("WorkspaceService", () => {
 	const workspaceRepo = new MockWorkspaceRepository();
-	const workspaceService = new WorkspaceService(workspaceRepo);
+	const userRepo = new MockUserRepository();
+	const emailCalls: any[] = [];
+	const emailProvider = {
+		sendInvitation: async (input: any) => {
+			emailCalls.push(input);
+		},
+	};
+	const workspaceService = new WorkspaceService(workspaceRepo, emailProvider as any, userRepo, {
+		appUrl: "http://localhost:5173",
+		tokenExpiry: "7d",
+	});
 
 	afterEach(() => {
 		workspaceRepo.clear();
+		userRepo.clear?.();
+		emailCalls.length = 0;
 	});
 
 	describe("create", () => {
@@ -157,6 +170,102 @@ describe("WorkspaceService", () => {
 			await expect(workspaceService.removeMember(workspace.id, adminId)).rejects.toThrow(
 				"Cannot remove the last admin from the workspace",
 			);
+		});
+	});
+
+	describe("invitation expiry and resend", () => {
+		it("sends an email when inviting", async () => {
+			const inviter = await userRepo.create({
+				email: "admin@test.com",
+				passwordHash: "x",
+				fullName: "Admin",
+			});
+			const workspace = await workspaceService.create(inviter.id, {
+				name: "WS",
+				slug: "ws-a",
+			});
+			emailCalls.length = 0;
+			await workspaceService.invite(workspace.id, inviter.id, {
+				email: "new@test.com",
+				role: "editor",
+			});
+			expect(emailCalls).toHaveLength(1);
+			expect(emailCalls[0].to).toBe("new@test.com");
+			expect(emailCalls[0].workspaceName).toBe("WS");
+			expect(emailCalls[0].acceptUrl).toContain("/accept-invitation?token=");
+		});
+
+		it("acceptInvitation throws when expired and flips status", async () => {
+			const inviter = await userRepo.create({
+				email: "admin2@test.com",
+				passwordHash: "x",
+			});
+			const workspace = await workspaceService.create(inviter.id, {
+				name: "WS2",
+				slug: "ws-b",
+			});
+			const invitation = await workspaceService.invite(workspace.id, inviter.id, {
+				email: "late@test.com",
+				role: "editor",
+			});
+			// Force the createdAt back 8 days to simulate expiry.
+			(workspaceRepo as any).invitations.find((i: any) => i.id === invitation.id).createdAt =
+				new Date(Date.now() - 8 * 24 * 60 * 60 * 1000);
+
+			const newUser = await userRepo.create({
+				email: "late@test.com",
+				passwordHash: "x",
+			});
+			await expect(
+				workspaceService.acceptInvitation(invitation.id, newUser.id, "late@test.com"),
+			).rejects.toThrow("Invitation has expired");
+
+			const after = await (workspaceRepo as any).findInvitationById(invitation.id);
+			expect(after.status).toBe("expired");
+		});
+
+		it("getInvitationByToken returns metadata without auth", async () => {
+			const inviter = await userRepo.create({
+				email: "admin3@test.com",
+				passwordHash: "x",
+				fullName: "The Admin",
+			});
+			const workspace = await workspaceService.create(inviter.id, {
+				name: "WS3",
+				slug: "ws-c",
+			});
+			const invitation = await workspaceService.invite(workspace.id, inviter.id, {
+				email: "target@test.com",
+				role: "admin",
+			});
+
+			const info = await workspaceService.getInvitationByToken(invitation.id);
+			expect(info).not.toBeNull();
+			expect(info!.workspaceName).toBe("WS3");
+			expect(info!.role).toBe("admin");
+			expect(info!.inviterEmail).toBe("admin3@test.com");
+			expect(info!.inviterName).toBe("The Admin");
+			expect(info!.inviteeEmail).toBe("target@test.com");
+			expect(info!.isExpired).toBe(false);
+		});
+
+		it("resendInvitation calls email provider again", async () => {
+			const inviter = await userRepo.create({
+				email: "admin4@test.com",
+				passwordHash: "x",
+			});
+			const workspace = await workspaceService.create(inviter.id, {
+				name: "WS4",
+				slug: "ws-d",
+			});
+			const invitation = await workspaceService.invite(workspace.id, inviter.id, {
+				email: "resend@test.com",
+				role: "editor",
+			});
+			emailCalls.length = 0;
+			await workspaceService.resendInvitation(workspace.id, invitation.id, inviter.id);
+			expect(emailCalls).toHaveLength(1);
+			expect(emailCalls[0].to).toBe("resend@test.com");
 		});
 	});
 });

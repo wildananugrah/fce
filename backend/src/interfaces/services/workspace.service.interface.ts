@@ -27,4 +27,16 @@ export interface IWorkspaceService {
 	removeMember(workspaceId: string, userId: string): Promise<void>;
 
 	listInvitations(workspaceId: string): Promise<WorkspaceInvitation[]>;
+	getInvitationByToken(token: string): Promise<{
+		id: string;
+		workspaceName: string;
+		role: string;
+		inviterName: string | null;
+		inviterEmail: string;
+		inviteeEmail: string;
+		status: string;
+		isExpired: boolean;
+	} | null>;
+	resendInvitation(workspaceId: string, invitationId: string, userId: string): Promise<void>;
+	listPendingForEmail(email: string): Promise<(import("@prisma/client").WorkspaceInvitation & { workspace: { id: string; name: string } })[]>;
 }
