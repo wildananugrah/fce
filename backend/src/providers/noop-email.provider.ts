@@ -13,10 +13,9 @@ export class NoopEmailProvider implements IEmailProvider {
 	constructor(private logger: ILogger) {}
 
 	async sendInvitation(input: InvitationEmailInput): Promise<void> {
-		this.logger.warn("Email provider not configured — invitation NOT sent", {
+		this.logger.warn("Email provider not configured — invitation NOT sent (accept URL omitted from logs)", {
 			to: input.to,
 			workspaceName: input.workspaceName,
-			acceptUrl: input.acceptUrl,
 		});
 	}
 }

@@ -47,7 +47,7 @@ describe("WorkspaceService", () => {
 			await workspaceService.create(userId, { name: "Workspace 1", slug: "taken-slug" });
 			await expect(
 				workspaceService.create(userId, { name: "Workspace 2", slug: "taken-slug" }),
-			).rejects.toThrow("Workspace slug already taken");
+			).rejects.toThrow("Slug already taken");
 		});
 	});
 
@@ -266,6 +266,30 @@ describe("WorkspaceService", () => {
 			await workspaceService.resendInvitation(workspace.id, invitation.id, inviter.id);
 			expect(emailCalls).toHaveLength(1);
 			expect(emailCalls[0].to).toBe("resend@test.com");
+		});
+
+		it("rejects invite when email is already a member", async () => {
+			const inviter = await userRepo.create({
+				email: "admin5@test.com",
+				passwordHash: "x",
+			});
+			const workspace = await workspaceService.create(inviter.id, {
+				name: "WS5",
+				slug: "ws-e",
+			});
+			// Patch the mock member record to use the real user email since
+			// MockWorkspaceRepository.addMember generates a synthetic email.
+			const memberRecord = (workspaceRepo as any).roles.find(
+				(r: any) => r.userId === inviter.id && r.workspaceId === workspace.id,
+			);
+			if (memberRecord) memberRecord.user.email = "admin5@test.com";
+
+			await expect(
+				workspaceService.invite(workspace.id, inviter.id, {
+					email: "admin5@test.com",
+					role: "editor",
+				}),
+			).rejects.toThrow("User is already a member of this workspace");
 		});
 	});
 });

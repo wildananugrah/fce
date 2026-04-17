@@ -325,6 +325,7 @@ async function main() {
 		"Product not found",
 		"Cannot remove the last admin",
 		"Invitation not found",
+		"User is already a member of this workspace",
 		"Email does not match invitation",
 		"Invitation email does not match",
 		"Invitation has expired",

@@ -129,6 +129,12 @@ export class WorkspaceService implements IWorkspaceService {
 		invitedBy: string,
 		input: InviteMemberInput,
 	): Promise<WorkspaceInvitation> {
+		const members = await this.workspaceRepository.findMembers(workspaceId);
+		const alreadyMember = members.some((m) => m.user.email === input.email);
+		if (alreadyMember) {
+			throw new Error("User is already a member of this workspace");
+		}
+
 		const invitation = await this.workspaceRepository.createInvitation({
 			workspaceId,
 			email: input.email,
