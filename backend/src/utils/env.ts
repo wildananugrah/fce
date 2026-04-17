@@ -36,4 +36,8 @@ export const env = {
 	serviceName: optionalEnv("SERVICE_NAME", "fce-backend"),
 	lokiUrl: optionalEnv("LOKI_URL"),
 	otelEndpoint: optionalEnv("OTEL_EXPORTER_OTLP_ENDPOINT"),
+	resendApiKey: optionalEnv("RESEND_API_KEY"),
+	emailFrom: optionalEnv("EMAIL_FROM", "onboarding@resend.dev"),
+	appUrl: optionalEnv("APP_URL", "http://localhost:5173"),
+	invitationTokenExpiry: optionalEnv("INVITATION_TOKEN_EXPIRY", "7d"),
 } as const;

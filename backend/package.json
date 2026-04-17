@@ -43,6 +43,7 @@
 		"mammoth": "^1.12.0",
 		"pdf-parse": "^2.4.5",
 		"pg-boss": "^12.15.0",
+		"resend": "^6.12.0",
 		"winston": "^3.19.0",
 		"winston-loki": "^6.1.4"
 	}
