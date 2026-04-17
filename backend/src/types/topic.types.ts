@@ -16,6 +16,7 @@ export interface GenerateTopicsInput {
 	platform?: string;
 	objective?: string;
 	formats?: string[];
+	pillar?: string;
 	dateFrom?: string;
 	dateTo?: string;
 	count?: number;

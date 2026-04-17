@@ -139,6 +139,10 @@ ${JSON_ONLY_INSTRUCTION}`;
 			? `Set "format" to one of: ${input.formats.join(", ")}. Distribute formats across the ${count} topics.`
 			: `Set "format" to the most appropriate content format (e.g., single_image, carousel, reels, story, video).`;
 
+	const pillarInstruction = input.pillar
+		? `Use EXACTLY this pillar for every topic: "${input.pillar}". Every topic's "pillar" field must be the exact string "${input.pillar}". Do not invent other pillars.`
+		: `Pick one appropriate pillar from the brand's pillar list in the brand context. Distribute topics across multiple pillars for variety. Never leave empty.`;
+
 	const dateInstruction =
 		input.dateFrom && input.dateTo
 			? `Set "publishDate" as an ISO 8601 date (YYYY-MM-DD) between ${input.dateFrom} and ${input.dateTo}. Distribute the ${count} publishDate values EVENLY across this range.`
@@ -155,7 +159,7 @@ EVERY topic object MUST contain ALL of these fields. Do NOT leave any field empt
 
 1. "title" (string, REQUIRED): A compelling, specific topic title (5-12 words). Never empty.
 2. "description" (string, REQUIRED): 2-3 sentences describing what the content will cover and why it matters to the audience. Never empty.
-3. "pillar" (string, REQUIRED): The content pillar/theme this topic belongs to (e.g., "Education", "Product Showcase", "Customer Story", "Industry News"). Pick one appropriate pillar. Never empty.
+3. "pillar" (string, REQUIRED): ${pillarInstruction}
 4. "platform" (string, REQUIRED): ${platformInstruction}
 5. "format" (string, REQUIRED): ${formatInstruction}
 6. "objective" (string, REQUIRED): ${objectiveInstruction}

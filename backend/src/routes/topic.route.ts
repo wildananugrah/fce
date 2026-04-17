@@ -30,6 +30,7 @@ export function createTopicRoutes(topicService: ITopicService) {
 			platform,
 			objective,
 			formats,
+			pillar,
 			dateFrom,
 			dateTo,
 			count,
@@ -42,6 +43,7 @@ export function createTopicRoutes(topicService: ITopicService) {
 			platform,
 			objective,
 			formats,
+			pillar,
 			dateFrom,
 			dateTo,
 			count,
@@ -56,11 +58,11 @@ export function createTopicRoutes(topicService: ITopicService) {
 		const workspaceId = c.get("workspaceId");
 		const userId = c.get("userId");
 		const body = await c.req.json();
-		const { brandId, productIds, platform, format, objective, hint } = body;
+		const { brandId, productIds, platform, format, objective, pillar, hint } = body;
 		const result = await topicService.regeneratePreview(
 			workspaceId,
 			userId,
-			{ brandId, productIds, platform, format, objective },
+			{ brandId, productIds, platform, format, objective, pillar },
 			hint,
 		);
 		return c.json({ data: result }, 202);

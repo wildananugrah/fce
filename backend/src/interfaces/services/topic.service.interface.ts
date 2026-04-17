@@ -31,6 +31,7 @@ export interface ITopicService {
 			platform?: string;
 			format?: string;
 			objective?: string;
+			pillar?: string;
 		},
 		hint?: string,
 	): Promise<{ jobId: string }>;

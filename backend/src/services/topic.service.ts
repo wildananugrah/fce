@@ -59,6 +59,7 @@ export class TopicService implements ITopicService {
 			platform: input.platform,
 			objective: input.objective,
 			formats: input.formats,
+			pillar: input.pillar,
 			dateFrom: input.dateFrom,
 			dateTo: input.dateTo,
 			count: input.count ?? 10,
@@ -89,6 +90,7 @@ export class TopicService implements ITopicService {
 			platform: topic.platform,
 			format: topic.format,
 			objective: topic.objective,
+			pillar: topic.pillar ?? undefined,
 			hint,
 			preview: false,
 			userId,
@@ -106,6 +108,7 @@ export class TopicService implements ITopicService {
 			platform?: string;
 			format?: string;
 			objective?: string;
+			pillar?: string;
 		},
 		hint?: string,
 	): Promise<{ jobId: string }> {
@@ -116,6 +119,7 @@ export class TopicService implements ITopicService {
 			platform: params.platform,
 			format: params.format,
 			objective: params.objective,
+			pillar: params.pillar,
 			hint,
 			preview: true,
 			userId,

@@ -83,6 +83,27 @@ describe("TopicService", () => {
 	});
 
 	describe("generate", () => {
+		it("forwards pillar to the job queue", async () => {
+			const workspaceId = crypto.randomUUID();
+			const userId = crypto.randomUUID();
+			const sent: any[] = [];
+			const fakeBoss = {
+				send: async (_q: string, data: any) => {
+					sent.push(data);
+					return "job-id";
+				},
+			} as any;
+			const service = new TopicService(repo as any, fakeBoss);
+			await service.generate(workspaceId, userId, {
+				brandId: "b1",
+				pillar: "Education",
+				count: 5,
+			});
+			expect(sent).toHaveLength(1);
+			expect(sent[0].pillar).toBe("Education");
+			expect(sent[0].count).toBe(5);
+		});
+
 		it("should enqueue topic-generation job with productIds and formats", async () => {
 			const workspaceId = crypto.randomUUID();
 			const userId = crypto.randomUUID();
