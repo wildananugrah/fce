@@ -11,6 +11,7 @@ import type {
 	UploadAttachmentResult,
 } from "../interfaces/services/chat.service.interface";
 import type { ChatAttachment, ChatBlock, ChatMessage, ToolDefinition } from "../types/chat.types";
+import { logAiActivity } from "../utils/ai-activity-logger";
 import { PDF_EXTRACT_MAX_CHARS, extractPdfText, truncateExtractedText } from "../utils/pdf-extractor";
 
 interface ChatConfig {
@@ -94,6 +95,8 @@ export class ChatService implements IChatService {
 		while (safety++ < 4) {
 			let sawToolCall = false;
 			const toolCalls: Array<{ id: string; name: string; input: unknown }> = [];
+			let streamUsage: { inputTokens: number; outputTokens: number } | undefined;
+			const turnStart = Date.now();
 
 			for await (const evt of this.chatProvider.stream({
 				systemPrompt,
@@ -113,8 +116,28 @@ export class ChatService implements IChatService {
 						finalBlocks.push({ type: "text", content: currentText });
 						currentText = "";
 					}
+					streamUsage = evt.usage;
 				}
 			}
+
+			await logAiActivity(
+				this.prisma,
+				{
+					workspaceId: input.workspaceId,
+					generator: "campaign-chat",
+					provider: process.env.AI_CHAT_PROVIDER || process.env.AI_PROVIDER || "unknown",
+					userId: input.userId,
+					systemPrompt: `<chat system prompt omitted — campaign id: ${input.campaignId}>`,
+					userPrompt: input.content,
+				},
+				{
+					responseJson: { blocks: finalBlocks },
+					durationMs: Date.now() - turnStart,
+					status: "success",
+					inputTokens: streamUsage?.inputTokens,
+					outputTokens: streamUsage?.outputTokens,
+				},
+			);
 
 			if (!sawToolCall) break;
 
