@@ -120,6 +120,7 @@ export function TopicsPage() {
 	const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
 	const [selectedFormats, setSelectedFormats] = useState<string[]>([]);
 	const [topicPrompt, setTopicPrompt] = useState("");
+	const [selectedPillar, setSelectedPillar] = useState<string>("");
 	const [referenceImages, setReferenceImages] = useState<ImageRef[]>([]);
 	const [platform, setPlatform] = useState("instagram");
 	const [objective, setObjective] = useState("");
@@ -177,6 +178,7 @@ export function TopicsPage() {
 	useEffect(() => {
 		if (!activeWorkspace || !brandId) {
 			setContentPillars([]);
+			setSelectedPillar("");
 			return;
 		}
 
@@ -270,6 +272,7 @@ export function TopicsPage() {
 						formats: selectedFormats.length > 0 ? selectedFormats : undefined,
 						platform: platform || undefined,
 						objective: objective || undefined,
+						pillar: selectedPillar || undefined,
 						dateFrom,
 						dateTo,
 						count,
@@ -317,6 +320,7 @@ export function TopicsPage() {
 						platform: topic?.platform || platform || undefined,
 						format: topic?.format || undefined,
 						objective: topic?.objective || objective || undefined,
+						pillar: topic?.pillar || selectedPillar || undefined,
 						hint: regenHints[topicId] || undefined,
 					}),
 				}
@@ -485,19 +489,38 @@ export function TopicsPage() {
 
 							{brandId && contentPillars.length > 0 && (
 								<div className="pt-3 border-t border-gray-100">
-									<label className="block text-[10px] font-medium text-gray-400 uppercase tracking-wide mb-2">
-										Brand Content Pillars
-									</label>
-									<div className="flex flex-wrap gap-1.5">
-										{contentPillars.map((p, i) => (
-											<span
-												key={p}
-												className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium ${PILLAR_COLORS[i % PILLAR_COLORS.length]}`}
-											>
-												{p}
-											</span>
-										))}
+									<div className="flex items-center justify-between mb-2">
+										<label className="block text-[10px] font-medium text-gray-400 uppercase tracking-wide">
+											Brand Content Pillars
+										</label>
+										<span className="text-[10px] text-gray-400">
+											{selectedPillar ? `Selected: ${selectedPillar}` : "Mixed (all pillars)"}
+										</span>
 									</div>
+									<div className="flex flex-wrap gap-1.5">
+										{contentPillars.map((p, i) => {
+											const isSelected = selectedPillar === p;
+											return (
+												<button
+													key={p}
+													type="button"
+													onClick={() =>
+														setSelectedPillar((prev) => (prev === p ? "" : p))
+													}
+													className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium border transition-all ${
+														isSelected
+															? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
+															: `${PILLAR_COLORS[i % PILLAR_COLORS.length]} border-transparent hover:border-gray-300`
+													}`}
+												>
+													{p}
+												</button>
+											);
+										})}
+									</div>
+									<p className="text-[10px] text-gray-400 mt-1.5">
+										Pick one pillar, or leave blank to mix across all.
+									</p>
 								</div>
 							)}
 						</div>
