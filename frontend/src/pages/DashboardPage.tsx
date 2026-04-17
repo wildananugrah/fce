@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { useWorkspace } from "../hooks/useWorkspace";
 import { api } from "../services/api";
 import { Badge } from "../components/ui/Badge";
@@ -9,6 +10,17 @@ export function DashboardPage() {
   const { activeWorkspace } = useWorkspace();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [pendingInvitations, setPendingInvitations] = useState<
+    { id: string; workspace: { id: string; name: string }; role: string }[]
+  >([]);
+
+  useEffect(() => {
+    api<{ id: string; workspace: { id: string; name: string }; role: string }[]>(
+      "/api/me/invitations",
+    )
+      .then((data) => setPendingInvitations(data))
+      .catch(() => setPendingInvitations([]));
+  }, []);
 
   useEffect(() => {
     if (!activeWorkspace) {
@@ -57,6 +69,28 @@ export function DashboardPage() {
 
   return (
     <div className="p-6 space-y-6">
+      {pendingInvitations.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
+          <p className="text-sm font-semibold text-amber-900">
+            You have {pendingInvitations.length} pending workspace invitation{pendingInvitations.length > 1 ? "s" : ""}
+          </p>
+          <ul className="mt-2 space-y-1">
+            {pendingInvitations.map((inv) => (
+              <li key={inv.id} className="text-xs flex items-center justify-between">
+                <span className="text-amber-800">
+                  <strong>{inv.workspace.name}</strong> as {inv.role}
+                </span>
+                <Link
+                  to={`/accept-invitation?token=${inv.id}`}
+                  className="text-amber-700 hover:text-amber-900 font-medium"
+                >
+                  View →
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       <h1 className="text-xl font-semibold">Dashboard</h1>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

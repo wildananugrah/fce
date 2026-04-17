@@ -376,6 +376,7 @@ function InvitationsTab({ workspaceId, onToast }: InvitationsTabProps) {
   const [inviteRole, setInviteRole] = useState("editor");
   const [inviting, setInviting] = useState(false);
   const [revoking, setRevoking] = useState<string | null>(null);
+  const [resendingId, setResendingId] = useState<string | null>(null);
 
   const loadInvitations = useCallback(async () => {
     setLoading(true);
@@ -411,6 +412,20 @@ function InvitationsTab({ workspaceId, onToast }: InvitationsTabProps) {
       onToast(e instanceof Error ? e.message : "Failed to send invitation", "error");
     } finally {
       setInviting(false);
+    }
+  };
+
+  const handleResend = async (invId: string) => {
+    setResendingId(invId);
+    try {
+      await api(`/api/workspaces/${workspaceId}/invitations/${invId}/resend`, {
+        method: "POST",
+      });
+      onToast("Invitation email sent again", "success");
+    } catch (e) {
+      onToast(e instanceof Error ? e.message : "Failed to resend invitation", "error");
+    } finally {
+      setResendingId(null);
     }
   };
 
@@ -500,14 +515,24 @@ function InvitationsTab({ workspaceId, onToast }: InvitationsTabProps) {
                   </td>
                   <td className="px-4 py-3 text-right">
                     {inv.status === "pending" && (
-                      <Button
-                        variant="danger"
-                        size="sm"
-                        loading={revoking === inv.id}
-                        onClick={() => handleRevoke(inv.id)}
-                      >
-                        Revoke
-                      </Button>
+                      <div className="inline-flex items-center gap-2">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => handleResend(inv.id)}
+                          loading={resendingId === inv.id}
+                        >
+                          Resend
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => handleRevoke(inv.id)}
+                          loading={revoking === inv.id}
+                        >
+                          Revoke
+                        </Button>
+                      </div>
                     )}
                   </td>
                 </tr>
