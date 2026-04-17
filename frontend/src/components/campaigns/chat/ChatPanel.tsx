@@ -47,7 +47,9 @@ export function ChatPanel({ workspaceId, campaignId, onPlanEdit }: ChatPanelProp
     <div className="flex flex-col h-[600px] bg-gray-50 border border-gray-200 rounded-xl overflow-hidden">
       <MessageList messages={messages} />
       <ChatInput
-        onSend={(content) => send({ content })}
+        workspaceId={workspaceId}
+        campaignId={campaignId}
+        onSend={(content, attachments) => send({ content, attachments })}
         disabled={isStreaming}
       />
     </div>
