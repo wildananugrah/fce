@@ -15,6 +15,7 @@ export class ChatMessageRepository implements IChatMessageRepository {
 				userId: input.userId ?? null,
 				contentBlocks: input.contentBlocks as any,
 				attachments: (input.attachments ?? []) as any,
+				skillIds: input.skillIds && input.skillIds.length > 0 ? (input.skillIds as any) : undefined,
 			},
 		});
 	}
@@ -38,5 +39,10 @@ export class ChatMessageRepository implements IChatMessageRepository {
 
 	async findById(id: string): Promise<CampaignChatMessage | null> {
 		return this.prisma.campaignChatMessage.findUnique({ where: { id } });
+	}
+
+	async deleteByCampaign(campaignId: string): Promise<number> {
+		const res = await this.prisma.campaignChatMessage.deleteMany({ where: { campaignId } });
+		return res.count;
 	}
 }

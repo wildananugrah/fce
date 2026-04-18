@@ -20,6 +20,13 @@ export function createCampaignChatRoutes(chatService: IChatService) {
 		return c.json({ data: messages });
 	});
 
+	// DELETE /:id/chat — clear all chat messages for a campaign.
+	app.delete("/:id/chat", async (c) => {
+		const campaignId = c.req.param("id");
+		const result = await chatService.clearMessages(campaignId);
+		return c.json({ data: result });
+	});
+
 	// POST /:id/chat — send a message; stream SSE response.
 	app.post("/:id/chat", async (c) => {
 		const workspaceId = c.get("workspaceId");
@@ -28,6 +35,9 @@ export function createCampaignChatRoutes(chatService: IChatService) {
 		const body = await c.req.json();
 		const content = typeof body.content === "string" ? body.content : "";
 		const attachments = Array.isArray(body.attachments) ? body.attachments : [];
+		const skillIds = Array.isArray(body.skillIds)
+			? body.skillIds.filter((id: unknown): id is string => typeof id === "string")
+			: [];
 
 		if (!content.trim() && attachments.length === 0) {
 			return c.json({ error: "content or attachments required" }, 400);
@@ -41,6 +51,7 @@ export function createCampaignChatRoutes(chatService: IChatService) {
 					userId,
 					content,
 					attachments,
+					skillIds,
 				})) {
 					await stream.writeSSE({
 						event: evt.type,

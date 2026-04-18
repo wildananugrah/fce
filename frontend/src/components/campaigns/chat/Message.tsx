@@ -1,9 +1,11 @@
-import { User, Sparkles, Loader2, AlertTriangle } from "lucide-react";
+import { User, Sparkles, AlertTriangle } from "lucide-react";
 import type { ChatMessage } from "../../../hooks/useChatStream";
+import { MentionedText } from "./blocks/MentionedText";
 import { PlanEditBlock } from "./blocks/PlanEditBlock";
 import { SummaryEditBlock } from "./blocks/SummaryEditBlock";
 import { TextBlock } from "./blocks/TextBlock";
 import { TopicsBlock } from "./blocks/TopicsBlock";
+import { TypingIndicator } from "./TypingIndicator";
 
 export function Message({
   message,
@@ -23,11 +25,18 @@ export function Message({
       <div className={`flex-1 min-w-0 space-y-1.5 ${isAssistant ? "" : "text-right"}`}>
         <div className={`text-left rounded-lg px-3 py-2 overflow-hidden ${isAssistant ? "block bg-white border border-gray-200 w-full max-w-full text-gray-800" : "inline-block max-w-[85%] bg-indigo-600 text-white text-[12.5px] leading-[1.5] break-words"}`}>
           {message.blocks.length === 0 && message.isStreaming && (
-            <Loader2 size={12} className="animate-spin inline" />
+            <TypingIndicator label="Thinking" />
           )}
           <div className="space-y-2">
             {message.blocks.map((b, i) => {
-              if (b.type === "text") return <TextBlock key={i} content={b.content} />;
+              if (b.type === "text") {
+                // Render user-authored text with mention pills; assistant text
+                // goes through the markdown renderer.
+                if (!isAssistant) {
+                  return <MentionedText key={i} content={b.content} skillIds={message.skillIds} />;
+                }
+                return <TextBlock key={i} content={b.content} />;
+              }
               if (b.type === "topics")
                 return (
                   <TopicsBlock
@@ -49,6 +58,12 @@ export function Message({
                 <AlertTriangle size={12} className="shrink-0 mt-0.5 text-amber-600" />
                 <span>{message.error}</span>
               </div>
+            )}
+            {isAssistant && message.isStreaming && message.blocks.length > 0 && (
+              <TypingIndicator label="Typing" />
+            )}
+            {message.interrupted && (
+              <p className="text-[11px] italic text-gray-500">Interrupted by you.</p>
             )}
           </div>
         </div>

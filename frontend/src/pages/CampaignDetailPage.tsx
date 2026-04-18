@@ -64,10 +64,35 @@ export function CampaignDetailPage() {
   } | null>(null);
   const [revisionsRefreshKey, setRevisionsRefreshKey] = useState(0);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [updatingSections, setUpdatingSections] = useState<{
+    plan: boolean;
+    summary: boolean;
+    topics: boolean;
+  }>({ plan: false, summary: false, topics: false });
+  const [recentlyUpdated, setRecentlyUpdated] = useState<{
+    plan: boolean;
+    summary: boolean;
+    topics: boolean;
+  }>({ plan: false, summary: false, topics: false });
 
   const showToast = useCallback(
     (message: string, type: "success" | "error" | "info") => {
       setToast({ message, type });
+    },
+    [],
+  );
+
+  const handleSectionUpdate = useCallback(
+    (section: "plan" | "summary" | "topics", status: "start" | "end") => {
+      setUpdatingSections((prev) => ({ ...prev, [section]: status === "start" }));
+      if (status === "end") {
+        // Flash "just updated" for ~2s so the user sees confirmation even if
+        // the new content looks similar to the old content.
+        setRecentlyUpdated((prev) => ({ ...prev, [section]: true }));
+        setTimeout(() => {
+          setRecentlyUpdated((prev) => ({ ...prev, [section]: false }));
+        }, 2200);
+      }
     },
     [],
   );
@@ -209,6 +234,8 @@ export function CampaignDetailPage() {
                 summary={brief.documentSummary ?? ""}
                 documentName={brief.documentName}
                 documentUrl={brief.documentUrl}
+                updating={updatingSections.summary}
+                justUpdated={recentlyUpdated.summary}
               />
             )}
             <CampaignPlanCard
@@ -222,9 +249,15 @@ export function CampaignDetailPage() {
                 bigIdea: output?.bigIdea ?? "",
                 messagingPillars: output?.messagingPillars ?? [],
               }}
+              updating={updatingSections.plan}
+              justUpdated={recentlyUpdated.plan}
               onToast={showToast}
             />
-            <CampaignTopicsList topics={topics} />
+            <CampaignTopicsList
+              topics={topics}
+              updating={updatingSections.topics}
+              justUpdated={recentlyUpdated.topics}
+            />
           </div>
           <div className="space-y-6">
             <RevisionsPanel
@@ -245,8 +278,16 @@ export function CampaignDetailPage() {
                 loadCampaign();
                 setRevisionsRefreshKey((k) => k + 1);
               }}
-              onTopicsChanged={loadCampaign}
-              onSummaryChanged={loadCampaign}
+              onTopicsChanged={() => {
+                loadCampaign();
+                setRevisionsRefreshKey((k) => k + 1);
+              }}
+              onSummaryChanged={() => {
+                loadCampaign();
+                setRevisionsRefreshKey((k) => k + 1);
+              }}
+              onSectionUpdate={handleSectionUpdate}
+              onToast={showToast}
             />
           </div>
         </div>

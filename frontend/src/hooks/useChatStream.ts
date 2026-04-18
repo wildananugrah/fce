@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { getAccessToken } from "../services/api";
 import { parseSSEStream } from "../utils/sse-parser";
 
@@ -32,10 +32,14 @@ export interface ChatMessage {
   role: "user" | "assistant";
   blocks: ChatBlock[];
   attachments?: ChatAttachment[];
+  skillIds?: string[];
   createdAt: string;
   error?: string;
   isStreaming?: boolean;
+  interrupted?: boolean;
 }
+
+export type ChatSection = "plan" | "summary" | "topics";
 
 export interface UseChatStreamOptions {
   workspaceId: string;
@@ -43,19 +47,34 @@ export interface UseChatStreamOptions {
   onPlanEdit?: (revisionId: string) => void;
   onTopicsChanged?: () => void;
   onSummaryChanged?: () => void;
+  onSectionUpdate?: (section: ChatSection, status: "start" | "end") => void;
 }
 
 interface SendArgs {
   content: string;
   attachments?: ChatAttachment[];
+  skillIds?: string[];
 }
 
 export function useChatStream(opts: UseChatStreamOptions) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
+  const interruptedRef = useRef(false);
 
-  const send = useCallback(async ({ content, attachments }: SendArgs) => {
+  const stop = useCallback(() => {
+    if (!abortRef.current) return;
+    interruptedRef.current = true;
+    abortRef.current.abort();
+  }, []);
+
+  const send = useCallback(async ({ content, attachments, skillIds }: SendArgs) => {
     if (isStreaming) return;
+
+    // Sections that received "start" but not yet "end". If the stream is
+    // aborted or fails mid-tool, we'll emit synthetic "end" events for these
+    // so the UI doesn't get stuck in a "regenerating" state.
+    const pendingSections = new Set<ChatSection>();
 
     // Optimistic user message.
     const userMsg: ChatMessage = {
@@ -63,6 +82,7 @@ export function useChatStream(opts: UseChatStreamOptions) {
       role: "user",
       blocks: [{ type: "text", content }],
       attachments,
+      skillIds,
       createdAt: new Date().toISOString(),
     };
     // Placeholder assistant message for streaming.
@@ -76,18 +96,43 @@ export function useChatStream(opts: UseChatStreamOptions) {
     setMessages((prev) => [...prev, userMsg, assistantMsg]);
     setIsStreaming(true);
 
+    const controller = new AbortController();
+    abortRef.current = controller;
+    interruptedRef.current = false;
+
     const token = getAccessToken();
-    const resp = await fetch(
-      `${import.meta.env.VITE_API_URL || ""}/api/workspaces/${opts.workspaceId}/campaigns/${opts.campaignId}/chat`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    let resp: Response;
+    try {
+      resp = await fetch(
+        `${import.meta.env.VITE_API_URL || ""}/api/workspaces/${opts.workspaceId}/campaigns/${opts.campaignId}/chat`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ content, attachments, skillIds }),
+          signal: controller.signal,
         },
-        body: JSON.stringify({ content, attachments }),
-      },
-    );
+      );
+    } catch (e) {
+      const aborted = interruptedRef.current || (e instanceof DOMException && e.name === "AbortError");
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === assistantMsg.id
+            ? {
+                ...m,
+                isStreaming: false,
+                interrupted: aborted || undefined,
+                error: aborted ? undefined : e instanceof Error ? e.message : "Request failed",
+              }
+            : m,
+        ),
+      );
+      abortRef.current = null;
+      setIsStreaming(false);
+      return;
+    }
 
     if (!resp.ok || !resp.body) {
       setMessages((prev) =>
@@ -97,12 +142,14 @@ export function useChatStream(opts: UseChatStreamOptions) {
             : m,
         ),
       );
+      abortRef.current = null;
       setIsStreaming(false);
       return;
     }
 
     try {
       for await (const evt of parseSSEStream(resp.body)) {
+        if (interruptedRef.current) break;
         const data = JSON.parse(evt.data);
         if (evt.event === "token") {
           setMessages((prev) =>
@@ -135,6 +182,14 @@ export function useChatStream(opts: UseChatStreamOptions) {
             ),
           );
           opts.onSummaryChanged?.();
+        } else if (evt.event === "section_update") {
+          const section = data.section as ChatSection | undefined;
+          const status = data.status as "start" | "end" | undefined;
+          if (section && status) {
+            if (status === "start") pendingSections.add(section);
+            else pendingSections.delete(section);
+            opts.onSectionUpdate?.(section, status);
+          }
         } else if (evt.event === "error") {
           setMessages((prev) =>
             prev.map((m) =>
@@ -151,15 +206,38 @@ export function useChatStream(opts: UseChatStreamOptions) {
           );
         }
       }
+      // If we exited because the user pressed Stop, mark the message interrupted.
+      if (interruptedRef.current) {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === assistantMsg.id
+              ? { ...m, isStreaming: false, interrupted: true }
+              : m,
+          ),
+        );
+      }
     } catch (e) {
+      const aborted = interruptedRef.current || (e instanceof DOMException && e.name === "AbortError");
       setMessages((prev) =>
         prev.map((m) =>
           m.id === assistantMsg.id
-            ? { ...m, isStreaming: false, error: e instanceof Error ? e.message : "Stream failed" }
+            ? {
+                ...m,
+                isStreaming: false,
+                interrupted: aborted || undefined,
+                error: aborted ? undefined : e instanceof Error ? e.message : "Stream failed",
+              }
             : m,
         ),
       );
     } finally {
+      // Close out any section_update that never got an "end" (e.g. stream was
+      // aborted mid-tool) so the UI doesn't get stuck on "regenerating".
+      for (const section of pendingSections) {
+        opts.onSectionUpdate?.(section, "end");
+      }
+      pendingSections.clear();
+      abortRef.current = null;
       setIsStreaming(false);
     }
   }, [isStreaming, opts]);
@@ -168,7 +246,7 @@ export function useChatStream(opts: UseChatStreamOptions) {
     setMessages(msgs);
   }, []);
 
-  return { messages, isStreaming, send, replaceAll };
+  return { messages, isStreaming, send, stop, replaceAll };
 }
 
 function appendToken(msg: ChatMessage, delta: string): ChatMessage {

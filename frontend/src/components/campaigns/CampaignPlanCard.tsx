@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Target, Save, Loader2 } from "lucide-react";
 import { api } from "../../services/api";
+import { SectionStatus } from "./SectionStatus";
 
 interface CampaignPlanCardProps {
   workspaceId: string;
@@ -12,6 +13,8 @@ interface CampaignPlanCardProps {
     bigIdea: string;
     messagingPillars: Array<{ name: string; description: string }>;
   };
+  updating?: boolean;
+  justUpdated?: boolean;
   onToast: (msg: string, type: "success" | "error" | "info") => void;
 }
 
@@ -19,6 +22,8 @@ export function CampaignPlanCard({
   workspaceId,
   campaignId,
   initial,
+  updating,
+  justUpdated,
   onToast,
 }: CampaignPlanCardProps) {
   const [objective, setObjective] = useState(initial.objective);
@@ -57,11 +62,16 @@ export function CampaignPlanCard({
   };
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
+    <div
+      className={`bg-white border rounded-lg p-6 space-y-4 transition-colors ${
+        updating ? "border-indigo-300 ring-1 ring-indigo-100" : "border-gray-200"
+      }`}
+    >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Target size={16} className="text-gray-500" />
           <h2 className="text-sm font-semibold text-gray-900">Campaign Plan</h2>
+          <SectionStatus updating={updating} justUpdated={justUpdated} />
         </div>
         {dirty && (
           <button

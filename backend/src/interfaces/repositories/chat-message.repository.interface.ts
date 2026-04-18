@@ -7,6 +7,7 @@ export interface CreateChatMessageInput {
 	userId?: string | null;
 	contentBlocks: ChatBlock[];
 	attachments?: ChatAttachment[];
+	skillIds?: string[];
 }
 
 export interface IChatMessageRepository {
@@ -14,4 +15,5 @@ export interface IChatMessageRepository {
 	findByCampaign(campaignId: string, limit?: number): Promise<CampaignChatMessage[]>;
 	findLatestByCampaign(campaignId: string, n: number): Promise<CampaignChatMessage[]>;
 	findById(id: string): Promise<CampaignChatMessage | null>;
+	deleteByCampaign(campaignId: string): Promise<number>;
 }

@@ -26,17 +26,41 @@ export async function buildSkillContext(
 		include: { skill: true },
 	});
 
-	const skillIds = skillMappings.map((m) => m.skill.id);
-	const skillNames = skillMappings.map((m) => m.skill.name);
+	return renderSkills(skillMappings.map((m) => m.skill));
+}
+
+/**
+ * Build a skill-context block from an explicit list of skill IDs (e.g. from
+ * @-mentions in chat). Unknown IDs are silently dropped. Result uses the same
+ * formatting + char cap as `buildSkillContext`.
+ */
+export async function buildSkillContextFromIds(
+	prisma: PrismaClient,
+	skillIds: string[],
+): Promise<SkillContextResult> {
+	if (skillIds.length === 0) {
+		return { context: "", skillIds: [], skillNames: [], includedCount: 0, truncatedCount: 0 };
+	}
+	const skills = await prisma.aiSkill.findMany({
+		where: { id: { in: skillIds } },
+		orderBy: { name: "asc" },
+	});
+	return renderSkills(skills);
+}
+
+type SkillLike = { id: string; name: string; content: string };
+
+function renderSkills(skills: SkillLike[]): SkillContextResult {
+	const skillIds = skills.map((s) => s.id);
+	const skillNames = skills.map((s) => s.name);
 
 	let context = "";
 	let charCount = 0;
 	let includedCount = 0;
 
-	for (const mapping of skillMappings) {
+	for (const skill of skills) {
 		if (charCount >= MAX_SKILL_CONTEXT_CHARS) break;
 
-		const skill = mapping.skill;
 		const block = `### Skill: ${skill.name}\n${skill.content}`;
 		const separator = includedCount === 0 ? "" : "\n\n---\n\n";
 		const addition = separator + block;
@@ -47,7 +71,6 @@ export async function buildSkillContext(
 			charCount += addition.length;
 			includedCount += 1;
 		} else {
-			// Truncate this skill to fit the remaining budget
 			context += addition.slice(0, remaining);
 			charCount = MAX_SKILL_CONTEXT_CHARS;
 			includedCount += 1;
@@ -55,13 +78,11 @@ export async function buildSkillContext(
 		}
 	}
 
-	const truncatedCount = skillMappings.length - includedCount;
-
 	return {
 		context,
 		skillIds,
 		skillNames,
 		includedCount,
-		truncatedCount,
+		truncatedCount: skills.length - includedCount,
 	};
 }

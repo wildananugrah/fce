@@ -19,3 +19,11 @@ body {
 .animate-slide-in-right {
   animation: slide-in-right 0.25s ease-out;
 }
+
+@keyframes typing-dot {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30% { transform: translateY(-2px); opacity: 1; }
+}
+.animate-typing-dot {
+  animation: typing-dot 1.2s ease-in-out infinite;
+}

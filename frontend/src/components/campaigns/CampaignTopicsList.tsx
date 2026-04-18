@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { Layers, Sparkles } from "lucide-react";
 import { Button } from "../ui/Button";
+import { SectionStatus } from "./SectionStatus";
 
 interface Topic {
   id: string;
@@ -16,9 +17,11 @@ interface Topic {
 
 interface CampaignTopicsListProps {
   topics: Topic[];
+  updating?: boolean;
+  justUpdated?: boolean;
 }
 
-export function CampaignTopicsList({ topics }: CampaignTopicsListProps) {
+export function CampaignTopicsList({ topics, updating, justUpdated }: CampaignTopicsListProps) {
   const navigate = useNavigate();
 
   const handleGenerate = (topic: Topic) => {
@@ -33,17 +36,22 @@ export function CampaignTopicsList({ topics }: CampaignTopicsListProps) {
   };
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
+    <div
+      className={`bg-white border rounded-lg p-6 space-y-4 transition-colors ${
+        updating ? "border-indigo-300 ring-1 ring-indigo-100" : "border-gray-200"
+      }`}
+    >
       <div className="flex items-center gap-2">
         <Layers size={16} className="text-gray-500" />
         <h2 className="text-sm font-semibold text-gray-900">
           Generated Topics ({topics.length})
         </h2>
+        <SectionStatus updating={updating} justUpdated={justUpdated} />
       </div>
       {topics.length === 0 ? (
         <p className="text-sm text-gray-400">No topics generated.</p>
       ) : (
-        <ul className="divide-y divide-gray-100">
+        <ul className={`divide-y divide-gray-100 transition-opacity ${updating ? "opacity-60" : ""}`}>
           {topics.map((topic) => (
             <li key={topic.id} className="py-3 flex items-start gap-4">
               <div className="flex-1 min-w-0">

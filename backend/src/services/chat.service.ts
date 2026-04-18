@@ -14,6 +14,7 @@ import type { ChatAttachment, ChatBlock, ChatMessage, ToolDefinition } from "../
 import { logAiActivity } from "../utils/ai-activity-logger";
 import { humanizeChatError } from "../utils/humanize-error";
 import { PDF_EXTRACT_MAX_CHARS, extractPdfText, truncateExtractedText } from "../utils/pdf-extractor";
+import { buildSkillContextFromIds } from "../utils/skill-context-builder";
 
 interface ChatConfig {
 	historyWindow: number;
@@ -32,6 +33,11 @@ export class ChatService implements IChatService {
 
 	async listMessages(campaignId: string): Promise<CampaignChatMessage[]> {
 		return this.messageRepo.findByCampaign(campaignId);
+	}
+
+	async clearMessages(campaignId: string): Promise<{ deletedCount: number }> {
+		const deletedCount = await this.messageRepo.deleteByCampaign(campaignId);
+		return { deletedCount };
 	}
 
 	async listRevisions(campaignId: string): Promise<CampaignPlanRevision[]> {
@@ -77,6 +83,10 @@ export class ChatService implements IChatService {
 	}
 
 	async *sendMessage(input: SendChatMessageInput): AsyncIterable<ChatStreamEmission> {
+		// Cap skillIds to keep prompt size bounded.
+		const requestedSkillIds = Array.from(new Set(input.skillIds ?? [])).slice(0, 5);
+		const skillCtx = await buildSkillContextFromIds(this.prisma, requestedSkillIds);
+
 		// 1. Persist the user message.
 		const userMsg = await this.messageRepo.create({
 			campaignId: input.campaignId,
@@ -84,9 +94,10 @@ export class ChatService implements IChatService {
 			userId: input.userId,
 			contentBlocks: [{ type: "text", content: input.content }],
 			attachments: input.attachments,
+			skillIds: skillCtx.skillIds,
 		});
 
-		const systemPrompt = await this.buildSystemPrompt(input.campaignId);
+		const systemPrompt = await this.buildSystemPrompt(input.campaignId, skillCtx);
 		let history = await this.buildHistory(input.campaignId);
 
 		const finalBlocks: ChatBlock[] = [];
@@ -130,6 +141,8 @@ export class ChatService implements IChatService {
 					userId: input.userId,
 					systemPrompt: `<chat system prompt omitted — campaign id: ${input.campaignId}>`,
 					userPrompt: input.content,
+					skillIds: skillCtx.skillIds.length > 0 ? skillCtx.skillIds : undefined,
+					skillNames: skillCtx.skillNames.length > 0 ? skillCtx.skillNames : undefined,
 				},
 				{
 					responseJson: { blocks: finalBlocks },
@@ -145,6 +158,19 @@ export class ChatService implements IChatService {
 			// Execute each tool call.
 			const toolResults: Array<{ toolUseId: string; result: unknown }> = [];
 			for (const call of toolCalls) {
+				const toolSection: "plan" | "summary" | "topics" | null =
+					call.name === "apply_plan_edit"
+						? "plan"
+						: call.name === "update_document_summary"
+						? "summary"
+						: call.name === "propose_topics"
+						? "topics"
+						: null;
+
+				if (toolSection) {
+					yield { type: "section_update", section: toolSection, status: "start" };
+				}
+
 				try {
 					if (call.name === "propose_topics") {
 						const result = await this.executeProposeTopics(input.campaignId, call.input as any);
@@ -183,6 +209,10 @@ export class ChatService implements IChatService {
 					const rawMsg = e instanceof Error ? e.message : String(e);
 					yield { type: "error", message: humanizeChatError(rawMsg), toolName: call.name };
 					toolResults.push({ toolUseId: call.id, result: { ok: false, error: rawMsg } });
+				} finally {
+					if (toolSection) {
+						yield { type: "section_update", section: toolSection, status: "end" };
+					}
 				}
 			}
 
@@ -213,11 +243,15 @@ export class ChatService implements IChatService {
 	): Promise<{ topicIds: string[]; mode: "replace" | "append"; topics: Array<{ id: string; title: string; description: string | null; pillar: string | null; platform: string | null; format: string | null; objective: string | null; publishDate: string | null }> }> {
 		const campaign = await this.prisma.campaign.findUnique({
 			where: { id: campaignId },
-			select: { workspaceId: true, brandId: true },
+			select: { workspaceId: true, brandId: true, productId: true },
 		});
 		if (!campaign) throw new Error("Campaign not found");
 
 		const mode: "replace" | "append" = args.mode === "replace" ? "replace" : "append";
+
+		// Capture the state BEFORE any mutation so Rev 1 (if seeded here) reflects
+		// the pre-change world.
+		await this.seedRev1IfNeeded(campaignId);
 
 		if (mode === "replace") {
 			await this.prisma.contentTopic.deleteMany({ where: { campaignId } });
@@ -240,8 +274,27 @@ export class ChatService implements IChatService {
 					status: "draft",
 				},
 			});
+			if (campaign.productId) {
+				await this.prisma.contentTopicProduct.create({
+					data: { contentTopicId: row.id, productId: campaign.productId },
+				});
+			}
 			created.push(row);
 		}
+
+		// Snapshot the post-change world (full plan + summary + topics) so this
+		// revision can be restored later.
+		const snapshot = await this.captureFullSnapshot(campaignId);
+		const label =
+			mode === "replace"
+				? `Regenerated topics (${created.length})`
+				: `Added ${created.length} topic${created.length === 1 ? "" : "s"}`;
+		await this.revisionRepo.create({
+			campaignId,
+			triggerMessageId: null,
+			label,
+			snapshot,
+		});
 
 		return {
 			topicIds: created.map((r) => r.id),
@@ -300,23 +353,9 @@ export class ChatService implements IChatService {
 		const output = campaign.outputs[0];
 		const brief = campaign.briefs[0];
 
-		// Seed Rev 1 if none exists.
-		const existingCount = await this.revisionRepo.countByCampaign(campaignId);
-		if (existingCount === 0) {
-			await this.revisionRepo.create({
-				campaignId,
-				triggerMessageId: null,
-				label: "Initial plan",
-				snapshot: {
-					objective: campaign.objective ?? null,
-					audienceSegment: campaign.audienceSegment ?? null,
-					keyMessage: campaign.keyMessage ?? null,
-					bigIdea: output?.bigIdea ?? null,
-					messagingPillars: (output?.messagingPillars as any) ?? null,
-					documentSummary: brief?.documentSummary ?? null,
-				},
-			});
-		}
+		// Seed Rev 1 if no revisions exist yet so we can always undo back to
+		// the state before the very first chat-driven edit.
+		await this.seedRev1IfNeeded(campaignId);
 
 		// Apply changes.
 		const campaignPatch: any = {};
@@ -356,15 +395,9 @@ export class ChatService implements IChatService {
 			}
 		}
 
-		// Build post-change snapshot.
-		const snapshot = {
-			objective: args.objective ?? campaign.objective ?? null,
-			audienceSegment: args.audienceSegment ?? campaign.audienceSegment ?? null,
-			keyMessage: args.keyMessage ?? campaign.keyMessage ?? null,
-			bigIdea: args.bigIdea ?? output?.bigIdea ?? null,
-			messagingPillars: args.messagingPillars ?? (output?.messagingPillars as any) ?? null,
-			documentSummary: args.documentSummary ?? brief?.documentSummary ?? null,
-		};
+		// Build post-change snapshot (reads the freshly-applied state from DB so
+		// topics / any side-effects are included alongside the plan + summary).
+		const snapshot = await this.captureFullSnapshot(campaignId);
 
 		const newRev = await this.revisionRepo.create({
 			campaignId,
@@ -394,6 +427,9 @@ export class ChatService implements IChatService {
 		}
 
 		const snap = target.snapshot as any;
+
+		// 1) Restore plan fields + summary via the usual plan-edit path (also
+		//    creates the "Reverted to revision N" revision row).
 		const result = await this.executeApplyPlanEdit(input.campaignId, null, {
 			objective: snap.objective ?? undefined,
 			audienceSegment: snap.audienceSegment ?? undefined,
@@ -403,6 +439,12 @@ export class ChatService implements IChatService {
 			documentSummary: snap.documentSummary ?? undefined,
 			label: `Reverted to revision ${target.revisionNumber}`,
 		});
+
+		// 2) Restore topics if the snapshot has them. Hard replace: wipe the
+		//    current topic list and recreate from the snapshot.
+		if (Array.isArray(snap.topics)) {
+			await this.restoreTopicsFromSnapshot(input.campaignId, snap.topics);
+		}
 
 		const assistant = await this.messageRepo.create({
 			campaignId: input.campaignId,
@@ -420,7 +462,131 @@ export class ChatService implements IChatService {
 		yield { type: "done", messageId: assistant.id };
 	}
 
-	private async buildSystemPrompt(campaignId: string): Promise<string> {
+	/**
+	 * Reads the campaign's current plan + summary + topics from the database
+	 * into a PlanSnapshot-shaped object. Used both for seeding the initial
+	 * revision and for building post-change snapshots.
+	 */
+	private async captureFullSnapshot(campaignId: string): Promise<{
+		objective: string | null;
+		audienceSegment: string | null;
+		keyMessage: string | null;
+		bigIdea: string | null;
+		messagingPillars: any;
+		documentSummary: string | null;
+		topics: Array<{
+			title: string;
+			description: string | null;
+			pillar: string | null;
+			platform: string | null;
+			format: string | null;
+			objective: string | null;
+			publishDate: string | null;
+			productIds: string[];
+		}>;
+	}> {
+		const campaign = await this.prisma.campaign.findUnique({
+			where: { id: campaignId },
+			include: {
+				outputs: { take: 1, orderBy: { createdAt: "desc" } },
+				briefs: { take: 1, orderBy: { createdAt: "desc" } },
+			},
+		});
+		const output = campaign?.outputs[0];
+		const brief = campaign?.briefs[0];
+
+		const topicRows = await this.prisma.contentTopic.findMany({
+			where: { campaignId },
+			orderBy: { createdAt: "asc" },
+			include: { products: { select: { productId: true } } },
+		});
+
+		return {
+			objective: campaign?.objective ?? null,
+			audienceSegment: campaign?.audienceSegment ?? null,
+			keyMessage: campaign?.keyMessage ?? null,
+			bigIdea: output?.bigIdea ?? null,
+			messagingPillars: (output?.messagingPillars as any) ?? null,
+			documentSummary: brief?.documentSummary ?? null,
+			topics: topicRows.map((t) => ({
+				title: t.title,
+				description: t.description,
+				pillar: t.pillar,
+				platform: t.platform,
+				format: t.format,
+				objective: t.objective,
+				publishDate: t.publishDate ? t.publishDate.toISOString().slice(0, 10) : null,
+				productIds: t.products.map((p) => p.productId),
+			})),
+		};
+	}
+
+	private async seedRev1IfNeeded(campaignId: string): Promise<void> {
+		const existing = await this.revisionRepo.countByCampaign(campaignId);
+		if (existing > 0) return;
+		const snapshot = await this.captureFullSnapshot(campaignId);
+		await this.revisionRepo.create({
+			campaignId,
+			triggerMessageId: null,
+			label: "Initial plan",
+			snapshot,
+		});
+	}
+
+	private async restoreTopicsFromSnapshot(
+		campaignId: string,
+		topics: Array<{
+			title: string;
+			description: string | null;
+			pillar: string | null;
+			platform: string | null;
+			format: string | null;
+			objective: string | null;
+			publishDate: string | null;
+			productIds?: string[];
+		}>,
+	): Promise<void> {
+		const campaign = await this.prisma.campaign.findUnique({
+			where: { id: campaignId },
+			select: { workspaceId: true, brandId: true },
+		});
+		if (!campaign) return;
+
+		await this.prisma.contentTopic.deleteMany({ where: { campaignId } });
+		for (const t of topics) {
+			const row = await this.prisma.contentTopic.create({
+				data: {
+					workspaceId: campaign.workspaceId,
+					brandId: campaign.brandId,
+					campaignId,
+					title: t.title,
+					description: t.description,
+					pillar: t.pillar,
+					platform: t.platform,
+					format: t.format,
+					objective: t.objective,
+					publishDate: t.publishDate ? new Date(t.publishDate) : null,
+					status: "draft",
+				},
+			});
+			for (const productId of t.productIds ?? []) {
+				await this.prisma.contentTopicProduct.create({
+					data: { contentTopicId: row.id, productId },
+				});
+			}
+		}
+	}
+
+	private async buildSystemPrompt(
+		campaignId: string,
+		skillCtx: Awaited<ReturnType<typeof buildSkillContextFromIds>> = {
+			context: "",
+			skillIds: [],
+			skillNames: [],
+			includedCount: 0,
+			truncatedCount: 0,
+		},
+	): Promise<string> {
 		const campaign = await this.prisma.campaign.findUnique({
 			where: { id: campaignId },
 			include: {
@@ -433,13 +599,27 @@ export class ChatService implements IChatService {
 			orderBy: { createdAt: "asc" },
 			select: { id: true, title: true, pillar: true, platform: true, format: true },
 		});
-		return [
+
+		const parts = [
 			"You are a campaign strategy expert helping the user refine a social media campaign.",
 			"You can edit campaign state by calling tools:",
 			"- apply_plan_edit: update Big Idea / Messaging Pillars / Objective / Audience / Key Message.",
 			"- propose_topics: add (mode=append) or regenerate (mode=replace) the Generated Topics list.",
 			"- update_document_summary: rewrite the Document Summary shown at the top of the page.",
 			"Prefer the smallest relevant tool. Do not call a tool unless the user is clearly asking to change that section.",
+		];
+
+		if (skillCtx.includedCount > 0) {
+			parts.push(
+				"",
+				"The user invoked the following skills for this turn via @-mentions.",
+				"Apply each skill's instructions when generating your response:",
+				"",
+				skillCtx.context,
+			);
+		}
+
+		parts.push(
 			"",
 			"=== Current campaign plan ===",
 			JSON.stringify({
@@ -455,12 +635,12 @@ export class ChatService implements IChatService {
 			campaign?.briefs?.[0]?.documentSummary ?? "(none)",
 			"",
 			"=== Current generated topics ===",
-			topics.length === 0
-				? "(none)"
-				: JSON.stringify(topics),
+			topics.length === 0 ? "(none)" : JSON.stringify(topics),
 			"",
 			"Respond in markdown. Use tables and bullet lists where helpful.",
-		].join("\n");
+		);
+
+		return parts.join("\n");
 	}
 
 	private async buildHistory(campaignId: string): Promise<ChatMessage[]> {

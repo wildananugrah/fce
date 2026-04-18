@@ -15,6 +15,7 @@ export class MockChatMessageRepository implements IChatMessageRepository {
 			userId: input.userId ?? null,
 			contentBlocks: input.contentBlocks as any,
 			attachments: (input.attachments ?? []) as any,
+			skillIds: input.skillIds && input.skillIds.length > 0 ? (input.skillIds as any) : null,
 			createdAt: new Date(),
 		};
 		this.messages.push(msg);
@@ -34,6 +35,12 @@ export class MockChatMessageRepository implements IChatMessageRepository {
 
 	async findById(id: string): Promise<CampaignChatMessage | null> {
 		return this.messages.find((m) => m.id === id) ?? null;
+	}
+
+	async deleteByCampaign(campaignId: string): Promise<number> {
+		const before = this.messages.length;
+		this.messages = this.messages.filter((m) => m.campaignId !== campaignId);
+		return before - this.messages.length;
 	}
 
 	clear(): void {

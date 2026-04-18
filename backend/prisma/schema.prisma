@@ -441,6 +441,7 @@ model CampaignChatMessage {
   userId         String?  @map("user_id")
   contentBlocks  Json     @map("content_blocks")
   attachments    Json     @default("[]")
+  skillIds       Json?    @map("skill_ids") // string[] — skills @-mentioned on a user message
   createdAt      DateTime @default(now()) @map("created_at")
 
   campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
