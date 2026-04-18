@@ -21,34 +21,36 @@ export function Message({
         {isAssistant ? <Sparkles size={12} /> : <User size={12} />}
       </div>
       <div className={`flex-1 min-w-0 space-y-1.5 ${isAssistant ? "" : "text-right"}`}>
-        <div className={`text-left rounded-lg px-2.5 py-1.5 overflow-hidden ${isAssistant ? "block bg-white border border-gray-200 w-full max-w-full text-gray-800" : "inline-block max-w-[85%] bg-indigo-600 text-white text-[12.5px] leading-[1.5] break-words"}`}>
+        <div className={`text-left rounded-lg px-3 py-2 overflow-hidden ${isAssistant ? "block bg-white border border-gray-200 w-full max-w-full text-gray-800" : "inline-block max-w-[85%] bg-indigo-600 text-white text-[12.5px] leading-[1.5] break-words"}`}>
           {message.blocks.length === 0 && message.isStreaming && (
             <Loader2 size={12} className="animate-spin inline" />
           )}
-          {message.blocks.map((b, i) => {
-            if (b.type === "text") return <TextBlock key={i} content={b.content} />;
-            if (b.type === "topics")
-              return (
-                <TopicsBlock
-                  key={i}
-                  topicIds={b.topicIds}
-                  topics={b.topics}
-                  workspaceId={workspaceId}
-                  brandId={brandId}
-                />
-              );
-            if (b.type === "plan_edit")
-              return <PlanEditBlock key={i} revisionId={b.revisionId} summary={b.summary} />;
-            if (b.type === "summary_edit")
-              return <SummaryEditBlock key={i} summary={b.summary} />;
-            return null;
-          })}
-          {message.error && (
-            <div className="mt-1.5 flex items-start gap-1.5 rounded-md bg-amber-50 border border-amber-200 px-2 py-1.5 text-[11.5px] leading-snug text-amber-900">
-              <AlertTriangle size={12} className="shrink-0 mt-0.5 text-amber-600" />
-              <span>{message.error}</span>
-            </div>
-          )}
+          <div className="space-y-2">
+            {message.blocks.map((b, i) => {
+              if (b.type === "text") return <TextBlock key={i} content={b.content} />;
+              if (b.type === "topics")
+                return (
+                  <TopicsBlock
+                    key={i}
+                    topicIds={b.topicIds}
+                    topics={b.topics}
+                    workspaceId={workspaceId}
+                    brandId={brandId}
+                  />
+                );
+              if (b.type === "plan_edit")
+                return <PlanEditBlock key={i} revisionId={b.revisionId} summary={b.summary} />;
+              if (b.type === "summary_edit")
+                return <SummaryEditBlock key={i} summary={b.summary} />;
+              return null;
+            })}
+            {message.error && (
+              <div className="flex items-start gap-1.5 rounded-md bg-amber-50 border border-amber-200 px-2 py-1.5 text-[11.5px] leading-snug text-amber-900">
+                <AlertTriangle size={12} className="shrink-0 mt-0.5 text-amber-600" />
+                <span>{message.error}</span>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
