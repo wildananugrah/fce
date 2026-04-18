@@ -738,6 +738,21 @@ export function CampaignsPage() {
   useSSE((event) => {
     if (event.type === "campaign_complete") {
       loadData();
+      return;
+    }
+    if (event.type === "campaign_pdf_complete") {
+      loadData();
+      return;
+    }
+    if (event.type === "campaign_pdf_failed") {
+      const errMsg =
+        typeof event.data.error === "string" && event.data.error
+          ? event.data.error
+          : "Campaign generation failed";
+      const stage =
+        typeof event.data.stage === "string" ? ` (${event.data.stage})` : "";
+      showToast(`Campaign generation failed${stage}: ${errMsg}`, "error");
+      loadData();
     }
   });
 

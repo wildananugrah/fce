@@ -63,6 +63,7 @@ export function CampaignDetailPage() {
     type: "success" | "error" | "info";
   } | null>(null);
   const [revisionsRefreshKey, setRevisionsRefreshKey] = useState(0);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const showToast = useCallback(
     (message: string, type: "success" | "error" | "info") => {
@@ -78,16 +79,16 @@ export function CampaignDetailPage() {
         `/api/workspaces/${activeWorkspace.id}/campaigns/${id}`,
       );
       setCampaign(data);
+      setLoadError(null);
 
       const topicsData = await api<Topic[]>(
         `/api/workspaces/${activeWorkspace.id}/topics?campaignId=${id}`,
       ).catch(() => [] as Topic[]);
       setTopics(Array.isArray(topicsData) ? topicsData : []);
     } catch (e) {
-      showToast(
-        e instanceof Error ? e.message : "Failed to load campaign",
-        "error",
-      );
+      const msg = e instanceof Error ? e.message : "Failed to load campaign";
+      setLoadError(msg);
+      showToast(msg, "error");
     } finally {
       setLoading(false);
     }
@@ -99,11 +100,21 @@ export function CampaignDetailPage() {
 
   useSSE((event) => {
     if (!id) return;
+    if (event.data.campaignId !== id) return;
+    if (event.type === "campaign_pdf_failed") {
+      const errMsg =
+        typeof event.data.error === "string" && event.data.error
+          ? event.data.error
+          : "Campaign generation failed";
+      const stage =
+        typeof event.data.stage === "string" ? ` (${event.data.stage})` : "";
+      showToast(`Campaign generation failed${stage}: ${errMsg}`, "error");
+      loadCampaign();
+      return;
+    }
     if (
-      (event.type === "campaign_pdf_progress" ||
-        event.type === "campaign_pdf_complete" ||
-        event.type === "campaign_pdf_failed") &&
-      event.data.campaignId === id
+      event.type === "campaign_pdf_progress" ||
+      event.type === "campaign_pdf_complete"
     ) {
       loadCampaign();
     }
@@ -126,10 +137,35 @@ export function CampaignDetailPage() {
     }
   };
 
-  if (loading || !campaign || !activeWorkspace) {
+  if (loading || !activeWorkspace) {
     return (
       <div className="p-6 flex justify-center">
         <Loader2 size={24} className="text-gray-400 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!campaign) {
+    return (
+      <div className="p-6 max-w-2xl mx-auto space-y-4">
+        <button
+          type="button"
+          onClick={() => navigate("/campaigns")}
+          className="inline-flex items-center text-sm text-gray-500 hover:text-gray-900"
+        >
+          <ChevronLeft size={14} className="mr-0.5" />
+          Back to campaigns
+        </button>
+        <div className="bg-white border border-gray-200 rounded-lg p-8 text-center space-y-3">
+          <h2 className="text-base font-semibold text-gray-900">Campaign unavailable</h2>
+          <p className="text-sm text-gray-500">
+            {loadError ?? "This campaign could not be loaded. It may have been deleted."}
+          </p>
+          <Button onClick={() => navigate("/campaigns")}>Back to campaigns</Button>
+        </div>
+        {toast && (
+          <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
+        )}
       </div>
     );
   }
@@ -166,7 +202,7 @@ export function CampaignDetailPage() {
           onRetry={handleDelete}
         />
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_260px] gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6">
           <div className="space-y-6 min-w-0">
             {brief && (
               <CampaignSummaryCard
@@ -188,18 +224,9 @@ export function CampaignDetailPage() {
               }}
               onToast={showToast}
             />
-            <ChatPanel
-              workspaceId={activeWorkspace.id}
-              campaignId={campaign.id}
-              brandId={campaign.brandId}
-              onPlanEdit={() => {
-                loadCampaign();
-                setRevisionsRefreshKey((k) => k + 1);
-              }}
-            />
             <CampaignTopicsList topics={topics} />
           </div>
-          <div>
+          <div className="space-y-6">
             <RevisionsPanel
               workspaceId={activeWorkspace.id}
               campaignId={campaign.id}
@@ -208,6 +235,17 @@ export function CampaignDetailPage() {
                 loadCampaign();
                 setRevisionsRefreshKey((k) => k + 1);
               }}
+            />
+            <ChatPanel
+              workspaceId={activeWorkspace.id}
+              campaignId={campaign.id}
+              brandId={campaign.brandId}
+              onPlanEdit={() => {
+                loadCampaign();
+                setRevisionsRefreshKey((k) => k + 1);
+              }}
+              onTopicsChanged={loadCampaign}
+              onSummaryChanged={loadCampaign}
             />
           </div>
         </div>

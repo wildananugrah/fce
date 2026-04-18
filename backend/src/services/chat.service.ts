@@ -12,6 +12,7 @@ import type {
 } from "../interfaces/services/chat.service.interface";
 import type { ChatAttachment, ChatBlock, ChatMessage, ToolDefinition } from "../types/chat.types";
 import { logAiActivity } from "../utils/ai-activity-logger";
+import { humanizeChatError } from "../utils/humanize-error";
 import { PDF_EXTRACT_MAX_CHARS, extractPdfText, truncateExtractedText } from "../utils/pdf-extractor";
 
 interface ChatConfig {
@@ -110,7 +111,7 @@ export class ChatService implements IChatService {
 					sawToolCall = true;
 					toolCalls.push({ id: evt.id, name: evt.name, input: evt.input });
 				} else if (evt.type === "error") {
-					yield { type: "error", message: evt.message };
+					yield { type: "error", message: humanizeChatError(evt.message) };
 				} else if (evt.type === "done") {
 					if (currentText.length > 0) {
 						finalBlocks.push({ type: "text", content: currentText });
@@ -147,13 +148,13 @@ export class ChatService implements IChatService {
 				try {
 					if (call.name === "propose_topics") {
 						const result = await this.executeProposeTopics(input.campaignId, call.input as any);
-						finalBlocks.push({ type: "topics", topicIds: result.topicIds });
+						finalBlocks.push({ type: "topics", topicIds: result.topicIds, mode: result.mode });
 						yield {
 							type: "topics",
-							block: { type: "topics", topicIds: result.topicIds },
+							block: { type: "topics", topicIds: result.topicIds, mode: result.mode },
 							topics: result.topics,
 						};
-						toolResults.push({ toolUseId: call.id, result: { ok: true, topicCount: result.topics.length } });
+						toolResults.push({ toolUseId: call.id, result: { ok: true, topicCount: result.topics.length, mode: result.mode } });
 					} else if (call.name === "apply_plan_edit") {
 						const result = await this.executeApplyPlanEdit(input.campaignId, null, call.input as any);
 						finalBlocks.push({ type: "plan_edit", revisionId: result.revisionId, summary: result.summary });
@@ -165,14 +166,23 @@ export class ChatService implements IChatService {
 							snapshot: result.snapshot,
 						};
 						toolResults.push({ toolUseId: call.id, result: { ok: true, revisionId: result.revisionId, revisionNumber: result.revisionNumber } });
+					} else if (call.name === "update_document_summary") {
+						const result = await this.executeUpdateSummary(input.campaignId, call.input as any);
+						finalBlocks.push({ type: "summary_edit", summary: result.summary });
+						yield {
+							type: "summary_edit",
+							block: { type: "summary_edit", summary: result.summary },
+							summary: result.summary,
+						};
+						toolResults.push({ toolUseId: call.id, result: { ok: true } });
 					} else {
 						yield { type: "error", message: `Unknown tool: ${call.name}`, toolName: call.name };
 						toolResults.push({ toolUseId: call.id, result: { ok: false, error: "unknown tool" } });
 					}
 				} catch (e) {
-					const msg = e instanceof Error ? e.message : String(e);
-					yield { type: "error", message: msg, toolName: call.name };
-					toolResults.push({ toolUseId: call.id, result: { ok: false, error: msg } });
+					const rawMsg = e instanceof Error ? e.message : String(e);
+					yield { type: "error", message: humanizeChatError(rawMsg), toolName: call.name };
+					toolResults.push({ toolUseId: call.id, result: { ok: false, error: rawMsg } });
 				}
 			}
 
@@ -196,13 +206,22 @@ export class ChatService implements IChatService {
 
 	private async executeProposeTopics(
 		campaignId: string,
-		args: { topics: Array<{ title: string; description: string; pillar: string; platform: string; format: string; objective: string; publishDate?: string }> },
-	): Promise<{ topicIds: string[]; topics: Array<{ id: string; title: string; description: string | null; pillar: string | null; platform: string | null; format: string | null; objective: string | null; publishDate: string | null }> }> {
+		args: {
+			topics: Array<{ title: string; description: string; pillar: string; platform: string; format: string; objective: string; publishDate?: string }>;
+			mode?: "replace" | "append";
+		},
+	): Promise<{ topicIds: string[]; mode: "replace" | "append"; topics: Array<{ id: string; title: string; description: string | null; pillar: string | null; platform: string | null; format: string | null; objective: string | null; publishDate: string | null }> }> {
 		const campaign = await this.prisma.campaign.findUnique({
 			where: { id: campaignId },
 			select: { workspaceId: true, brandId: true },
 		});
 		if (!campaign) throw new Error("Campaign not found");
+
+		const mode: "replace" | "append" = args.mode === "replace" ? "replace" : "append";
+
+		if (mode === "replace") {
+			await this.prisma.contentTopic.deleteMany({ where: { campaignId } });
+		}
 
 		const created: any[] = [];
 		for (const t of args.topics) {
@@ -226,6 +245,7 @@ export class ChatService implements IChatService {
 
 		return {
 			topicIds: created.map((r) => r.id),
+			mode,
 			topics: created.map((r) => ({
 				id: r.id,
 				title: r.title,
@@ -237,6 +257,30 @@ export class ChatService implements IChatService {
 				publishDate: r.publishDate ? r.publishDate.toISOString().slice(0, 10) : null,
 			})),
 		};
+	}
+
+	private async executeUpdateSummary(
+		campaignId: string,
+		args: { summary: string },
+	): Promise<{ summary: string }> {
+		if (!args.summary || typeof args.summary !== "string") {
+			throw new Error("summary is required");
+		}
+		const brief = await this.prisma.campaignBrief.findFirst({
+			where: { campaignId },
+			orderBy: { createdAt: "desc" },
+		});
+		if (brief) {
+			await this.prisma.campaignBrief.update({
+				where: { id: brief.id },
+				data: { documentSummary: args.summary },
+			});
+		} else {
+			await this.prisma.campaignBrief.create({
+				data: { campaignId, documentSummary: args.summary },
+			});
+		}
+		return { summary: args.summary };
 	}
 
 	private async executeApplyPlanEdit(
@@ -359,7 +403,6 @@ export class ChatService implements IChatService {
 	}
 
 	private async buildSystemPrompt(campaignId: string): Promise<string> {
-		// Phase 3: minimal context. Filled out in later phases.
 		const campaign = await this.prisma.campaign.findUnique({
 			where: { id: campaignId },
 			include: {
@@ -367,8 +410,18 @@ export class ChatService implements IChatService {
 				briefs: { take: 1, orderBy: { createdAt: "desc" } },
 			},
 		});
+		const topics = await this.prisma.contentTopic.findMany({
+			where: { campaignId },
+			orderBy: { createdAt: "asc" },
+			select: { id: true, title: true, pillar: true, platform: true, format: true },
+		});
 		return [
 			"You are a campaign strategy expert helping the user refine a social media campaign.",
+			"You can edit campaign state by calling tools:",
+			"- apply_plan_edit: update Big Idea / Messaging Pillars / Objective / Audience / Key Message.",
+			"- propose_topics: add (mode=append) or regenerate (mode=replace) the Generated Topics list.",
+			"- update_document_summary: rewrite the Document Summary shown at the top of the page.",
+			"Prefer the smallest relevant tool. Do not call a tool unless the user is clearly asking to change that section.",
 			"",
 			"=== Current campaign plan ===",
 			JSON.stringify({
@@ -379,6 +432,14 @@ export class ChatService implements IChatService {
 				bigIdea: campaign?.outputs?.[0]?.bigIdea ?? null,
 				messagingPillars: campaign?.outputs?.[0]?.messagingPillars ?? null,
 			}),
+			"",
+			"=== Current document summary ===",
+			campaign?.briefs?.[0]?.documentSummary ?? "(none)",
+			"",
+			"=== Current generated topics ===",
+			topics.length === 0
+				? "(none)"
+				: JSON.stringify(topics),
 			"",
 			"Respond in markdown. Use tables and bullet lists where helpful.",
 		].join("\n");
@@ -428,10 +489,12 @@ export class ChatService implements IChatService {
 			},
 			{
 				name: "propose_topics",
-				description: "Propose a list of content topics for this campaign. Topics auto-save to the Topic Library.",
+				description:
+					"Propose content topics for this campaign. Use mode=\"append\" (default) when the user wants more topics added. Use mode=\"replace\" when the user asks to regenerate, redo, or overhaul the topic list — this deletes existing campaign topics first.",
 				inputSchema: {
 					type: "object",
 					properties: {
+						mode: { type: "string", enum: ["append", "replace"] },
 						topics: {
 							type: "array",
 							items: {
@@ -448,6 +511,18 @@ export class ChatService implements IChatService {
 					required: ["topics"],
 				},
 			},
+			{
+				name: "update_document_summary",
+				description:
+					"Replace the campaign's document summary (the brief overview shown at the top of the page). Use when the user asks to rewrite, refine, shorten, or translate the summary.",
+				inputSchema: {
+					type: "object",
+					properties: {
+						summary: { type: "string" },
+					},
+					required: ["summary"],
+				},
+			},
 		];
 	}
 }
@@ -457,7 +532,9 @@ function flattenBlocks(blocks: ChatBlock[]): string {
 		.map((b) => {
 			if (b.type === "text") return b.content;
 			if (b.type === "plan_edit") return `[plan was updated: ${b.summary}]`;
-			if (b.type === "topics") return `[proposed ${b.topicIds.length} topics]`;
+			if (b.type === "topics")
+				return `[${b.mode === "replace" ? "replaced topic list with" : "added"} ${b.topicIds.length} topics]`;
+			if (b.type === "summary_edit") return `[document summary was rewritten]`;
 			return "";
 		})
 		.join("\n\n");

@@ -9,6 +9,8 @@ interface ChatPanelProps {
   campaignId: string;
   brandId: string | null;
   onPlanEdit?: (revisionId: string) => void;
+  onTopicsChanged?: () => void;
+  onSummaryChanged?: () => void;
 }
 
 interface PersistedMessage {
@@ -19,11 +21,20 @@ interface PersistedMessage {
   createdAt: string;
 }
 
-export function ChatPanel({ workspaceId, campaignId, brandId, onPlanEdit }: ChatPanelProps) {
+export function ChatPanel({
+  workspaceId,
+  campaignId,
+  brandId,
+  onPlanEdit,
+  onTopicsChanged,
+  onSummaryChanged,
+}: ChatPanelProps) {
   const { messages, isStreaming, send, replaceAll } = useChatStream({
     workspaceId,
     campaignId,
     onPlanEdit,
+    onTopicsChanged,
+    onSummaryChanged,
   });
 
   useEffect(() => {

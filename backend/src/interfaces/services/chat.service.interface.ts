@@ -5,6 +5,7 @@ export type ChatStreamEmission =
 	| { type: "token"; delta: string }
 	| { type: "plan_edit"; block: Extract<ChatBlock, { type: "plan_edit" }>; revisionId: string; revisionNumber: number; snapshot: unknown }
 	| { type: "topics"; block: Extract<ChatBlock, { type: "topics" }>; topics: Array<{ id: string; title: string; description: string | null; pillar: string | null; platform: string | null; format: string | null; objective: string | null; publishDate: string | null }> }
+	| { type: "summary_edit"; block: Extract<ChatBlock, { type: "summary_edit" }>; summary: string }
 	| { type: "error"; message: string; toolName?: string }
 	| { type: "done"; messageId: string };
 

@@ -17,7 +17,9 @@ export function MessageList({
 
   useEffect(() => {
     if (pausedRef.current) return;
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    const el = containerRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }, [messages]);
 
   const handleScroll = () => {
@@ -31,10 +33,10 @@ export function MessageList({
     <div
       ref={containerRef}
       onScroll={handleScroll}
-      className="flex-1 overflow-y-auto px-4 py-4 space-y-4"
+      className="flex-1 overflow-y-auto px-3 py-3 space-y-3"
     >
       {messages.length === 0 ? (
-        <p className="text-center text-sm text-gray-400 py-8">
+        <p className="text-center text-xs text-gray-400 py-8">
           Ask me anything about this campaign.
         </p>
       ) : (

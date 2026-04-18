@@ -97,15 +97,15 @@ export function ChatInput({ workspaceId, campaignId, onSend, disabled }: ChatInp
         </div>
       )}
       <AttachmentChips items={items} onRemove={(id) => setItems((prev) => prev.filter((i) => i.id !== id))} />
-      <div className="flex gap-2 items-end p-3">
+      <div className="flex gap-1.5 items-end p-2">
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
           disabled={disabled}
-          className="shrink-0 p-2 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded disabled:opacity-50"
+          className="shrink-0 p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded disabled:opacity-50"
           title="Attach file"
         >
-          <Paperclip size={16} />
+          <Paperclip size={14} />
         </button>
         <input
           ref={fileInputRef}
@@ -119,18 +119,18 @@ export function ChatInput({ workspaceId, campaignId, onSend, disabled }: ChatInp
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={onKeyDown}
-          placeholder="Message… (Enter to send, Shift+Enter for new line)"
+          placeholder="Message… (Enter to send)"
           rows={2}
           disabled={disabled}
-          className="flex-1 resize-none px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 disabled:bg-gray-50"
+          className="flex-1 min-w-0 resize-none px-2.5 py-1.5 text-[12.5px] leading-[1.5] bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 disabled:bg-gray-50 placeholder:text-gray-400"
         />
         <button
           type="button"
           onClick={submit}
           disabled={!canSend}
-          className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
-          <Send size={14} />
+          <Send size={12} />
           Send
         </button>
       </div>

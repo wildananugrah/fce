@@ -96,7 +96,8 @@
       "Bash(node /tmp/test_hono_order.js)",
       "Bash(tsc --noEmit)",
       "Bash(git show *)",
-      "Bash(npm install *)"
+      "Bash(npm install *)",
+      "Bash(bunx dotenv *)"
     ],
     "additionalDirectories": [
       "/Users/wildananugrah/Documents/My-Projects/fce/.git"

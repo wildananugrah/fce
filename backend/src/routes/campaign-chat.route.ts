@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import type { IChatService } from "../interfaces/services/chat.service.interface";
+import { humanizeChatError } from "../utils/humanize-error";
 
 type Variables = {
 	userId: string;
@@ -51,7 +52,7 @@ export function createCampaignChatRoutes(chatService: IChatService) {
 					event: "error",
 					data: JSON.stringify({
 						type: "error",
-						message: e instanceof Error ? e.message : String(e),
+						message: humanizeChatError(e),
 					}),
 				});
 			}
@@ -107,7 +108,7 @@ export function createCampaignChatRoutes(chatService: IChatService) {
 					event: "error",
 					data: JSON.stringify({
 						type: "error",
-						message: e instanceof Error ? e.message : String(e),
+						message: humanizeChatError(e),
 					}),
 				});
 			}

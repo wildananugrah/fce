@@ -5,7 +5,8 @@ import { parseSSEStream } from "../utils/sse-parser";
 export type ChatBlock =
   | { type: "text"; content: string }
   | { type: "plan_edit"; revisionId: string; summary: string }
-  | { type: "topics"; topicIds: string[]; topics?: TopicSummary[] };
+  | { type: "topics"; topicIds: string[]; topics?: TopicSummary[] }
+  | { type: "summary_edit"; summary: string };
 
 export interface TopicSummary {
   id: string;
@@ -40,6 +41,8 @@ export interface UseChatStreamOptions {
   workspaceId: string;
   campaignId: string;
   onPlanEdit?: (revisionId: string) => void;
+  onTopicsChanged?: () => void;
+  onSummaryChanged?: () => void;
 }
 
 interface SendArgs {
@@ -122,6 +125,16 @@ export function useChatStream(opts: UseChatStreamOptions) {
                 : m,
             ),
           );
+          opts.onTopicsChanged?.();
+        } else if (evt.event === "summary_edit") {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === assistantMsg.id
+                ? appendBlock(m, { type: "summary_edit", summary: data.block?.summary ?? data.summary ?? "" })
+                : m,
+            ),
+          );
+          opts.onSummaryChanged?.();
         } else if (evt.event === "error") {
           setMessages((prev) =>
             prev.map((m) =>

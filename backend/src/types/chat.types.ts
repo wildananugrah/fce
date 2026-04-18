@@ -2,7 +2,8 @@
 export type ChatBlock =
 	| { type: "text"; content: string }
 	| { type: "plan_edit"; revisionId: string; summary: string }
-	| { type: "topics"; topicIds: string[] };
+	| { type: "topics"; topicIds: string[]; mode?: "replace" | "append" }
+	| { type: "summary_edit"; summary: string };
 
 // Attachment shape — stored on CampaignChatMessage.attachments.
 export interface ChatAttachment {
