@@ -266,20 +266,12 @@ export class ChatService implements IChatService {
 		if (!args.summary || typeof args.summary !== "string") {
 			throw new Error("summary is required");
 		}
-		const brief = await this.prisma.campaignBrief.findFirst({
-			where: { campaignId },
-			orderBy: { createdAt: "desc" },
+		// Route through executeApplyPlanEdit so a revision row is created and summary
+		// edits participate in undo/restore alongside plan edits.
+		await this.executeApplyPlanEdit(campaignId, null, {
+			documentSummary: args.summary,
+			label: "Rewrote document summary",
 		});
-		if (brief) {
-			await this.prisma.campaignBrief.update({
-				where: { id: brief.id },
-				data: { documentSummary: args.summary },
-			});
-		} else {
-			await this.prisma.campaignBrief.create({
-				data: { campaignId, documentSummary: args.summary },
-			});
-		}
 		return { summary: args.summary };
 	}
 
@@ -292,16 +284,21 @@ export class ChatService implements IChatService {
 			keyMessage?: string;
 			bigIdea?: string;
 			messagingPillars?: Array<{ name: string; description: string }>;
+			documentSummary?: string;
 			label: string;
 		},
 	): Promise<{ revisionId: string; revisionNumber: number; summary: string; snapshot: any }> {
 		// Load current state.
 		const campaign = await this.prisma.campaign.findUnique({
 			where: { id: campaignId },
-			include: { outputs: { take: 1, orderBy: { createdAt: "desc" } } },
+			include: {
+				outputs: { take: 1, orderBy: { createdAt: "desc" } },
+				briefs: { take: 1, orderBy: { createdAt: "desc" } },
+			},
 		});
 		if (!campaign) throw new Error("Campaign not found");
 		const output = campaign.outputs[0];
+		const brief = campaign.briefs[0];
 
 		// Seed Rev 1 if none exists.
 		const existingCount = await this.revisionRepo.countByCampaign(campaignId);
@@ -316,6 +313,7 @@ export class ChatService implements IChatService {
 					keyMessage: campaign.keyMessage ?? null,
 					bigIdea: output?.bigIdea ?? null,
 					messagingPillars: (output?.messagingPillars as any) ?? null,
+					documentSummary: brief?.documentSummary ?? null,
 				},
 			});
 		}
@@ -333,11 +331,29 @@ export class ChatService implements IChatService {
 			const outputPatch: any = {};
 			if (args.bigIdea !== undefined) outputPatch.bigIdea = args.bigIdea;
 			if (args.messagingPillars !== undefined) outputPatch.messagingPillars = args.messagingPillars as any;
-			await this.prisma.campaignOutput.upsert({
-				where: { id: output?.id ?? "__none__" },
-				create: { campaignId, ...outputPatch },
-				update: outputPatch,
-			});
+			if (output) {
+				await this.prisma.campaignOutput.update({
+					where: { id: output.id },
+					data: outputPatch,
+				});
+			} else {
+				await this.prisma.campaignOutput.create({
+					data: { campaignId, ...outputPatch },
+				});
+			}
+		}
+
+		if (args.documentSummary !== undefined) {
+			if (brief) {
+				await this.prisma.campaignBrief.update({
+					where: { id: brief.id },
+					data: { documentSummary: args.documentSummary },
+				});
+			} else {
+				await this.prisma.campaignBrief.create({
+					data: { campaignId, documentSummary: args.documentSummary },
+				});
+			}
 		}
 
 		// Build post-change snapshot.
@@ -347,6 +363,7 @@ export class ChatService implements IChatService {
 			keyMessage: args.keyMessage ?? campaign.keyMessage ?? null,
 			bigIdea: args.bigIdea ?? output?.bigIdea ?? null,
 			messagingPillars: args.messagingPillars ?? (output?.messagingPillars as any) ?? null,
+			documentSummary: args.documentSummary ?? brief?.documentSummary ?? null,
 		};
 
 		const newRev = await this.revisionRepo.create({
@@ -383,6 +400,7 @@ export class ChatService implements IChatService {
 			keyMessage: snap.keyMessage ?? undefined,
 			bigIdea: snap.bigIdea ?? undefined,
 			messagingPillars: snap.messagingPillars ?? undefined,
+			documentSummary: snap.documentSummary ?? undefined,
 			label: `Reverted to revision ${target.revisionNumber}`,
 		});
 

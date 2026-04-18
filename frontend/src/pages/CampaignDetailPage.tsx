@@ -235,6 +235,7 @@ export function CampaignDetailPage() {
                 loadCampaign();
                 setRevisionsRefreshKey((k) => k + 1);
               }}
+              onToast={showToast}
             />
             <ChatPanel
               workspaceId={activeWorkspace.id}
