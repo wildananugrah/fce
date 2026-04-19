@@ -1,10 +1,17 @@
-import type { AuthResponse, LoginInput, SignupInput } from "../../types/auth.types";
+import type {
+	AuthResponse,
+	LoginInput,
+	SignupInput,
+	SignupResult,
+} from "../../types/auth.types";
 
 export interface IAuthService {
-	signup(input: SignupInput): Promise<AuthResponse>;
+	signup(input: SignupInput): Promise<SignupResult>;
 	login(input: LoginInput): Promise<AuthResponse & { refreshToken: string }>;
 	refresh(refreshToken: string): Promise<{ accessToken: string }>;
 	me(userId: string): Promise<AuthResponse["user"]>;
+	verifyEmail(token: string): Promise<{ email: string }>;
+	resendVerification(email: string): Promise<{ sent: boolean }>;
 	updateProfile(
 		userId: string,
 		data: {

@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { getCookie, setCookie } from "hono/cookie";
+import { EmailNotVerifiedError } from "../errors/email-not-verified-error";
 import { ValidationError } from "../errors/validation-error";
 import type { IAuthService } from "../interfaces/services/auth.service.interface";
 
@@ -19,8 +20,30 @@ export function createAuthRoutes(authService: IAuthService) {
 			return c.json({ error: "Email and password are required" }, 400);
 		}
 
-		const result = await authService.signup({ email, password, fullName, invitationToken });
-		return c.json({ data: result }, 201);
+		try {
+			const result = await authService.signup({ email, password, fullName, invitationToken });
+			// Discriminated union: invitation path returns kind="verified" with a
+			// JWT (treated identically to login by the frontend); plain signup
+			// returns kind="pending" so the frontend shows "check your email".
+			if (result.kind === "verified") {
+				return c.json(
+					{
+						data: {
+							verificationRequired: false,
+							user: result.user,
+							accessToken: result.accessToken,
+						},
+					},
+					201,
+				);
+			}
+			return c.json(
+				{ data: { verificationRequired: true, email: result.email } },
+				201,
+			);
+		} catch (e) {
+			return c.json({ error: e instanceof Error ? e.message : "Signup failed" }, 400);
+		}
 	});
 
 	app.post("/login", async (c) => {
@@ -31,16 +54,49 @@ export function createAuthRoutes(authService: IAuthService) {
 			return c.json({ error: "Email and password are required" }, 400);
 		}
 
-		const { refreshToken, ...result } = await authService.login({ email, password });
+		try {
+			const { refreshToken, ...result } = await authService.login({ email, password });
+			setCookie(c, "refreshToken", refreshToken, {
+				httpOnly: true,
+				secure: false,
+				sameSite: "Lax",
+				path: "/api/auth/refresh",
+				maxAge: 60 * 60 * 24 * 7,
+			});
+			return c.json({ data: result });
+		} catch (e) {
+			if (e instanceof EmailNotVerifiedError) {
+				return c.json(
+					{
+						error: e.message,
+						verificationRequired: true,
+						email: e.email,
+					},
+					403,
+				);
+			}
+			throw e;
+		}
+	});
 
-		setCookie(c, "refreshToken", refreshToken, {
-			httpOnly: true,
-			secure: false,
-			sameSite: "Lax",
-			path: "/api/auth/refresh",
-			maxAge: 60 * 60 * 24 * 7,
-		});
+	app.get("/verify", async (c) => {
+		const token = c.req.query("token");
+		if (!token) return c.json({ error: "Missing token" }, 400);
+		try {
+			const { email } = await authService.verifyEmail(token);
+			return c.json({ data: { verified: true, email } });
+		} catch (e) {
+			return c.json({ error: e instanceof Error ? e.message : "Verification failed" }, 400);
+		}
+	});
 
+	app.post("/resend-verification", async (c) => {
+		const body = await c.req.json();
+		const { email } = body as { email?: string };
+		if (!email || typeof email !== "string") {
+			return c.json({ error: "email is required" }, 400);
+		}
+		const result = await authService.resendVerification(email);
 		return c.json({ data: result });
 	});
 

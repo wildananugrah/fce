@@ -18,7 +18,9 @@ export class UserRepository implements IUserRepository {
 
 	async update(
 		id: string,
-		data: Partial<Pick<User, "fullName" | "avatarUrl" | "status">>,
+		data: Partial<
+			Pick<User, "fullName" | "avatarUrl" | "status" | "defaultScrapeLanguage" | "emailVerifiedAt">
+		>,
 	): Promise<User> {
 		return this.prisma.user.update({ where: { id }, data });
 	}

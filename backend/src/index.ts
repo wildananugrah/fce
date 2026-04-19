@@ -162,8 +162,12 @@ async function main() {
 			jwtRefreshSecret: env.jwtRefreshSecret,
 			jwtExpiry: env.jwtExpiry,
 			jwtRefreshExpiry: env.jwtRefreshExpiry,
+			appUrl: env.appUrl,
+			emailVerificationTokenExpiry: env.emailVerificationTokenExpiry,
 		},
 		workspaceService,
+		prisma,
+		emailProvider,
 	);
 	const brandService = new BrandService(brandRepository);
 	const productService = new ProductService(productRepository);
