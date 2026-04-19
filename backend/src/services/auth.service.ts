@@ -173,13 +173,24 @@ export class AuthService implements IAuthService {
 	async verifyEmail(token: string): Promise<{ email: string }> {
 		const row = await this.prisma.emailVerificationToken.findUnique({ where: { token } });
 		if (!row) throw new Error("Invalid verification link");
-		if (row.consumedAt) throw new Error("This verification link has already been used");
-		if (row.expiresAt.getTime() < Date.now()) {
-			throw new Error("This verification link has expired. Request a new one from the login page.");
-		}
 
 		const user = await this.userRepository.findById(row.userId);
 		if (!user) throw new Error("User not found");
+
+		// Idempotent: if this token has already been consumed AND the user is
+		// now verified, treat it as success. Lets the user refresh the "verified"
+		// screen, double-click the email link, or hit a dev StrictMode double
+		// mount without flipping the UI to an error.
+		if (row.consumedAt && user.emailVerifiedAt) {
+			return { email: user.email };
+		}
+
+		if (row.consumedAt) {
+			throw new Error("This verification link has already been used");
+		}
+		if (row.expiresAt.getTime() < Date.now()) {
+			throw new Error("This verification link has expired. Request a new one from the login page.");
+		}
 
 		await this.prisma.$transaction([
 			this.prisma.emailVerificationToken.update({
@@ -188,8 +199,6 @@ export class AuthService implements IAuthService {
 			}),
 			this.prisma.user.update({
 				where: { id: user.id },
-				// Idempotent — if already verified (e.g. via invitation acceptance
-				// that happened after signup), we just refresh the timestamp.
 				data: { emailVerifiedAt: user.emailVerifiedAt ?? new Date() },
 			}),
 		]);

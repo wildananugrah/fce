@@ -22,6 +22,7 @@ export class MockUserRepository implements IUserRepository {
 			isSuperadmin: false,
 			status: "active",
 			defaultScrapeLanguage: "indonesian",
+			emailVerifiedAt: null,
 			createdAt: new Date(),
 			updatedAt: new Date(),
 		};
@@ -31,7 +32,9 @@ export class MockUserRepository implements IUserRepository {
 
 	async update(
 		id: string,
-		data: Partial<Pick<User, "fullName" | "avatarUrl" | "status" | "defaultScrapeLanguage">>,
+		data: Partial<
+			Pick<User, "fullName" | "avatarUrl" | "status" | "defaultScrapeLanguage" | "emailVerifiedAt">
+		>,
 	): Promise<User> {
 		const index = this.users.findIndex((u) => u.id === id);
 		if (index === -1) throw new Error("User not found");

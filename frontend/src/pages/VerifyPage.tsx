@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { CheckCircle2, AlertTriangle, Loader2 } from "lucide-react";
 import { api } from "../services/api";
@@ -15,31 +15,32 @@ export function VerifyPage() {
   const [message, setMessage] = useState<string>("");
   const [email, setEmail] = useState<string | null>(null);
 
+  // Guard against React 18 StrictMode firing this effect twice on mount —
+  // the second call would hit an already-consumed token and flip the UI to
+  // "error" right after a successful verify.
+  const fired = useRef(false);
+
   useEffect(() => {
     if (!token) {
       setStatus("error");
       setMessage("Missing verification token.");
       return;
     }
+    if (fired.current) return;
+    fired.current = true;
 
-    let cancelled = false;
     (async () => {
       try {
         const data = await api<{ verified: boolean; email: string }>(
           `/api/auth/verify?token=${encodeURIComponent(token)}`,
         );
-        if (cancelled) return;
         setStatus("success");
         setEmail(data.email);
       } catch (err) {
-        if (cancelled) return;
         setStatus("error");
         setMessage(err instanceof Error ? err.message : "Verification failed.");
       }
     })();
-    return () => {
-      cancelled = true;
-    };
   }, [token]);
 
   return (
