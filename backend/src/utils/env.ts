@@ -42,4 +42,8 @@ export const env = {
 	emailFrom: optionalEnv("EMAIL_FROM", "onboarding@resend.dev"),
 	appUrl: optionalEnv("APP_URL", "http://localhost:5173"),
 	invitationTokenExpiry: optionalEnv("INVITATION_TOKEN_EXPIRY", "7d"),
+	// Expiry for email-verification tokens issued at signup and by the resend
+	// endpoint. Accepts any string parseable by `ms` (e.g. "24h", "2d", "90m").
+	// Default: 24 hours.
+	emailVerificationTokenExpiry: optionalEnv("EMAIL_VERIFICATION_TOKEN_EXPIRY", "24h"),
 } as const;

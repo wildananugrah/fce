@@ -17,16 +17,22 @@ model User {
   isSuperadmin Boolean  @default(false) @map("is_superadmin")
   status       String   @default("active")
   defaultScrapeLanguage String @default("indonesian") @map("default_scrape_language")
+  // Set when the user clicks the verification link we email at signup. Null =
+  // signed up but hasn't proven address ownership yet; login should refuse.
+  // Users who accept a workspace invitation OR existing users before this
+  // feature rolled out are seeded as verified — see migrate-email-verification.ts.
+  emailVerifiedAt DateTime? @map("email_verified_at")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   workspaceRoles     UserWorkspaceRole[]
   invitations        WorkspaceInvitation[]
   auditLogs          AuditLog[]
-  createdWorkspaces  Workspace[]            @relation("WorkspaceCreator")
+  createdWorkspaces  Workspace[]             @relation("WorkspaceCreator")
   researchRuns       ResearchRun[]
   chatMessages       CampaignChatMessage[]
   projectMemberships UserProjectMembership[]
+  verificationTokens EmailVerificationToken[]
 
   @@map("users")
 }
@@ -833,4 +839,22 @@ model UserProjectMembership {
   @@unique([userId, projectId])
   @@index([projectId])
   @@map("user_project_memberships")
+}
+
+// ─── Email Verification ─────────────────────────────────────────
+
+model EmailVerificationToken {
+  id         String    @id @default(uuid())
+  userId     String    @map("user_id")
+  // Opaque random token included in the verification URL. Unique so a lookup
+  // by token is a single index hit.
+  token      String    @unique
+  expiresAt  DateTime  @map("expires_at")
+  consumedAt DateTime? @map("consumed_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("email_verification_tokens")
 }
