@@ -52,7 +52,7 @@ export class AuthService implements IAuthService {
 		}
 
 		const accessToken = signAccessToken(
-			{ userId: user.id, email: user.email },
+			{ userId: user.id, email: user.email, isSuperadmin: user.isSuperadmin },
 			this.config.jwtSecret,
 			this.config.jwtExpiry,
 		);
@@ -82,7 +82,7 @@ export class AuthService implements IAuthService {
 		}
 
 		const accessToken = signAccessToken(
-			{ userId: user.id, email: user.email },
+			{ userId: user.id, email: user.email, isSuperadmin: user.isSuperadmin },
 			this.config.jwtSecret,
 			this.config.jwtExpiry,
 		);
@@ -115,7 +115,7 @@ export class AuthService implements IAuthService {
 		}
 
 		const accessToken = signAccessToken(
-			{ userId: user.id, email: user.email },
+			{ userId: user.id, email: user.email, isSuperadmin: user.isSuperadmin },
 			this.config.jwtSecret,
 			this.config.jwtExpiry,
 		);

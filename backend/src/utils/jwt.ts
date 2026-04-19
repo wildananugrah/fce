@@ -3,6 +3,7 @@ import jwt, { type SignOptions } from "jsonwebtoken";
 export interface AccessTokenPayload {
 	userId: string;
 	email: string;
+	isSuperadmin: boolean;
 }
 
 export interface RefreshTokenPayload {

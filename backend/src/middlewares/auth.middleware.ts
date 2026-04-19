@@ -13,6 +13,10 @@ export function createAuthMiddleware(jwtSecret: string) {
 			const payload = verifyAccessToken(token, jwtSecret);
 			c.set("userId", payload.userId);
 			c.set("userEmail", payload.email);
+			// Defensive: older tokens issued before RBAC land here without this
+			// field, so default to false. They'll re-acquire the flag on next
+			// login / refresh.
+			c.set("isSuperadmin", Boolean(payload.isSuperadmin));
 			await next();
 		} catch {
 			return c.json({ error: "Invalid or expired token" }, 401);
