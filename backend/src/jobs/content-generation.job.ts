@@ -1,9 +1,9 @@
 import type { PrismaClient } from "@prisma/client";
-import type { IContentGenerator } from "../interfaces/providers/content-generator.interface";
 import type { ILogger } from "../interfaces/providers/logger.provider.interface";
 import type { IOutputSectionRepository } from "../interfaces/repositories/output-section.repository.interface";
 import type { INotificationService } from "../interfaces/services/notification.service.interface";
 import type { IUrlInspirationService } from "../interfaces/services/url-inspiration.service.interface";
+import type { AiProviderFactory } from "../services/ai-provider-factory.service";
 import { logAiActivity } from "../utils/ai-activity-logger";
 import { buildContentGenerationPrompt } from "../utils/prompt-builder";
 import { buildSkillContext } from "../utils/skill-context-builder";
@@ -19,7 +19,7 @@ interface ContentJobData {
 export class ContentGenerationJob {
 	constructor(
 		private prisma: PrismaClient,
-		private contentGenerator: IContentGenerator,
+		private aiFactory: AiProviderFactory,
 		private notificationService: INotificationService,
 		private logger: ILogger,
 		private outputSectionRepository?: IOutputSectionRepository,
@@ -245,10 +245,11 @@ export class ContentGenerationJob {
 			const { systemPrompt, userPrompt } = buildContentGenerationPrompt(generationInput);
 
 			// Generate content with timing
+			const contentGenerator = await this.aiFactory.getContentGenerator(request.workspaceId);
 			const startTime = Date.now();
-			const output = await this.contentGenerator.generate(generationInput);
+			const output = await contentGenerator.generate(generationInput);
 			const durationMs = Date.now() - startTime;
-			const usage = (this.contentGenerator as any).lastUsage;
+			const usage = (contentGenerator as any).lastUsage;
 
 			// Log AI activity
 			await logAiActivity(
@@ -256,7 +257,7 @@ export class ContentGenerationJob {
 				{
 					workspaceId: request.workspaceId,
 					generator: "content",
-					provider: process.env.AI_CONTENT_PROVIDER || process.env.AI_PROVIDER || "unknown",
+					provider: (await this.aiFactory.getSettings(request.workspaceId)).providers.content,
 					requestId: request.id,
 					userId,
 					systemPrompt,

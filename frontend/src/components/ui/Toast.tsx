@@ -22,7 +22,9 @@ export function Toast({ message, type = "info", onClose, duration = 3000 }: Toas
 
   return (
     <div
-      className={`fixed bottom-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-lg border shadow-sm text-sm ${colors[type]}`}
+      className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-lg border shadow-md text-sm animate-slide-in-right ${colors[type]}`}
+      role="status"
+      aria-live="polite"
     >
       <span>{message}</span>
       <button onClick={onClose} className="text-current opacity-50 hover:opacity-100">

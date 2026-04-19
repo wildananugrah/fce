@@ -2,6 +2,7 @@ import type { PrismaClient } from "@prisma/client";
 import type { ICampaignGenerator } from "../interfaces/providers/campaign-generator.interface";
 import type { ILogger } from "../interfaces/providers/logger.provider.interface";
 import type { INotificationService } from "../interfaces/services/notification.service.interface";
+import type { AiProviderFactory } from "../services/ai-provider-factory.service";
 import { logAiActivity } from "../utils/ai-activity-logger";
 import { buildCampaignGenerationPrompt } from "../utils/prompt-builder";
 
@@ -13,7 +14,7 @@ interface CampaignJobData {
 export class CampaignGenerationJob {
 	constructor(
 		private prisma: PrismaClient,
-		private campaignGenerator: ICampaignGenerator,
+		private aiFactory: AiProviderFactory,
 		private notificationService: INotificationService,
 		private logger: ILogger,
 	) {}
@@ -116,19 +117,20 @@ export class CampaignGenerationJob {
 			const { systemPrompt, userPrompt } = buildCampaignGenerationPrompt(generationInput);
 
 			// Generate campaign with timing and AI activity logging
+			const campaignGenerator = await this.aiFactory.getCampaignGenerator(campaign.workspaceId);
+			const providerName = (await this.aiFactory.getSettings(campaign.workspaceId)).providers.campaign;
 			const startTime = Date.now();
 			let output: Awaited<ReturnType<ICampaignGenerator["generate"]>>;
 			try {
-				output = await this.campaignGenerator.generate(generationInput);
+				output = await campaignGenerator.generate(generationInput);
 				const durationMs = Date.now() - startTime;
-				const usage = (this.campaignGenerator as any).lastUsage;
+				const usage = (campaignGenerator as any).lastUsage;
 				await logAiActivity(
 					this.prisma,
 					{
 						workspaceId: campaign.workspaceId,
 						generator: "campaign",
-						provider:
-							process.env.AI_CAMPAIGN_PROVIDER || process.env.AI_PROVIDER || "unknown",
+						provider: providerName,
 						userId,
 						systemPrompt,
 						userPrompt,
@@ -144,14 +146,13 @@ export class CampaignGenerationJob {
 				);
 			} catch (err) {
 				const durationMs = Date.now() - startTime;
-				const usage = (this.campaignGenerator as any).lastUsage;
+				const usage = (campaignGenerator as any).lastUsage;
 				await logAiActivity(
 					this.prisma,
 					{
 						workspaceId: campaign.workspaceId,
 						generator: "campaign",
-						provider:
-							process.env.AI_CAMPAIGN_PROVIDER || process.env.AI_PROVIDER || "unknown",
+						provider: providerName,
 						userId,
 						systemPrompt,
 						userPrompt,

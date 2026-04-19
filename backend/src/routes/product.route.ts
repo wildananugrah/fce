@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import type { PrismaClient } from "@prisma/client";
 import type { IStorageProvider } from "../interfaces/providers/storage.provider.interface";
 import type { IProductService } from "../interfaces/services/product.service.interface";
+import type { AiProviderFactory } from "../services/ai-provider-factory.service";
 import { logAiActivity } from "../utils/ai-activity-logger";
 
 type Variables = {
@@ -46,18 +47,19 @@ type ProductAIProvider = {
 
 export function createProductRoutes(
 	productService: IProductService,
-	aiGenerator?: ProductAIProvider,
+	aiFactory: AiProviderFactory,
 	storageProvider?: IStorageProvider,
 	storageBucket?: string,
 	prisma?: PrismaClient,
 ) {
+	const getAiGenerator = async (workspaceId: string): Promise<ProductAIProvider> =>
+		(await aiFactory.getBrandScraper(workspaceId)) as unknown as ProductAIProvider;
+	const getProviderName = async (workspaceId: string): Promise<string> =>
+		(await aiFactory.getSettings(workspaceId)).providers.brandScraper;
 	const app = new Hono<{ Variables: Variables }>();
 
 	// POST /scrape-preview — scrape product URL and return all fields
 	app.post("/scrape-preview", async (c) => {
-		if (!aiGenerator) {
-			return c.json({ error: "AI provider not configured" }, 500);
-		}
 		const body = await c.req.json();
 		const { url, urls, language } = body as {
 			url?: string;
@@ -70,6 +72,8 @@ export function createProductRoutes(
 		}
 		const workspaceId = c.get("workspaceId");
 		const userId = c.get("userId");
+		const aiGenerator = await getAiGenerator(workspaceId);
+		const providerName = await getProviderName(workspaceId);
 		const startTime = Date.now();
 		try {
 			const result = await aiGenerator.scrapeProduct({ urls: urlList, language });
@@ -81,8 +85,7 @@ export function createProductRoutes(
 					{
 						workspaceId,
 						generator: "product_scraping",
-						provider:
-							process.env.AI_BRAND_SCRAPER_PROVIDER || process.env.AI_PROVIDER || "unknown",
+						provider: providerName,
 						userId,
 						systemPrompt: "",
 						userPrompt: `Scrape product URLs: ${urlList.join(", ")}`,
@@ -106,8 +109,7 @@ export function createProductRoutes(
 					{
 						workspaceId,
 						generator: "product_scraping",
-						provider:
-							process.env.AI_BRAND_SCRAPER_PROVIDER || process.env.AI_PROVIDER || "unknown",
+						provider: providerName,
 						userId,
 						systemPrompt: "",
 						userPrompt: `Scrape product URLs: ${urlList.join(", ")}`,
@@ -127,9 +129,6 @@ export function createProductRoutes(
 
 	// POST /generate-brain — AI-generate product brain fields
 	app.post("/generate-brain", async (c) => {
-		if (!aiGenerator) {
-			return c.json({ error: "AI provider not configured" }, 500);
-		}
 		const body = await c.req.json();
 		const { productName, brandName, productType, priceTier, summary } = body;
 		if (!productName || !brandName) {
@@ -137,6 +136,8 @@ export function createProductRoutes(
 		}
 		const workspaceId = c.get("workspaceId");
 		const userId = c.get("userId");
+		const aiGenerator = await getAiGenerator(workspaceId);
+		const providerName = await getProviderName(workspaceId);
 		const startTime = Date.now();
 		try {
 			const result = await aiGenerator.generateProductBrain({
@@ -154,8 +155,7 @@ export function createProductRoutes(
 					{
 						workspaceId,
 						generator: "product_brain",
-						provider:
-							process.env.AI_BRAND_SCRAPER_PROVIDER || process.env.AI_PROVIDER || "unknown",
+						provider: providerName,
 						userId,
 						systemPrompt: "",
 						userPrompt: `Generate product brain for: ${productName} (brand: ${brandName})`,
@@ -179,8 +179,7 @@ export function createProductRoutes(
 					{
 						workspaceId,
 						generator: "product_brain",
-						provider:
-							process.env.AI_BRAND_SCRAPER_PROVIDER || process.env.AI_PROVIDER || "unknown",
+						provider: providerName,
 						userId,
 						systemPrompt: "",
 						userPrompt: `Generate product brain for: ${productName} (brand: ${brandName})`,

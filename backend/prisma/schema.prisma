@@ -715,6 +715,23 @@ model WorkspaceSetting {
   id          String   @id @default(uuid())
   workspaceId String   @unique @map("workspace_id")
   apifyApiKey String?  @map("apify_api_key")
+
+  // AI provider selection — null means "inherit env default".
+  aiProvider              String? @map("ai_provider")               // "anthropic" | "gemini"
+  aiContentProvider       String? @map("ai_content_provider")
+  aiCampaignProvider      String? @map("ai_campaign_provider")
+  aiTopicProvider         String? @map("ai_topic_provider")
+  aiBrandScraperProvider  String? @map("ai_brand_scraper_provider")
+  aiChatProvider          String? @map("ai_chat_provider")
+
+  // AI provider credentials — plaintext for now (matches Apify key pattern;
+  // encryption at rest is a separate initiative).
+  anthropicApiKey  String? @map("anthropic_api_key")
+  anthropicModel   String? @map("anthropic_model")
+  geminiApiKey     String? @map("gemini_api_key")
+  geminiModel      String? @map("gemini_model")
+  geminiImageModel String? @map("gemini_image_model")
+
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 

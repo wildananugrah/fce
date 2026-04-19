@@ -1,16 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { Search, Plus, X, Trash2 } from "lucide-react";
-import { useWorkspace } from "../hooks/useWorkspace";
-import { api } from "../services/api";
-import { Button } from "../components/ui/Button";
-import { Spinner } from "../components/ui/Spinner";
-import { Toast } from "../components/ui/Toast";
-import { Modal } from "../components/ui/Modal";
-import { Input } from "../components/ui/Input";
-import { SkillDetailModal } from "../components/skills/SkillDetailModal";
-import { SkillFormModal } from "../components/skills/SkillFormModal";
-
-// ─── Types ─────────────────────────────────────────────────────
+import { api } from "../../services/api";
+import { Button } from "../ui/Button";
+import { Spinner } from "../ui/Spinner";
+import { Modal } from "../ui/Modal";
+import { Input } from "../ui/Input";
+import { SkillDetailModal } from "../skills/SkillDetailModal";
+import { SkillFormModal } from "../skills/SkillFormModal";
 
 interface Skill {
   id: string;
@@ -30,10 +26,6 @@ interface SkillMapping {
   isActive: boolean;
   skill: { id: string; slug: string; name: string; description: string; category: string };
 }
-
-type ToastState = { message: string; type: "success" | "error" | "info" } | null;
-
-// ─── Constants ─────────────────────────────────────────────────
 
 const CATEGORIES = [
   { value: "", label: "All Categories" },
@@ -64,12 +56,13 @@ const GENERATORS = [
   { key: "campaign" as const, label: "Campaign Generator" },
 ];
 
-// ─── Page ──────────────────────────────────────────────────────
+interface SkillsTabProps {
+  workspaceId: string;
+  onToast: (msg: string, type: "success" | "error" | "info") => void;
+}
 
-export function SkillsPage() {
-  const { activeWorkspace } = useWorkspace();
-  const [tab, setTab] = useState<"library" | "mappings">("library");
-  const [toast, setToast] = useState<ToastState>(null);
+export function SkillsTab({ workspaceId, onToast }: SkillsTabProps) {
+  const [tab, setTab] = useState<"mappings" | "library">("mappings");
 
   // Library state
   const [skills, setSkills] = useState<Skill[]>([]);
@@ -98,12 +91,6 @@ export function SkillsPage() {
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   const [bulkActionRunning, setBulkActionRunning] = useState(false);
 
-  const showToast = (message: string, type: "success" | "error" | "info") => {
-    setToast({ message, type });
-  };
-
-  // ─── Load Skills ───────────────────────────────────────────
-
   const loadSkills = useCallback(async () => {
     setSkillsLoading(true);
     try {
@@ -114,66 +101,50 @@ export function SkillsPage() {
       const data = await api<Skill[]>(`/api/skills${qs ? `?${qs}` : ""}`);
       setSkills(data);
     } catch (e) {
-      showToast(e instanceof Error ? e.message : "Failed to load skills", "error");
+      onToast(e instanceof Error ? e.message : "Failed to load skills", "error");
     } finally {
       setSkillsLoading(false);
     }
-  }, [search, categoryFilter]);
+  }, [search, categoryFilter, onToast]);
 
-  useEffect(() => {
-    loadSkills();
-  }, [loadSkills]);
-
-  // ─── Load Mappings ─────────────────────────────────────────
+  useEffect(() => { loadSkills(); }, [loadSkills]);
 
   const loadMappings = useCallback(async () => {
-    if (!activeWorkspace) {
-      setMappingsLoading(false);
-      return;
-    }
     setMappingsLoading(true);
     try {
-      const data = await api<SkillMapping[]>(`/api/workspaces/${activeWorkspace.id}/skills`);
+      const data = await api<SkillMapping[]>(`/api/workspaces/${workspaceId}/skills`);
       setMappings(data);
     } catch (e) {
-      showToast(e instanceof Error ? e.message : "Failed to load mappings", "error");
+      onToast(e instanceof Error ? e.message : "Failed to load mappings", "error");
     } finally {
       setMappingsLoading(false);
     }
-  }, [activeWorkspace]);
+  }, [workspaceId, onToast]);
 
-  useEffect(() => {
-    loadMappings();
-  }, [loadMappings]);
-
-  // ─── Handlers ──────────────────────────────────────────────
+  useEffect(() => { loadMappings(); }, [loadMappings]);
 
   const handleMapSkill = async (skillId: string, generator: string) => {
-    if (!activeWorkspace) return;
     try {
-      await api(`/api/workspaces/${activeWorkspace.id}/skills/map`, {
+      await api(`/api/workspaces/${workspaceId}/skills/map`, {
         method: "POST",
         body: JSON.stringify({ skillId, generator }),
       });
       await loadMappings();
       setAddGeneratorModal(null);
       setAddSearch("");
-      showToast("Skill mapped successfully", "success");
+      onToast("Skill mapped successfully", "success");
     } catch (e) {
-      showToast(e instanceof Error ? e.message : "Failed to map skill", "error");
+      onToast(e instanceof Error ? e.message : "Failed to map skill", "error");
     }
   };
 
   const handleRemoveMapping = async (mappingId: string) => {
-    if (!activeWorkspace) return;
     try {
-      await api(`/api/workspaces/${activeWorkspace.id}/skills/map/${mappingId}`, {
-        method: "DELETE",
-      });
+      await api(`/api/workspaces/${workspaceId}/skills/map/${mappingId}`, { method: "DELETE" });
       setMappings((prev) => prev.filter((m) => m.id !== mappingId));
-      showToast("Skill removed", "success");
+      onToast("Skill removed", "success");
     } catch (e) {
-      showToast(e instanceof Error ? e.message : "Failed to remove mapping", "error");
+      onToast(e instanceof Error ? e.message : "Failed to remove mapping", "error");
     }
   };
 
@@ -186,7 +157,7 @@ export function SkillsPage() {
       next.delete(skillId);
       return next;
     });
-    showToast("Skill deleted", "success");
+    onToast("Skill deleted", "success");
   };
 
   const toggleSelect = (skillId: string) => {
@@ -211,14 +182,14 @@ export function SkillsPage() {
       });
       setSkills((prev) => prev.filter((s) => !selectedIds.has(s.id)));
       setMappings((prev) => prev.filter((m) => !selectedIds.has(m.skillId)));
-      showToast(
+      onToast(
         `Deleted ${result?.deleted ?? ids.length} skill${(result?.deleted ?? ids.length) > 1 ? "s" : ""}`,
         "success",
       );
       clearSelection();
       setShowBulkDeleteConfirm(false);
     } catch (e) {
-      showToast(e instanceof Error ? e.message : "Failed to delete skills", "error");
+      onToast(e instanceof Error ? e.message : "Failed to delete skills", "error");
     } finally {
       setBulkActionRunning(false);
     }
@@ -228,8 +199,6 @@ export function SkillsPage() {
     setEditSkill(skill);
     setFormOpen(true);
   };
-
-  // ─── Derived Data ──────────────────────────────────────────
 
   const getMappingsForGenerator = (generator: string) =>
     mappings.filter((m) => m.generator === generator);
@@ -246,17 +215,13 @@ export function SkillsPage() {
     return filtered;
   };
 
-  // Force to the library tab if there is no workspace, since mappings are workspace-scoped.
-  const effectiveTab = !activeWorkspace ? "library" : tab;
-
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-black">AI Skills</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Browse the skill library and configure which skills power each generator.
+          <h2 className="text-base font-semibold text-gray-900">AI Skills</h2>
+          <p className="text-xs text-gray-500 mt-1">
+            Configure which skills power each generator in this workspace, and manage the shared skill library.
           </p>
         </div>
         <Button onClick={() => { setEditSkill(null); setFormOpen(true); }}>
@@ -265,155 +230,31 @@ export function SkillsPage() {
         </Button>
       </div>
 
-      {!activeWorkspace && (
-        <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-800">
-          You're browsing the global skill library. Create a workspace to map skills to generators.
-        </div>
-      )}
-
-      {/* Tabs */}
       <div className="flex gap-1 border-b border-gray-200">
+        <button
+          type="button"
+          onClick={() => setTab("mappings")}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            tab === "mappings" ? "border-black text-black" : "border-transparent text-gray-500 hover:text-gray-700"
+          }`}
+        >
+          Generator Mappings
+        </button>
         <button
           type="button"
           onClick={() => setTab("library")}
           className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-            effectiveTab === "library"
-              ? "border-black text-black"
-              : "border-transparent text-gray-500 hover:text-gray-700"
+            tab === "library" ? "border-black text-black" : "border-transparent text-gray-500 hover:text-gray-700"
           }`}
         >
           Skill Library
         </button>
-        <button
-          type="button"
-          onClick={() => activeWorkspace && setTab("mappings")}
-          disabled={!activeWorkspace}
-          title={!activeWorkspace ? "Create a workspace to configure mappings" : undefined}
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-            effectiveTab === "mappings"
-              ? "border-black text-black"
-              : "border-transparent text-gray-500 hover:text-gray-700"
-          } ${!activeWorkspace ? "opacity-40 cursor-not-allowed" : ""}`}
-        >
-          Generator Mappings
-        </button>
       </div>
 
-      {/* Tab Content */}
-      {effectiveTab === "library" && (
-        <div className="space-y-4">
-          {/* Search + Filter */}
-          <div className="flex items-center gap-3">
-            <div className="relative flex-1 max-w-sm">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search skills..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 text-sm bg-white border border-gray-300 rounded-md focus:outline-none focus:border-black focus:ring-1 focus:ring-black placeholder:text-gray-400"
-              />
-            </div>
-            <select
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className="px-3 py-2 text-sm bg-white border border-gray-300 rounded-md focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
-            >
-              {CATEGORIES.map((c) => (
-                <option key={c.value} value={c.value}>{c.label}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Skills Grid */}
-          {skillsLoading ? (
-            <div className="flex justify-center py-12">
-              <Spinner />
-            </div>
-          ) : skills.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 bg-white border border-gray-200 rounded-xl">
-              <p className="text-base font-semibold text-gray-700">No skills found</p>
-              <p className="text-sm text-gray-400 mt-1">
-                {search || categoryFilter ? "Try adjusting your filters." : "Add a custom skill to get started."}
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              {skills.map((skill) => {
-                const catColor = CATEGORY_COLORS[skill.category] ?? CATEGORY_COLORS.other;
-                const isSelected = selectedIds.has(skill.id);
-                const canSelect = !skill.isSystem;
-                return (
-                  <div
-                    key={skill.id}
-                    className={`group relative bg-white border rounded-xl p-4 transition-all space-y-3 ${
-                      isSelected
-                        ? "border-indigo-400 ring-2 ring-indigo-100"
-                        : "border-gray-200 hover:border-gray-300 hover:shadow-sm"
-                    }`}
-                  >
-                    {/* Checkbox (custom skills only) */}
-                    {canSelect && (
-                      <label
-                        className={`absolute top-3 left-3 z-10 flex items-center justify-center cursor-pointer ${
-                          isSelected || selectedIds.size > 0
-                            ? "opacity-100"
-                            : "opacity-0 group-hover:opacity-100"
-                        } transition-opacity`}
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <input
-                          type="checkbox"
-                          className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                          checked={isSelected}
-                          onChange={() => toggleSelect(skill.id)}
-                        />
-                      </label>
-                    )}
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setDetailSkillId(skill.id);
-                        setDetailOpen(true);
-                      }}
-                      className={`w-full text-left space-y-3 ${canSelect ? "pl-7" : ""}`}
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <h3 className="text-sm font-semibold text-gray-900 leading-snug">
-                          {skill.name}
-                        </h3>
-                        <span
-                          className={`shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border ${
-                            skill.isSystem
-                              ? "bg-gray-100 text-gray-600 border-gray-200"
-                              : "bg-indigo-50 text-indigo-700 border-indigo-200"
-                          }`}
-                        >
-                          {skill.isSystem ? "System" : "Custom"}
-                        </span>
-                      </div>
-                      <p className="text-xs text-gray-500 line-clamp-2">{skill.description}</p>
-                      <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border ${catColor}`}
-                      >
-                        {skill.category}
-                      </span>
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
-
-      {effectiveTab === "mappings" && (
+      {tab === "mappings" && (
         <div>
           {mappingsLoading ? (
-            <div className="flex justify-center py-12">
-              <Spinner />
-            </div>
+            <div className="flex justify-center py-12"><Spinner /></div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {GENERATORS.map((gen) => {
@@ -422,10 +263,11 @@ export function SkillsPage() {
                   <div key={gen.key} className="bg-white border border-gray-200 rounded-xl p-5 space-y-4">
                     <div className="flex items-center justify-between">
                       <h3 className="text-sm font-semibold text-gray-900">{gen.label}</h3>
-                      <span className="text-xs text-gray-400">{genMappings.length} skill{genMappings.length !== 1 ? "s" : ""}</span>
+                      <span className="text-xs text-gray-400">
+                        {genMappings.length} skill{genMappings.length !== 1 ? "s" : ""}
+                      </span>
                     </div>
 
-                    {/* Mapped skills */}
                     <div className="flex flex-wrap gap-2 min-h-[32px]">
                       {genMappings.length === 0 ? (
                         <p className="text-xs text-gray-400">No skills mapped</p>
@@ -464,7 +306,107 @@ export function SkillsPage() {
         </div>
       )}
 
-      {/* Add Skill to Generator Modal */}
+      {tab === "library" && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="relative flex-1 max-w-sm">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search skills..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 text-sm bg-white border border-gray-300 rounded-md focus:outline-none focus:border-black focus:ring-1 focus:ring-black placeholder:text-gray-400"
+              />
+            </div>
+            <select
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              className="px-3 py-2 text-sm bg-white border border-gray-300 rounded-md focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
+            >
+              {CATEGORIES.map((c) => (
+                <option key={c.value} value={c.value}>{c.label}</option>
+              ))}
+            </select>
+          </div>
+
+          {skillsLoading ? (
+            <div className="flex justify-center py-12"><Spinner /></div>
+          ) : skills.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 bg-white border border-gray-200 rounded-xl">
+              <p className="text-base font-semibold text-gray-700">No skills found</p>
+              <p className="text-sm text-gray-400 mt-1">
+                {search || categoryFilter ? "Try adjusting your filters." : "Add a custom skill to get started."}
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {skills.map((skill) => {
+                const catColor = CATEGORY_COLORS[skill.category] ?? CATEGORY_COLORS.other;
+                const isSelected = selectedIds.has(skill.id);
+                const canSelect = !skill.isSystem;
+                return (
+                  <div
+                    key={skill.id}
+                    className={`group relative bg-white border rounded-xl p-4 transition-all space-y-3 ${
+                      isSelected
+                        ? "border-indigo-400 ring-2 ring-indigo-100"
+                        : "border-gray-200 hover:border-gray-300 hover:shadow-sm"
+                    }`}
+                  >
+                    {canSelect && (
+                      <label
+                        className={`absolute top-3 left-3 z-10 flex items-center justify-center cursor-pointer ${
+                          isSelected || selectedIds.size > 0
+                            ? "opacity-100"
+                            : "opacity-0 group-hover:opacity-100"
+                        } transition-opacity`}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                          checked={isSelected}
+                          onChange={() => toggleSelect(skill.id)}
+                        />
+                      </label>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDetailSkillId(skill.id);
+                        setDetailOpen(true);
+                      }}
+                      className={`w-full text-left space-y-3 ${canSelect ? "pl-7" : ""}`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <h3 className="text-sm font-semibold text-gray-900 leading-snug">{skill.name}</h3>
+                        <span
+                          className={`shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border ${
+                            skill.isSystem
+                              ? "bg-gray-100 text-gray-600 border-gray-200"
+                              : "bg-indigo-50 text-indigo-700 border-indigo-200"
+                          }`}
+                        >
+                          {skill.isSystem ? "System" : "Custom"}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-500 line-clamp-2">{skill.description}</p>
+                      <span
+                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border ${catColor}`}
+                      >
+                        {skill.category}
+                      </span>
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       <Modal
         isOpen={addGeneratorModal !== null}
         onClose={() => { setAddGeneratorModal(null); setAddSearch(""); }}
@@ -506,7 +448,6 @@ export function SkillsPage() {
         </div>
       </Modal>
 
-      {/* Skill Detail Modal */}
       <SkillDetailModal
         isOpen={detailOpen}
         onClose={() => setDetailOpen(false)}
@@ -515,7 +456,6 @@ export function SkillsPage() {
         onDelete={handleDeleteSkill}
       />
 
-      {/* Skill Form Modal */}
       <SkillFormModal
         isOpen={formOpen}
         onClose={() => { setFormOpen(false); setEditSkill(null); }}
@@ -523,7 +463,6 @@ export function SkillsPage() {
         onSaved={() => { loadSkills(); loadMappings(); }}
       />
 
-      {/* Bulk Action Bar */}
       {selectedIds.size > 0 && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 bg-gray-900 text-white rounded-xl shadow-2xl border border-gray-800 px-4 py-3 flex items-center gap-3">
           <span className="text-sm font-medium">
@@ -551,7 +490,6 @@ export function SkillsPage() {
         </div>
       )}
 
-      {/* Bulk Delete Confirm Modal */}
       {showBulkDeleteConfirm && (
         <Modal
           isOpen
@@ -580,14 +518,6 @@ export function SkillsPage() {
             </div>
           </div>
         </Modal>
-      )}
-
-      {toast && (
-        <Toast
-          message={toast.message}
-          type={toast.type}
-          onClose={() => setToast(null)}
-        />
       )}
     </div>
   );

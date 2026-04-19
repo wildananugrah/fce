@@ -4,6 +4,7 @@ import type { ICampaignGenerator } from "../interfaces/providers/campaign-genera
 import type { ILogger } from "../interfaces/providers/logger.provider.interface";
 import type { ITopicGenerator } from "../interfaces/providers/topic-generator.interface";
 import type { INotificationService } from "../interfaces/services/notification.service.interface";
+import type { AiProviderFactory } from "../services/ai-provider-factory.service";
 import { logAiActivity } from "../utils/ai-activity-logger";
 import { extractPdfText } from "../utils/pdf-extractor";
 import {
@@ -22,9 +23,7 @@ type Stage = "extracting" | "summarizing" | "planning" | "topics";
 export class CampaignPdfGenerationJob {
 	constructor(
 		private prisma: PrismaClient,
-		private briefSummarizer: ICampaignBriefSummarizer,
-		private campaignGenerator: ICampaignGenerator,
-		private topicGenerator: ITopicGenerator,
+		private aiFactory: AiProviderFactory,
 		private notificationService: INotificationService,
 		private logger: ILogger,
 	) {}
@@ -58,27 +57,29 @@ export class CampaignPdfGenerationJob {
 			currentStage = "summarizing";
 			await this.setStage(campaignId, userId, "summarizing");
 
+			const workspaceId = campaign.workspaceId;
+			const settings = await this.aiFactory.getSettings(workspaceId);
 			const summarizeStart = Date.now();
 			const { systemPrompt: sumSys, userPrompt: sumUser } = buildBriefSummaryPrompt({
 				extractedText,
 				brandContext,
 				productContext,
 			});
+			const briefSummarizer = await this.aiFactory.getBriefSummarizer(workspaceId);
 			let summary: Awaited<ReturnType<ICampaignBriefSummarizer["summarizeBrief"]>>;
 			try {
-				summary = await this.briefSummarizer.summarizeBrief({
+				summary = await briefSummarizer.summarizeBrief({
 					extractedText,
 					brandContext,
 					productContext,
 				});
-				const usage = (this.briefSummarizer as any).lastUsage;
+				const usage = (briefSummarizer as any).lastUsage;
 				await logAiActivity(
 					this.prisma,
 					{
-						workspaceId: campaign.workspaceId,
+						workspaceId,
 						generator: "campaign_brief_summary",
-						provider:
-							process.env.AI_CAMPAIGN_PROVIDER || process.env.AI_PROVIDER || "unknown",
+						provider: settings.providers.campaign,
 						userId,
 						systemPrompt: sumSys,
 						userPrompt: sumUser,
@@ -93,14 +94,13 @@ export class CampaignPdfGenerationJob {
 					},
 				);
 			} catch (err) {
-				const usage = (this.briefSummarizer as any).lastUsage;
+				const usage = (briefSummarizer as any).lastUsage;
 				await logAiActivity(
 					this.prisma,
 					{
-						workspaceId: campaign.workspaceId,
+						workspaceId,
 						generator: "campaign_brief_summary",
-						provider:
-							process.env.AI_CAMPAIGN_PROVIDER || process.env.AI_PROVIDER || "unknown",
+						provider: settings.providers.campaign,
 						userId,
 						systemPrompt: sumSys,
 						userPrompt: sumUser,
@@ -165,17 +165,17 @@ export class CampaignPdfGenerationJob {
 				buildCampaignGenerationPrompt(planInput);
 
 			const planStart = Date.now();
+			const campaignGenerator = await this.aiFactory.getCampaignGenerator(workspaceId);
 			let planOutput: Awaited<ReturnType<ICampaignGenerator["generate"]>>;
 			try {
-				planOutput = await this.campaignGenerator.generate(planInput);
-				const usage = (this.campaignGenerator as any).lastUsage;
+				planOutput = await campaignGenerator.generate(planInput);
+				const usage = (campaignGenerator as any).lastUsage;
 				await logAiActivity(
 					this.prisma,
 					{
-						workspaceId: campaign.workspaceId,
+						workspaceId,
 						generator: "campaign_plan",
-						provider:
-							process.env.AI_CAMPAIGN_PROVIDER || process.env.AI_PROVIDER || "unknown",
+						provider: settings.providers.campaign,
 						userId,
 						systemPrompt: planSys,
 						userPrompt: planUser,
@@ -190,14 +190,13 @@ export class CampaignPdfGenerationJob {
 					},
 				);
 			} catch (err) {
-				const usage = (this.campaignGenerator as any).lastUsage;
+				const usage = (campaignGenerator as any).lastUsage;
 				await logAiActivity(
 					this.prisma,
 					{
-						workspaceId: campaign.workspaceId,
+						workspaceId,
 						generator: "campaign_plan",
-						provider:
-							process.env.AI_CAMPAIGN_PROVIDER || process.env.AI_PROVIDER || "unknown",
+						provider: settings.providers.campaign,
 						userId,
 						systemPrompt: planSys,
 						userPrompt: planUser,
@@ -256,17 +255,17 @@ export class CampaignPdfGenerationJob {
 				buildTopicGenerationPrompt(topicInput);
 
 			const topicStart = Date.now();
+			const topicGenerator = await this.aiFactory.getTopicGenerator(workspaceId);
 			let topicOutput: Awaited<ReturnType<ITopicGenerator["generate"]>>;
 			try {
-				topicOutput = await this.topicGenerator.generate(topicInput);
-				const usage = (this.topicGenerator as any).lastUsage;
+				topicOutput = await topicGenerator.generate(topicInput);
+				const usage = (topicGenerator as any).lastUsage;
 				await logAiActivity(
 					this.prisma,
 					{
-						workspaceId: campaign.workspaceId,
+						workspaceId,
 						generator: "campaign_topics",
-						provider:
-							process.env.AI_TOPIC_PROVIDER || process.env.AI_PROVIDER || "unknown",
+						provider: settings.providers.topic,
 						userId,
 						systemPrompt: topSys,
 						userPrompt: topUser,
@@ -281,14 +280,13 @@ export class CampaignPdfGenerationJob {
 					},
 				);
 			} catch (err) {
-				const usage = (this.topicGenerator as any).lastUsage;
+				const usage = (topicGenerator as any).lastUsage;
 				await logAiActivity(
 					this.prisma,
 					{
-						workspaceId: campaign.workspaceId,
+						workspaceId,
 						generator: "campaign_topics",
-						provider:
-							process.env.AI_TOPIC_PROVIDER || process.env.AI_PROVIDER || "unknown",
+						provider: settings.providers.topic,
 						userId,
 						systemPrompt: topSys,
 						userPrompt: topUser,

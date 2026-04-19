@@ -9,7 +9,6 @@ import {
   Lightbulb,
   BookOpen,
   Library,
-  Brain,
   GraduationCap,
   Settings,
   Shield,
@@ -67,7 +66,6 @@ const navSections: NavSection[] = [
     items: [
       { to: "/topic-library", label: "Topic Library", icon: BookOpen },
       { to: "/content-library", label: "Content Library", icon: Library },
-      { to: "/skills", label: "AI Skills", icon: Brain },
       { to: "/learning", label: "Learning Center", icon: GraduationCap },
     ],
   },

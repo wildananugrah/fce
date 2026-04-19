@@ -201,7 +201,7 @@ export function CampaignDetailPage() {
     campaign.status === "generating" || campaign.status === "failed";
 
   return (
-    <div className="p-6 space-y-6 max-w-6xl">
+    <div className="p-6 space-y-6 w-full max-w-[1600px] mx-auto">
       <div className="flex items-center justify-between">
         <button
           type="button"
@@ -277,14 +277,17 @@ export function CampaignDetailPage() {
               onPlanEdit={() => {
                 loadCampaign();
                 setRevisionsRefreshKey((k) => k + 1);
+                showToast("Campaign Plan updated", "success");
               }}
               onTopicsChanged={() => {
                 loadCampaign();
                 setRevisionsRefreshKey((k) => k + 1);
+                showToast("Generated Topics updated", "success");
               }}
               onSummaryChanged={() => {
                 loadCampaign();
                 setRevisionsRefreshKey((k) => k + 1);
+                showToast("Document Summary updated", "success");
               }}
               onSectionUpdate={handleSectionUpdate}
               onToast={showToast}

@@ -1,7 +1,7 @@
 import type { PrismaClient } from "@prisma/client";
 import type { ILogger } from "../interfaces/providers/logger.provider.interface";
-import type { ITopicGenerator } from "../interfaces/providers/topic-generator.interface";
 import type { INotificationService } from "../interfaces/services/notification.service.interface";
+import type { AiProviderFactory } from "../services/ai-provider-factory.service";
 import { logAiActivity } from "../utils/ai-activity-logger";
 import { buildTopicGenerationPrompt } from "../utils/prompt-builder";
 
@@ -23,7 +23,7 @@ interface TopicRegenJobData {
 export class TopicRegenerationJob {
 	constructor(
 		private prisma: PrismaClient,
-		private topicGenerator: ITopicGenerator,
+		private aiFactory: AiProviderFactory,
 		private notificationService: INotificationService,
 		private logger: ILogger,
 	) {}
@@ -104,8 +104,9 @@ export class TopicRegenerationJob {
 			const userPrompt = `${baseUserPrompt}\n${existingLine}\n${hintLine}`.trim();
 
 			// Generate single topic
+			const topicGenerator = await this.aiFactory.getTopicGenerator(workspaceId);
 			const startTime = Date.now();
-			const output = await this.topicGenerator.generate({
+			const output = await topicGenerator.generate({
 				...generationInput,
 				count: 1,
 			});
@@ -117,7 +118,7 @@ export class TopicRegenerationJob {
 				{
 					workspaceId,
 					generator: "topic",
-					provider: process.env.AI_TOPIC_PROVIDER || process.env.AI_PROVIDER || "unknown",
+					provider: (await this.aiFactory.getSettings(workspaceId)).providers.topic,
 					userId,
 					systemPrompt,
 					userPrompt,

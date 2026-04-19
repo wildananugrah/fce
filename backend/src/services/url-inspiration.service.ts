@@ -11,6 +11,7 @@ import type {
 	InspirationResult,
 	IUrlInspirationService,
 } from "../interfaces/services/url-inspiration.service.interface";
+import type { AiProviderFactory } from "./ai-provider-factory.service";
 import { logAiActivity } from "../utils/ai-activity-logger";
 import { buildActorInput } from "../utils/apify-actor-inputs";
 import { detectUrlKind, hashUrl, normalizeUrl } from "../utils/url-router";
@@ -37,7 +38,7 @@ export class UrlInspirationService implements IUrlInspirationService {
 		private prisma: PrismaClient,
 		private apifyProvider: IApifyProvider,
 		private researchService: IResearchService,
-		private summarizer: LoggableSummarizer,
+		private aiFactory: AiProviderFactory,
 		private cacheRepository: IUrlScrapeCacheRepository,
 		private logger: ILogger,
 	) {}
@@ -155,9 +156,18 @@ export class UrlInspirationService implements IUrlInspirationService {
 		rawData: unknown,
 		userId?: string,
 	): Promise<InspirationSummary> {
+		// The content generator doubles as an inspiration summarizer on the
+		// providers that implement IInspirationSummarizer (currently Gemini).
+		// We cast here because not every generator implements it — a
+		// workspace on Anthropic-only will get a runtime error matching the
+		// pre-refactor behavior, which is acceptable for v1.
+		const summarizer = (await this.aiFactory.getContentGenerator(
+			workspaceId,
+		)) as unknown as LoggableSummarizer;
+		const providerName = (await this.aiFactory.getSettings(workspaceId)).providers.content;
 		const startTime = Date.now();
 		try {
-			const summary = await this.summarizer.summarizeInspiration(rawData);
+			const summary = await summarizer.summarizeInspiration(rawData);
 			const durationMs = Date.now() - startTime;
 
 			// Log to AiProviderLog for token tracking + dispute resolution
@@ -166,16 +176,16 @@ export class UrlInspirationService implements IUrlInspirationService {
 				{
 					workspaceId,
 					generator: "url_inspiration",
-					provider: process.env.AI_PROVIDER || "unknown",
+					provider: providerName,
 					userId,
-					systemPrompt: this.summarizer.lastPrompts?.systemPrompt ?? "",
-					userPrompt: this.summarizer.lastPrompts?.userPrompt ?? `URL: ${url}`,
+					systemPrompt: summarizer.lastPrompts?.systemPrompt ?? "",
+					userPrompt: summarizer.lastPrompts?.userPrompt ?? `URL: ${url}`,
 				},
 				{
-					responseText: this.summarizer.lastResponseText ?? undefined,
+					responseText: summarizer.lastResponseText ?? undefined,
 					responseJson: summary,
-					inputTokens: this.summarizer.lastUsage?.inputTokens,
-					outputTokens: this.summarizer.lastUsage?.outputTokens,
+					inputTokens: summarizer.lastUsage?.inputTokens,
+					outputTokens: summarizer.lastUsage?.outputTokens,
 					durationMs,
 					status: "success",
 				},
@@ -191,13 +201,13 @@ export class UrlInspirationService implements IUrlInspirationService {
 				{
 					workspaceId,
 					generator: "url_inspiration",
-					provider: process.env.AI_PROVIDER || "unknown",
+					provider: providerName,
 					userId,
-					systemPrompt: this.summarizer.lastPrompts?.systemPrompt ?? "",
-					userPrompt: this.summarizer.lastPrompts?.userPrompt ?? `URL: ${url}`,
+					systemPrompt: summarizer.lastPrompts?.systemPrompt ?? "",
+					userPrompt: summarizer.lastPrompts?.userPrompt ?? `URL: ${url}`,
 				},
 				{
-					responseText: this.summarizer.lastResponseText ?? undefined,
+					responseText: summarizer.lastResponseText ?? undefined,
 					durationMs,
 					status: "error",
 					errorMessage: message,

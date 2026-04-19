@@ -18,7 +18,6 @@ import { SettingsPage } from "./pages/SettingsPage";
 import { WorkspaceSettingsPage } from "./pages/WorkspaceSettingsPage";
 import { AdminPage } from "./pages/AdminPage";
 import { LearningPage } from "./pages/LearningPage";
-import { SkillsPage } from "./pages/SkillsPage";
 import { BrandDetailPage } from "./pages/BrandDetailPage";
 import { ProductDetailPage } from "./pages/ProductDetailPage";
 import { ResearchPage } from "./pages/Research/ResearchPage";
@@ -50,7 +49,7 @@ export default function App() {
               <Route path="/research" element={<ResearchPage />} />
               <Route path="/research/:runId" element={<ResearchRunDetail />} />
               <Route path="/learning" element={<LearningPage />} />
-              <Route path="/skills" element={<SkillsPage />} />
+              <Route path="/skills" element={<Navigate to="/workspace-settings" replace />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/workspace-settings" element={<WorkspaceSettingsPage />} />
               <Route path="/admin" element={<AdminPage />} />

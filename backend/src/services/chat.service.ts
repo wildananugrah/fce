@@ -1,5 +1,4 @@
 import type { CampaignChatMessage, CampaignPlanRevision, PrismaClient } from "@prisma/client";
-import type { IChatAiProvider } from "../interfaces/providers/chat-ai.provider.interface";
 import type { IStorageProvider } from "../interfaces/providers/storage.provider.interface";
 import type { IChatMessageRepository } from "../interfaces/repositories/chat-message.repository.interface";
 import type { ICampaignRevisionRepository } from "../interfaces/repositories/campaign-revision.repository.interface";
@@ -15,6 +14,7 @@ import { logAiActivity } from "../utils/ai-activity-logger";
 import { humanizeChatError } from "../utils/humanize-error";
 import { PDF_EXTRACT_MAX_CHARS, extractPdfText, truncateExtractedText } from "../utils/pdf-extractor";
 import { buildSkillContextFromIds } from "../utils/skill-context-builder";
+import type { AiProviderFactory } from "./ai-provider-factory.service";
 
 interface ChatConfig {
 	historyWindow: number;
@@ -26,7 +26,7 @@ export class ChatService implements IChatService {
 		private prisma: PrismaClient,
 		private messageRepo: IChatMessageRepository,
 		private revisionRepo: ICampaignRevisionRepository,
-		private chatProvider: IChatAiProvider,
+		private aiFactory: AiProviderFactory,
 		private storage: IStorageProvider,
 		private config: ChatConfig,
 	) {}
@@ -99,6 +99,7 @@ export class ChatService implements IChatService {
 
 		const systemPrompt = await this.buildSystemPrompt(input.campaignId, skillCtx);
 		let history = await this.buildHistory(input.campaignId);
+		const chatProvider = await this.aiFactory.getChatProvider(input.workspaceId);
 
 		const finalBlocks: ChatBlock[] = [];
 		let currentText = "";
@@ -110,7 +111,7 @@ export class ChatService implements IChatService {
 			let streamUsage: { inputTokens: number; outputTokens: number } | undefined;
 			const turnStart = Date.now();
 
-			for await (const evt of this.chatProvider.stream({
+			for await (const evt of chatProvider.stream({
 				systemPrompt,
 				messages: history,
 				tools: this.getTools(),
@@ -137,7 +138,7 @@ export class ChatService implements IChatService {
 				{
 					workspaceId: input.workspaceId,
 					generator: "campaign-chat",
-					provider: process.env.AI_CHAT_PROVIDER || process.env.AI_PROVIDER || "unknown",
+					provider: (await this.aiFactory.getSettings(input.workspaceId)).providers.chat,
 					userId: input.userId,
 					systemPrompt: `<chat system prompt omitted — campaign id: ${input.campaignId}>`,
 					userPrompt: input.content,

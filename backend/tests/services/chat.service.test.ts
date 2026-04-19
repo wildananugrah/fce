@@ -35,7 +35,11 @@ describe("ChatService.sendMessage (text-only)", () => {
 			upload: async (_b: string, _k: string, _buf: Buffer, _t: string) => `http://minio/${_k}`,
 			init: async () => new Map(),
 		} as any;
-		service = new ChatService(prisma, messageRepo, revisionRepo, chatProvider, mockStorage, {
+		const aiFactory = {
+			getChatProvider: async () => chatProvider,
+			getSettings: async () => ({ providers: { chat: "gemini" } }),
+		} as any;
+		service = new ChatService(prisma, messageRepo, revisionRepo, aiFactory, mockStorage, {
 			historyWindow: 20,
 			bucket: "test-bucket",
 		});
@@ -111,7 +115,11 @@ describe("ChatService.sendMessage (propose_topics)", () => {
 		messageRepo = new MockChatMessageRepository();
 		revisionRepo = new MockCampaignRevisionRepository();
 		createdTopics.length = 0;
-		service = new ChatService(prisma, messageRepo, revisionRepo, chatProvider, mockStorage, { historyWindow: 20, bucket: "b" });
+		const aiFactory = {
+			getChatProvider: async () => chatProvider,
+			getSettings: async () => ({ providers: { chat: "gemini" } }),
+		} as any;
+		service = new ChatService(prisma, messageRepo, revisionRepo, aiFactory, mockStorage, { historyWindow: 20, bucket: "b" });
 	});
 
 	it("creates ContentTopic rows and emits a topics block", async () => {
@@ -189,7 +197,11 @@ describe("ChatService.sendMessage (apply_plan_edit)", () => {
     revisionRepo = new MockCampaignRevisionRepository();
     lastCampaignUpdate = null;
     lastOutputUpsert = null;
-    service = new ChatService(prisma, messageRepo, revisionRepo, chatProvider, mockStorage, { historyWindow: 20, bucket: "b" });
+    const aiFactory = {
+      getChatProvider: async () => chatProvider,
+      getSettings: async () => ({ providers: { chat: "gemini" } }),
+    } as any;
+    service = new ChatService(prisma, messageRepo, revisionRepo, aiFactory, mockStorage, { historyWindow: 20, bucket: "b" });
   });
 
   it("seeds Rev 1 on first edit and applies change as Rev 2", async () => {

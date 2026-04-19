@@ -13,6 +13,8 @@ import { Badge } from "../components/ui/Badge";
 import { Spinner } from "../components/ui/Spinner";
 import { Toast } from "../components/ui/Toast";
 import { TokenUsageSection } from "../components/token-usage/TokenUsageSection";
+import { AiProvidersSection } from "../components/workspace-settings/AiProvidersSection";
+import { SkillsTab } from "../components/workspace-settings/SkillsTab";
 
 type ToastState = { message: string; type: "success" | "error" | "info" } | null;
 
@@ -34,6 +36,7 @@ const TABS = [
   { key: "general", label: "General" },
   { key: "team", label: "Team" },
   { key: "invitations", label: "Invitations" },
+  { key: "skills", label: "AI Skills" },
   { key: "usage", label: "Token Usage" },
   { key: "integrations", label: "Integrations" },
 ];
@@ -555,6 +558,16 @@ interface IntegrationsTabProps {
 }
 
 function IntegrationsTab({ workspaceId, showToast }: IntegrationsTabProps) {
+  return (
+    <div className="space-y-10">
+      <AiProvidersSection workspaceId={workspaceId} showToast={showToast} />
+      <div className="border-t border-gray-200" />
+      <ApifyIntegrationSection workspaceId={workspaceId} showToast={showToast} />
+    </div>
+  );
+}
+
+function ApifyIntegrationSection({ workspaceId, showToast }: IntegrationsTabProps) {
   const [apiKey, setApiKey] = useState("");
   const [hasKey, setHasKey] = useState(false);
   const [maskedKey, setMaskedKey] = useState("");
@@ -704,7 +717,7 @@ export function WorkspaceSettingsPage() {
   }
 
   return (
-    <div className="p-6 max-w-3xl">
+    <div className="p-6 w-full max-w-[1600px] mx-auto">
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-xl font-semibold text-gray-900">Workspace Settings</h1>
@@ -746,6 +759,10 @@ export function WorkspaceSettingsPage() {
 
         {activeTab === "invitations" && (
           <InvitationsTab workspaceId={activeWorkspace.id} onToast={showToast} />
+        )}
+
+        {activeTab === "skills" && (
+          <SkillsTab workspaceId={activeWorkspace.id} onToast={showToast} />
         )}
 
         {activeTab === "usage" && (

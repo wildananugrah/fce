@@ -43,6 +43,7 @@ import { TaxonomyRepository } from "./repositories/taxonomy.repository";
 import { TopicRepository } from "./repositories/topic.repository";
 import { UserRepository } from "./repositories/user.repository";
 import { WorkspaceRepository } from "./repositories/workspace.repository";
+import { WorkspaceSettingRepository } from "./repositories/workspace-setting.repository";
 import { createAdminRoutes } from "./routes/admin.route";
 import { createAiLogRoutes } from "./routes/ai-log.route";
 import { createAuthRoutes } from "./routes/auth.route";
@@ -58,6 +59,7 @@ import { createRecommendationRoutes } from "./routes/recommendation.route";
 import { createResearchRoutes } from "./routes/research.route";
 import { createUrlInspirationRoutes } from "./routes/url-inspiration.route";
 import { createSkillRoutes, createWorkspaceSkillRoutes } from "./routes/skill.route";
+import { createWorkspaceAiSettingsRoutes } from "./routes/workspace-ai-settings.route";
 import { createSSERoutes } from "./routes/sse.route";
 import { createTaxonomyRoutes } from "./routes/taxonomy.route";
 import { createTopicRoutes } from "./routes/topic.route";
@@ -69,6 +71,7 @@ import {
 } from "./routes/invitation.route";
 import { createWorkspaceRoutes } from "./routes/workspace.route";
 import { AdminService } from "./services/admin.service";
+import { AiProviderFactory } from "./services/ai-provider-factory.service";
 import { AuthService } from "./services/auth.service";
 import { ChatService } from "./services/chat.service";
 import { BrandService } from "./services/brand.service";
@@ -88,49 +91,8 @@ import { TopicService } from "./services/topic.service";
 import { WorkspaceService } from "./services/workspace.service";
 import { env } from "./utils/env";
 
-// ─── AI Provider Resolvers ───────────────────────────────────────
-function resolveContentGenerator() {
-	const name = env.aiContentProvider || env.aiProvider;
-	if (name === "anthropic") return new AnthropicProvider(env.anthropicApiKey, env.anthropicModel);
-	if (name === "gemini") return new GeminiProvider(env.geminiApiKey, env.geminiModel);
-	throw new Error(`Unknown AI provider: ${name}`);
-}
-
-function resolveCampaignGenerator() {
-	const name = env.aiCampaignProvider || env.aiProvider;
-	if (name === "anthropic") return new AnthropicProvider(env.anthropicApiKey, env.anthropicModel);
-	if (name === "gemini") return new GeminiProvider(env.geminiApiKey, env.geminiModel);
-	throw new Error(`Unknown AI provider: ${name}`);
-}
-
-function resolveBriefSummarizer() {
-	const name = env.aiCampaignProvider || env.aiProvider;
-	if (name === "anthropic") return new AnthropicProvider(env.anthropicApiKey, env.anthropicModel);
-	if (name === "gemini") return new GeminiProvider(env.geminiApiKey, env.geminiModel);
-	throw new Error(`Unknown AI provider: ${name}`);
-}
-
-function resolveTopicGenerator() {
-	const name = env.aiTopicProvider || env.aiProvider;
-	if (name === "anthropic") return new AnthropicProvider(env.anthropicApiKey, env.anthropicModel);
-	if (name === "gemini") return new GeminiProvider(env.geminiApiKey, env.geminiModel);
-	throw new Error(`Unknown AI provider: ${name}`);
-}
-
-function resolveBrandScraper() {
-	const name = env.aiBrandScraperProvider || env.aiProvider;
-	if (name === "anthropic") return new AnthropicProvider(env.anthropicApiKey, env.anthropicModel);
-	if (name === "gemini") return new GeminiProvider(env.geminiApiKey, env.geminiModel);
-	throw new Error(`Unknown AI provider: ${name}`);
-}
-
-function resolveChatProvider(): GeminiChatProvider | AnthropicChatProvider {
-	const name = env.aiChatProvider || env.aiProvider;
-	if (name === "anthropic") {
-		return new AnthropicChatProvider(env.anthropicApiKey, env.anthropicModel);
-	}
-	return new GeminiChatProvider(env.geminiApiKey, env.geminiModel);
-}
+// AI provider resolution now lives in AiProviderFactory — see below. Env vars
+// act as the fallback when a workspace hasn't configured its own keys.
 
 // ─── Main Async Setup ────────────────────────────────────────────
 async function main() {
@@ -157,6 +119,7 @@ async function main() {
 	const researchRepository = new ResearchRepository(prisma);
 	const chatMessageRepository = new ChatMessageRepository(prisma);
 	const campaignRevisionRepository = new CampaignRevisionRepository(prisma);
+	const workspaceSettingRepository = new WorkspaceSettingRepository(prisma);
 	const storageProvider = new MinioStorageProvider(
 		env.minioEndpoint,
 		env.minioAccessKey,
@@ -164,6 +127,22 @@ async function main() {
 		env.minioPublicUrl,
 	);
 	const apifyProvider = new ApifyProvider();
+
+	// Workspace-scoped AI provider resolver + cache. Env values are the
+	// fallback; workspaces override them via Workspace Settings → Integrations.
+	const aiProviderFactory = new AiProviderFactory(workspaceSettingRepository, {
+		aiProvider: env.aiProvider,
+		aiContentProvider: env.aiContentProvider,
+		aiCampaignProvider: env.aiCampaignProvider,
+		aiTopicProvider: env.aiTopicProvider,
+		aiBrandScraperProvider: env.aiBrandScraperProvider,
+		aiChatProvider: env.aiChatProvider,
+		anthropicApiKey: env.anthropicApiKey,
+		anthropicModel: env.anthropicModel,
+		geminiApiKey: env.geminiApiKey,
+		geminiModel: env.geminiModel,
+		geminiImageModel: env.geminiImageModel,
+	});
 
 	// ─── Services ───────────────────────────────────────────────────
 	const emailProvider = env.resendApiKey
@@ -190,18 +169,16 @@ async function main() {
 	const taxonomyService = new TaxonomyService(taxonomyRepository);
 	const generationService = new GenerationService(generationRepository, boss);
 	const libraryService = new LibraryService(generationRepository, outputSectionRepository, boss);
-	// Scene image generator (Imagen via @google/genai). Only enabled when a
-	// Gemini API key is configured; otherwise the route returns 501.
-	const sceneImageService = env.geminiApiKey
-		? new SceneImageService(
-				prisma,
-				new GeminiImageProvider(env.geminiApiKey, env.geminiImageModel),
-				storageProvider,
-				env.minioBucket,
-				logger,
-				"gemini",
-			)
-		: undefined;
+	// Scene image generator (Imagen via @google/genai). Always constructed —
+	// per-workspace Gemini key lookup happens on each call. Surfaces a clear
+	// error if neither workspace nor env has a Gemini key.
+	const sceneImageService = new SceneImageService(
+		prisma,
+		aiProviderFactory,
+		storageProvider,
+		env.minioBucket,
+		logger,
+	);
 	const recommendationService = new RecommendationService(recommendationRepository);
 	const campaignService = new CampaignService(campaignRepository, boss);
 	const topicService = new TopicService(topicRepository, boss);
@@ -220,18 +197,18 @@ async function main() {
 		prisma,
 		chatMessageRepository,
 		campaignRevisionRepository,
-		resolveChatProvider(),
+		aiProviderFactory,
 		storageProvider,
 		{ historyWindow: env.chatHistoryWindow, bucket: env.minioBucket },
 	);
 
-	// URL inspiration pipeline — cache + Apify + Gemini summarizer
+	// URL inspiration pipeline — cache + Apify + per-workspace summarizer
 	const urlScrapeCacheRepository = new UrlScrapeCacheRepository(prisma);
 	const urlInspirationService = new UrlInspirationService(
 		prisma,
 		apifyProvider,
 		researchService,
-		resolveContentGenerator() as any,
+		aiProviderFactory,
 		urlScrapeCacheRepository,
 		logger,
 	);
@@ -239,7 +216,7 @@ async function main() {
 	// ─── Job Handlers ────────────────────────────────────────────────
 	const contentGenerationJob = new ContentGenerationJob(
 		prisma,
-		resolveContentGenerator(),
+		aiProviderFactory,
 		notificationService,
 		logger,
 		outputSectionRepository,
@@ -247,34 +224,32 @@ async function main() {
 	);
 	const campaignGenerationJob = new CampaignGenerationJob(
 		prisma,
-		resolveCampaignGenerator(),
+		aiProviderFactory,
 		notificationService,
 		logger,
 	);
 	const campaignPdfGenerationJob = new CampaignPdfGenerationJob(
 		prisma,
-		resolveBriefSummarizer(),
-		resolveCampaignGenerator(),
-		resolveTopicGenerator(),
+		aiProviderFactory,
 		notificationService,
 		logger,
 	);
 	const topicGenerationJob = new TopicGenerationJob(
 		prisma,
-		resolveTopicGenerator(),
+		aiProviderFactory,
 		notificationService,
 		logger,
 		urlInspirationService,
 	);
 	const topicRegenerationJob = new TopicRegenerationJob(
 		prisma,
-		resolveTopicGenerator(),
+		aiProviderFactory,
 		notificationService,
 		logger,
 	);
 	const brandScrapingJob = new BrandScrapingJob(
 		prisma,
-		resolveBrandScraper(),
+		aiProviderFactory,
 		notificationService,
 		logger,
 		apifyProvider,
@@ -432,10 +407,10 @@ async function main() {
 	// Workspace-scoped routes (auth + workspace middleware)
 	const workspaceScoped = new Hono();
 	workspaceScoped.use("*", wsMiddleware);
-	workspaceScoped.route("/brands", createBrandRoutes(brandService, boss, resolveBrandScraper()));
+	workspaceScoped.route("/brands", createBrandRoutes(brandService, boss, aiProviderFactory));
 	workspaceScoped.route(
 		"/products",
-		createProductRoutes(productService, resolveBrandScraper(), storageProvider, env.minioBucket, prisma),
+		createProductRoutes(productService, aiProviderFactory, storageProvider, env.minioBucket, prisma),
 	);
 	workspaceScoped.route("/generations", createGenerationRoutes(generationService));
 	workspaceScoped.route("/library", createLibraryRoutes(libraryService, sceneImageService));
@@ -449,6 +424,10 @@ async function main() {
 	workspaceScoped.route("/documents", createDocumentRoutes(documentService));
 	workspaceScoped.route("/recommendations", createRecommendationRoutes(recommendationService));
 	workspaceScoped.route("/skills", createWorkspaceSkillRoutes(prisma));
+	workspaceScoped.route(
+		"/ai-settings",
+		createWorkspaceAiSettingsRoutes(workspaceSettingRepository, aiProviderFactory),
+	);
 	workspaceScoped.route("/ai-logs", createAiLogRoutes(prisma));
 	workspaceScoped.route("/research", createResearchRoutes(researchService));
 	workspaceScoped.route("/url-inspiration", createUrlInspirationRoutes(urlInspirationService));

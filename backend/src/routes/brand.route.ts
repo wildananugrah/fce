@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import type { PgBoss } from "pg-boss";
-import type { IBrandScraper } from "../interfaces/providers/brand-scraper.interface";
 import type { IBrandService } from "../interfaces/services/brand.service.interface";
+import type { AiProviderFactory } from "../services/ai-provider-factory.service";
 
 type Variables = {
 	userId: string;
@@ -13,7 +13,7 @@ type Variables = {
 export function createBrandRoutes(
 	brandService: IBrandService,
 	boss: PgBoss,
-	brandScraper?: IBrandScraper,
+	aiFactory: AiProviderFactory,
 ) {
 	const app = new Hono<{ Variables: Variables }>();
 
@@ -64,14 +64,13 @@ export function createBrandRoutes(
 
 	// POST /scrape-preview — synchronous scrape, returns AI result without saving
 	app.post("/scrape-preview", async (c) => {
-		if (!brandScraper) {
-			return c.json({ error: "Brand scraper not configured" }, 500);
-		}
 		const body = await c.req.json();
 		const { url, language } = body as { url?: string; language?: string };
 		if (!url) {
 			return c.json({ error: "url is required" }, 400);
 		}
+		const workspaceId = c.get("workspaceId");
+		const brandScraper = await aiFactory.getBrandScraper(workspaceId);
 		const result = await brandScraper.scrape({ url, language });
 		return c.json({ data: result });
 	});

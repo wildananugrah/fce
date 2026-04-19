@@ -1,7 +1,7 @@
 import type { PrismaClient } from "@prisma/client";
-import type { IImageGenerator } from "../interfaces/providers/image-generator.interface";
 import type { ILogger } from "../interfaces/providers/logger.provider.interface";
 import type { IStorageProvider } from "../interfaces/providers/storage.provider.interface";
+import type { AiProviderFactory } from "./ai-provider-factory.service";
 import { logAiActivity } from "../utils/ai-activity-logger";
 
 export interface SceneImageResult {
@@ -13,11 +13,10 @@ export interface SceneImageResult {
 export class SceneImageService {
 	constructor(
 		private prisma: PrismaClient,
-		private imageGenerator: IImageGenerator,
+		private aiFactory: AiProviderFactory,
 		private storage: IStorageProvider,
 		private bucket: string,
 		private logger: ILogger,
-		private providerName: string,
 	) {}
 
 	// Ensures a post_image section exists for single-image content types,
@@ -125,9 +124,15 @@ export class SceneImageService {
 		const prompt = `${basePrompt}. Photorealistic, cinematic, high detail.`;
 
 		// 3. Call Imagen (synchronous).
+		const imageGenerator = await this.aiFactory.getGeminiImageProvider(workspaceId);
+		if (!imageGenerator) {
+			throw new Error(
+				"No Gemini API key configured for this workspace. Set one in Workspace Settings → Integrations → AI Providers.",
+			);
+		}
 		const startedAt = Date.now();
 		try {
-			const result = await this.imageGenerator.generate({ prompt, aspectRatio: "16:9" });
+			const result = await imageGenerator.generate({ prompt, aspectRatio: "16:9" });
 			const durationMs = Date.now() - startedAt;
 
 			// 4. Upload to MinIO.
@@ -150,8 +155,8 @@ export class SceneImageService {
 				{
 					workspaceId,
 					generator: "image_generation",
-					provider: this.providerName,
-					model: this.imageGenerator.model,
+					provider: "gemini",
+					model: imageGenerator.model,
 					requestId: output.requestId,
 					userId,
 					systemPrompt: "",
@@ -182,8 +187,8 @@ export class SceneImageService {
 				{
 					workspaceId,
 					generator: "image_generation",
-					provider: this.providerName,
-					model: this.imageGenerator.model,
+					provider: "gemini",
+					model: imageGenerator.model,
 					requestId: output.requestId,
 					userId,
 					systemPrompt: "",

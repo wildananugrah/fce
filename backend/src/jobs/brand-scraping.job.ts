@@ -4,6 +4,7 @@ import type { IBrandScraper } from "../interfaces/providers/brand-scraper.interf
 import type { ILogger } from "../interfaces/providers/logger.provider.interface";
 import type { INotificationService } from "../interfaces/services/notification.service.interface";
 import { WebsiteCrawlerParser } from "../providers/apify-parsers/website-crawler.parser";
+import type { AiProviderFactory } from "../services/ai-provider-factory.service";
 import { logAiActivity } from "../utils/ai-activity-logger";
 
 interface BrandScrapingJobData {
@@ -15,7 +16,7 @@ interface BrandScrapingJobData {
 export class BrandScrapingJob {
 	constructor(
 		private prisma: PrismaClient,
-		private brandScraper: IBrandScraper,
+		private aiFactory: AiProviderFactory,
 		private notificationService: INotificationService,
 		private logger: ILogger,
 		private apifyProvider?: IApifyProvider,
@@ -87,21 +88,22 @@ export class BrandScrapingJob {
 			}
 
 			// Scrape brand data from URL (with optional enriched content)
+			const brandScraper = await this.aiFactory.getBrandScraper(workspaceId);
+			const providerName = (await this.aiFactory.getSettings(workspaceId)).providers.brandScraper;
 			const startTime = Date.now();
 			let scraped: Awaited<ReturnType<IBrandScraper["scrape"]>>;
 			try {
 				scraped = enrichedContent
-					? await this.brandScraper.scrape({ url, enrichedContent } as any)
-					: await this.brandScraper.scrape({ url });
+					? await brandScraper.scrape({ url, enrichedContent } as any)
+					: await brandScraper.scrape({ url });
 				const durationMs = Date.now() - startTime;
-				const usage = (this.brandScraper as any).lastUsage;
+				const usage = (brandScraper as any).lastUsage;
 				await logAiActivity(
 					this.prisma,
 					{
 						workspaceId,
 						generator: "brand_scraping",
-						provider:
-							process.env.AI_BRAND_SCRAPER_PROVIDER || process.env.AI_PROVIDER || "unknown",
+						provider: providerName,
 						userId,
 						systemPrompt: "",
 						userPrompt: `Scrape URL: ${url}`,
@@ -117,14 +119,13 @@ export class BrandScrapingJob {
 				);
 			} catch (err) {
 				const durationMs = Date.now() - startTime;
-				const usage = (this.brandScraper as any).lastUsage;
+				const usage = (brandScraper as any).lastUsage;
 				await logAiActivity(
 					this.prisma,
 					{
 						workspaceId,
 						generator: "brand_scraping",
-						provider:
-							process.env.AI_BRAND_SCRAPER_PROVIDER || process.env.AI_PROVIDER || "unknown",
+						provider: providerName,
 						userId,
 						systemPrompt: "",
 						userPrompt: `Scrape URL: ${url}`,

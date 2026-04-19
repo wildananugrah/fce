@@ -1,8 +1,8 @@
 import type { PrismaClient } from "@prisma/client";
 import type { ILogger } from "../interfaces/providers/logger.provider.interface";
-import type { ITopicGenerator } from "../interfaces/providers/topic-generator.interface";
 import type { INotificationService } from "../interfaces/services/notification.service.interface";
 import type { IUrlInspirationService } from "../interfaces/services/url-inspiration.service.interface";
+import type { AiProviderFactory } from "../services/ai-provider-factory.service";
 import { logAiActivity } from "../utils/ai-activity-logger";
 import { buildTopicGenerationPrompt } from "../utils/prompt-builder";
 import { buildSkillContext } from "../utils/skill-context-builder";
@@ -27,7 +27,7 @@ interface TopicJobData {
 export class TopicGenerationJob {
 	constructor(
 		private prisma: PrismaClient,
-		private topicGenerator: ITopicGenerator,
+		private aiFactory: AiProviderFactory,
 		private notificationService: INotificationService,
 		private logger: ILogger,
 		private urlInspirationService: IUrlInspirationService,
@@ -226,10 +226,11 @@ export class TopicGenerationJob {
 			const { systemPrompt, userPrompt } = buildTopicGenerationPrompt(generationInput);
 
 			// Generate topics with timing
+			const topicGenerator = await this.aiFactory.getTopicGenerator(workspaceId);
 			const startTime = Date.now();
-			const output = await this.topicGenerator.generate(generationInput);
+			const output = await topicGenerator.generate(generationInput);
 			const durationMs = Date.now() - startTime;
-			const usage = (this.topicGenerator as any).lastUsage;
+			const usage = (topicGenerator as any).lastUsage;
 
 			// Log AI activity
 			await logAiActivity(
@@ -237,7 +238,7 @@ export class TopicGenerationJob {
 				{
 					workspaceId,
 					generator: "topic",
-					provider: process.env.AI_TOPIC_PROVIDER || process.env.AI_PROVIDER || "unknown",
+					provider: (await this.aiFactory.getSettings(workspaceId)).providers.topic,
 					userId,
 					systemPrompt,
 					userPrompt,
