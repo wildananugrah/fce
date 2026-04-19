@@ -21,6 +21,7 @@ import {
   Search,
 } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
+import { useProject } from "../../hooks/useProject";
 import { useWorkspace } from "../../hooks/useWorkspace";
 import { Spinner } from "../ui/Spinner";
 import { Modal } from "../ui/Modal";
@@ -28,11 +29,15 @@ import { Input } from "../ui/Input";
 import { Button } from "../ui/Button";
 import { api } from "../../services/api";
 
+import type { MenuKey } from "../../contexts/ProjectContext";
+
 interface NavItem {
   to: string;
   label: string;
   icon: React.ComponentType<{ size?: number }>;
   exact?: boolean;
+  /** Omit to show the item to every signed-in user (e.g. Dashboard). */
+  menuKey?: MenuKey;
 }
 
 interface NavSection {
@@ -49,30 +54,30 @@ const navSections: NavSection[] = [
   {
     label: "Core",
     items: [
-      { to: "/brands", label: "Brand Brain", icon: Palette },
-      { to: "/products", label: "Product Brain", icon: Package },
+      { to: "/brands", label: "Brand Brain", icon: Palette, menuKey: "brand-brain" },
+      { to: "/products", label: "Product Brain", icon: Package, menuKey: "product-brain" },
     ],
   },
   {
     label: "Generate",
     items: [
-      { to: "/topics", label: "Topic Generator", icon: Lightbulb },
-      { to: "/generate", label: "Content Generator", icon: Sparkles },
-      { to: "/campaigns", label: "Campaign Generator", icon: Megaphone },
+      { to: "/topics", label: "Topic Generator", icon: Lightbulb, menuKey: "topic-generator" },
+      { to: "/generate", label: "Content Generator", icon: Sparkles, menuKey: "content-generator" },
+      { to: "/campaigns", label: "Campaign Generator", icon: Megaphone, menuKey: "campaign-generator" },
     ],
   },
   {
     label: "Manage",
     items: [
-      { to: "/topic-library", label: "Topic Library", icon: BookOpen },
-      { to: "/content-library", label: "Content Library", icon: Library },
-      { to: "/learning", label: "Learning Center", icon: GraduationCap },
+      { to: "/topic-library", label: "Topic Library", icon: BookOpen, menuKey: "topic-library" },
+      { to: "/content-library", label: "Content Library", icon: Library, menuKey: "content-library" },
+      { to: "/learning", label: "Learning Center", icon: GraduationCap, menuKey: "learning-center" },
     ],
   },
   {
     label: "Research",
     items: [
-      { to: "/research", label: "Research Hub", icon: Search },
+      { to: "/research", label: "Research Hub", icon: Search, menuKey: "research-hub" },
     ],
   },
 ];
@@ -80,6 +85,20 @@ const navSections: NavSection[] = [
 export function AppShell() {
   const { user, isLoading: authLoading, logout } = useAuth();
   const { workspaces, activeWorkspace, setActiveWorkspace, isLoading: wsLoading, refresh } = useWorkspace();
+  const {
+    menuAccess,
+    hasFullAccess,
+    projects,
+    activeProject,
+    setActiveProject,
+  } = useProject();
+  const [projectSwitcherOpen, setProjectSwitcherOpen] = useState(false);
+  const canSeeMenu = (menuKey?: string) => {
+    if (!menuKey) return true; // always-on items (Dashboard)
+    if (hasFullAccess) return true;
+    return (menuAccess as string[]).includes(menuKey);
+  };
+  const canSeeWorkspaceSettings = hasFullAccess || Boolean(user?.isSuperadmin);
   const [workspaceSwitcherOpen, setWorkspaceSwitcherOpen] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [collapsed, setCollapsed] = useState<boolean>(() => {
@@ -168,39 +187,93 @@ export function AppShell() {
           </button>
         </div>
 
-        {/* Main Navigation */}
-        <nav className="flex-1 px-3 py-3 overflow-y-auto space-y-4">
-          {navSections.map((section, i) => (
-            <div key={section.label ?? i}>
-              {section.label && !collapsed && (
-                <p className="px-2 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-500">
-                  {section.label}
-                </p>
+        {/* Project Switcher — hidden when there are no projects or sidebar is
+             collapsed (saves vertical space; users can expand to switch). */}
+        {!collapsed && projects.length > 0 && (
+          <div className="px-3 pt-3">
+            <p className="px-2 mb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+              Project
+            </p>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setProjectSwitcherOpen((o) => !o)}
+                className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-[#1a1a1a] transition-colors text-left"
+                title={activeProject?.name}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 shrink-0" />
+                <span className="text-xs text-gray-300 truncate flex-1">
+                  {activeProject?.name ?? "No project"}
+                </span>
+                <ChevronDown size={12} className="text-gray-500 shrink-0" />
+              </button>
+
+              {projectSwitcherOpen && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-[#1a1a1a] border border-gray-700 rounded-md shadow-lg overflow-hidden z-10 max-h-60 overflow-y-auto">
+                  {projects.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => {
+                        setActiveProject(p);
+                        setProjectSwitcherOpen(false);
+                      }}
+                      className={`w-full flex items-center gap-2 px-2 py-1.5 hover:bg-[#333] transition-colors text-left ${
+                        p.id === activeProject?.id ? "bg-[#222]" : ""
+                      }`}
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 shrink-0" />
+                      <span className="text-xs text-gray-300 truncate flex-1">{p.name}</span>
+                      {p.id === activeProject?.id && (
+                        <Check size={12} className="text-indigo-400 shrink-0" />
+                      )}
+                    </button>
+                  ))}
+                </div>
               )}
-              <div className="space-y-0.5">
-                {section.items.map((item) => (
-                  <NavLink
-                    key={item.to}
-                    to={item.to}
-                    end={item.exact}
-                    className={navLinkClass}
-                    title={collapsed ? item.label : undefined}
-                  >
-                    <item.icon size={14} />
-                    {!collapsed && <span>{item.label}</span>}
-                  </NavLink>
-                ))}
-              </div>
             </div>
-          ))}
+          </div>
+        )}
+
+        {/* Main Navigation — filtered by the active project's menuAccess */}
+        <nav className="flex-1 px-3 py-3 overflow-y-auto space-y-4">
+          {navSections.map((section, i) => {
+            const items = section.items.filter((item) => canSeeMenu(item.menuKey));
+            if (items.length === 0) return null;
+            return (
+              <div key={section.label ?? i}>
+                {section.label && !collapsed && (
+                  <p className="px-2 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+                    {section.label}
+                  </p>
+                )}
+                <div className="space-y-0.5">
+                  {items.map((item) => (
+                    <NavLink
+                      key={item.to}
+                      to={item.to}
+                      end={item.exact}
+                      className={navLinkClass}
+                      title={collapsed ? item.label : undefined}
+                    >
+                      <item.icon size={14} />
+                      {!collapsed && <span>{item.label}</span>}
+                    </NavLink>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
         </nav>
 
         {/* Bottom nav — Settings */}
         <div className="px-3 pb-1 space-y-0.5">
-          <NavLink to="/workspace-settings" className={navLinkClass} title={collapsed ? "Workspace Settings" : undefined}>
-            <Settings size={14} />
-            {!collapsed && <span>Workspace Settings</span>}
-          </NavLink>
+          {canSeeWorkspaceSettings && (
+            <NavLink to="/workspace-settings" className={navLinkClass} title={collapsed ? "Workspace Settings" : undefined}>
+              <Settings size={14} />
+              {!collapsed && <span>Workspace Settings</span>}
+            </NavLink>
+          )}
           <NavLink to="/settings" className={navLinkClass} title={collapsed ? "Profile Settings" : undefined}>
             <Settings size={14} />
             {!collapsed && <span>Profile Settings</span>}

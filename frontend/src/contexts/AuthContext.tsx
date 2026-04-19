@@ -2,11 +2,20 @@ import { createContext, useState, useEffect, useCallback, type ReactNode } from 
 import { api, setAccessToken } from "../services/api";
 import type { User } from "../types";
 
+/**
+ * Signup returns one of two shapes depending on whether an invitation token
+ * was supplied. Pages branch on `verificationRequired` to either navigate
+ * (invitation path = logged in immediately) or show "check your email".
+ */
+export type SignupOutcome =
+  | { verificationRequired: false; user: User }
+  | { verificationRequired: true; email: string };
+
 interface AuthContextValue {
   user: User | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  signup: (email: string, password: string, fullName?: string, invitationToken?: string) => Promise<void>;
+  signup: (email: string, password: string, fullName?: string, invitationToken?: string) => Promise<SignupOutcome>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -48,13 +57,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(result.user);
   }, []);
 
-  const signup = useCallback(async (email: string, password: string, fullName?: string, invitationToken?: string) => {
-    const result = await api<{ user: User; accessToken: string }>("/api/auth/signup", {
+  const signup = useCallback(async (
+    email: string,
+    password: string,
+    fullName?: string,
+    invitationToken?: string,
+  ): Promise<SignupOutcome> => {
+    const result = await api<
+      | { verificationRequired: false; user: User; accessToken: string }
+      | { verificationRequired: true; email: string }
+    >("/api/auth/signup", {
       method: "POST",
       body: JSON.stringify({ email, password, fullName, invitationToken }),
     });
+    if (result.verificationRequired) {
+      return { verificationRequired: true, email: result.email };
+    }
     setAccessToken(result.accessToken);
     setUser(result.user);
+    return { verificationRequired: false, user: result.user };
   }, []);
 
   const logout = useCallback(async () => {

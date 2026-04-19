@@ -14,6 +14,7 @@ import { Spinner } from "../components/ui/Spinner";
 import { Toast } from "../components/ui/Toast";
 import { TokenUsageSection } from "../components/token-usage/TokenUsageSection";
 import { AiProvidersSection } from "../components/workspace-settings/AiProvidersSection";
+import { ProjectsTab } from "../components/workspace-settings/ProjectsTab";
 import { SkillsTab } from "../components/workspace-settings/SkillsTab";
 
 type ToastState = { message: string; type: "success" | "error" | "info" } | null;
@@ -36,6 +37,7 @@ const TABS = [
   { key: "general", label: "General" },
   { key: "team", label: "Team" },
   { key: "invitations", label: "Invitations" },
+  { key: "projects", label: "Projects" },
   { key: "skills", label: "AI Skills" },
   { key: "usage", label: "Token Usage" },
   { key: "integrations", label: "Integrations" },
@@ -759,6 +761,10 @@ export function WorkspaceSettingsPage() {
 
         {activeTab === "invitations" && (
           <InvitationsTab workspaceId={activeWorkspace.id} onToast={showToast} />
+        )}
+
+        {activeTab === "projects" && (
+          <ProjectsTab workspaceId={activeWorkspace.id} onToast={showToast} />
         )}
 
         {activeTab === "skills" && (

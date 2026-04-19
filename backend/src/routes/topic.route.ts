@@ -1,14 +1,44 @@
+import type { PrismaClient } from "@prisma/client";
 import { Hono } from "hono";
 import type { ITopicService } from "../interfaces/services/topic.service.interface";
+import { WORKSPACE_ROLES } from "../constants/roles";
+import { requireApprover } from "../middlewares/rbac.middleware";
 
 type Variables = {
 	userId: string;
 	userEmail: string;
 	workspaceId: string;
 	workspaceRole: string;
+	isSuperadmin: boolean;
+	isApprover?: boolean;
 };
 
-export function createTopicRoutes(topicService: ITopicService) {
+/**
+ * A non-approver member can still edit topic metadata (title, description,
+ * pillar, etc.) — only the `status` field is gated behind the approver
+ * attribute. Workspace admins and superadmins bypass this.
+ *
+ * Topic status endpoints are workspace-scoped (no `:projectId` in URL) so we
+ * look for "any approver membership in this workspace" via prisma. Matches
+ * the pragmatic v1 behavior defined in `requireApprover(prisma)`.
+ */
+async function canChangeStatus(
+	prisma: PrismaClient,
+	isSuperadmin: boolean | undefined,
+	workspaceRole: string | undefined,
+	userId: string,
+	workspaceId: string,
+): Promise<boolean> {
+	if (isSuperadmin) return true;
+	if (workspaceRole === WORKSPACE_ROLES.ADMIN) return true;
+	const hit = await prisma.userProjectMembership.findFirst({
+		where: { userId, isApprover: true, project: { workspaceId } },
+		select: { id: true },
+	});
+	return Boolean(hit);
+}
+
+export function createTopicRoutes(topicService: ITopicService, prisma: PrismaClient) {
 	const app = new Hono<{ Variables: Variables }>();
 
 	// GET / — list topics
@@ -81,8 +111,8 @@ export function createTopicRoutes(topicService: ITopicService) {
 		return c.json({ deleted });
 	});
 
-	// PATCH /bulk-status — bulk status change
-	app.patch("/bulk-status", async (c) => {
+	// PATCH /bulk-status — bulk status change (approver-only)
+	app.patch("/bulk-status", requireApprover(prisma), async (c) => {
 		const workspaceId = c.get("workspaceId");
 		const { ids, status } = await c.req.json<{ ids: string[]; status: string }>();
 		if (!Array.isArray(ids) || ids.length === 0) {
@@ -137,9 +167,26 @@ export function createTopicRoutes(topicService: ITopicService) {
 		return c.json({ data: topic });
 	});
 
-	// PATCH /:id — update topic
+	// PATCH /:id — update topic. The `status` field is approver-gated; all
+	// other fields (title, description, platform, etc.) are editable by any
+	// workspace member with the topic-library menu.
 	app.patch("/:id", async (c) => {
 		const body = await c.req.json();
+		if (body && typeof body === "object" && "status" in body) {
+			const ok = await canChangeStatus(
+				prisma,
+				c.get("isSuperadmin"),
+				c.get("workspaceRole"),
+				c.get("userId"),
+				c.get("workspaceId"),
+			);
+			if (!ok) {
+				return c.json(
+					{ error: "Only approvers can change topic status" },
+					403,
+				);
+			}
+		}
 		const topic = await topicService.update(c.req.param("id"), body);
 		return c.json({ data: topic });
 	});

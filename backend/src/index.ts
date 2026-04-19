@@ -54,6 +54,7 @@ import { createDashboardRoutes } from "./routes/dashboard.route";
 import { createDocumentRoutes } from "./routes/document.route";
 import { createGenerationRoutes } from "./routes/generation.route";
 import { createLibraryRoutes } from "./routes/library.route";
+import { createProjectRoutes } from "./routes/project.route";
 import { createProductRoutes } from "./routes/product.route";
 import { createRecommendationRoutes } from "./routes/recommendation.route";
 import { createResearchRoutes } from "./routes/research.route";
@@ -161,8 +162,12 @@ async function main() {
 			jwtRefreshSecret: env.jwtRefreshSecret,
 			jwtExpiry: env.jwtExpiry,
 			jwtRefreshExpiry: env.jwtRefreshExpiry,
+			appUrl: env.appUrl,
+			emailVerificationTokenExpiry: env.emailVerificationTokenExpiry,
 		},
 		workspaceService,
+		prisma,
+		emailProvider,
 	);
 	const brandService = new BrandService(brandRepository);
 	const productService = new ProductService(productRepository);
@@ -413,17 +418,18 @@ async function main() {
 		createProductRoutes(productService, aiProviderFactory, storageProvider, env.minioBucket, prisma),
 	);
 	workspaceScoped.route("/generations", createGenerationRoutes(generationService));
-	workspaceScoped.route("/library", createLibraryRoutes(libraryService, sceneImageService));
+	workspaceScoped.route("/library", createLibraryRoutes(libraryService, prisma, sceneImageService));
 	workspaceScoped.route(
 		"/campaigns",
 		createCampaignRoutes(campaignService, storageProvider, env.minioBucket),
 	);
 	workspaceScoped.route("/campaigns", createCampaignChatRoutes(chatService));
-	workspaceScoped.route("/topics", createTopicRoutes(topicService));
+	workspaceScoped.route("/topics", createTopicRoutes(topicService, prisma));
 	workspaceScoped.route("/dashboard", createDashboardRoutes(dashboardService));
 	workspaceScoped.route("/documents", createDocumentRoutes(documentService));
 	workspaceScoped.route("/recommendations", createRecommendationRoutes(recommendationService));
 	workspaceScoped.route("/skills", createWorkspaceSkillRoutes(prisma));
+	workspaceScoped.route("/projects", createProjectRoutes(prisma));
 	workspaceScoped.route(
 		"/ai-settings",
 		createWorkspaceAiSettingsRoutes(workspaceSettingRepository, aiProviderFactory),

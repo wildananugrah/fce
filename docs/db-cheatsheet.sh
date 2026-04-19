@@ -47,7 +47,21 @@ usage() {
   echo -e "${GREEN}Roles:${NC}"
   echo "  role <email>            Show user's role in all workspaces"
   echo "  promote <email> <ws_id> Promote user to admin in a workspace"
-  echo "  demote <email> <ws_id>  Demote user to editor in a workspace"
+  echo "  demote <email> <ws_id>  Demote user to member in a workspace"
+  echo ""
+  echo -e "${GREEN}Projects (RBAC):${NC}"
+  echo "  projects <ws_id>        List projects for a workspace"
+  echo "  project-members <proj_id>"
+  echo "                          List memberships for a project"
+  echo ""
+  echo -e "${GREEN}Users:${NC}"
+  echo "  add-user <email> <password> [fullName] [--superadmin]"
+  echo "                          Create a new user account (hashes password)"
+  echo "  delete-user <email>     Delete a user account (cascades to memberships)"
+  echo "  make-superadmin <email>"
+  echo "                          Flip User.isSuperadmin = true"
+  echo "  revoke-superadmin <email>"
+  echo "                          Flip User.isSuperadmin = false"
   echo ""
   echo -e "${GREEN}Admin:${NC}"
   echo "  seed              Run database seed"
@@ -116,24 +130,24 @@ case "${1:-help}" in
 
   # --- Quick Queries ---
   users)
-    run_sql "SELECT id, email, name, status, \"createdAt\" FROM users ORDER BY \"createdAt\" DESC;"
+    run_sql "SELECT id, email, full_name, is_superadmin, status, created_at FROM users ORDER BY created_at DESC;"
     ;;
   workspaces)
-    run_sql "SELECT id, name, slug, status, \"createdAt\" FROM workspaces ORDER BY \"createdAt\" DESC;"
+    run_sql "SELECT id, name, slug, status, created_at FROM workspaces ORDER BY created_at DESC;"
     ;;
   brands)
     if [ -z "$2" ]; then
       echo "Usage: db-cheatsheet.sh brands <workspace_id>"
       exit 1
     fi
-    run_sql "SELECT id, name, slug, status FROM brands WHERE \"workspaceId\" = '$2';"
+    run_sql "SELECT id, name, slug, status, project_id FROM brands WHERE workspace_id = '$2';"
     ;;
   products)
     if [ -z "$2" ]; then
       echo "Usage: db-cheatsheet.sh products <workspace_id>"
       exit 1
     fi
-    run_sql "SELECT id, name, slug, status FROM products WHERE \"workspaceId\" = '$2';"
+    run_sql "SELECT id, name, slug, status FROM products WHERE workspace_id = '$2';"
     ;;
   members)
     if [ -z "$2" ]; then
@@ -141,26 +155,27 @@ case "${1:-help}" in
       exit 1
     fi
     run_sql "
-      SELECT u.email, u.name, uwr.role
+      SELECT u.email, u.full_name, uwr.role
       FROM user_workspace_roles uwr
-      JOIN users u ON u.id = uwr.\"userId\"
-      WHERE uwr.\"workspaceId\" = '$2'
+      JOIN users u ON u.id = uwr.user_id
+      WHERE uwr.workspace_id = '$2'
       ORDER BY uwr.role;
     "
     ;;
   jobs)
     run_sql "
-      SELECT id, name, state, \"createdOn\", \"completedOn\"
+      SELECT id, name, state, created_on, completed_on
       FROM pgboss.job
-      ORDER BY \"createdOn\" DESC
+      ORDER BY created_on DESC
       LIMIT 20;
     "
     ;;
   generations)
     run_sql "
-      SELECT id, status, \"aiProvider\", \"createdAt\"
-      FROM generation_outputs
-      ORDER BY \"createdAt\" DESC
+      SELECT o.id, o.status, o.version_no, o.created_at, r.platform, r.content_type
+      FROM generation_outputs o
+      JOIN generation_requests r ON r.id = o.request_id
+      ORDER BY o.created_at DESC
       LIMIT 20;
     "
     ;;
@@ -174,8 +189,8 @@ case "${1:-help}" in
     run_sql "
       SELECT w.name AS workspace, w.id AS workspace_id, uwr.role
       FROM user_workspace_roles uwr
-      JOIN users u ON u.id = uwr.\"userId\"
-      JOIN workspaces w ON w.id = uwr.\"workspaceId\"
+      JOIN users u ON u.id = uwr.user_id
+      JOIN workspaces w ON w.id = uwr.workspace_id
       WHERE u.email = '$2'
       ORDER BY w.name;
     "
@@ -189,9 +204,9 @@ case "${1:-help}" in
       UPDATE user_workspace_roles
       SET role = 'admin'
       FROM users u
-      WHERE user_workspace_roles.\"userId\" = u.id
+      WHERE user_workspace_roles.user_id = u.id
         AND u.email = '$2'
-        AND user_workspace_roles.\"workspaceId\" = '$3';
+        AND user_workspace_roles.workspace_id = '$3';
     "
     echo -e "${GREEN}User $2 promoted to admin.${NC}"
     ;;
@@ -200,15 +215,85 @@ case "${1:-help}" in
       echo "Usage: db-cheatsheet.sh demote <email> <workspace_id>"
       exit 1
     fi
+    # Per RBAC: non-admin workspace role is 'member'. Project-level menus
+    # + approver are managed separately via Workspace Settings → Projects.
     run_sql "
       UPDATE user_workspace_roles
-      SET role = 'editor'
+      SET role = 'member'
       FROM users u
-      WHERE user_workspace_roles.\"userId\" = u.id
+      WHERE user_workspace_roles.user_id = u.id
         AND u.email = '$2'
-        AND user_workspace_roles.\"workspaceId\" = '$3';
+        AND user_workspace_roles.workspace_id = '$3';
     "
-    echo -e "${GREEN}User $2 demoted to editor.${NC}"
+    echo -e "${GREEN}User $2 demoted to member.${NC}"
+    ;;
+
+  # --- Projects (RBAC) ---
+  projects)
+    if [ -z "$2" ]; then
+      echo "Usage: db-cheatsheet.sh projects <workspace_id>"
+      exit 1
+    fi
+    run_sql "
+      SELECT p.id, p.name, p.slug, p.archived_at,
+             (SELECT COUNT(*) FROM user_project_memberships m WHERE m.project_id = p.id) AS members,
+             (SELECT COUNT(*) FROM brands b WHERE b.project_id = p.id) AS brands
+      FROM projects p
+      WHERE p.workspace_id = '$2'
+      ORDER BY p.created_at ASC;
+    "
+    ;;
+  project-members)
+    if [ -z "$2" ]; then
+      echo "Usage: db-cheatsheet.sh project-members <project_id>"
+      exit 1
+    fi
+    run_sql "
+      SELECT u.email, u.full_name, m.is_approver, m.menu_access
+      FROM user_project_memberships m
+      JOIN users u ON u.id = m.user_id
+      WHERE m.project_id = '$2'
+      ORDER BY u.email;
+    "
+    ;;
+
+  # --- Users ---
+  add-user)
+    if [ -z "$2" ] || [ -z "$3" ]; then
+      echo "Usage: db-cheatsheet.sh add-user <email> <password> [fullName] [--superadmin]"
+      exit 1
+    fi
+    echo -e "${CYAN}Creating user $2...${NC}"
+    # Delegate to the bun script so bcrypt hashes the password correctly.
+    cd backend && bun run scripts/create-user.ts "${@:2}"
+    ;;
+  delete-user)
+    if [ -z "$2" ]; then
+      echo "Usage: db-cheatsheet.sh delete-user <email>"
+      exit 1
+    fi
+    echo -e "${YELLOW}About to delete user $2 and all their memberships.${NC}"
+    read -p "Are you sure? (y/N) " confirm
+    if [ "$confirm" = "y" ] || [ "$confirm" = "Y" ]; then
+      run_sql "DELETE FROM users WHERE email = '$2';"
+      echo -e "${GREEN}User $2 deleted.${NC}"
+    else
+      echo "Aborted."
+    fi
+    ;;
+  make-superadmin)
+    if [ -z "$2" ]; then
+      echo "Usage: db-cheatsheet.sh make-superadmin <email>"
+      exit 1
+    fi
+    cd backend && bun run scripts/seed-superadmin.ts "$2"
+    ;;
+  revoke-superadmin)
+    if [ -z "$2" ]; then
+      echo "Usage: db-cheatsheet.sh revoke-superadmin <email>"
+      exit 1
+    fi
+    cd backend && bun run scripts/seed-superadmin.ts "$2" --revoke
     ;;
 
   # --- Admin ---

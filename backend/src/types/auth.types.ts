@@ -26,3 +26,12 @@ export interface AuthResponse {
 	};
 	accessToken: string;
 }
+
+/**
+ * Signup either completes (invitation path — user is auto-verified and
+ * immediately logged in) or lands in a "pending verification" state, where no
+ * JWT is issued and the frontend must show a "check your email" screen.
+ */
+export type SignupResult =
+	| { kind: "verified"; user: AuthResponse["user"]; accessToken: string }
+	| { kind: "pending"; email: string };

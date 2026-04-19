@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import { WorkspaceProvider } from "./contexts/WorkspaceContext";
+import { ProjectProvider } from "./contexts/ProjectContext";
 import { AppShell } from "./components/layout/AppShell";
 import { LandingPage } from "./pages/LandingPage";
 import { LoginPage } from "./pages/LoginPage";
@@ -23,17 +24,20 @@ import { ProductDetailPage } from "./pages/ProductDetailPage";
 import { ResearchPage } from "./pages/Research/ResearchPage";
 import { ResearchRunDetail } from "./pages/Research/ResearchRunDetail";
 import { AcceptInvitationPage } from "./pages/AcceptInvitationPage";
+import { VerifyPage } from "./pages/VerifyPage";
 
 export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
         <WorkspaceProvider>
+          <ProjectProvider>
           <Routes>
             <Route path="/landing" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<SignupPage />} />
             <Route path="/accept-invitation" element={<AcceptInvitationPage />} />
+            <Route path="/verify" element={<VerifyPage />} />
             <Route element={<AppShell />}>
               <Route path="/" element={<DashboardPage />} />
               <Route path="/brands" element={<BrandsPage />} />
@@ -56,6 +60,7 @@ export default function App() {
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+          </ProjectProvider>
         </WorkspaceProvider>
       </AuthProvider>
     </BrowserRouter>

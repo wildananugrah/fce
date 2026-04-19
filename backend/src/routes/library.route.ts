@@ -1,16 +1,21 @@
+import type { PrismaClient } from "@prisma/client";
 import { Hono } from "hono";
 import type { ILibraryService } from "../interfaces/services/library.service.interface";
 import type { SceneImageService } from "../services/scene-image.service";
+import { requireApprover } from "../middlewares/rbac.middleware";
 
 type Variables = {
 	userId: string;
 	userEmail: string;
 	workspaceId: string;
 	workspaceRole: string;
+	isSuperadmin: boolean;
+	isApprover?: boolean;
 };
 
 export function createLibraryRoutes(
 	libraryService: ILibraryService,
+	prisma: PrismaClient,
 	sceneImageService?: SceneImageService,
 ) {
 	const app = new Hono<{ Variables: Variables }>();
@@ -34,8 +39,8 @@ export function createLibraryRoutes(
 		return c.json({ deleted });
 	});
 
-	// PATCH /bulk-status — bulk status change
-	app.patch("/bulk-status", async (c) => {
+	// PATCH /bulk-status — bulk status change (approver-only)
+	app.patch("/bulk-status", requireApprover(prisma), async (c) => {
 		const workspaceId = c.get("workspaceId");
 		const { ids, status } = await c.req.json<{ ids: string[]; status: string }>();
 		if (!Array.isArray(ids) || ids.length === 0) {
@@ -52,8 +57,8 @@ export function createLibraryRoutes(
 		}
 	});
 
-	// PATCH /:id — update status (approve/reject)
-	app.patch("/:id", async (c) => {
+	// PATCH /:id — update status (approve/reject) — approver-only
+	app.patch("/:id", requireApprover(prisma), async (c) => {
 		const body = await c.req.json();
 		const { status } = body;
 		if (!status) {

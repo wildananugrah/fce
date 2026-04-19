@@ -2,6 +2,22 @@ const BASE_URL = import.meta.env.VITE_API_URL || "";
 
 let accessToken: string | null = null;
 
+/**
+ * Error thrown from `api()` on any non-2xx response. The HTTP status and the
+ * full parsed body are attached so callers can inspect extra fields (e.g.
+ * `verificationRequired`, `email`) without re-fetching or string-parsing
+ * `message`.
+ */
+export class ApiError extends Error {
+  constructor(
+    public status: number,
+    public body: Record<string, unknown>,
+  ) {
+    super(typeof body.error === "string" ? body.error : "Request failed");
+    this.name = "ApiError";
+  }
+}
+
 export function setAccessToken(token: string | null) {
   accessToken = token;
 }
@@ -57,7 +73,7 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
 
   if (!res.ok) {
     const errorBody = await res.json().catch(() => ({ error: "Request failed" }));
-    throw new Error(errorBody.error || "Request failed");
+    throw new ApiError(res.status, errorBody);
   }
 
   // 204 No Content and empty bodies — return null/undefined gracefully
