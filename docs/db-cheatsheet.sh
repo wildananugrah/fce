@@ -58,6 +58,10 @@ usage() {
   echo "  add-user <email> <password> [fullName] [--superadmin]"
   echo "                          Create a new user account (hashes password)"
   echo "  delete-user <email>     Delete a user account (cascades to memberships)"
+  echo "  reset-password <email> <new-password>"
+  echo "                          Reset a user's password (hashes with bcrypt)"
+  echo "  reset-password <email> --random"
+  echo "                          Reset to a random 16-char password and print it"
   echo "  make-superadmin <email>"
   echo "                          Flip User.isSuperadmin = true"
   echo "  revoke-superadmin <email>"
@@ -280,6 +284,14 @@ case "${1:-help}" in
     else
       echo "Aborted."
     fi
+    ;;
+  reset-password)
+    if [ -z "$2" ] || [ -z "$3" ]; then
+      echo "Usage: db-cheatsheet.sh reset-password <email> <new-password>"
+      echo "       db-cheatsheet.sh reset-password <email> --random"
+      exit 1
+    fi
+    cd backend && bun run scripts/reset-password.ts "${@:2}"
     ;;
   make-superadmin)
     if [ -z "$2" ]; then
