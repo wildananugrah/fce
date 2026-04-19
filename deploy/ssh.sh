@@ -1,0 +1,1 @@
+ssh -i fce-key.pem -o ServerAliveInterval=60 -o ServerAliveCountMax=3 ubuntu@13.215.158.48

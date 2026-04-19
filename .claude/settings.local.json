@@ -97,7 +97,21 @@
       "Bash(tsc --noEmit)",
       "Bash(git show *)",
       "Bash(npm install *)",
-      "Bash(bunx dotenv *)"
+      "Bash(bunx dotenv *)",
+      "Bash(bun -e ' *)",
+      "Bash(grep -nA3 \"signAccessToken\\(\" /Users/bellinnn/Documents/projects/fce/backend/src/services/auth.service.ts)",
+      "Bash(grep -nB1 -A1 \"signAccessToken\\(\" /Users/bellinnn/Documents/projects/fce/backend/src/services/auth.service.ts)",
+      "Bash(bash docs/db-cheatsheet.sh add-user cheatsheet-test@example.com ChangeMe123 \"Cheatsheet Test\")",
+      "Bash(bash docs/db-cheatsheet.sh query \"SELECT column_name FROM information_schema.columns WHERE table_name IN \\('users','workspaces','brands','products','user_workspace_roles'\\) AND table_schema='public' ORDER BY table_name, ordinal_position;\")",
+      "Bash(bash docs/db-cheatsheet.sh query \"SELECT column_name FROM information_schema.columns WHERE table_name='job' AND table_schema='pgboss' ORDER BY ordinal_position;\")",
+      "Bash(bash docs/db-cheatsheet.sh users)",
+      "Bash(bash docs/db-cheatsheet.sh workspaces)",
+      "Bash(bash docs/db-cheatsheet.sh jobs)",
+      "Bash(bash docs/db-cheatsheet.sh generations)",
+      "Bash(bash docs/db-cheatsheet.sh role wildananugrah@gmail.com)",
+      "Bash(bash docs/db-cheatsheet.sh query \"SELECT u.email, uwr.role, w.name FROM user_workspace_roles uwr JOIN users u ON u.id = uwr.user_id JOIN workspaces w ON w.id = uwr.workspace_id;\")",
+      "Bash(bash docs/db-cheatsheet.sh query \"SELECT COUNT\\(*\\) FROM user_workspace_roles;\")",
+      "Bash(bash docs/db-cheatsheet.sh query \"SELECT id, email, is_superadmin FROM users;\")"
     ],
     "additionalDirectories": [
       "/Users/wildananugrah/Documents/My-Projects/fce/.git"
