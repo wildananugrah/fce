@@ -37,6 +37,10 @@ export function createProjectRoutes(prisma: PrismaClient) {
 
 	// GET / — list projects. Members see the projects they belong to; workspace
 	// admins and superadmins see every non-archived project in the workspace.
+	//
+	// Each row includes the caller's own membership (or `null` for admins /
+	// superadmins who bypass project-level gating). The frontend uses this to
+	// build menu + approver state without a second round-trip.
 	app.get("/", async (c) => {
 		const workspaceId = c.get("workspaceId");
 		const userId = c.get("userId");
@@ -60,10 +64,30 @@ export function createProjectRoutes(prisma: PrismaClient) {
 				description: true,
 				createdAt: true,
 				_count: { select: { memberships: true, brands: true } },
+				memberships: {
+					where: { userId },
+					select: { isApprover: true, menuAccess: true },
+					take: 1,
+				},
 			},
 		});
 
-		return c.json({ data: projects });
+		return c.json({
+			data: projects.map((p) => ({
+				id: p.id,
+				name: p.name,
+				slug: p.slug,
+				description: p.description,
+				createdAt: p.createdAt,
+				_count: p._count,
+				myMembership: p.memberships[0]
+					? {
+							isApprover: p.memberships[0].isApprover,
+							menuAccess: sanitizeMenuAccess(p.memberships[0].menuAccess),
+						}
+					: null,
+			})),
+		});
 	});
 
 	// POST / — create project (admin only).
