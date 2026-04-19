@@ -85,7 +85,14 @@ const navSections: NavSection[] = [
 export function AppShell() {
   const { user, isLoading: authLoading, logout } = useAuth();
   const { workspaces, activeWorkspace, setActiveWorkspace, isLoading: wsLoading, refresh } = useWorkspace();
-  const { menuAccess, hasFullAccess } = useProject();
+  const {
+    menuAccess,
+    hasFullAccess,
+    projects,
+    activeProject,
+    setActiveProject,
+  } = useProject();
+  const [projectSwitcherOpen, setProjectSwitcherOpen] = useState(false);
   const canSeeMenu = (menuKey?: string) => {
     if (!menuKey) return true; // always-on items (Dashboard)
     if (hasFullAccess) return true;
@@ -179,6 +186,54 @@ export function AppShell() {
             {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
           </button>
         </div>
+
+        {/* Project Switcher — hidden when there are no projects or sidebar is
+             collapsed (saves vertical space; users can expand to switch). */}
+        {!collapsed && projects.length > 0 && (
+          <div className="px-3 pt-3">
+            <p className="px-2 mb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+              Project
+            </p>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setProjectSwitcherOpen((o) => !o)}
+                className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-[#1a1a1a] transition-colors text-left"
+                title={activeProject?.name}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 shrink-0" />
+                <span className="text-xs text-gray-300 truncate flex-1">
+                  {activeProject?.name ?? "No project"}
+                </span>
+                <ChevronDown size={12} className="text-gray-500 shrink-0" />
+              </button>
+
+              {projectSwitcherOpen && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-[#1a1a1a] border border-gray-700 rounded-md shadow-lg overflow-hidden z-10 max-h-60 overflow-y-auto">
+                  {projects.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => {
+                        setActiveProject(p);
+                        setProjectSwitcherOpen(false);
+                      }}
+                      className={`w-full flex items-center gap-2 px-2 py-1.5 hover:bg-[#333] transition-colors text-left ${
+                        p.id === activeProject?.id ? "bg-[#222]" : ""
+                      }`}
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 shrink-0" />
+                      <span className="text-xs text-gray-300 truncate flex-1">{p.name}</span>
+                      {p.id === activeProject?.id && (
+                        <Check size={12} className="text-indigo-400 shrink-0" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Main Navigation — filtered by the active project's menuAccess */}
         <nav className="flex-1 px-3 py-3 overflow-y-auto space-y-4">
