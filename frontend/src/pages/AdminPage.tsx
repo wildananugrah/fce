@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ShieldOff, Plus, Trash2 } from "lucide-react";
+import { ShieldOff, Plus, Trash2, UserPlus } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { api } from "../services/api";
 import { Tabs } from "../components/ui/Tabs";
@@ -9,6 +9,9 @@ import { Button } from "../components/ui/Button";
 import { Modal } from "../components/ui/Modal";
 import { Input } from "../components/ui/Input";
 import { Spinner } from "../components/ui/Spinner";
+import { Toast } from "../components/ui/Toast";
+import { AdminNewUserModal } from "../components/admin/AdminNewUserModal";
+import { AdminUserModal } from "../components/admin/AdminUserModal";
 
 interface AdminUser {
   id: string;
@@ -58,6 +61,12 @@ export function AdminPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [newName, setNewName] = useState("");
   const [newDescription, setNewDescription] = useState("");
+
+  // Users tab — new / manage modals + toast
+  const [newUserOpen, setNewUserOpen] = useState(false);
+  const [manageUserId, setManageUserId] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
+  const showToast = (message: string, type: "success" | "error" | "info") => setToast({ message, type });
 
   if (!user?.isSuperadmin) {
     return (
@@ -135,38 +144,67 @@ export function AdminPage() {
 
     if (activeTab === "users") {
       return (
-        <Table<AdminUser>
-          columns={[
-            { key: "email", header: "Email" },
-            { key: "fullName", header: "Name", render: (u) => u.fullName || "-" },
-            {
-              key: "status",
-              header: "Status",
-              render: (u) => (
-                <Badge variant={u.status === "active" ? "success" : "warning"}>
-                  {u.status}
-                </Badge>
-              ),
-            },
-            {
-              key: "isSuperadmin",
-              header: "Role",
-              render: (u) =>
-                u.isSuperadmin ? (
-                  <Badge variant="info">Admin</Badge>
-                ) : (
-                  <span className="text-gray-400 text-xs">User</span>
+        <div className="space-y-3">
+          <div className="flex justify-end">
+            <Button size="sm" onClick={() => setNewUserOpen(true)}>
+              <UserPlus className="w-3.5 h-3.5 mr-1" />
+              New User
+            </Button>
+          </div>
+          <Table<AdminUser>
+            columns={[
+              {
+                key: "email",
+                header: "Email",
+                render: (u) => (
+                  <button
+                    type="button"
+                    onClick={() => setManageUserId(u.id)}
+                    className="text-left hover:text-indigo-600"
+                  >
+                    {u.email}
+                  </button>
                 ),
-            },
-            {
-              key: "createdAt",
-              header: "Joined",
-              render: (u) => new Date(u.createdAt).toLocaleDateString(),
-            },
-          ]}
-          data={users}
-          emptyMessage="No users found"
-        />
+              },
+              { key: "fullName", header: "Name", render: (u) => u.fullName || "-" },
+              {
+                key: "status",
+                header: "Status",
+                render: (u) => (
+                  <Badge variant={u.status === "active" ? "success" : "warning"}>
+                    {u.status}
+                  </Badge>
+                ),
+              },
+              {
+                key: "isSuperadmin",
+                header: "Role",
+                render: (u) =>
+                  u.isSuperadmin ? (
+                    <Badge variant="info">Superadmin</Badge>
+                  ) : (
+                    <span className="text-gray-400 text-xs">User</span>
+                  ),
+              },
+              {
+                key: "createdAt",
+                header: "Joined",
+                render: (u) => new Date(u.createdAt).toLocaleDateString(),
+              },
+              {
+                key: "actions",
+                header: "",
+                render: (u) => (
+                  <Button size="sm" variant="secondary" onClick={() => setManageUserId(u.id)}>
+                    Manage
+                  </Button>
+                ),
+              },
+            ]}
+            data={users}
+            emptyMessage="No users found"
+          />
+        </div>
       );
     }
 
@@ -244,6 +282,26 @@ export function AdminPage() {
       <Tabs tabs={TABS} activeTab={activeTab} onChange={setActiveTab} />
 
       {renderContent()}
+
+      {newUserOpen && (
+        <AdminNewUserModal
+          onClose={() => setNewUserOpen(false)}
+          onToast={showToast}
+          onCreated={() => fetchData("users")}
+        />
+      )}
+
+      {manageUserId && (
+        <AdminUserModal
+          userId={manageUserId}
+          isSelf={user?.id === manageUserId}
+          onClose={() => setManageUserId(null)}
+          onToast={showToast}
+          onChanged={() => fetchData("users")}
+        />
+      )}
+
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
       <Modal isOpen={showAddModal} onClose={() => setShowAddModal(false)} title="Add New Item">
         <div className="space-y-4">
