@@ -7,14 +7,20 @@ let accessToken: string | null = null;
  * full parsed body are attached so callers can inspect extra fields (e.g.
  * `verificationRequired`, `email`) without re-fetching or string-parsing
  * `message`.
+ *
+ * Fields are declared explicitly rather than via constructor parameter
+ * properties because the frontend's TS config has `erasableSyntaxOnly`
+ * enabled, which disallows that shorthand.
  */
 export class ApiError extends Error {
-  constructor(
-    public status: number,
-    public body: Record<string, unknown>,
-  ) {
+  status: number;
+  body: Record<string, unknown>;
+
+  constructor(status: number, body: Record<string, unknown>) {
     super(typeof body.error === "string" ? body.error : "Request failed");
     this.name = "ApiError";
+    this.status = status;
+    this.body = body;
   }
 }
 
