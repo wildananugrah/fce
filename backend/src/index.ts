@@ -414,13 +414,13 @@ async function main() {
 		createProductRoutes(productService, aiProviderFactory, storageProvider, env.minioBucket, prisma),
 	);
 	workspaceScoped.route("/generations", createGenerationRoutes(generationService));
-	workspaceScoped.route("/library", createLibraryRoutes(libraryService, sceneImageService));
+	workspaceScoped.route("/library", createLibraryRoutes(libraryService, prisma, sceneImageService));
 	workspaceScoped.route(
 		"/campaigns",
 		createCampaignRoutes(campaignService, storageProvider, env.minioBucket),
 	);
 	workspaceScoped.route("/campaigns", createCampaignChatRoutes(chatService));
-	workspaceScoped.route("/topics", createTopicRoutes(topicService));
+	workspaceScoped.route("/topics", createTopicRoutes(topicService, prisma));
 	workspaceScoped.route("/dashboard", createDashboardRoutes(dashboardService));
 	workspaceScoped.route("/documents", createDocumentRoutes(documentService));
 	workspaceScoped.route("/recommendations", createRecommendationRoutes(recommendationService));

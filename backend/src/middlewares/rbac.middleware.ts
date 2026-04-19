@@ -3,6 +3,12 @@ import { createMiddleware } from "hono/factory";
 import { WORKSPACE_ROLES, isMenuKey, type MenuKey } from "../constants/roles";
 
 /**
+ * Cache hint: approver lookups are per-request. The DB query is cheap (indexed
+ * join on userId + projectId.workspaceId). If it becomes hot we can cache on
+ * a per-request memo; for now, keep it simple.
+ */
+
+/**
  * Context keys this file contributes (via project middleware):
  *   - projectId: string | null   (null when the route is workspace-scoped with no specific project)
  *   - isProjectMember: boolean
@@ -118,8 +124,23 @@ export function requireMenu(menuKey: MenuKey) {
 	});
 }
 
-/** Guard factory: allows superadmin, workspace admin, or a member with `isApprover=true`. */
-export function requireApprover() {
+/**
+ * Guard factory: allows superadmin, workspace admin, or an approver.
+ *
+ * When the route is project-scoped (`:projectId` set), uses the `isApprover`
+ * flag populated by `createProjectMiddleware`.
+ *
+ * When the route is workspace-scoped only (e.g. topic/content library, which
+ * aren't project-scoped in the URL), checks whether the user has ANY approver
+ * membership in a project within this workspace. A single DB query, indexed.
+ *
+ * This is a pragmatic v1: "approver in the workspace" ≈ "approver everywhere
+ * in the workspace". Topic/content rows don't directly carry projectId — they
+ * reach a project via Brand.projectId — so enforcing per-project approver on
+ * these routes would mean joining through Brand on every call. Revisit if the
+ * product gains stricter per-project approval workflows.
+ */
+export function requireApprover(prisma?: PrismaClient) {
 	return createMiddleware<{ Variables: RbacVariables }>(async (c, next) => {
 		const isSuperadmin = c.get("isSuperadmin");
 		const workspaceRole = c.get("workspaceRole");
@@ -127,7 +148,35 @@ export function requireApprover() {
 			await next();
 			return;
 		}
-		if (!c.get("isApprover")) {
+
+		// Fast path: project middleware already resolved approver for this turn.
+		if (c.get("projectId") && c.get("isApprover") === true) {
+			await next();
+			return;
+		}
+		if (c.get("projectId") && c.get("isApprover") === false) {
+			return c.json({ error: "Forbidden: approver access required" }, 403);
+		}
+
+		// Workspace-scoped route: look for any approver membership.
+		if (!prisma) {
+			// No prisma provided; fall back to the project-scope flag only.
+			return c.json({ error: "Forbidden: approver access required" }, 403);
+		}
+		const userId = c.get("userId");
+		const workspaceId = c.get("workspaceId");
+		if (!userId || !workspaceId) {
+			return c.json({ error: "Forbidden: approver access required" }, 403);
+		}
+		const hit = await prisma.userProjectMembership.findFirst({
+			where: {
+				userId,
+				isApprover: true,
+				project: { workspaceId },
+			},
+			select: { id: true },
+		});
+		if (!hit) {
 			return c.json({ error: "Forbidden: approver access required" }, 403);
 		}
 		await next();
