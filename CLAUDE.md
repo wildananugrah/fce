@@ -56,11 +56,28 @@ Routes → Services → Repositories → Prisma → PostgreSQL
 - **Repositories** (`src/repositories/`) abstract Prisma data access behind interfaces (`src/interfaces/`)
 - **Jobs** (`src/jobs/`) handle async AI generation via pg-boss queue workers
 - **Providers** (`src/providers/`) wrap external services (Anthropic, Gemini, Winston logger)
-- **Middlewares** (`src/middlewares/`) — auth (JWT), workspace scoping, error handler, request logger
+- **Middlewares** (`src/middlewares/`) — auth (JWT + `isSuperadmin` claim), workspace scoping, RBAC guards (`rbac.middleware.ts`), error handler, request logger
 
-### Workspace Multi-Tenancy
+### Workspace Multi-Tenancy + Project RBAC
 
-All workspace-scoped routes live under `/api/workspaces/:workspaceId/*`. The workspace middleware verifies user membership and injects `workspaceId` into the Hono context. Roles: admin, editor, viewer.
+Workspace-scoped routes live under `/api/workspaces/:workspaceId/*`. The workspace middleware verifies user membership and injects `workspaceId` + `workspaceRole` into the Hono context.
+
+Three-tier RBAC (`backend/src/constants/roles.ts` is the single source of truth):
+- **SUPERADMIN** — global. `User.isSuperadmin = true`. Manages workspaces, projects, and users. Claim is carried in the JWT.
+- **ADMIN** — workspace-scoped. `UserWorkspaceRole.role = "admin"`. Manages projects + invites + workspace settings within one workspace.
+- **MEMBER** — project-scoped. Rows in `UserProjectMembership(userId, projectId)` with `isApprover: boolean` and `menuAccess: MenuKey[]`. A member only sees menus they've been granted and can only change topic/content status if `isApprover = true`.
+
+Guard factories in `src/middlewares/rbac.middleware.ts`: `createProjectMiddleware`, `requireMenu(key)`, `requireApprover(prisma)`, `requireWorkspaceAdmin()`, `requireSuperadmin()`. Admins and superadmins bypass the menu + approver checks.
+
+**Project model** (new): `Workspace → Project → Brand → Product → …`. `Brand.projectId` was added as nullable so existing rows are backfilled by a one-shot migration into a per-workspace "Default" project (`scripts/migrate-rbac.ts`). Every workspace has at least the Default project; it can't be archived.
+
+### Email Verification
+
+Standard signups stay pending until the user clicks a verification link. `User.emailVerifiedAt = null` blocks login; `AuthService.login` throws `EmailNotVerifiedError` which the route converts to a 403 with `{ verificationRequired: true, email }`.
+
+Invitation-based signups skip verification — accepting the workspace invitation already proves address ownership, so the user is auto-verified and logged in immediately.
+
+Tokens live in `EmailVerificationToken` (opaque, single-use, TTL configurable via `EMAIL_VERIFICATION_TOKEN_EXPIRY`, default `24h`). `verifyEmail` is idempotent — re-hitting an already-consumed token for a verified user succeeds, so StrictMode double-effects and email scanners don't burn the link. Existing users were grandfathered as verified via `scripts/migrate-email-verification.ts`.
 
 ### AI Generation Pipeline
 
@@ -94,16 +111,23 @@ Different features use different URL fetch strategies depending on their latency
 - Uses direct `fetch()` with Cloudflare-friendly User-Agent, falls back to storing the URL as a single chunk if scraping fails
 - Implementation: `backend/src/jobs/link-scraping.job.ts`
 
+### Per-Workspace AI Provider Resolution
+
+AI provider keys and model choices live on `WorkspaceSetting` (per-workspace) rather than solely in `.env`. `AiProviderFactory` (`src/services/ai-provider-factory.service.ts`) resolves each field with this precedence: **workspace value → env default → built-in default**. Fresh provider instances are constructed per call (cheap, avoids races on `lastUsage`). Resolved settings are cached per workspace; the `PUT /api/workspaces/:id/ai-settings` endpoint calls `factory.invalidate(workspaceId)` so changes take effect without a backend restart.
+
+`.env` keys (`ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `AI_PROVIDER`, per-generator overrides) remain as the fallback for workspaces that haven't configured their own — keeps self-host / dev environments working with a single shared key.
+
 ### AI Activity Logging
 
 Every AI provider call (content, topic, campaign, brand scraping, product scraping, product brain, URL inspiration) is logged to the `ai_provider_logs` table via `logAiActivity()` (`backend/src/utils/ai-activity-logger.ts`). Each log row captures: workspace, user, generator type, provider, model, system/user prompt, response, input/output tokens, duration, estimated cost, and status. Used for token usage tracking (profile/workspace settings pages) and dispute resolution.
 
 ### Frontend Structure
 
-- **Pages** (`src/pages/`) — 12 pages (Dashboard, Brands, Products, Generate, Campaigns, Topics, Library, etc.)
-- **Contexts** (`src/contexts/`) — `AuthContext` (JWT + refresh), `WorkspaceContext` (active workspace)
-- **Hooks** (`src/hooks/`) — `useAuth`, `useWorkspace`, `useSSE` for real-time job notifications
-- **Services** (`src/services/`) — API client with automatic token refresh
+- **Pages** (`src/pages/`) — Dashboard, Brands, Products, Generate, Campaigns, Topics, Library, Admin, Workspace Settings, plus auth pages (`LoginPage`, `SignupPage`, `VerifyPage`, `AcceptInvitationPage`).
+- **Contexts** (`src/contexts/`) — `AuthContext` (JWT + refresh, carries `isSuperadmin`), `WorkspaceContext` (active workspace + role), `ProjectContext` (active project + effective `menuAccess` + `isApprover` with admin bypass).
+- **Hooks** (`src/hooks/`) — `useAuth`, `useWorkspace`, `useProject`, `useSSE` for real-time job notifications, `useAvailableSkills` (cached skill list for chat @mentions).
+- **Services** (`src/services/`) — API client with automatic token refresh. Throws `ApiError` with the HTTP status + parsed body so callers can inspect fields like `verificationRequired`.
+- **Sidebar** (`components/layout/AppShell.tsx`) — filters nav items by `menuAccess` for non-admins; hides Workspace Settings + Admin links when the user lacks those roles.
 
 ## Code Style
 
@@ -114,4 +138,33 @@ Every AI provider call (content, topic, campaign, brand scraping, product scrapi
 
 ## Environment
 
-Copy `.env.example` to `.env`. Key variables: `DATABASE_URL`, `AI_PROVIDER` (anthropic/gemini), `ANTHROPIC_API_KEY`/`GEMINI_API_KEY`. Per-task AI provider overrides available via `AI_CONTENT_PROVIDER`, `AI_CAMPAIGN_PROVIDER`, `AI_TOPIC_PROVIDER`, `AI_BRAND_SCRAPER_PROVIDER`.
+Copy `.env.example` to `.env`. Key variables:
+
+- `DATABASE_URL` — Postgres connection string.
+- `JWT_SECRET`, `JWT_REFRESH_SECRET`, `JWT_EXPIRY`, `JWT_REFRESH_EXPIRY`.
+- `EMAIL_VERIFICATION_TOKEN_EXPIRY` — default `24h`. Parseable as `"30s"`, `"5m"`, `"2h"`, `"7d"`.
+- `RESEND_API_KEY` + `EMAIL_FROM` — if unset, emails are logged to stdout (dev only).
+- `APP_URL` — used to build verification + invitation links.
+- **AI defaults (fallbacks only)**: `AI_PROVIDER`, `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `GEMINI_IMAGE_MODEL`. Per-task overrides: `AI_CONTENT_PROVIDER`, `AI_CAMPAIGN_PROVIDER`, `AI_TOPIC_PROVIDER`, `AI_BRAND_SCRAPER_PROVIDER`, `AI_CHAT_PROVIDER`. Workspaces can override any of these from Workspace Settings → Integrations → AI Providers; env values kick in only when a workspace hasn't configured its own.
+
+## One-shot migrations and CLI scripts
+
+After pulling a schema change, run in order:
+
+```bash
+cd backend
+bunx prisma db push                                  # sync schema
+bun run scripts/migrate-rbac.ts                      # default project + memberships
+bun run scripts/migrate-email-verification.ts        # grandfather existing users
+```
+
+User management (full reference in [docs/database-access.md](docs/database-access.md)):
+
+```bash
+bun run scripts/create-user.ts <email> <password> [fullName] [--superadmin]
+bun run scripts/reset-password.ts <email> <new-password>   # or --random
+bun run scripts/seed-superadmin.ts <email>                 # or --revoke
+bun run scripts/fix-workspace-admin.ts <email> <workspace> # grant workspace admin
+```
+
+Or via the cheatsheet wrapper: `bash docs/db-cheatsheet.sh` (no args for help).

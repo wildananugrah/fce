@@ -83,6 +83,108 @@ Opens a browser-based UI at `http://localhost:5555` to browse and edit data.
 cd backend && bun run scripts/delete-all-data.ts
 ```
 
+## User Management (CLI)
+
+Scripts in `backend/scripts/` for creating / resetting / promoting users and
+running the one-shot migrations that seed new columns on existing data.
+
+All scripts load `.env` from `backend/`, so run them from that directory (the
+cheatsheet wrappers below do that for you).
+
+### Create, reset, delete
+
+```bash
+cd backend
+
+# Create a user (hashes password with bcrypt). Refuses duplicates.
+bun run scripts/create-user.ts <email> <password> [fullName] [--superadmin]
+
+# Reset a password
+bun run scripts/reset-password.ts <email> <new-password>
+bun run scripts/reset-password.ts <email> --random   # prints a random 16-char password
+
+# Promote / revoke global superadmin
+bun run scripts/seed-superadmin.ts <email>
+bun run scripts/seed-superadmin.ts <email> --revoke
+
+# Add (or re-set) a user's admin role in a workspace
+bun run scripts/fix-workspace-admin.ts <email> <workspace-name-or-id>
+```
+
+Deletion is handled via plain SQL because of the `ON DELETE CASCADE` chain —
+see the `delete-user` cheatsheet wrapper below.
+
+### One-shot migrations
+
+These are safe to re-run; each checks current state and skips rows that are
+already in the target shape.
+
+```bash
+# RBAC rollout: creates a "Default" project per workspace, backfills
+# Brand.projectId, converts non-admin workspace members to project
+# memberships (isApprover=false, menuAccess=all). Existing workspace admins
+# are left as-is.
+bun run scripts/migrate-rbac.ts [--dry-run]
+
+# Email verification rollout: grandfathers every existing user as
+# verified (sets emailVerifiedAt = now() on null rows) so they can still
+# log in after the gate is added.
+bun run scripts/migrate-email-verification.ts [--dry-run]
+```
+
+### Cheatsheet wrappers
+
+All of the above have one-line wrappers in `docs/db-cheatsheet.sh`:
+
+```bash
+bash docs/db-cheatsheet.sh add-user <email> <password> [fullName] [--superadmin]
+bash docs/db-cheatsheet.sh delete-user <email>                    # confirms before DELETE
+bash docs/db-cheatsheet.sh reset-password <email> <new-password>
+bash docs/db-cheatsheet.sh reset-password <email> --random
+bash docs/db-cheatsheet.sh make-superadmin <email>
+bash docs/db-cheatsheet.sh revoke-superadmin <email>
+
+# RBAC inspection
+bash docs/db-cheatsheet.sh projects <workspace-id>
+bash docs/db-cheatsheet.sh project-members <project-id>
+```
+
+Run `bash docs/db-cheatsheet.sh` with no args to list every command.
+
+### Useful SQL for RBAC + auth state
+
+```sql
+-- Quick view: every user with verification + superadmin state
+SELECT email, full_name, is_superadmin, email_verified_at, created_at
+FROM users
+ORDER BY created_at DESC;
+
+-- Workspace admins across the org
+SELECT u.email, w.name AS workspace, uwr.role
+FROM user_workspace_roles uwr
+JOIN users u ON u.id = uwr.user_id
+JOIN workspaces w ON w.id = uwr.workspace_id
+WHERE uwr.role = 'admin'
+ORDER BY w.name, u.email;
+
+-- Project memberships for a user
+SELECT p.name AS project, w.name AS workspace, m.is_approver, m.menu_access
+FROM user_project_memberships m
+JOIN projects p ON p.id = m.project_id
+JOIN workspaces w ON w.id = p.workspace_id
+JOIN users u ON u.id = m.user_id
+WHERE u.email = 'user@example.com'
+ORDER BY w.name, p.name;
+
+-- Outstanding (unconsumed, unexpired) email-verification tokens
+SELECT u.email, t.expires_at, t.created_at
+FROM email_verification_tokens t
+JOIN users u ON u.id = t.user_id
+WHERE t.consumed_at IS NULL
+  AND t.expires_at > now()
+ORDER BY t.created_at DESC;
+```
+
 ## Reset Schema
 
 ```bash
