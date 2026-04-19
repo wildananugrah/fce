@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Search, Eye, Trash2, X } from "lucide-react";
+import { useProject } from "../hooks/useProject";
 import { useWorkspace } from "../hooks/useWorkspace";
 import { api } from "../services/api";
 import { Spinner } from "../components/ui/Spinner";
@@ -106,6 +107,7 @@ const BULK_STATUS_OPTIONS = [
 
 export function LibraryPage() {
   const { activeWorkspace } = useWorkspace();
+  const { isApprover } = useProject();
   const [items, setItems] = useState<LibraryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -428,6 +430,7 @@ export function LibraryPage() {
           onClose={() => setSelectedItem(null)}
           onStatusChange={handleStatusChange}
           onToast={showToast}
+          canChangeStatus={isApprover}
           onSectionsUpdated={(id, sections) => {
             setItems((prev) =>
               prev.map((it) => (it.id === id ? { ...it, sections } : it)),
@@ -443,25 +446,29 @@ export function LibraryPage() {
           <span className="text-sm font-medium">
             {selectedIds.size} item{selectedIds.size > 1 ? "s" : ""} selected
           </span>
-          <div className="w-px h-5 bg-gray-700" />
-          <select
-            className="bg-gray-800 border border-gray-700 text-white text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:border-indigo-500 disabled:opacity-50"
-            value=""
-            disabled={bulkActionRunning}
-            onChange={(e) => {
-              if (e.target.value) handleBulkStatus(e.target.value);
-              e.target.value = "";
-            }}
-          >
-            <option value="" disabled>
-              Change status…
-            </option>
-            {BULK_STATUS_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
+          {isApprover && (
+            <>
+              <div className="w-px h-5 bg-gray-700" />
+              <select
+                className="bg-gray-800 border border-gray-700 text-white text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:border-indigo-500 disabled:opacity-50"
+                value=""
+                disabled={bulkActionRunning}
+                onChange={(e) => {
+                  if (e.target.value) handleBulkStatus(e.target.value);
+                  e.target.value = "";
+                }}
+              >
+                <option value="" disabled>
+                  Change status…
+                </option>
+                {BULK_STATUS_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
           <button
             type="button"
             onClick={() => setShowBulkDeleteConfirm(true)}

@@ -12,6 +12,7 @@ import {
   CalendarDays,
   CalendarRange,
 } from "lucide-react";
+import { useProject } from "../hooks/useProject";
 import { useWorkspace } from "../hooks/useWorkspace";
 import { api } from "../services/api";
 import { Button } from "../components/ui/Button";
@@ -193,6 +194,7 @@ interface BrandGroup {
 // ---- Main Page ----
 export function TopicLibraryPage() {
   const { activeWorkspace } = useWorkspace();
+  const { isApprover } = useProject();
   const navigate = useNavigate();
   const [topics, setTopics] = useState<Topic[]>([]);
   const [loading, setLoading] = useState(true);
@@ -726,10 +728,21 @@ export function TopicLibraryPage() {
 
                               {/* Status */}
                               <td className="px-4 py-3">
-                                <StatusDropdown
-                                  value={topic.status}
-                                  onChange={(status) => handleStatusChange(topic.id, status)}
-                                />
+                                {isApprover ? (
+                                  <StatusDropdown
+                                    value={topic.status}
+                                    onChange={(status) => handleStatusChange(topic.id, status)}
+                                  />
+                                ) : (
+                                  <span
+                                    className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium border ${getStatusColor(
+                                      topic.status,
+                                    )}`}
+                                    title="Only approvers can change status"
+                                  >
+                                    {topic.status.replace(/_/g, " ")}
+                                  </span>
+                                )}
                               </td>
 
                               {/* Actions */}
@@ -799,25 +812,29 @@ export function TopicLibraryPage() {
           <span className="text-sm font-medium">
             {selectedIds.size} topic{selectedIds.size > 1 ? "s" : ""} selected
           </span>
-          <div className="w-px h-5 bg-gray-700" />
-          <select
-            className="bg-gray-800 border border-gray-700 text-white text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:border-indigo-500 disabled:opacity-50"
-            value=""
-            disabled={bulkActionRunning}
-            onChange={(e) => {
-              if (e.target.value) handleBulkStatus(e.target.value);
-              e.target.value = "";
-            }}
-          >
-            <option value="" disabled>
-              Change status…
-            </option>
-            {STATUS_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
+          {isApprover && (
+            <>
+              <div className="w-px h-5 bg-gray-700" />
+              <select
+                className="bg-gray-800 border border-gray-700 text-white text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:border-indigo-500 disabled:opacity-50"
+                value=""
+                disabled={bulkActionRunning}
+                onChange={(e) => {
+                  if (e.target.value) handleBulkStatus(e.target.value);
+                  e.target.value = "";
+                }}
+              >
+                <option value="" disabled>
+                  Change status…
+                </option>
+                {STATUS_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
           <button
             type="button"
             onClick={() => setShowBulkDeleteConfirm(true)}
