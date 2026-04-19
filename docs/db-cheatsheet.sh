@@ -49,6 +49,15 @@ usage() {
   echo "  promote <email> <ws_id> Promote user to admin in a workspace"
   echo "  demote <email> <ws_id>  Demote user to editor in a workspace"
   echo ""
+  echo -e "${GREEN}Users:${NC}"
+  echo "  add-user <email> <password> [fullName] [--superadmin]"
+  echo "                          Create a new user account (hashes password)"
+  echo "  delete-user <email>     Delete a user account (cascades to memberships)"
+  echo "  make-superadmin <email>"
+  echo "                          Flip User.isSuperadmin = true"
+  echo "  revoke-superadmin <email>"
+  echo "                          Flip User.isSuperadmin = false"
+  echo ""
   echo -e "${GREEN}Admin:${NC}"
   echo "  seed              Run database seed"
   echo "  push              Sync Prisma schema to DB"
@@ -209,6 +218,45 @@ case "${1:-help}" in
         AND user_workspace_roles.\"workspaceId\" = '$3';
     "
     echo -e "${GREEN}User $2 demoted to editor.${NC}"
+    ;;
+
+  # --- Users ---
+  add-user)
+    if [ -z "$2" ] || [ -z "$3" ]; then
+      echo "Usage: db-cheatsheet.sh add-user <email> <password> [fullName] [--superadmin]"
+      exit 1
+    fi
+    echo -e "${CYAN}Creating user $2...${NC}"
+    # Delegate to the bun script so bcrypt hashes the password correctly.
+    cd backend && bun run scripts/create-user.ts "${@:2}"
+    ;;
+  delete-user)
+    if [ -z "$2" ]; then
+      echo "Usage: db-cheatsheet.sh delete-user <email>"
+      exit 1
+    fi
+    echo -e "${YELLOW}About to delete user $2 and all their memberships.${NC}"
+    read -p "Are you sure? (y/N) " confirm
+    if [ "$confirm" = "y" ] || [ "$confirm" = "Y" ]; then
+      run_sql "DELETE FROM users WHERE email = '$2';"
+      echo -e "${GREEN}User $2 deleted.${NC}"
+    else
+      echo "Aborted."
+    fi
+    ;;
+  make-superadmin)
+    if [ -z "$2" ]; then
+      echo "Usage: db-cheatsheet.sh make-superadmin <email>"
+      exit 1
+    fi
+    cd backend && bun run scripts/seed-superadmin.ts "$2"
+    ;;
+  revoke-superadmin)
+    if [ -z "$2" ]; then
+      echo "Usage: db-cheatsheet.sh revoke-superadmin <email>"
+      exit 1
+    fi
+    cd backend && bun run scripts/seed-superadmin.ts "$2" --revoke
     ;;
 
   # --- Admin ---
