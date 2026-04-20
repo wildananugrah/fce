@@ -8,6 +8,7 @@
 certbot certonly --nginx -d fce.floothink.com
 certbot certonly --nginx -d fce-api.floothink.com
 certbot certonly --nginx -d fce-monit.floothink.com
+certbot certonly --nginx -d code.floothink.com
 ```
 
 3. copy nginx config
@@ -24,6 +25,7 @@ cp nginx/fce-monit.floothink.com /etc/nginx/sites-available/fce-monit.floothink.
 ln -s /etc/nginx/sites-available/fce.floothink.com /etc/nginx/sites-enabled/fce.floothink.com
 ln -s /etc/nginx/sites-available/fce-api.floothink.com /etc/nginx/sites-enabled/fce-api.floothink.com
 ln -s /etc/nginx/sites-available/fce-monit.floothink.com /etc/nginx/sites-enabled/fce-monit.floothink.com
+ln -s /etc/nginx/sites-available/code.floothink.com /etc/nginx/sites-enabled/code.floothink.com
 ```
 
 5. check the nginx config
