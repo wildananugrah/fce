@@ -55,6 +55,9 @@ async function main() {
 			passwordHash,
 			fullName: fullName ?? null,
 			isSuperadmin: flagSuperadmin,
+			// CLI-created users skip the email verification flow — creating them
+			// from the shell is already a trusted action.
+			emailVerifiedAt: new Date(),
 		},
 		select: { id: true, email: true, fullName: true, isSuperadmin: true, createdAt: true },
 	});
