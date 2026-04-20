@@ -8,7 +8,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fce_secret}
       POSTGRES_DB: ${POSTGRES_DB:-fce_dashboard}
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - /mnt/data/postgres:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-fce}"]
       interval: 5s
@@ -24,9 +24,5 @@ services:
       MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin}
     volumes:
-      - minio-data:/data
+      - /mnt/data/minio:/data
     command: server /data --console-address ":9001"
-
-volumes:
-  postgres-data:
-  minio-data:
