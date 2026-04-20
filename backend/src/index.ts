@@ -3,6 +3,7 @@ import { PrismaClient } from "@prisma/client";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { PgBoss } from "pg-boss";
+import { ArchiveSweepJob } from "./jobs/archive-sweep.job";
 import { BrandScrapingJob } from "./jobs/brand-scraping.job";
 import { CampaignGenerationJob } from "./jobs/campaign-generation.job";
 import { CampaignPdfGenerationJob } from "./jobs/campaign-pdf-generation.job";
@@ -64,6 +65,7 @@ import { createWorkspaceAiSettingsRoutes } from "./routes/workspace-ai-settings.
 import { createSSERoutes } from "./routes/sse.route";
 import { createTaxonomyRoutes } from "./routes/taxonomy.route";
 import { createTopicRoutes } from "./routes/topic.route";
+import { createTrashRoutes } from "./routes/trash.route";
 import { createUploadRoutes } from "./routes/upload.route";
 import {
 	createAuthenticatedInvitationRoutes,
@@ -89,6 +91,7 @@ import { SceneImageService } from "./services/scene-image.service";
 import { UrlInspirationService } from "./services/url-inspiration.service";
 import { TaxonomyService } from "./services/taxonomy.service";
 import { TopicService } from "./services/topic.service";
+import { TrashService } from "./services/trash.service";
 import { WorkspaceService } from "./services/workspace.service";
 import { env } from "./utils/env";
 
@@ -187,6 +190,13 @@ async function main() {
 	const recommendationService = new RecommendationService(recommendationRepository);
 	const campaignService = new CampaignService(campaignRepository, boss);
 	const topicService = new TopicService(topicRepository, boss);
+	const trashService = new TrashService(
+		brandRepository,
+		productRepository,
+		topicRepository,
+		generationRepository,
+		env.archiveTtlDays,
+	);
 	const dashboardService = new DashboardService(prisma);
 	const notificationService = new NotificationService();
 	const documentService = new DocumentService(
@@ -267,6 +277,7 @@ async function main() {
 		logger,
 	);
 	const researchRunJob = new ResearchRunJob(prisma, apifyProvider, notificationService, logger);
+	const archiveSweepJob = new ArchiveSweepJob(prisma, logger, env.archiveTtlDays);
 
 	// ─── Create PgBoss Queues ───────────────────────────────────────
 	await boss.createQueue("content-generation");
@@ -279,6 +290,7 @@ async function main() {
 	await boss.createQueue("link-scraping");
 	await boss.createQueue("recommendation-recompute");
 	await boss.createQueue("research-run");
+	await boss.createQueue("archive-sweep");
 
 	// ─── Register PgBoss Workers ─────────────────────────────────────
 	await boss.work("content-generation", async (jobs) => {
@@ -311,6 +323,14 @@ async function main() {
 	await boss.work("research-run", async (jobs) => {
 		for (const job of jobs) await researchRunJob.handle(job.data as any);
 	});
+	await boss.work("archive-sweep", async (jobs) => {
+		// Scheduled sweeper — one "tick" per fire; the job ignores its payload.
+		for (const _ of jobs) await archiveSweepJob.handle();
+	});
+
+	// Run the archive sweeper once an hour. pg-boss dedupes duplicate
+	// schedules by (queue, key) so calling this on every boot is safe.
+	await boss.schedule("archive-sweep", "0 * * * *");
 
 	// ─── Middleware Instances ────────────────────────────────────────
 	const authMiddleware = createAuthMiddleware(env.jwtSecret);
@@ -438,6 +458,17 @@ async function main() {
 	workspaceScoped.route("/research", createResearchRoutes(researchService));
 	workspaceScoped.route("/url-inspiration", createUrlInspirationRoutes(urlInspirationService));
 	workspaceScoped.route("/reference-images", createUploadRoutes(storageProvider, env.minioBucket));
+	workspaceScoped.route(
+		"/trash",
+		createTrashRoutes(
+			trashService,
+			brandService,
+			productService,
+			topicService,
+			libraryService,
+			generationService,
+		),
+	);
 	app.route("/api/workspaces/:workspaceId", workspaceScoped);
 
 	// Health check

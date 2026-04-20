@@ -28,7 +28,7 @@ export function createLibraryRoutes(
 		return c.json({ data: outputs });
 	});
 
-	// DELETE /bulk — bulk delete outputs
+	// DELETE /bulk — soft-delete (archive). Outputs move into Trash.
 	app.delete("/bulk", async (c) => {
 		const workspaceId = c.get("workspaceId");
 		const { ids } = await c.req.json<{ ids: string[] }>();
@@ -36,6 +36,26 @@ export function createLibraryRoutes(
 			return c.json({ error: "ids must be a non-empty array" }, 400);
 		}
 		const deleted = await libraryService.deleteMany(workspaceId, ids);
+		return c.json({ deleted });
+	});
+
+	app.post("/bulk-restore", async (c) => {
+		const workspaceId = c.get("workspaceId");
+		const { ids } = await c.req.json<{ ids: string[] }>();
+		if (!Array.isArray(ids) || ids.length === 0) {
+			return c.json({ error: "ids must be a non-empty array" }, 400);
+		}
+		const restored = await libraryService.restoreMany(workspaceId, ids);
+		return c.json({ restored });
+	});
+
+	app.delete("/bulk-permanent", async (c) => {
+		const workspaceId = c.get("workspaceId");
+		const { ids } = await c.req.json<{ ids: string[] }>();
+		if (!Array.isArray(ids) || ids.length === 0) {
+			return c.json({ error: "ids must be a non-empty array" }, 400);
+		}
+		const deleted = await libraryService.permanentDeleteMany(workspaceId, ids);
 		return c.json({ deleted });
 	});
 

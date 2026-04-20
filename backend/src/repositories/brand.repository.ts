@@ -8,7 +8,7 @@ export class BrandRepository implements IBrandRepository {
 		workspaceId: string,
 	): Promise<(Brand & { brainVersions: BrandBrainVersion[] })[]> {
 		return this.prisma.brand.findMany({
-			where: { workspaceId },
+			where: { workspaceId, archivedAt: null },
 			orderBy: { updatedAt: "desc" },
 			include: {
 				brainVersions: {
@@ -16,6 +16,13 @@ export class BrandRepository implements IBrandRepository {
 					take: 1,
 				},
 			},
+		});
+	}
+
+	async findArchivedByWorkspace(workspaceId: string): Promise<Brand[]> {
+		return this.prisma.brand.findMany({
+			where: { workspaceId, archivedAt: { not: null } },
+			orderBy: { archivedAt: "desc" },
 		});
 	}
 
@@ -51,6 +58,20 @@ export class BrandRepository implements IBrandRepository {
 
 	async delete(id: string): Promise<void> {
 		await this.prisma.brand.delete({ where: { id } });
+	}
+
+	async archive(id: string): Promise<void> {
+		await this.prisma.brand.update({
+			where: { id },
+			data: { archivedAt: new Date() },
+		});
+	}
+
+	async restore(id: string): Promise<void> {
+		await this.prisma.brand.update({
+			where: { id },
+			data: { archivedAt: null },
+		});
 	}
 
 	async findActiveBrainVersion(brandId: string): Promise<BrandBrainVersion | null> {

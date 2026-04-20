@@ -8,9 +8,30 @@ export class TopicRepository implements ITopicRepository {
 		return this.prisma.contentTopic.findMany({
 			where: {
 				workspaceId,
+				archivedAt: null,
+				// Topics can be brand-less (free-floating for a campaign) — only
+				// enforce the brand's archivedAt when a brand is attached.
+				OR: [{ brandId: null }, { brand: { archivedAt: null } }],
 				...(filters?.campaignId ? { campaignId: filters.campaignId } : {}),
 			},
 			orderBy: { createdAt: "desc" },
+			include: {
+				brand: { select: { id: true, name: true } },
+				products: { include: { product: { select: { id: true, name: true } } } },
+			},
+		});
+	}
+
+	async findArchivedByWorkspace(workspaceId: string) {
+		// Only topics archived on their own. Topics of an archived brand are
+		// collapsed under the brand's trash row.
+		return this.prisma.contentTopic.findMany({
+			where: {
+				workspaceId,
+				archivedAt: { not: null },
+				OR: [{ brandId: null }, { brand: { archivedAt: null } }],
+			},
+			orderBy: { archivedAt: "desc" },
 			include: {
 				brand: { select: { id: true, name: true } },
 				products: { include: { product: { select: { id: true, name: true } } } },
@@ -74,6 +95,22 @@ export class TopicRepository implements ITopicRepository {
 	async deleteMany(workspaceId: string, ids: string[]): Promise<number> {
 		const result = await this.prisma.contentTopic.deleteMany({
 			where: { workspaceId, id: { in: ids } },
+		});
+		return result.count;
+	}
+
+	async archiveMany(workspaceId: string, ids: string[]): Promise<number> {
+		const result = await this.prisma.contentTopic.updateMany({
+			where: { workspaceId, id: { in: ids } },
+			data: { archivedAt: new Date() },
+		});
+		return result.count;
+	}
+
+	async restoreMany(workspaceId: string, ids: string[]): Promise<number> {
+		const result = await this.prisma.contentTopic.updateMany({
+			where: { workspaceId, id: { in: ids } },
+			data: { archivedAt: null },
 		});
 		return result.count;
 	}

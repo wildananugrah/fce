@@ -6,7 +6,11 @@ export class MockBrandRepository implements IBrandRepository {
 	private brainVersions: BrandBrainVersion[] = [];
 
 	async findByWorkspace(workspaceId: string): Promise<Brand[]> {
-		return this.brands.filter((b) => b.workspaceId === workspaceId);
+		return this.brands.filter((b) => b.workspaceId === workspaceId && b.archivedAt === null);
+	}
+
+	async findArchivedByWorkspace(workspaceId: string): Promise<Brand[]> {
+		return this.brands.filter((b) => b.workspaceId === workspaceId && b.archivedAt !== null);
 	}
 
 	async findById(id: string): Promise<(Brand & { brainVersions: BrandBrainVersion[] }) | null> {
@@ -26,12 +30,14 @@ export class MockBrandRepository implements IBrandRepository {
 		const brand: Brand = {
 			id: crypto.randomUUID(),
 			workspaceId: data.workspaceId,
+			projectId: null,
 			name: data.name,
 			slug: data.slug,
 			category: data.category ?? null,
 			websiteUrl: data.websiteUrl ?? null,
 			activeBrainVersionId: null,
 			status: "draft",
+			archivedAt: null,
 			createdAt: new Date(),
 			updatedAt: new Date(),
 		};
@@ -55,6 +61,18 @@ export class MockBrandRepository implements IBrandRepository {
 		const index = this.brands.findIndex((b) => b.id === id);
 		if (index === -1) throw new Error("Brand not found");
 		this.brands.splice(index, 1);
+	}
+
+	async archive(id: string): Promise<void> {
+		const index = this.brands.findIndex((b) => b.id === id);
+		if (index === -1) throw new Error("Brand not found");
+		this.brands[index] = { ...this.brands[index], archivedAt: new Date(), updatedAt: new Date() };
+	}
+
+	async restore(id: string): Promise<void> {
+		const index = this.brands.findIndex((b) => b.id === id);
+		if (index === -1) throw new Error("Brand not found");
+		this.brands[index] = { ...this.brands[index], archivedAt: null, updatedAt: new Date() };
 	}
 
 	async findActiveBrainVersion(brandId: string): Promise<BrandBrainVersion | null> {

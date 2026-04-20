@@ -6,8 +6,36 @@ export class ProductRepository implements IProductRepository {
 
 	async findByWorkspace(workspaceId: string) {
 		return this.prisma.product.findMany({
-			where: { workspaceId },
+			// A product is visible if neither it nor its brand is archived.
+			// Hiding descendants of an archived brand is what lets us "collapse"
+			// the brand in the trash view and keep the main list clean.
+			where: {
+				workspaceId,
+				archivedAt: null,
+				brand: { archivedAt: null },
+			},
 			orderBy: { updatedAt: "desc" },
+			include: {
+				brand: { select: { id: true, name: true } },
+				brainVersions: {
+					where: { isActive: true },
+					take: 1,
+				},
+			},
+		});
+	}
+
+	async findArchivedByWorkspace(workspaceId: string) {
+		// Only products archived on their own — products whose *brand* is
+		// archived collapse under the brand's trash entry, so we exclude them
+		// here to avoid noisy duplication.
+		return this.prisma.product.findMany({
+			where: {
+				workspaceId,
+				archivedAt: { not: null },
+				brand: { archivedAt: null },
+			},
+			orderBy: { archivedAt: "desc" },
 			include: {
 				brand: { select: { id: true, name: true } },
 				brainVersions: {
@@ -56,6 +84,20 @@ export class ProductRepository implements IProductRepository {
 
 	async delete(id: string): Promise<void> {
 		await this.prisma.product.delete({ where: { id } });
+	}
+
+	async archive(id: string): Promise<void> {
+		await this.prisma.product.update({
+			where: { id },
+			data: { archivedAt: new Date() },
+		});
+	}
+
+	async restore(id: string): Promise<void> {
+		await this.prisma.product.update({
+			where: { id },
+			data: { archivedAt: null },
+		});
 	}
 
 	async findActiveBrainVersion(productId: string): Promise<ProductBrainVersion | null> {

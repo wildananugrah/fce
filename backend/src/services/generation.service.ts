@@ -23,6 +23,14 @@ export class GenerationService implements IGenerationService {
 	}
 
 	async deleteMany(workspaceId: string, ids: string[]): Promise<number> {
+		return this.generationRepository.archiveMany(workspaceId, ids);
+	}
+
+	async restoreMany(workspaceId: string, ids: string[]): Promise<number> {
+		return this.generationRepository.restoreMany(workspaceId, ids);
+	}
+
+	async permanentDeleteMany(workspaceId: string, ids: string[]): Promise<number> {
 		return this.generationRepository.deleteMany(workspaceId, ids);
 	}
 

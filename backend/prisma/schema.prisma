@@ -107,19 +107,23 @@ model WorkspaceInvitation {
 // ─── Brand System ───────────────────────────────────────────────
 
 model Brand {
-  id                   String   @id @default(uuid())
-  workspaceId          String   @map("workspace_id")
+  id                   String    @id @default(uuid())
+  workspaceId          String    @map("workspace_id")
   // Nullable until the RBAC migration backfills every brand into the
   // workspace's default project. Code paths treat `null` = "default project".
-  projectId            String?  @map("project_id")
+  projectId            String?   @map("project_id")
   name                 String
   slug                 String
   category             String?
-  websiteUrl           String?  @map("website_url")
-  activeBrainVersionId String?  @map("active_brain_version_id")
-  status               String   @default("draft")
-  createdAt            DateTime @default(now()) @map("created_at")
-  updatedAt            DateTime @updatedAt @map("updated_at")
+  websiteUrl           String?   @map("website_url")
+  activeBrainVersionId String?   @map("active_brain_version_id")
+  status               String    @default("draft")
+  // Soft-delete timestamp. When set, the brand is hidden from normal list
+  // queries; a scheduled sweeper hard-deletes rows older than ARCHIVE_TTL_DAYS
+  // (cascading to products, topics, and content via FK).
+  archivedAt           DateTime? @map("archived_at")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
 
   workspace          Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   project            Project?             @relation(fields: [projectId], references: [id], onDelete: SetNull)
@@ -131,6 +135,7 @@ model Brand {
 
   @@unique([workspaceId, slug])
   @@index([projectId])
+  @@index([workspaceId, archivedAt])
   @@map("brands")
 }
 
@@ -157,19 +162,23 @@ model BrandBrainVersion {
 // ─── Product System ─────────────────────────────────────────────
 
 model Product {
-  id                   String   @id @default(uuid())
-  workspaceId          String   @map("workspace_id")
-  brandId              String   @map("brand_id")
+  id                   String    @id @default(uuid())
+  workspaceId          String    @map("workspace_id")
+  brandId              String    @map("brand_id")
   name                 String
   slug                 String
   type                 String?
-  priceTier            String?  @map("price_tier")
+  priceTier            String?   @map("price_tier")
   summary              String?
-  imageUrl             String?  @map("image_url")
-  activeBrainVersionId String?  @map("active_brain_version_id")
-  status               String   @default("draft")
-  createdAt            DateTime @default(now()) @map("created_at")
-  updatedAt            DateTime @updatedAt @map("updated_at")
+  imageUrl             String?   @map("image_url")
+  activeBrainVersionId String?   @map("active_brain_version_id")
+  status               String    @default("draft")
+  // See Brand.archivedAt. Products can be archived independently (own trash)
+  // or inherit visibility from an archived brand (filter includes the brand's
+  // own archivedAt via join).
+  archivedAt           DateTime? @map("archived_at")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
 
   workspace            Workspace             @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   brand                Brand                 @relation(fields: [brandId], references: [id], onDelete: Cascade)
@@ -178,6 +187,7 @@ model Product {
   contentTopicProducts ContentTopicProduct[]
 
   @@unique([workspaceId, slug])
+  @@index([workspaceId, archivedAt])
   @@map("products")
 }
 
@@ -205,25 +215,28 @@ model ProductBrainVersion {
 // ─── Generation Pipeline ────────────────────────────────────────
 
 model GenerationRequest {
-  id             String   @id @default(uuid())
-  workspaceId    String   @map("workspace_id")
-  brandId        String   @map("brand_id")
-  productId      String?  @map("product_id")
-  contentTopicId String?  @map("content_topic_id")
+  id             String    @id @default(uuid())
+  workspaceId    String    @map("workspace_id")
+  brandId        String    @map("brand_id")
+  productId      String?   @map("product_id")
+  contentTopicId String?   @map("content_topic_id")
   platform       String
-  contentType    String   @map("content_type")
+  contentType    String    @map("content_type")
   framework      String
-  hookType       String   @map("hook_type")
-  language       String   @default("id")
+  hookType       String    @map("hook_type")
+  language       String    @default("id")
   prompt         String?
   objective      String?
-  tonePreset     String?  @map("tone_preset")
-  visualStyle    String?  @map("visual_style")
-  outputLength   String?  @map("output_length")
-  status         String   @default("pending")
-  errorMessage   String?  @map("error_message")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  tonePreset     String?   @map("tone_preset")
+  visualStyle    String?   @map("visual_style")
+  outputLength   String?   @map("output_length")
+  status         String    @default("pending")
+  errorMessage   String?   @map("error_message")
+  // Soft-delete timestamp. Library outputs inherit this via their parent
+  // request — filtering archived requests hides their outputs from the library.
+  archivedAt     DateTime? @map("archived_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
 
   workspace    Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   brand        Brand         @relation(fields: [brandId], references: [id], onDelete: Cascade)
@@ -235,25 +248,30 @@ model GenerationRequest {
   @@index([brandId])
   @@index([productId])
   @@index([contentTopicId])
+  @@index([workspaceId, archivedAt])
   @@map("generation_requests")
 }
 
 model GenerationOutput {
-  id           String   @id @default(uuid())
-  requestId    String   @map("request_id")
-  versionNo    Int      @default(1) @map("version_no")
+  id           String    @id @default(uuid())
+  requestId    String    @map("request_id")
+  versionNo    Int       @default(1) @map("version_no")
   rationale    String?
-  contentTitle String?  @map("content_title")
+  contentTitle String?   @map("content_title")
   content      Json
-  status       String   @default("draft")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  status       String    @default("draft")
+  // Soft-delete timestamp. Library delete flows flip this; the sweeper
+  // hard-deletes rows older than ARCHIVE_TTL_DAYS.
+  archivedAt   DateTime? @map("archived_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
 
   request        GenerationRequest     @relation(fields: [requestId], references: [id], onDelete: Cascade)
   feedbackEvents OutputFeedbackEvent[]
   sections       OutputSection[]
 
   @@index([requestId])
+  @@index([archivedAt])
   @@map("generation_outputs")
 }
 
@@ -498,11 +516,16 @@ model ContentTopic {
   objective   String?
   publishDate DateTime? @map("publish_date")
   status      String    @default("draft")
+  // Soft-delete timestamp; sweeper hard-deletes rows older than the TTL.
+  archivedAt  DateTime? @map("archived_at")
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
 
   workspace          Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  brand              Brand?                 @relation(fields: [brandId], references: [id], onDelete: SetNull)
+  // Hard-deleting the brand wipes its topics (and ContentTopicProduct rows via
+  // Cascade on the join table). Soft-archiving the brand does NOT touch topic
+  // rows — list queries filter archived brands/topics via join.
+  brand              Brand?                 @relation(fields: [brandId], references: [id], onDelete: Cascade)
   campaign           Campaign?              @relation(fields: [campaignId], references: [id], onDelete: SetNull)
   products           ContentTopicProduct[]
   generationRequests GenerationRequest[]
@@ -510,6 +533,7 @@ model ContentTopic {
   @@index([workspaceId])
   @@index([brandId])
   @@index([campaignId])
+  @@index([workspaceId, archivedAt])
   @@map("content_topics")
 }
 

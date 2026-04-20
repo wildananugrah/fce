@@ -10,10 +10,16 @@ export class DashboardService implements IDashboardService {
 	async getStats(workspaceId: string): Promise<DashboardStats> {
 		// Queries are split sequentially to avoid the Prisma 7 WASM
 		// "Out of bounds memory access" bug triggered by Promise.all.
-		const brandCount = await this.prisma.brand.count({ where: { workspaceId } });
-		const productCount = await this.prisma.product.count({ where: { workspaceId } });
+		// Counts exclude archived rows so dashboard stats reflect what the user
+		// sees in the main lists. Archived items live in Workspace Settings → Trash.
+		const brandCount = await this.prisma.brand.count({
+			where: { workspaceId, archivedAt: null },
+		});
+		const productCount = await this.prisma.product.count({
+			where: { workspaceId, archivedAt: null, brand: { archivedAt: null } },
+		});
 		const generationCount = await this.prisma.generationRequest.count({
-			where: { workspaceId },
+			where: { workspaceId, archivedAt: null, brand: { archivedAt: null } },
 		});
 		const campaignCount = await this.prisma.campaign.count({ where: { workspaceId } });
 		const workspace = await this.prisma.workspace.findUnique({
@@ -21,7 +27,7 @@ export class DashboardService implements IDashboardService {
 			select: { apiUsageUsd: true, apiLimitUsd: true },
 		});
 		const recentGenerations = await this.prisma.generationRequest.findMany({
-			where: { workspaceId },
+			where: { workspaceId, archivedAt: null, brand: { archivedAt: null } },
 			orderBy: { createdAt: "desc" },
 			take: 10,
 			select: {

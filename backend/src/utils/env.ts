@@ -46,4 +46,7 @@ export const env = {
 	// endpoint. Accepts any string parseable by `ms` (e.g. "24h", "2d", "90m").
 	// Default: 24 hours.
 	emailVerificationTokenExpiry: optionalEnv("EMAIL_VERIFICATION_TOKEN_EXPIRY", "24h"),
+	// Soft-deleted brands, products, topics, and content older than this are
+	// hard-deleted by the scheduled sweeper (runs hourly via pg-boss).
+	archiveTtlDays: Number.parseInt(optionalEnv("ARCHIVE_TTL_DAYS", "30"), 10),
 } as const;

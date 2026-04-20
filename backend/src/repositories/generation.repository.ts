@@ -11,12 +11,33 @@ export class GenerationRepository implements IGenerationRepository {
 
 	async findByWorkspace(workspaceId: string) {
 		return this.prisma.generationRequest.findMany({
-			where: { workspaceId },
+			where: {
+				workspaceId,
+				archivedAt: null,
+				brand: { archivedAt: null },
+			},
 			include: {
 				brand: { select: { id: true, name: true } },
 				product: { select: { id: true, name: true } },
 			},
 			orderBy: { createdAt: "desc" },
+		});
+	}
+
+	async findArchivedByWorkspace(workspaceId: string) {
+		// Requests archived on their own — requests whose brand is archived
+		// collapse under the brand row in trash.
+		return this.prisma.generationRequest.findMany({
+			where: {
+				workspaceId,
+				archivedAt: { not: null },
+				brand: { archivedAt: null },
+			},
+			include: {
+				brand: { select: { id: true, name: true } },
+				product: { select: { id: true, name: true } },
+			},
+			orderBy: { archivedAt: "desc" },
 		});
 	}
 
@@ -43,6 +64,38 @@ export class GenerationRepository implements IGenerationRepository {
 		return result.count;
 	}
 
+	async archiveMany(workspaceId: string, ids: string[]): Promise<number> {
+		const result = await this.prisma.generationRequest.updateMany({
+			where: { workspaceId, id: { in: ids } },
+			data: { archivedAt: new Date() },
+		});
+		return result.count;
+	}
+
+	async restoreMany(workspaceId: string, ids: string[]): Promise<number> {
+		const result = await this.prisma.generationRequest.updateMany({
+			where: { workspaceId, id: { in: ids } },
+			data: { archivedAt: null },
+		});
+		return result.count;
+	}
+
+	async archiveManyOutputs(workspaceId: string, outputIds: string[]): Promise<number> {
+		const result = await this.prisma.generationOutput.updateMany({
+			where: { id: { in: outputIds }, request: { workspaceId } },
+			data: { archivedAt: new Date() },
+		});
+		return result.count;
+	}
+
+	async restoreManyOutputs(workspaceId: string, outputIds: string[]): Promise<number> {
+		const result = await this.prisma.generationOutput.updateMany({
+			where: { id: { in: outputIds }, request: { workspaceId } },
+			data: { archivedAt: null },
+		});
+		return result.count;
+	}
+
 	async create(data: {
 		workspaceId: string;
 		brandId: string;
@@ -64,9 +117,15 @@ export class GenerationRepository implements IGenerationRepository {
 
 	async findOutputsByWorkspace(workspaceId: string, status?: string) {
 		// Two-step query to avoid Prisma WASM "out of bounds" bug
-		// with deeply nested includes + relation filters
+		// with deeply nested includes + relation filters. The first query
+		// already narrows to live (non-archived) requests whose brand is also
+		// live, so archived brands/products don't leak into the library.
 		const requestIds = await this.prisma.generationRequest.findMany({
-			where: { workspaceId },
+			where: {
+				workspaceId,
+				archivedAt: null,
+				brand: { archivedAt: null },
+			},
 			select: { id: true },
 		});
 
@@ -75,6 +134,7 @@ export class GenerationRepository implements IGenerationRepository {
 		return this.prisma.generationOutput.findMany({
 			where: {
 				requestId: { in: requestIds.map((r) => r.id) },
+				archivedAt: null,
 				...(status
 					? status.includes(",")
 						? { status: { in: status.split(",") } }
@@ -91,6 +151,33 @@ export class GenerationRepository implements IGenerationRepository {
 				sections: { orderBy: { sectionOrder: "asc" } },
 			},
 			orderBy: { createdAt: "desc" },
+		});
+	}
+
+	async findArchivedOutputsByWorkspace(workspaceId: string) {
+		// Outputs archived on their own, where the parent request + brand are
+		// still live (otherwise the brand's own trash row collapses them).
+		const requestIds = await this.prisma.generationRequest.findMany({
+			where: { workspaceId, archivedAt: null, brand: { archivedAt: null } },
+			select: { id: true },
+		});
+		if (requestIds.length === 0) return [];
+
+		return this.prisma.generationOutput.findMany({
+			where: {
+				requestId: { in: requestIds.map((r) => r.id) },
+				archivedAt: { not: null },
+			},
+			include: {
+				request: {
+					include: {
+						brand: { select: { id: true, name: true } },
+						product: { select: { id: true, name: true } },
+					},
+				},
+				sections: { orderBy: { sectionOrder: "asc" } },
+			},
+			orderBy: { archivedAt: "desc" },
 		});
 	}
 

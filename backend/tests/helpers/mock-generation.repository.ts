@@ -7,7 +7,15 @@ export class MockGenerationRepository implements IGenerationRepository {
 	private feedbackEvents: OutputFeedbackEvent[] = [];
 
 	async findByWorkspace(workspaceId: string): Promise<GenerationRequest[]> {
-		return this.requests.filter((r) => r.workspaceId === workspaceId);
+		return this.requests.filter(
+			(r) => r.workspaceId === workspaceId && r.archivedAt === null,
+		);
+	}
+
+	async findArchivedByWorkspace(workspaceId: string): Promise<GenerationRequest[]> {
+		return this.requests.filter(
+			(r) => r.workspaceId === workspaceId && r.archivedAt !== null,
+		);
 	}
 
 	async findById(
@@ -19,30 +27,100 @@ export class MockGenerationRepository implements IGenerationRepository {
 		return { ...request, outputs };
 	}
 
+	async deleteMany(workspaceId: string, ids: string[]): Promise<number> {
+		const before = this.requests.length;
+		this.requests = this.requests.filter(
+			(r) => !(ids.includes(r.id) && r.workspaceId === workspaceId),
+		);
+		return before - this.requests.length;
+	}
+
+	async archiveMany(workspaceId: string, ids: string[]): Promise<number> {
+		let count = 0;
+		const now = new Date();
+		for (let i = 0; i < this.requests.length; i++) {
+			const r = this.requests[i];
+			if (!ids.includes(r.id) || r.workspaceId !== workspaceId) continue;
+			this.requests[i] = { ...r, archivedAt: now, updatedAt: now };
+			count++;
+		}
+		return count;
+	}
+
+	async restoreMany(workspaceId: string, ids: string[]): Promise<number> {
+		let count = 0;
+		const now = new Date();
+		for (let i = 0; i < this.requests.length; i++) {
+			const r = this.requests[i];
+			if (!ids.includes(r.id) || r.workspaceId !== workspaceId) continue;
+			this.requests[i] = { ...r, archivedAt: null, updatedAt: now };
+			count++;
+		}
+		return count;
+	}
+
+	async archiveManyOutputs(workspaceId: string, ids: string[]): Promise<number> {
+		let count = 0;
+		const now = new Date();
+		for (let i = 0; i < this.outputs.length; i++) {
+			const o = this.outputs[i];
+			if (!ids.includes(o.id)) continue;
+			const request = this.requests.find((r) => r.id === o.requestId);
+			if (!request || request.workspaceId !== workspaceId) continue;
+			this.outputs[i] = { ...o, archivedAt: now, updatedAt: now };
+			count++;
+		}
+		return count;
+	}
+
+	async restoreManyOutputs(workspaceId: string, ids: string[]): Promise<number> {
+		let count = 0;
+		const now = new Date();
+		for (let i = 0; i < this.outputs.length; i++) {
+			const o = this.outputs[i];
+			if (!ids.includes(o.id)) continue;
+			const request = this.requests.find((r) => r.id === o.requestId);
+			if (!request || request.workspaceId !== workspaceId) continue;
+			this.outputs[i] = { ...o, archivedAt: null, updatedAt: now };
+			count++;
+		}
+		return count;
+	}
+
 	async create(data: {
 		workspaceId: string;
 		brandId: string;
-		productId?: string;
+		productId?: string | null;
 		platform: string;
 		contentType: string;
 		framework: string;
 		hookType: string;
 		language?: string;
-		prompt?: string;
+		prompt?: string | null;
+		objective?: string | null;
+		tonePreset?: string | null;
+		visualStyle?: string | null;
+		outputLength?: string | null;
 	}): Promise<GenerationRequest> {
 		const request: GenerationRequest = {
 			id: crypto.randomUUID(),
 			workspaceId: data.workspaceId,
 			brandId: data.brandId,
 			productId: data.productId ?? null,
+			contentTopicId: null,
 			platform: data.platform,
 			contentType: data.contentType,
 			framework: data.framework,
 			hookType: data.hookType,
 			language: data.language ?? "id",
 			prompt: data.prompt ?? null,
+			objective: data.objective ?? null,
+			tonePreset: data.tonePreset ?? null,
+			visualStyle: data.visualStyle ?? null,
+			outputLength: data.outputLength ?? null,
 			status: "pending",
 			errorMessage: null,
+			archivedAt: null,
 			createdAt: new Date(),
 			updatedAt: new Date(),
 		};
@@ -54,9 +132,24 @@ export class MockGenerationRepository implements IGenerationRepository {
 		workspaceId: string,
 	): Promise<(GenerationOutput & { request: GenerationRequest })[]> {
 		return this.outputs
+			.filter((o) => o.archivedAt === null)
 			.map((o) => {
 				const request = this.requests.find((r) => r.id === o.requestId);
-				if (!request) return null;
+				if (!request || request.archivedAt !== null) return null;
+				return { ...o, request };
+			})
+			.filter((o): o is GenerationOutput & { request: GenerationRequest } => o !== null)
+			.filter((o) => o.request.workspaceId === workspaceId);
+	}
+
+	async findArchivedOutputsByWorkspace(
+		workspaceId: string,
+	): Promise<(GenerationOutput & { request: GenerationRequest })[]> {
+		return this.outputs
+			.filter((o) => o.archivedAt !== null)
+			.map((o) => {
+				const request = this.requests.find((r) => r.id === o.requestId);
+				if (!request || request.archivedAt !== null) return null;
 				return { ...o, request };
 			})
 			.filter((o): o is GenerationOutput & { request: GenerationRequest } => o !== null)

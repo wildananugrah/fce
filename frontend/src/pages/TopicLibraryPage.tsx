@@ -11,7 +11,9 @@ import {
   Table as TableIcon,
   CalendarDays,
   CalendarRange,
+  Download,
 } from "lucide-react";
+import ExcelJS from "exceljs";
 import { useProject } from "../hooks/useProject";
 import { useWorkspace } from "../hooks/useWorkspace";
 import { api } from "../services/api";
@@ -279,7 +281,7 @@ export function TopicLibraryPage() {
         body: JSON.stringify({ ids: [topicId] }),
       });
       setTopics((prev) => prev.filter((t) => t.id !== topicId));
-      showToast("Topic deleted", "success");
+      showToast("Topic moved to Trash", "success");
       setShowDeleteConfirm(null);
     } catch (e) {
       showToast(e instanceof Error ? e.message : "Failed to delete topic", "error");
@@ -320,7 +322,10 @@ export function TopicLibraryPage() {
         body: JSON.stringify({ ids }),
       });
       setTopics((prev) => prev.filter((t) => !selectedIds.has(t.id)));
-      showToast(`Deleted ${ids.length} topic${ids.length > 1 ? "s" : ""}`, "success");
+      showToast(
+        `Moved ${ids.length} topic${ids.length > 1 ? "s" : ""} to Trash`,
+        "success",
+      );
       clearSelection();
       setShowBulkDeleteConfirm(false);
     } catch (e) {
@@ -347,6 +352,67 @@ export function TopicLibraryPage() {
     } finally {
       setBulkActionRunning(false);
     }
+  };
+
+  // Builds a real .xlsx from whatever the user currently has on screen (after
+  // the brand / platform / status filters). Doing it client-side keeps the
+  // export fast and avoids a server round-trip; we already have the full
+  // Topic[] in memory.
+  const handleExportToExcel = async (rows: Topic[]) => {
+    if (rows.length === 0) {
+      showToast("Nothing to export — current filters return no topics.", "info");
+      return;
+    }
+
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = "FCE Dashboard";
+    workbook.created = new Date();
+
+    const sheet = workbook.addWorksheet("Topics", {
+      views: [{ state: "frozen", ySplit: 1 }],
+    });
+    sheet.columns = [
+      { header: "Publish Date", key: "publishDate", width: 14 },
+      { header: "Platform", key: "platform", width: 14 },
+      { header: "Format", key: "format", width: 14 },
+      { header: "Title", key: "title", width: 48 },
+      { header: "Product", key: "product", width: 28 },
+      { header: "Brand", key: "brand", width: 22 },
+      { header: "Pillar", key: "pillar", width: 28 },
+    ];
+
+    for (const t of rows) {
+      sheet.addRow({
+        // Native Date gets serialized as an Excel date cell; blank strings
+        // stay blank so empty-date topics don't show a bogus timestamp.
+        publishDate: t.publishDate ? new Date(t.publishDate) : "",
+        platform: t.platform ?? "",
+        format: t.format ?? "",
+        title: t.title,
+        product: (t.products ?? []).map((p) => p.product.name).join(", "),
+        brand: t.brand?.name ?? "",
+        pillar: t.pillar ?? "",
+      });
+    }
+
+    sheet.getRow(1).font = { bold: true };
+    sheet.getColumn("publishDate").numFmt = "yyyy-mm-dd";
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    const stamp = new Date().toISOString().slice(0, 10);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `topics-${stamp}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    showToast(`Exported ${rows.length} topic${rows.length > 1 ? "s" : ""} to Excel.`, "success");
   };
 
   const toggleBrand = (brandId: string) => {
@@ -423,6 +489,19 @@ export function TopicLibraryPage() {
           <p className="text-sm text-gray-500 mt-1">All saved content topics, grouped by brand.</p>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            onClick={() => handleExportToExcel(filteredTopics)}
+            className="!bg-white !text-gray-700 !border !border-gray-300 hover:!bg-gray-50 !rounded-lg disabled:!text-gray-400 disabled:!border-gray-200 disabled:cursor-not-allowed"
+            disabled={filteredTopics.length === 0}
+            title={
+              filteredTopics.length === 0
+                ? "Nothing to export"
+                : `Export ${filteredTopics.length} topic${filteredTopics.length > 1 ? "s" : ""} to Excel`
+            }
+          >
+            <Download size={14} className="mr-2" />
+            Export
+          </Button>
           <Button
             onClick={() => navigate("/topics")}
             className="!bg-white !text-gray-700 !border !border-gray-300 hover:!bg-gray-50 !rounded-lg"
@@ -866,8 +945,8 @@ export function TopicLibraryPage() {
         >
           <div className="space-y-4">
             <p className="text-sm text-gray-600">
-              Delete {selectedIds.size} selected topic{selectedIds.size > 1 ? "s" : ""}? This
-              action cannot be undone.
+              Move {selectedIds.size} selected topic{selectedIds.size > 1 ? "s" : ""} to Trash?
+              You can restore them from Workspace Settings → Trash within 30 days.
             </p>
             <div className="flex justify-end gap-2">
               <Button
@@ -895,7 +974,8 @@ export function TopicLibraryPage() {
         <Modal isOpen onClose={() => setShowDeleteConfirm(null)} title="Delete Topic" size="sm">
           <div className="space-y-4">
             <p className="text-sm text-gray-600">
-              Are you sure you want to delete this topic? This action cannot be undone.
+              Move this topic to Trash? You can restore it from Workspace Settings → Trash within
+              30 days.
             </p>
             <div className="flex justify-end gap-2">
               <Button variant="secondary" size="sm" onClick={() => setShowDeleteConfirm(null)}>

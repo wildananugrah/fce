@@ -28,5 +28,8 @@ export interface ITopicRepository {
 		data: Partial<ContentTopic> & { productIds?: string[] },
 	): Promise<ContentTopic>;
 	deleteMany(workspaceId: string, ids: string[]): Promise<number>;
+	archiveMany(workspaceId: string, ids: string[]): Promise<number>;
+	restoreMany(workspaceId: string, ids: string[]): Promise<number>;
+	findArchivedByWorkspace(workspaceId: string): Promise<TopicWithBrand[]>;
 	updateManyStatus(workspaceId: string, ids: string[], status: string): Promise<number>;
 }

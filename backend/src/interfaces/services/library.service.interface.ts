@@ -4,7 +4,10 @@ export interface ILibraryService {
 	list(workspaceId: string, status?: string): Promise<any[]>;
 	updateStatus(id: string, status: string): Promise<GenerationOutput>;
 	updateManyStatus(workspaceId: string, ids: string[], status: string): Promise<number>;
+	// Soft-delete. Library "Delete" moves outputs into Trash.
 	deleteMany(workspaceId: string, ids: string[]): Promise<number>;
+	restoreMany(workspaceId: string, ids: string[]): Promise<number>;
+	permanentDeleteMany(workspaceId: string, ids: string[]): Promise<number>;
 	addFeedback(
 		outputId: string,
 		eventType: string,

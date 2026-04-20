@@ -18,6 +18,9 @@ export interface IBrandRepository {
 	): Promise<Brand>;
 
 	delete(id: string): Promise<void>;
+	archive(id: string): Promise<void>;
+	restore(id: string): Promise<void>;
+	findArchivedByWorkspace(workspaceId: string): Promise<Brand[]>;
 	findActiveBrainVersion(brandId: string): Promise<BrandBrainVersion | null>;
 	createBrainVersion(brandId: string, version: number, data: any): Promise<BrandBrainVersion>;
 	getNextVersionNumber(brandId: string): Promise<number>;

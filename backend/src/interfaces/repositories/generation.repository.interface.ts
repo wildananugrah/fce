@@ -2,8 +2,13 @@ import type { GenerationOutput, GenerationRequest, OutputFeedbackEvent } from "@
 
 export interface IGenerationRepository {
 	findByWorkspace(workspaceId: string): Promise<GenerationRequest[]>;
+	findArchivedByWorkspace(workspaceId: string): Promise<GenerationRequest[]>;
 	findById(id: string): Promise<(GenerationRequest & { outputs: GenerationOutput[] }) | null>;
 	deleteMany(workspaceId: string, ids: string[]): Promise<number>;
+	archiveMany(workspaceId: string, ids: string[]): Promise<number>;
+	restoreMany(workspaceId: string, ids: string[]): Promise<number>;
+	archiveManyOutputs(workspaceId: string, outputIds: string[]): Promise<number>;
+	restoreManyOutputs(workspaceId: string, outputIds: string[]): Promise<number>;
 	create(data: {
 		workspaceId: string;
 		brandId: string;
@@ -24,6 +29,9 @@ export interface IGenerationRepository {
 	findOutputsByWorkspace(
 		workspaceId: string,
 		status?: string,
+	): Promise<(GenerationOutput & { request: GenerationRequest })[]>;
+	findArchivedOutputsByWorkspace(
+		workspaceId: string,
 	): Promise<(GenerationOutput & { request: GenerationRequest })[]>;
 	findOutputById(id: string): Promise<GenerationOutput | null>;
 	updateOutput(id: string, data: { status: string }): Promise<GenerationOutput>;

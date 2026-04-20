@@ -135,6 +135,20 @@ export class TopicService implements ITopicService {
 		if (!ids.length) {
 			throw new Error("No topic IDs provided");
 		}
+		return this.topicRepository.archiveMany(workspaceId, ids);
+	}
+
+	async restoreMany(workspaceId: string, ids: string[]): Promise<number> {
+		if (!ids.length) {
+			throw new Error("No topic IDs provided");
+		}
+		return this.topicRepository.restoreMany(workspaceId, ids);
+	}
+
+	async permanentDeleteMany(workspaceId: string, ids: string[]): Promise<number> {
+		if (!ids.length) {
+			throw new Error("No topic IDs provided");
+		}
 		return this.topicRepository.deleteMany(workspaceId, ids);
 	}
 

@@ -68,12 +68,17 @@ export function BrandsPage() {
 
   const handleDelete = async (brandId: string, brandName: string) => {
     if (!activeWorkspace) return;
-    if (!window.confirm(`Delete "${brandName}"? This cannot be undone.`)) return;
+    if (
+      !window.confirm(
+        `Move "${brandName}" to Trash? Its products, topics, and content will be hidden too. You can restore it within 30 days from Workspace Settings → Trash.`,
+      )
+    )
+      return;
     try {
       await api(`/api/workspaces/${activeWorkspace.id}/brands/${brandId}`, {
         method: "DELETE",
       });
-      showToast("Brand deleted", "success");
+      showToast("Brand moved to Trash", "success");
       loadBrands();
     } catch (e) {
       showToast(e instanceof Error ? e.message : "Failed to delete brand", "error");

@@ -249,7 +249,12 @@ export function ProductsPage() {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (confirm(`Delete "${product.name}"?`)) handleDeleteProduct(product.id);
+                            if (
+                              confirm(
+                                `Move "${product.name}" to Trash? You can restore it from Workspace Settings → Trash within 30 days.`,
+                              )
+                            )
+                              handleDeleteProduct(product.id);
                           }}
                           className="absolute top-2 right-2 p-1.5 bg-white/80 backdrop-blur-sm rounded-md text-gray-400 hover:text-red-500 hover:bg-white opacity-0 group-hover:opacity-100 transition-all"
                         >

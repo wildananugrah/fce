@@ -85,6 +85,20 @@ Frontend form → `GenerationService` enqueues pg-boss job → Worker calls AI p
 
 Same pattern applies to campaigns, topics, and brand scraping jobs.
 
+### Soft-delete (Trash) for Brands, Products, Topics, Content
+
+Deleting a brand/product/topic/content from the normal UI now **archives** it rather than hard-deleting. Each of those models has an `archivedAt: DateTime?` column; the column being non-null means "hidden from normal lists, shown in Workspace Settings → Trash, subject to the sweeper." Campaign deletion stays hard-delete (out of scope).
+
+**Visibility** — descendants of an archived ancestor hide automatically via join filters (e.g. the Products list joins `brand.archivedAt: null`). No need to cascade `archivedAt` down the tree; restoring the brand "uncovers" its products and topics as a side effect. An entity archived on its own remains hidden even if its ancestor is live.
+
+**Trash view** — `GET /api/workspaces/:w/trash` (workspace-admin gated) returns a flat list of archived items across the four types with an `expiresAt` per item. Archived descendants of an archived ancestor are **collapsed** under the ancestor row so the UI doesn't explode when a brand with 50 products is trashed. Frontend tab lives at Workspace Settings → Trash.
+
+**Restore** — `POST /api/workspaces/:w/trash/:type/:id/restore` just clears `archivedAt`. When restoring a brand, everything that was hidden by the brand's archive becomes visible again.
+
+**Hard delete (sweeper)** — `ArchiveSweepJob` is a pg-boss scheduled job that runs every hour (`boss.schedule("archive-sweep", "0 * * * *")`) and deletes rows with `archivedAt < now() - ARCHIVE_TTL_DAYS`. Brand hard-deletes cascade to products, brain versions, topics, generation requests/outputs, sections, and feedback events via FK constraints — so the sweeper only issues `deleteMany` per table. `ARCHIVE_TTL_DAYS` is configurable via env (default `30`).
+
+Manually deleting forever from the Trash view (`DELETE /api/workspaces/:w/trash/:type/:id`) uses the same hard-delete path — no need to wait for the sweeper.
+
 ### Brand/Product Brain Versions
 
 Brands and products have versioned "brain" configurations (personality, tone, audience, messaging rules). Each entity tracks an `activeBrainVersionId` for rollback support.
@@ -143,6 +157,7 @@ Copy `.env.example` to `.env`. Key variables:
 - `DATABASE_URL` — Postgres connection string.
 - `JWT_SECRET`, `JWT_REFRESH_SECRET`, `JWT_EXPIRY`, `JWT_REFRESH_EXPIRY`.
 - `EMAIL_VERIFICATION_TOKEN_EXPIRY` — default `24h`. Parseable as `"30s"`, `"5m"`, `"2h"`, `"7d"`.
+- `ARCHIVE_TTL_DAYS` — default `30`. Soft-archived brands/products/topics/content older than this are hard-deleted by the hourly `archive-sweep` pg-boss worker.
 - `RESEND_API_KEY` + `EMAIL_FROM` — if unset, emails are logged to stdout (dev only).
 - `APP_URL` — used to build verification + invitation links.
 - **AI defaults (fallbacks only)**: `AI_PROVIDER`, `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `GEMINI_IMAGE_MODEL`. Per-task overrides: `AI_CONTENT_PROVIDER`, `AI_CAMPAIGN_PROVIDER`, `AI_TOPIC_PROVIDER`, `AI_BRAND_SCRAPER_PROVIDER`, `AI_CHAT_PROVIDER`. Workspaces can override any of these from Workspace Settings → Integrations → AI Providers; env values kick in only when a workspace hasn't configured its own.
@@ -163,6 +178,7 @@ User management (full reference in [docs/database-access.md](docs/database-acces
 ```bash
 bun run scripts/create-user.ts <email> <password> [fullName] [--superadmin]
 bun run scripts/reset-password.ts <email> <new-password>   # or --random
+bun run scripts/verify-email.ts <email>                    # or --all
 bun run scripts/seed-superadmin.ts <email>                 # or --revoke
 bun run scripts/fix-workspace-admin.ts <email> <workspace> # grant workspace admin
 ```

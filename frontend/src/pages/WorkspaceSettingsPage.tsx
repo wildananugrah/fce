@@ -16,6 +16,7 @@ import { TokenUsageSection } from "../components/token-usage/TokenUsageSection";
 import { AiProvidersSection } from "../components/workspace-settings/AiProvidersSection";
 import { ProjectsTab } from "../components/workspace-settings/ProjectsTab";
 import { SkillsTab } from "../components/workspace-settings/SkillsTab";
+import { TrashTab } from "../components/workspace-settings/TrashTab";
 
 type ToastState = { message: string; type: "success" | "error" | "info" } | null;
 
@@ -41,6 +42,7 @@ const TABS = [
   { key: "skills", label: "AI Skills" },
   { key: "usage", label: "Token Usage" },
   { key: "integrations", label: "Integrations" },
+  { key: "trash", label: "Trash" },
 ];
 
 const ROLE_OPTIONS = [
@@ -785,6 +787,10 @@ export function WorkspaceSettingsPage() {
             workspaceId={activeWorkspace.id}
             showToast={(msg, type) => setToast({ message: msg, type })}
           />
+        )}
+
+        {activeTab === "trash" && (
+          <TrashTab workspaceId={activeWorkspace.id} onToast={showToast} />
         )}
       </div>
 

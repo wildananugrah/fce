@@ -254,12 +254,25 @@ export function createProductRoutes(
 		return c.json({ data: product });
 	});
 
-	// DELETE /:id — delete product (cascades to brain versions, content
-	// topic links; sets generation_requests.product_id and
-	// brand_documents.product_id to NULL where present).
+	// DELETE /:id — soft delete. Archives the product; the row stays in the
+	// DB so it can be restored from Trash, and gets swept after ARCHIVE_TTL_DAYS.
 	app.delete("/:id", async (c) => {
 		const workspaceId = c.get("workspaceId");
 		await productService.delete(workspaceId, c.req.param("id"));
+		return c.json({ deleted: true });
+	});
+
+	app.post("/:id/restore", async (c) => {
+		const workspaceId = c.get("workspaceId");
+		await productService.restore(workspaceId, c.req.param("id"));
+		return c.json({ data: { success: true } });
+	});
+
+	// Hard delete from Trash — cascades to brain versions, content topic links,
+	// nulls generation_requests.product_id.
+	app.delete("/:id/permanent", async (c) => {
+		const workspaceId = c.get("workspaceId");
+		await productService.permanentDelete(workspaceId, c.req.param("id"));
 		return c.json({ deleted: true });
 	});
 

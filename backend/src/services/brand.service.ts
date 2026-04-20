@@ -41,6 +41,22 @@ export class BrandService implements IBrandService {
 		if (!brand) {
 			throw new Error("Brand not found");
 		}
+		await this.brandRepository.archive(id);
+	}
+
+	async restore(id: string): Promise<void> {
+		const brand = await this.brandRepository.findById(id);
+		if (!brand) {
+			throw new Error("Brand not found");
+		}
+		await this.brandRepository.restore(id);
+	}
+
+	async permanentDelete(id: string): Promise<void> {
+		const brand = await this.brandRepository.findById(id);
+		if (!brand) {
+			throw new Error("Brand not found");
+		}
 		await this.brandRepository.delete(id);
 	}
 

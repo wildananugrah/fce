@@ -1,12 +1,61 @@
-import type { Product, ProductBrainVersion } from "@prisma/client";
-import type { IProductRepository } from "../../src/interfaces/repositories/product.repository.interface";
+import type { Brand, Product, ProductBrainVersion } from "@prisma/client";
+import type {
+	IProductRepository,
+	ProductWithRelations,
+} from "../../src/interfaces/repositories/product.repository.interface";
 
 export class MockProductRepository implements IProductRepository {
 	private products: Product[] = [];
 	private brainVersions: ProductBrainVersion[] = [];
+	// Minimal brand index so findByWorkspace can fake the brand: { name } include
+	// and the archive-aware join filter. Tests that care about the brand side
+	// can seed entries here; otherwise we synthesize a placeholder.
+	private brands = new Map<string, Pick<Brand, "id" | "name" | "archivedAt">>();
 
-	async findByWorkspace(workspaceId: string): Promise<Product[]> {
-		return this.products.filter((p) => p.workspaceId === workspaceId);
+	private decorate(product: Product): ProductWithRelations {
+		const brand = this.brands.get(product.brandId) ?? {
+			id: product.brandId,
+			name: `Brand ${product.brandId.slice(0, 4)}`,
+			archivedAt: null,
+		};
+		const versions = this.brainVersions.filter((v) => v.productId === product.id);
+		return {
+			...product,
+			brand: { id: brand.id, name: brand.name },
+			brainVersions: versions,
+		};
+	}
+
+	seedBrand(brand: Pick<Brand, "id" | "name"> & { archivedAt?: Date | null }): void {
+		this.brands.set(brand.id, {
+			id: brand.id,
+			name: brand.name,
+			archivedAt: brand.archivedAt ?? null,
+		});
+	}
+
+	async findByWorkspace(workspaceId: string): Promise<ProductWithRelations[]> {
+		return this.products
+			.filter((p) => {
+				if (p.workspaceId !== workspaceId) return false;
+				if (p.archivedAt !== null) return false;
+				const brand = this.brands.get(p.brandId);
+				if (brand?.archivedAt) return false;
+				return true;
+			})
+			.map((p) => this.decorate(p));
+	}
+
+	async findArchivedByWorkspace(workspaceId: string): Promise<ProductWithRelations[]> {
+		return this.products
+			.filter((p) => {
+				if (p.workspaceId !== workspaceId) return false;
+				if (p.archivedAt === null) return false;
+				const brand = this.brands.get(p.brandId);
+				if (brand?.archivedAt) return false;
+				return true;
+			})
+			.map((p) => this.decorate(p));
 	}
 
 	async findById(id: string): Promise<(Product & { brainVersions: ProductBrainVersion[] }) | null> {
@@ -22,6 +71,9 @@ export class MockProductRepository implements IProductRepository {
 		name: string;
 		slug: string;
 		type?: string;
+		priceTier?: string;
+		summary?: string;
+		imageUrl?: string;
 	}): Promise<Product> {
 		const product: Product = {
 			id: crypto.randomUUID(),
@@ -30,8 +82,12 @@ export class MockProductRepository implements IProductRepository {
 			name: data.name,
 			slug: data.slug,
 			type: data.type ?? null,
+			priceTier: data.priceTier ?? null,
+			summary: data.summary ?? null,
+			imageUrl: data.imageUrl ?? null,
 			activeBrainVersionId: null,
 			status: "draft",
+			archivedAt: null,
 			createdAt: new Date(),
 			updatedAt: new Date(),
 		};
@@ -41,12 +97,39 @@ export class MockProductRepository implements IProductRepository {
 
 	async update(
 		id: string,
-		data: Partial<Pick<Product, "name" | "type" | "status" | "activeBrainVersionId">>,
+		data: Partial<
+			Pick<
+				Product,
+				"name" | "type" | "priceTier" | "summary" | "imageUrl" | "status" | "activeBrainVersionId"
+			>
+		>,
 	): Promise<Product> {
 		const index = this.products.findIndex((p) => p.id === id);
 		if (index === -1) throw new Error("Product not found");
 		this.products[index] = { ...this.products[index], ...data, updatedAt: new Date() };
 		return this.products[index];
+	}
+
+	async delete(id: string): Promise<void> {
+		const index = this.products.findIndex((p) => p.id === id);
+		if (index === -1) throw new Error("Product not found");
+		this.products.splice(index, 1);
+	}
+
+	async archive(id: string): Promise<void> {
+		const index = this.products.findIndex((p) => p.id === id);
+		if (index === -1) throw new Error("Product not found");
+		this.products[index] = {
+			...this.products[index],
+			archivedAt: new Date(),
+			updatedAt: new Date(),
+		};
+	}
+
+	async restore(id: string): Promise<void> {
+		const index = this.products.findIndex((p) => p.id === id);
+		if (index === -1) throw new Error("Product not found");
+		this.products[index] = { ...this.products[index], archivedAt: null, updatedAt: new Date() };
 	}
 
 	async findActiveBrainVersion(productId: string): Promise<ProductBrainVersion | null> {
@@ -92,5 +175,6 @@ export class MockProductRepository implements IProductRepository {
 	clear(): void {
 		this.products = [];
 		this.brainVersions = [];
+		this.brands.clear();
 	}
 }

@@ -16,7 +16,10 @@
       "Bash(git commit -m ':*)",
       "Bash(git branch *)",
       "Bash(bun -e ' *)",
-      "Bash(bash docs/db-cheatsheet.sh *)"
+      "Bash(bash docs/db-cheatsheet.sh *)",
+      "Bash(npm audit *)",
+      "Bash(npm uninstall *)",
+      "Bash(bun install *)"
     ]
   }
 }

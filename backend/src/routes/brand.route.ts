@@ -49,9 +49,22 @@ export function createBrandRoutes(
 		return c.json({ data: brand });
 	});
 
-	// DELETE /:id — delete brand
+	// DELETE /:id — soft delete (moves to Trash).
 	app.delete("/:id", async (c) => {
 		await brandService.delete(c.req.param("id"));
+		return c.json({ data: { success: true } });
+	});
+
+	// POST /:id/restore — pull back out of the Trash.
+	app.post("/:id/restore", async (c) => {
+		await brandService.restore(c.req.param("id"));
+		return c.json({ data: { success: true } });
+	});
+
+	// DELETE /:id/permanent — hard delete (cascades to products/topics/content).
+	// Called from the Trash view's "Delete forever" button.
+	app.delete("/:id/permanent", async (c) => {
+		await brandService.permanentDelete(c.req.param("id"));
 		return c.json({ data: { success: true } });
 	});
 

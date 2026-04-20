@@ -43,14 +43,26 @@ export class ProductService implements IProductService {
 	}
 
 	async delete(workspaceId: string, id: string): Promise<void> {
+		const product = await this.assertProductInWorkspace(workspaceId, id);
+		await this.productRepository.archive(product.id);
+	}
+
+	async restore(workspaceId: string, id: string): Promise<void> {
+		const product = await this.assertProductInWorkspace(workspaceId, id);
+		await this.productRepository.restore(product.id);
+	}
+
+	async permanentDelete(workspaceId: string, id: string): Promise<void> {
+		const product = await this.assertProductInWorkspace(workspaceId, id);
+		await this.productRepository.delete(product.id);
+	}
+
+	private async assertProductInWorkspace(workspaceId: string, id: string) {
 		const product = await this.productRepository.findById(id);
-		if (!product) {
+		if (!product || product.workspaceId !== workspaceId) {
 			throw new Error("Product not found");
 		}
-		if (product.workspaceId !== workspaceId) {
-			throw new Error("Product not found");
-		}
-		await this.productRepository.delete(id);
+		return product;
 	}
 
 	async createBrainVersion(

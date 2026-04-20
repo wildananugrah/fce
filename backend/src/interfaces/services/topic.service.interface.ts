@@ -36,6 +36,9 @@ export interface ITopicService {
 		},
 		hint?: string,
 	): Promise<{ jobId: string }>;
+	// Soft-delete. Topics move into Trash; restore or sweep later.
 	deleteMany(workspaceId: string, ids: string[]): Promise<number>;
+	restoreMany(workspaceId: string, ids: string[]): Promise<number>;
+	permanentDeleteMany(workspaceId: string, ids: string[]): Promise<number>;
 	updateManyStatus(workspaceId: string, ids: string[], status: string): Promise<number>;
 }

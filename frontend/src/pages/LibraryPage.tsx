@@ -191,7 +191,10 @@ export function LibraryPage() {
         body: JSON.stringify({ ids }),
       });
       setItems((prev) => prev.filter((i) => !selectedIds.has(i.id)));
-      showToast(`Deleted ${ids.length} item${ids.length > 1 ? "s" : ""}`, "success");
+      showToast(
+        `Moved ${ids.length} item${ids.length > 1 ? "s" : ""} to Trash`,
+        "success",
+      );
       clearSelection();
       setShowBulkDeleteConfirm(false);
     } catch (e) {
@@ -500,8 +503,9 @@ export function LibraryPage() {
         >
           <div className="space-y-4">
             <p className="text-sm text-gray-600">
-              Delete {selectedIds.size} selected content item
-              {selectedIds.size > 1 ? "s" : ""}? This action cannot be undone.
+              Move {selectedIds.size} selected content item
+              {selectedIds.size > 1 ? "s" : ""} to Trash? You can restore them from Workspace
+              Settings → Trash within 30 days.
             </p>
             <div className="flex justify-end gap-2">
               <Button

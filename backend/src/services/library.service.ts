@@ -28,6 +28,14 @@ export class LibraryService implements ILibraryService {
 	}
 
 	async deleteMany(workspaceId: string, ids: string[]): Promise<number> {
+		return this.generationRepository.archiveManyOutputs(workspaceId, ids);
+	}
+
+	async restoreMany(workspaceId: string, ids: string[]): Promise<number> {
+		return this.generationRepository.restoreManyOutputs(workspaceId, ids);
+	}
+
+	async permanentDeleteMany(workspaceId: string, ids: string[]): Promise<number> {
 		return this.generationRepository.deleteManyOutputs(workspaceId, ids);
 	}
 
