@@ -15,6 +15,16 @@ export class GenerationRepository implements IGenerationRepository {
 				workspaceId,
 				archivedAt: null,
 				brand: { archivedAt: null },
+				// Content-generator list = "work in progress". We keep requests
+				// that don't have outputs yet (pending / processing / failed
+				// jobs) AND requests whose output is still in the "generated"
+				// state — i.e. the user hasn't clicked Send to Library on them.
+				// Outputs promoted to draft/in_review/approved/rejected live in
+				// the Library now and should disappear from this list.
+				OR: [
+					{ outputs: { none: {} } },
+					{ outputs: { some: { status: "generated" } } },
+				],
 			},
 			include: {
 				brand: { select: { id: true, name: true } },

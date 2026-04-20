@@ -278,13 +278,16 @@ export class ContentGenerationJob {
 				},
 			);
 
-			// Save output
+			// Save output. "generated" means the AI finished but the human hasn't
+			// reviewed or pushed it to the Library yet — the Content Generator
+			// list keys off this status so items vanish once the user clicks
+			// Send to Library (which flips the output to "draft" inside Library).
 			const savedOutput = await this.prisma.generationOutput.create({
 				data: {
 					requestId,
 					contentTitle: output.contentTitle,
 					content: output.content as any,
-					status: "draft",
+					status: "generated",
 				},
 			});
 
