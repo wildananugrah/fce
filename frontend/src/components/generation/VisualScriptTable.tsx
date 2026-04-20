@@ -196,6 +196,7 @@ export function VisualScriptTable({
                           <img
                             src={imageUrl}
                             alt={`Scene ${num} reference`}
+                            loading="lazy"
                             className="w-full aspect-video object-cover"
                           />
                         </button>

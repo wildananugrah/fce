@@ -13,7 +13,8 @@ import {
   CalendarRange,
   Download,
 } from "lucide-react";
-import ExcelJS from "exceljs";
+// `exceljs` is ~1 MB. Import it lazily inside the export handler so users who
+// never click Export don't pay for it on the initial bundle.
 import { useProject } from "../hooks/useProject";
 import { useWorkspace } from "../hooks/useWorkspace";
 import { api } from "../services/api";
@@ -364,6 +365,9 @@ export function TopicLibraryPage() {
       return;
     }
 
+    // Lazy-load so exceljs stays out of the initial bundle — adds a tiny
+    // one-time delay the first time the user clicks Export.
+    const { default: ExcelJS } = await import("exceljs");
     const workbook = new ExcelJS.Workbook();
     workbook.creator = "FCE Dashboard";
     workbook.created = new Date();

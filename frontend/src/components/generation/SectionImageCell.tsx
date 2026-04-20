@@ -152,6 +152,7 @@ export function SectionImageCell({
               key={bustedImageUrl}
               src={bustedImageUrl}
               alt={label ?? "Reference"}
+              loading="lazy"
               className="w-full h-full object-cover"
             />
           </button>

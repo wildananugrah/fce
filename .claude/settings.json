@@ -20,7 +20,11 @@
       "Bash(npm audit *)",
       "Bash(npm uninstall *)",
       "Bash(bun install *)",
-      "Bash(git pull *)"
+      "Bash(git pull *)",
+      "Bash(bunx -p npm@latest npm view @prisma/client version)",
+      "Bash(bunx -p npm@latest npm view @prisma/client@latest dist-tags)",
+      "Bash(bunx -p npm@latest npm view prisma version)",
+      "Bash(unzip -q /Users/bellinnn/Documents/projects/fce/docs/bun-postgres-performance.skill)"
     ]
   }
 }

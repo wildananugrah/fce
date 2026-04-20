@@ -100,7 +100,11 @@ import { env } from "./utils/env";
 
 // ─── Main Async Setup ────────────────────────────────────────────
 async function main() {
-	const adapter = new PrismaPg({ connectionString: env.databaseUrl });
+	// The pg-boss worker concurrency below can run up to ~17 jobs in parallel
+	// across all queues, and each job makes multiple Prisma queries. Bump the
+	// adapter pool past the default (10) so workers don't starve waiting for a
+	// free connection. `max` flows through to node-postgres' Pool.
+	const adapter = new PrismaPg({ connectionString: env.databaseUrl, max: 25 });
 	const prisma = new PrismaClient({ adapter });
 	const logger = new WinstonLogger(env.serviceName, env.lokiUrl || undefined);
 
@@ -293,40 +297,93 @@ async function main() {
 	await boss.createQueue("archive-sweep");
 
 	// ─── Register PgBoss Workers ─────────────────────────────────────
-	await boss.work("content-generation", async (jobs) => {
-		for (const job of jobs) await contentGenerationJob.handle(job.data as any);
-	});
-	await boss.work("campaign-generation", async (jobs) => {
-		for (const job of jobs) await campaignGenerationJob.handle(job.data as any);
-	});
-	await boss.work("campaign-pdf-generation", async (jobs) => {
-		for (const job of jobs) await campaignPdfGenerationJob.handle(job.data as any);
-	});
-	await boss.work("topic-generation", async (jobs) => {
-		for (const job of jobs) await topicGenerationJob.handle(job.data as any);
-	});
-	await boss.work("topic-regeneration", async (jobs) => {
-		for (const job of jobs) await topicRegenerationJob.handle(job.data as any);
-	});
-	await boss.work("brand-scraping", async (jobs) => {
-		for (const job of jobs) await brandScrapingJob.handle(job.data as any);
-	});
-	await boss.work("document-extraction", async (jobs) => {
-		for (const job of jobs) await documentExtractionJob.handle(job.data as any);
-	});
-	await boss.work("link-scraping", async (jobs) => {
-		for (const job of jobs) await linkScrapingJob.handle(job.data as any);
-	});
-	await boss.work("recommendation-recompute", async (jobs) => {
-		for (const job of jobs) await recommendationRecomputeJob.handle(job.data as any);
-	});
-	await boss.work("research-run", async (jobs) => {
-		for (const job of jobs) await researchRunJob.handle(job.data as any);
-	});
-	await boss.work("archive-sweep", async (jobs) => {
-		// Scheduled sweeper — one "tick" per fire; the job ignores its payload.
-		for (const _ of jobs) await archiveSweepJob.handle();
-	});
+	// Each queue is tuned for its workload:
+	//  - localConcurrency: how many jobs this node runs in parallel. AI
+	//    queues get 2–3 so multiple users don't queue serially; background
+	//    sweepers stay at 1.
+	//  - pollingIntervalSeconds: 1s for latency-sensitive queues (user is
+	//    staring at a spinner), 2s for I/O-bound ones, and tens of seconds
+	//    for low-priority or scheduled queues to cut DB chatter.
+	// Worst-case parallel workers total ~22, well under the Prisma adapter
+	// pool size we configured above (25).
+	await boss.work(
+		"content-generation",
+		{ localConcurrency: 3, pollingIntervalSeconds: 1 },
+		async (jobs) => {
+			for (const job of jobs) await contentGenerationJob.handle(job.data as any);
+		},
+	);
+	await boss.work(
+		"campaign-generation",
+		{ localConcurrency: 2, pollingIntervalSeconds: 1 },
+		async (jobs) => {
+			for (const job of jobs) await campaignGenerationJob.handle(job.data as any);
+		},
+	);
+	await boss.work(
+		"campaign-pdf-generation",
+		{ localConcurrency: 1, pollingIntervalSeconds: 2 },
+		async (jobs) => {
+			for (const job of jobs) await campaignPdfGenerationJob.handle(job.data as any);
+		},
+	);
+	await boss.work(
+		"topic-generation",
+		{ localConcurrency: 3, pollingIntervalSeconds: 1 },
+		async (jobs) => {
+			for (const job of jobs) await topicGenerationJob.handle(job.data as any);
+		},
+	);
+	await boss.work(
+		"topic-regeneration",
+		{ localConcurrency: 2, pollingIntervalSeconds: 1 },
+		async (jobs) => {
+			for (const job of jobs) await topicRegenerationJob.handle(job.data as any);
+		},
+	);
+	await boss.work(
+		"brand-scraping",
+		{ localConcurrency: 2, pollingIntervalSeconds: 2 },
+		async (jobs) => {
+			for (const job of jobs) await brandScrapingJob.handle(job.data as any);
+		},
+	);
+	await boss.work(
+		"document-extraction",
+		{ localConcurrency: 2, pollingIntervalSeconds: 2 },
+		async (jobs) => {
+			for (const job of jobs) await documentExtractionJob.handle(job.data as any);
+		},
+	);
+	await boss.work(
+		"link-scraping",
+		{ localConcurrency: 3, pollingIntervalSeconds: 2 },
+		async (jobs) => {
+			for (const job of jobs) await linkScrapingJob.handle(job.data as any);
+		},
+	);
+	await boss.work(
+		"recommendation-recompute",
+		{ localConcurrency: 1, pollingIntervalSeconds: 10 },
+		async (jobs) => {
+			for (const job of jobs) await recommendationRecomputeJob.handle(job.data as any);
+		},
+	);
+	await boss.work(
+		"research-run",
+		{ localConcurrency: 2, pollingIntervalSeconds: 2 },
+		async (jobs) => {
+			for (const job of jobs) await researchRunJob.handle(job.data as any);
+		},
+	);
+	await boss.work(
+		"archive-sweep",
+		{ localConcurrency: 1, pollingIntervalSeconds: 60 },
+		async (jobs) => {
+			// Scheduled sweeper — one "tick" per fire; the job ignores its payload.
+			for (const _ of jobs) await archiveSweepJob.handle();
+		},
+	);
 
 	// Run the archive sweeper once an hour. pg-boss dedupes duplicate
 	// schedules by (queue, key) so calling this on every boot is safe.
