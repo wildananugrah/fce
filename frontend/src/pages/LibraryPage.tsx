@@ -64,7 +64,16 @@ function getPlatformStyle(platform: string): { bg: string; text: string } {
 function getStatusStyle(status: string): string {
   if (status === "approved") return "bg-green-50 text-green-700";
   if (status === "rejected") return "bg-red-50 text-red-700";
+  if (status === "in_review") return "bg-amber-50 text-amber-700";
+  // `draft` — items land here when sent from Content Generator.
   return "bg-gray-100 text-gray-600";
+}
+
+function getStatusDotColor(status: string): string {
+  if (status === "approved") return "bg-green-500";
+  if (status === "rejected") return "bg-red-500";
+  if (status === "in_review") return "bg-amber-500";
+  return "bg-gray-400";
 }
 
 function formatRelativeDate(dateStr: string): string {
@@ -93,12 +102,15 @@ const PLATFORM_FILTER_OPTIONS = [
 const STATUS_FILTER_OPTIONS = [
   { value: "", label: "All Statuses" },
   { value: "draft", label: "Draft" },
+  { value: "in_review", label: "In Review" },
   { value: "approved", label: "Approved" },
   { value: "rejected", label: "Rejected" },
 ];
 
+// Ordered to match the editorial flow: draft → in review → approved/rejected.
 const BULK_STATUS_OPTIONS = [
   { value: "draft", label: "Draft" },
+  { value: "in_review", label: "In Review" },
   { value: "approved", label: "Approved" },
   { value: "rejected", label: "Rejected" },
 ];
@@ -130,7 +142,11 @@ export function LibraryPage() {
     }
     setLoading(true);
     try {
-      const data = await api<LibraryItem[]>(`/api/workspaces/${activeWorkspace.id}/library?status=in_review,approved`);
+      // Pull every library-side status: drafts land here straight from the
+      // generator, then transition through in_review → approved/rejected.
+      const data = await api<LibraryItem[]>(
+        `/api/workspaces/${activeWorkspace.id}/library?status=draft,in_review,approved,rejected`,
+      );
       setItems(data);
     } catch (e) {
       showToast(e instanceof Error ? e.message : "Failed to load library", "error");
@@ -144,19 +160,12 @@ export function LibraryPage() {
   }, [loadItems]);
 
   const handleStatusChange = (id: string, status: string) => {
-    if (status === "approved" || status === "in_review") {
-      // Stay in library — update in place
-      setItems((prev) => prev.map((item) => (item.id === id ? { ...item, status } : item)));
-    } else {
-      // Draft or rejected — remove from library, goes back to Content Generator
-      setItems((prev) => prev.filter((item) => item.id !== id));
-      showToast(
-        status === "draft"
-          ? "Content moved back to drafts on Content Generator"
-          : "Content rejected and moved back to Content Generator",
-        "info",
-      );
-    }
+    // Every library-side status (draft / in_review / approved / rejected)
+    // lives in the Library now — we just update the row in place. The old
+    // flow that "kicked" drafts/rejects back to the Content Generator
+    // violated the editorial ladder we want here (draft → in review →
+    // approved or rejected).
+    setItems((prev) => prev.map((item) => (item.id === id ? { ...item, status } : item)));
   };
 
   const toggleSelect = (id: string) => {
@@ -250,7 +259,11 @@ export function LibraryPage() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-black">Content Library</h1>
-        <p className="text-sm text-gray-500 mt-1">Approved content ready for publishing. Manage and preview your finalized posts.</p>
+        <p className="text-sm text-gray-500 mt-1">
+          Review and approve generated content. Items start as <span className="font-medium">Draft</span>, move to
+          <span className="font-medium"> In Review</span>, then become <span className="font-medium">Approved</span> or
+          <span className="font-medium"> Rejected</span>.
+        </p>
       </div>
 
       {/* Search + Filters */}
@@ -392,12 +405,11 @@ export function LibraryPage() {
 
                     {/* Status */}
                     <td className="px-4 py-3">
-                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium capitalize ${getStatusStyle(item.status)}`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${
-                          item.status === "approved" ? "bg-green-500" :
-                          item.status === "rejected" ? "bg-red-500" : "bg-gray-400"
-                        }`} />
-                        {item.status}
+                      <span
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium capitalize ${getStatusStyle(item.status)}`}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full ${getStatusDotColor(item.status)}`} />
+                        {item.status.replace(/_/g, " ")}
                       </span>
                     </td>
 

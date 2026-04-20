@@ -468,7 +468,7 @@ export function GeneratePage() {
   const handleGenerationApproved = (genId: string) => {
     setGenerations((prev) => prev.filter((g) => g.id !== genId));
     setSelectedGenIds((prev) => { const next = new Set(prev); next.delete(genId); return next; });
-    showToast("Content approved and moved to library", "success");
+    showToast("Sent to Library as Draft — review it there to approve or reject.", "success");
   };
 
   const handleGenerationRejected = (genId: string) => {

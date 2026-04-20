@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronRight, ChevronDown, Eye, Check, X, Save, Loader2, Trash2 } from "lucide-react";
+import { ChevronRight, ChevronDown, Eye, Check, X, Loader2, Trash2 } from "lucide-react";
 import { api } from "../../services/api";
 import { isVideoContentType } from "../../config/video-content-types";
 import { VisualScriptTable } from "./VisualScriptTable";
@@ -172,30 +172,42 @@ export function GenerationResultRow({
     });
   };
 
-  const handleSave = async () => {
-    if (!outputId || !isDirty) return;
+  // "Save & Send to Library" — persist any inline edits (if the user made
+  // any) then flip status to in_review so the item shows up in the Library.
+  // Replaces the old save-only button; the row's ✓ icon is now effectively
+  // a shortcut for this same flow without the save step.
+  const handleSaveAndApprove = async () => {
+    if (!outputId) return;
     setSaving(true);
     try {
-      const updates = Object.entries(editedSections).map(([id, contentText]) => ({
-        id,
-        contentText,
-      }));
-      await api(`/api/workspaces/${workspaceId}/library/${outputId}/sections/bulk`, {
+      if (isDirty) {
+        const updates = Object.entries(editedSections).map(([id, contentText]) => ({
+          id,
+          contentText,
+        }));
+        await api(`/api/workspaces/${workspaceId}/library/${outputId}/sections/bulk`, {
+          method: "PATCH",
+          body: JSON.stringify({ sections: updates }),
+        });
+        setSections((prev) =>
+          prev
+            ? prev.map((s) =>
+                editedSections[s.id] !== undefined
+                  ? { ...s, contentText: editedSections[s.id] }
+                  : s,
+              )
+            : prev,
+        );
+        setEditedSections({});
+      }
+
+      await api(`/api/workspaces/${workspaceId}/library/${outputId}`, {
         method: "PATCH",
-        body: JSON.stringify({ sections: updates }),
+        body: JSON.stringify({ status: "draft" }),
       });
-      setSections((prev) =>
-        prev
-          ? prev.map((s) =>
-              editedSections[s.id] !== undefined
-                ? { ...s, contentText: editedSections[s.id] }
-                : s
-            )
-          : prev
-      );
-      setEditedSections({});
-    } catch {
-      // silently fail — user can retry
+      onApproved(generation.id);
+    } catch (e) {
+      console.error("Failed to save & approve", e);
     } finally {
       setSaving(false);
     }
@@ -205,9 +217,10 @@ export function GenerationResultRow({
     if (!outputId) return;
     setStatusUpdating(true);
     try {
-      // "approved" in Content Generator means "send to library for review"
-      // Sets status to "in_review" so Library shows it as a draft for Stage 2 approval
-      const actualStatus = newStatus === "approved" ? "in_review" : newStatus;
+      // "approved" in the Content Generator row means "send to Library" — the
+      // item enters the Library as a `draft`. Library approvers then promote
+      // it through in_review → approved (or rejected) from that screen.
+      const actualStatus = newStatus === "approved" ? "draft" : newStatus;
       await api(`/api/workspaces/${workspaceId}/library/${outputId}`, {
         method: "PATCH",
         body: JSON.stringify({ status: actualStatus }),
@@ -605,25 +618,33 @@ export function GenerationResultRow({
                   </div>
                 )}
 
-                {/* ─── Save button ─── */}
+                {/* ─── Save & Send to Library ─── */}
                 <div className="flex items-center gap-2 pt-1">
                   <button
                     type="button"
-                    onClick={handleSave}
-                    disabled={!isDirty || saving}
-                    className={`inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                    onClick={handleSaveAndApprove}
+                    disabled={!outputId || saving}
+                    className="inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-medium rounded-lg transition-colors bg-green-600 text-white hover:bg-green-700 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed"
+                    title={
                       isDirty
-                        ? "bg-indigo-600 text-white hover:bg-indigo-700"
-                        : "bg-gray-100 text-gray-400 cursor-not-allowed"
-                    }`}
+                        ? "Save your edits and send this content to the Library"
+                        : "Send this content to the Library"
+                    }
                   >
                     {saving ? (
                       <Loader2 size={12} className="animate-spin" />
                     ) : (
-                      <Save size={12} />
+                      <Check size={12} />
                     )}
-                    {saving ? "Saving..." : "Save Changes"}
+                    {saving
+                      ? "Sending..."
+                      : isDirty
+                        ? "Save & Send to Library"
+                        : "Send to Library"}
                   </button>
+                  {isDirty && (
+                    <span className="text-[10px] text-amber-600">Unsaved edits will be saved.</span>
+                  )}
                 </div>
                 <p className="text-[10px] text-gray-400 mt-2">
                   View token usage details on the Settings page.
