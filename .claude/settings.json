@@ -19,7 +19,8 @@
       "Bash(bash docs/db-cheatsheet.sh *)",
       "Bash(npm audit *)",
       "Bash(npm uninstall *)",
-      "Bash(bun install *)"
+      "Bash(bun install *)",
+      "Bash(git pull *)"
     ]
   }
 }
