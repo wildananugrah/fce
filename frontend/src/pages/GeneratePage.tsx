@@ -780,6 +780,31 @@ const frameworkOptions = [{ value: "", label: "PAS (recommended)" }, ...framewor
                     onChange={setContentTopicId}
                     placeholder="Search topics..."
                   />
+                  {/* Mirror the pillar from the picked topic so the writer can
+                      see what angle it was planned under. Blank pillar means
+                      the topic was generated from the "mix all pillars" path
+                      in Topic Generator — surface that explicitly rather than
+                      leaving it empty. */}
+                  {contentTopicId && (() => {
+                    const selectedTopic = topics.find((t) => t.id === contentTopicId);
+                    if (!selectedTopic) return null;
+                    return (
+                      <div className="flex items-center gap-2 -mt-1">
+                        <span className="text-[11px] font-medium text-gray-500 uppercase tracking-wide">
+                          Pillar
+                        </span>
+                        {selectedTopic.pillar ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-indigo-50 text-indigo-700 border border-indigo-100">
+                            {selectedTopic.pillar}
+                          </span>
+                        ) : (
+                          <span className="text-[11px] text-gray-400 italic">
+                            Mixed (no pillar set)
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </>
               )}
 
