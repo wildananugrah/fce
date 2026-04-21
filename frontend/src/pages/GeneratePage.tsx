@@ -412,6 +412,7 @@ export function GeneratePage() {
   // Brain context
   const [brainTone, setBrainTone] = useState<string | undefined>();
   const [brainUsp, setBrainUsp] = useState<string | undefined>();
+  const [brandContentPillars, setBrandContentPillars] = useState<string[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -557,6 +558,7 @@ export function GeneratePage() {
     if (!activeWorkspace || !brandId) {
       setBrainTone(undefined);
       setBrainUsp(undefined);
+      setBrandContentPillars([]);
       return;
     }
 
@@ -567,6 +569,9 @@ export function GeneratePage() {
         const brand = (brandRes as any).data ?? brandRes;
         const activeBrandBrain = brand.brainVersions?.find((v: BrandBrainVersion) => v.isActive);
         setBrainTone(activeBrandBrain?.tone);
+        setBrandContentPillars(
+          (activeBrandBrain as any)?.vocabulary?.contentPillars ?? [],
+        );
 
         // Get product brain for USP (use first selected product)
         if (selectedProductIds.length > 0) {
@@ -580,6 +585,7 @@ export function GeneratePage() {
       } catch {
         setBrainTone(undefined);
         setBrainUsp(undefined);
+        setBrandContentPillars([]);
       }
     })();
   }, [activeWorkspace, brandId, selectedProductIds]);
@@ -603,6 +609,14 @@ export function GeneratePage() {
 
     setSubmitting(true);
     try {
+      const selectedTopic = topics.find((t) => t.id === contentTopicId);
+      const resolvedPillars =
+        contentTopicId
+          ? selectedTopic?.pillar
+            ? [selectedTopic.pillar]
+            : []
+          : brandContentPillars;
+
       await api(`/api/workspaces/${activeWorkspace!.id}/generations`, {
         method: "POST",
         body: JSON.stringify({
@@ -623,6 +637,7 @@ export function GeneratePage() {
           objective: objective || undefined,
           outputLength: outputLength || undefined,
           researchContext: researchContext || undefined,
+          pillars: resolvedPillars.length > 0 ? resolvedPillars : undefined,
         }),
       });
       showToast("Generation submitted", "success");
@@ -785,7 +800,7 @@ const frameworkOptions = [{ value: "", label: "PAS (recommended)" }, ...framewor
                       the topic was generated from the "mix all pillars" path
                       in Topic Generator — surface that explicitly rather than
                       leaving it empty. */}
-                  {contentTopicId && (() => {
+                  {contentTopicId ? (() => {
                     const selectedTopic = topics.find((t) => t.id === contentTopicId);
                     if (!selectedTopic) return null;
                     return (
@@ -804,7 +819,18 @@ const frameworkOptions = [{ value: "", label: "PAS (recommended)" }, ...framewor
                         )}
                       </div>
                     );
-                  })()}
+                  })() : (
+                    brandId && brandContentPillars.length > 0 && (
+                      <div className="flex items-center gap-2 -mt-1">
+                        <span className="text-[11px] font-medium text-gray-500 uppercase tracking-wide">
+                          Pillar
+                        </span>
+                        <span className="text-[11px] text-gray-400 italic">
+                          Mixed (all brand pillars)
+                        </span>
+                      </div>
+                    )
+                  )}
                 </>
               )}
 
