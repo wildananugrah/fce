@@ -317,6 +317,18 @@ const OUTPUT_LENGTH_OPTIONS = [
   { value: "long", label: "Long" },
 ];
 
+// Pastel chip colors for brand-pillar multi-select. Declared locally rather
+// than shared with TopicsPage because the two surfaces may drift visually.
+const PILLAR_COLORS = [
+  "bg-emerald-50 text-emerald-700 border-emerald-200",
+  "bg-violet-50 text-violet-700 border-violet-200",
+  "bg-amber-50 text-amber-700 border-amber-200",
+  "bg-teal-50 text-teal-700 border-teal-200",
+  "bg-rose-50 text-rose-700 border-rose-200",
+  "bg-blue-50 text-blue-700 border-blue-200",
+  "bg-orange-50 text-orange-700 border-orange-200",
+];
+
 // ─── Badge Component for Format Tags ────────────────────────────
 
 function FormatBadge({ type }: { type: "SLIDES" | "VIDEO" }) {
@@ -413,6 +425,7 @@ export function GeneratePage() {
   const [brainTone, setBrainTone] = useState<string | undefined>();
   const [brainUsp, setBrainUsp] = useState<string | undefined>();
   const [brandContentPillars, setBrandContentPillars] = useState<string[]>([]);
+  const [selectedPillars, setSelectedPillars] = useState<string[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -559,10 +572,15 @@ export function GeneratePage() {
       setBrainTone(undefined);
       setBrainUsp(undefined);
       setBrandContentPillars([]);
+      setSelectedPillars([]);
       return;
     }
 
     (async () => {
+      // Reset on every brand switch so stale Brand-A selections never get
+      // submitted against Brand-B's pillar list. Matches the pattern in
+      // TopicsPage.tsx.
+      setSelectedPillars([]);
       try {
         // Get brand brain for tone
         const brandRes = await api<{ data: Brand }>(`/api/workspaces/${activeWorkspace.id}/brands/${brandId}`);
@@ -586,6 +604,7 @@ export function GeneratePage() {
         setBrainTone(undefined);
         setBrainUsp(undefined);
         setBrandContentPillars([]);
+        setSelectedPillars([]);
       }
     })();
   }, [activeWorkspace, brandId, selectedProductIds]);
@@ -610,11 +629,12 @@ export function GeneratePage() {
     setSubmitting(true);
     try {
       const selectedTopic = topics.find((t) => t.id === contentTopicId);
-      const resolvedPillars =
-        contentTopicId
-          ? selectedTopic?.pillar
-            ? [selectedTopic.pillar]
-            : []
+      const resolvedPillars = contentTopicId
+        ? selectedTopic?.pillar
+          ? [selectedTopic.pillar]
+          : []
+        : selectedPillars.length > 0
+          ? selectedPillars
           : brandContentPillars;
 
       await api(`/api/workspaces/${activeWorkspace!.id}/generations`, {
