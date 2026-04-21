@@ -72,12 +72,21 @@ ${contextBlock}
 ${JSON_ONLY_INSTRUCTION}`;
 
 	const humanLanguage = normalizeLanguage(input.language);
+
+	const pillars = input.pillars ?? [];
+	const pillarLine =
+		pillars.length === 0
+			? ""
+			: pillars.length === 1
+				? `\nThis content should reinforce the brand pillar: "${pillars[0]}".`
+				: `\nAlign this content with one of the brand's content pillars: ${pillars.map((p) => `"${p}"`).join(", ")}. Pick the one that best fits the requested platform, format, and objective.`;
+
 	const userPrompt = `CRITICAL LANGUAGE REQUIREMENT: Write ALL user-facing copy (hook, caption, CTA, hashtags, slide/scene text, on-screen text, voiceover) in ${humanLanguage}. This overrides any language signal in the brand context. Do NOT switch languages mid-output.
 
 Create ${input.contentType} content for ${input.platform} platform.
 Framework: ${input.framework}
 Hook type: ${input.hookType}
-Language: ${humanLanguage}
+Language: ${humanLanguage}${pillarLine}
 ${input.prompt ? `\nAdditional instructions: ${input.prompt}` : ""}
 
 ${formatInstruction}
