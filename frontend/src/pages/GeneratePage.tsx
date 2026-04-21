@@ -317,6 +317,18 @@ const OUTPUT_LENGTH_OPTIONS = [
   { value: "long", label: "Long" },
 ];
 
+// Pastel chip colors for brand-pillar multi-select. Declared locally rather
+// than shared with TopicsPage because the two surfaces may drift visually.
+const PILLAR_COLORS = [
+  "bg-emerald-50 text-emerald-700 border-emerald-200",
+  "bg-violet-50 text-violet-700 border-violet-200",
+  "bg-amber-50 text-amber-700 border-amber-200",
+  "bg-teal-50 text-teal-700 border-teal-200",
+  "bg-rose-50 text-rose-700 border-rose-200",
+  "bg-blue-50 text-blue-700 border-blue-200",
+  "bg-orange-50 text-orange-700 border-orange-200",
+];
+
 // ─── Badge Component for Format Tags ────────────────────────────
 
 function FormatBadge({ type }: { type: "SLIDES" | "VIDEO" }) {
@@ -413,6 +425,7 @@ export function GeneratePage() {
   const [brainTone, setBrainTone] = useState<string | undefined>();
   const [brainUsp, setBrainUsp] = useState<string | undefined>();
   const [brandContentPillars, setBrandContentPillars] = useState<string[]>([]);
+  const [selectedPillars, setSelectedPillars] = useState<string[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -559,10 +572,15 @@ export function GeneratePage() {
       setBrainTone(undefined);
       setBrainUsp(undefined);
       setBrandContentPillars([]);
+      setSelectedPillars([]);
       return;
     }
 
     (async () => {
+      // Reset on every brand switch so stale Brand-A selections never get
+      // submitted against Brand-B's pillar list. Matches the pattern in
+      // TopicsPage.tsx.
+      setSelectedPillars([]);
       try {
         // Get brand brain for tone
         const brandRes = await api<{ data: Brand }>(`/api/workspaces/${activeWorkspace.id}/brands/${brandId}`);
@@ -586,6 +604,7 @@ export function GeneratePage() {
         setBrainTone(undefined);
         setBrainUsp(undefined);
         setBrandContentPillars([]);
+        setSelectedPillars([]);
       }
     })();
   }, [activeWorkspace, brandId, selectedProductIds]);
@@ -610,11 +629,12 @@ export function GeneratePage() {
     setSubmitting(true);
     try {
       const selectedTopic = topics.find((t) => t.id === contentTopicId);
-      const resolvedPillars =
-        contentTopicId
-          ? selectedTopic?.pillar
-            ? [selectedTopic.pillar]
-            : []
+      const resolvedPillars = contentTopicId
+        ? selectedTopic?.pillar
+          ? [selectedTopic.pillar]
+          : []
+        : selectedPillars.length > 0
+          ? selectedPillars
           : brandContentPillars;
 
       await api(`/api/workspaces/${activeWorkspace!.id}/generations`, {
@@ -821,13 +841,43 @@ const frameworkOptions = [{ value: "", label: "PAS (recommended)" }, ...framewor
                     );
                   })() : (
                     brandId && brandContentPillars.length > 0 && (
-                      <div className="flex items-center gap-2 -mt-1">
-                        <span className="text-[11px] font-medium text-gray-500 uppercase tracking-wide">
-                          Pillar
-                        </span>
-                        <span className="text-[11px] text-gray-400 italic">
-                          Mixed (all brand pillars)
-                        </span>
+                      <div className="pt-2">
+                        <div className="flex items-center justify-between mb-2">
+                          <label className="block text-[10px] font-medium text-gray-400 uppercase tracking-wide">
+                            Brand Content Pillars
+                          </label>
+                          <span className="text-[10px] text-gray-400">
+                            {selectedPillars.length === 0
+                              ? "Mixed (all pillars)"
+                              : `Selected: ${selectedPillars.join(", ")}`}
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {brandContentPillars.map((p, i) => {
+                            const isSelected = selectedPillars.includes(p);
+                            return (
+                              <button
+                                key={p}
+                                type="button"
+                                onClick={() =>
+                                  setSelectedPillars((prev) =>
+                                    prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p],
+                                  )
+                                }
+                                className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium border transition-all ${
+                                  isSelected
+                                    ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
+                                    : `${PILLAR_COLORS[i % PILLAR_COLORS.length]} border-transparent hover:border-gray-300`
+                                }`}
+                              >
+                                {p}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <p className="text-[10px] text-gray-400 mt-1.5">
+                          Pick one or more pillars, or leave blank to mix across all.
+                        </p>
                       </div>
                     )
                   )}
