@@ -94,7 +94,7 @@ export class TopicRegenerationJob {
 				platform,
 				objective,
 				formats: format ? [format] : undefined,
-				pillar,
+				pillars: pillar ? [pillar] : undefined,
 				language,
 				count: 1,
 			};

@@ -14,7 +14,7 @@ interface TopicJobData {
 	platform?: string;
 	objective?: string;
 	formats?: string[];
-	pillar?: string;
+	pillars?: string[];
 	language?: string;
 	dateFrom?: string;
 	dateTo?: string;
@@ -41,7 +41,7 @@ export class TopicGenerationJob {
 			platform,
 			objective,
 			formats,
-			pillar,
+			pillars,
 			language,
 			dateFrom,
 			dateTo,
@@ -196,7 +196,7 @@ export class TopicGenerationJob {
 				platform,
 				objective,
 				formats,
-				pillar,
+				pillars,
 				language,
 				dateFrom,
 				dateTo,
