@@ -40,7 +40,14 @@
       "Bash(git -C /Users/bellinnn/Documents/projects/fce branch -d feat/multi-pillar-generation)",
       "Bash(git -C /Users/bellinnn/Documents/projects/fce worktree remove .claude/worktrees/multi-pillar --force)",
       "Bash(git -C /Users/bellinnn/Documents/projects/fce log --oneline -5)",
-      "Bash(git -C /Users/bellinnn/Documents/projects/fce worktree list)"
+      "Bash(git -C /Users/bellinnn/Documents/projects/fce worktree list)",
+      "Bash(git -C /Users/bellinnn/Documents/projects/fce/.claude/worktrees/content-pillar-multiselect rev-parse HEAD)",
+      "Bash(kill %1 %2)",
+      "Bash(pkill -f \"bun run --hot src/index.ts\")",
+      "Bash(pkill -f \"vite --port 5174\")",
+      "Bash(git -C /Users/bellinnn/Documents/projects/fce merge --no-ff feat/content-pillar-multiselect -m ' *)",
+      "Bash(git -C /Users/bellinnn/Documents/projects/fce worktree remove .claude/worktrees/content-pillar-multiselect --force)",
+      "Bash(git -C /Users/bellinnn/Documents/projects/fce branch -d feat/content-pillar-multiselect)"
     ],
     "additionalDirectories": [
       "/Users/bellinnn/Documents/projects/fce/.claude/skills/bun-postgres-performance/references/scripts"
