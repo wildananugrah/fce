@@ -43,3 +43,50 @@ describe("buildTopicGenerationPrompt — pillars", () => {
 		expect(userPrompt).toContain("Do not invent or use any other pillars");
 	});
 });
+
+const baseContentInput = {
+	brandContext: "{}",
+	platform: "instagram",
+	contentType: "carousel",
+	framework: "aida",
+	hookType: "question",
+	language: "en",
+};
+
+describe("buildContentGenerationPrompt — pillars", () => {
+	it("omits the pillar section when pillars is undefined", () => {
+		const { userPrompt } = buildContentGenerationPrompt({ ...baseContentInput });
+		expect(userPrompt).not.toContain("brand pillar");
+		expect(userPrompt).not.toContain("content pillar");
+	});
+
+	it("omits the pillar section when pillars is an empty array", () => {
+		const { userPrompt } = buildContentGenerationPrompt({
+			...baseContentInput,
+			pillars: [],
+		});
+		expect(userPrompt).not.toContain("brand pillar");
+		expect(userPrompt).not.toContain("content pillar");
+	});
+
+	it("uses the single-pillar instruction when pillars has one entry", () => {
+		const { userPrompt } = buildContentGenerationPrompt({
+			...baseContentInput,
+			pillars: ["Education"],
+		});
+		expect(userPrompt).toContain(
+			'This content should reinforce the brand pillar: "Education"',
+		);
+	});
+
+	it("uses the multi-pillar instruction when pillars has 2+ entries", () => {
+		const { userPrompt } = buildContentGenerationPrompt({
+			...baseContentInput,
+			pillars: ["Education", "Lifestyle"],
+		});
+		expect(userPrompt).toContain(
+			'Align this content with one of the brand\'s content pillars: "Education", "Lifestyle"',
+		);
+		expect(userPrompt).toContain("Pick the one that best fits");
+	});
+});
