@@ -23,6 +23,7 @@ interface Product {
 
 interface BrainVersion {
 	id: string;
+	isActive: boolean;
 	vocabulary?: {
 		contentPillars?: string[];
 	};
@@ -184,6 +185,9 @@ export function TopicsPage() {
 		}
 
 		(async () => {
+			// Reset immediately on brand switch so we never send stale
+			// Brand-A pillar strings while the Brand-B fetch is in flight.
+			setSelectedPillars([]);
 			try {
 				// Try to get brain version for the selected brand
 				const res = await api<{
@@ -196,13 +200,14 @@ export function TopicsPage() {
 				);
 				const brand = (res as any).data ?? res;
 				const activeBrain = brand.brainVersions?.find(
-					(v: BrainVersion) => v.vocabulary?.contentPillars
+					(v: BrainVersion) => v.isActive
 				);
 				setContentPillars(
 					activeBrain?.vocabulary?.contentPillars ?? []
 				);
 			} catch {
 				setContentPillars([]);
+				setSelectedPillars([]);
 			}
 		})();
 	}, [activeWorkspace, brandId]);
