@@ -81,6 +81,25 @@ describe("GenerationService", () => {
 			expect(request.language).toBe("id");
 			expect(mockBoss.sentJobs).toHaveLength(1);
 		});
+
+		it("forwards pillars to the content-generation job", async () => {
+			const workspaceId = crypto.randomUUID();
+			const userId = crypto.randomUUID();
+
+			await generationService.create(workspaceId, userId, {
+				brandId: crypto.randomUUID(),
+				platform: "instagram",
+				contentType: "carousel",
+				framework: "aida",
+				hookType: "question",
+				pillars: ["Education", "Lifestyle"],
+			});
+
+			expect(mockBoss.sentJobs).toHaveLength(1);
+			const job = mockBoss.sentJobs[0];
+			expect(job.name).toBe("content-generation");
+			expect((job.data as any).pillars).toEqual(["Education", "Lifestyle"]);
+		});
 	});
 
 	describe("list", () => {
