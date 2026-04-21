@@ -841,13 +841,43 @@ const frameworkOptions = [{ value: "", label: "PAS (recommended)" }, ...framewor
                     );
                   })() : (
                     brandId && brandContentPillars.length > 0 && (
-                      <div className="flex items-center gap-2 -mt-1">
-                        <span className="text-[11px] font-medium text-gray-500 uppercase tracking-wide">
-                          Pillar
-                        </span>
-                        <span className="text-[11px] text-gray-400 italic">
-                          Mixed (all brand pillars)
-                        </span>
+                      <div className="pt-2">
+                        <div className="flex items-center justify-between mb-2">
+                          <label className="block text-[10px] font-medium text-gray-400 uppercase tracking-wide">
+                            Brand Content Pillars
+                          </label>
+                          <span className="text-[10px] text-gray-400">
+                            {selectedPillars.length === 0
+                              ? "Mixed (all pillars)"
+                              : `Selected: ${selectedPillars.join(", ")}`}
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {brandContentPillars.map((p, i) => {
+                            const isSelected = selectedPillars.includes(p);
+                            return (
+                              <button
+                                key={p}
+                                type="button"
+                                onClick={() =>
+                                  setSelectedPillars((prev) =>
+                                    prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p],
+                                  )
+                                }
+                                className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium border transition-all ${
+                                  isSelected
+                                    ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
+                                    : `${PILLAR_COLORS[i % PILLAR_COLORS.length]} border-transparent hover:border-gray-300`
+                                }`}
+                              >
+                                {p}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <p className="text-[10px] text-gray-400 mt-1.5">
+                          Pick one or more pillars, or leave blank to mix across all.
+                        </p>
                       </div>
                     )
                   )}
