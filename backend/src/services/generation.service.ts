@@ -65,6 +65,7 @@ export class GenerationService implements IGenerationService {
 			userId,
 			referenceImages: input.referenceImages,
 			researchContext: input.researchContext,
+			pillars: input.pillars,
 		});
 
 		return request;

@@ -59,7 +59,7 @@ export class TopicService implements ITopicService {
 			platform: input.platform,
 			objective: input.objective,
 			formats: input.formats,
-			pillar: input.pillar,
+			pillars: input.pillars,
 			language: input.language,
 			dateFrom: input.dateFrom,
 			dateTo: input.dateTo,

@@ -10,6 +10,7 @@ export interface ContentGenerationInput {
 	prompt?: string;
 	referenceImages?: string[];
 	researchContext?: string;
+	pillars?: string[];
 }
 
 export interface ContentGenerationOutput {

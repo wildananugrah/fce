@@ -5,7 +5,7 @@ export interface TopicGenerationInput {
 	platform?: string;
 	objective?: string;
 	formats?: string[];
-	pillar?: string;
+	pillars?: string[];
 	language?: string;
 	dateFrom?: string;
 	dateTo?: string;

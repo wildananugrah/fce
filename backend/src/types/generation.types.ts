@@ -15,4 +15,5 @@ export interface CreateGenerationInput {
 	outputLength?: string;
 	referenceImages?: string[];
 	researchContext?: string;
+	pillars?: string[];
 }

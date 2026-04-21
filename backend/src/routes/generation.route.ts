@@ -34,6 +34,7 @@ export function createGenerationRoutes(generationService: IGenerationService) {
 			outputLength: body.outputLength,
 			referenceImages: body.referenceImages,
 			researchContext: body.researchContext,
+			pillars: body.pillars,
 		});
 
 		return c.json({ data: request }, 201);

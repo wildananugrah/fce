@@ -14,6 +14,7 @@ interface ContentJobData {
 	userId: string;
 	referenceImages?: string[];
 	researchContext?: string;
+	pillars?: string[];
 }
 
 export class ContentGenerationJob {
@@ -27,7 +28,7 @@ export class ContentGenerationJob {
 	) {}
 
 	async handle(data: ContentJobData): Promise<void> {
-		const { requestId, productIds, userId, referenceImages, researchContext } = data;
+		const { requestId, productIds, userId, referenceImages, researchContext, pillars } = data;
 
 		try {
 			// Update status to processing
@@ -213,6 +214,7 @@ export class ContentGenerationJob {
 				language: request.language,
 				prompt: enrichedPrompt,
 				referenceImages,
+				pillars,
 			};
 
 			// Inject research context (from "Use as Inspiration")

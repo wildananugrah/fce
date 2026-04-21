@@ -72,12 +72,21 @@ ${contextBlock}
 ${JSON_ONLY_INSTRUCTION}`;
 
 	const humanLanguage = normalizeLanguage(input.language);
+
+	const pillars = input.pillars ?? [];
+	const pillarLine =
+		pillars.length === 0
+			? ""
+			: pillars.length === 1
+				? `\nThis content should reinforce the brand pillar: "${pillars[0]}".`
+				: `\nAlign this content with one of the brand's content pillars: ${pillars.map((p) => `"${p}"`).join(", ")}. Pick the one that best fits the requested platform, format, and objective.`;
+
 	const userPrompt = `CRITICAL LANGUAGE REQUIREMENT: Write ALL user-facing copy (hook, caption, CTA, hashtags, slide/scene text, on-screen text, voiceover) in ${humanLanguage}. This overrides any language signal in the brand context. Do NOT switch languages mid-output.
 
 Create ${input.contentType} content for ${input.platform} platform.
 Framework: ${input.framework}
 Hook type: ${input.hookType}
-Language: ${humanLanguage}
+Language: ${humanLanguage}${pillarLine}
 ${input.prompt ? `\nAdditional instructions: ${input.prompt}` : ""}
 
 ${formatInstruction}
@@ -139,9 +148,13 @@ ${JSON_ONLY_INSTRUCTION}`;
 			? `Set "format" to one of: ${input.formats.join(", ")}. Distribute formats across the ${count} topics.`
 			: `Set "format" to the most appropriate content format (e.g., single_image, carousel, reels, story, video).`;
 
-	const pillarInstruction = input.pillar
-		? `Use EXACTLY this pillar for every topic: "${input.pillar}". Every topic's "pillar" field must be the exact string "${input.pillar}". Do not invent other pillars.`
-		: `Pick one appropriate pillar from the brand's pillar list in the brand context. Distribute topics across multiple pillars for variety. Never leave empty.`;
+	const pillars = input.pillars ?? [];
+	const pillarInstruction =
+		pillars.length === 0
+			? `Pick one appropriate pillar from the brand's pillar list in the brand context. Distribute topics across multiple pillars for variety. Never leave empty.`
+			: pillars.length === 1
+				? `Use EXACTLY this pillar for every topic: "${pillars[0]}". Every topic's "pillar" field must be the exact string "${pillars[0]}". Do not invent other pillars.`
+				: `For every topic, set the pillar field to exactly one of: ${pillars.map((p) => `"${p}"`).join(", ")}. Distribute topics across these pillars for variety. Do not invent or use any other pillars.`;
 
 	const dateInstruction =
 		input.dateFrom && input.dateTo
