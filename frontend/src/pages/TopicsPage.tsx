@@ -120,7 +120,7 @@ export function TopicsPage() {
 	const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
 	const [selectedFormats, setSelectedFormats] = useState<string[]>([]);
 	const [topicPrompt, setTopicPrompt] = useState("");
-	const [selectedPillar, setSelectedPillar] = useState<string>("");
+	const [selectedPillars, setSelectedPillars] = useState<string[]>([]);
 	const [referenceImages, setReferenceImages] = useState<ImageRef[]>([]);
 	const [platform, setPlatform] = useState("instagram");
 	const [objective, setObjective] = useState("");
@@ -179,7 +179,7 @@ export function TopicsPage() {
 	useEffect(() => {
 		if (!activeWorkspace || !brandId) {
 			setContentPillars([]);
-			setSelectedPillar("");
+			setSelectedPillars([]);
 			return;
 		}
 
@@ -273,7 +273,7 @@ export function TopicsPage() {
 						formats: selectedFormats.length > 0 ? selectedFormats : undefined,
 						platform: platform || undefined,
 						objective: objective || undefined,
-						pillar: selectedPillar || undefined,
+						pillars: selectedPillars.length > 0 ? selectedPillars : undefined,
 						language,
 						dateFrom,
 						dateTo,
@@ -322,7 +322,7 @@ export function TopicsPage() {
 						platform: topic?.platform || platform || undefined,
 						format: topic?.format || undefined,
 						objective: topic?.objective || objective || undefined,
-						pillar: topic?.pillar || selectedPillar || undefined,
+						pillar: topic?.pillar || selectedPillars[0] || undefined,
 						language,
 						hint: regenHints[topicId] || undefined,
 					}),
@@ -497,18 +497,22 @@ export function TopicsPage() {
 											Brand Content Pillars
 										</label>
 										<span className="text-[10px] text-gray-400">
-											{selectedPillar ? `Selected: ${selectedPillar}` : "Mixed (all pillars)"}
+											{selectedPillars.length === 0
+												? "Mixed (all pillars)"
+												: `Selected: ${selectedPillars.join(", ")}`}
 										</span>
 									</div>
 									<div className="flex flex-wrap gap-1.5">
 										{contentPillars.map((p, i) => {
-											const isSelected = selectedPillar === p;
+											const isSelected = selectedPillars.includes(p);
 											return (
 												<button
 													key={p}
 													type="button"
 													onClick={() =>
-														setSelectedPillar((prev) => (prev === p ? "" : p))
+														setSelectedPillars((prev) =>
+															prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p],
+														)
 													}
 													className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium border transition-all ${
 														isSelected
@@ -522,7 +526,7 @@ export function TopicsPage() {
 										})}
 									</div>
 									<p className="text-[10px] text-gray-400 mt-1.5">
-										Pick one pillar, or leave blank to mix across all.
+										Pick one or more pillars, or leave blank to mix across all.
 									</p>
 								</div>
 							)}
