@@ -83,7 +83,7 @@ describe("TopicService", () => {
 	});
 
 	describe("generate", () => {
-		it("forwards pillar to the job queue", async () => {
+		it("forwards pillars to the job queue", async () => {
 			const workspaceId = crypto.randomUUID();
 			const userId = crypto.randomUUID();
 			const sent: any[] = [];
@@ -96,11 +96,11 @@ describe("TopicService", () => {
 			const service = new TopicService(repo as any, fakeBoss);
 			await service.generate(workspaceId, userId, {
 				brandId: "b1",
-				pillar: "Education",
+				pillars: ["Education", "Lifestyle"],
 				count: 5,
 			});
 			expect(sent).toHaveLength(1);
-			expect(sent[0].pillar).toBe("Education");
+			expect(sent[0].pillars).toEqual(["Education", "Lifestyle"]);
 			expect(sent[0].count).toBe(5);
 		});
 
