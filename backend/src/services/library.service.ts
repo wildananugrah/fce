@@ -19,6 +19,28 @@ export class LibraryService implements ILibraryService {
 		return this.generationRepository.updateOutput(id, { status });
 	}
 
+	async changeStatus(
+		id: string,
+		newStatus: string,
+		userId: string,
+		oldStatus: string,
+		note?: string,
+	): Promise<GenerationOutput> {
+		if (newStatus === "rejected" && !note?.trim()) {
+			throw new Error("A note is required when rejecting content");
+		}
+		const output = await this.generationRepository.updateOutput(id, { status: newStatus });
+		await this.addFeedback(
+			id,
+			"status_change",
+			userId,
+			{ status: oldStatus },
+			{ status: newStatus },
+			note,
+		);
+		return output;
+	}
+
 	async updateManyStatus(workspaceId: string, ids: string[], status: string): Promise<number> {
 		const allowed = ["draft", "approved", "rejected", "in_review"];
 		if (!allowed.includes(status)) {
@@ -45,6 +67,7 @@ export class LibraryService implements ILibraryService {
 		userId: string,
 		before?: any,
 		after?: any,
+		note?: string,
 	): Promise<OutputFeedbackEvent> {
 		const event = await this.generationRepository.addFeedback({
 			outputId,
@@ -52,6 +75,7 @@ export class LibraryService implements ILibraryService {
 			userId,
 			before,
 			after,
+			note,
 		});
 
 		if (this.boss && (eventType === "approve" || eventType === "reject")) {
@@ -130,5 +154,9 @@ export class LibraryService implements ILibraryService {
 		});
 
 		return this.outputSectionRepository.update(sectionId, { contentText });
+	}
+
+	async listStatusHistory(outputId: string) {
+		return this.generationRepository.findStatusChangesByOutput(outputId);
 	}
 }
