@@ -148,7 +148,9 @@
       "Bash(git -C /Users/bellinnn/Documents/projects/fce merge --no-ff feat/content-status-notes -m ' *)",
       "Bash(git -C /Users/bellinnn/Documents/projects/fce worktree remove .claude/worktrees/content-status-notes --force)",
       "Bash(git -C /Users/bellinnn/Documents/projects/fce branch -d feat/content-status-notes)",
-      "Bash(git -C /Users/bellinnn/Documents/projects/fce add backend/src/providers/resend-email.provider.ts backend/src/index.ts backend/src/services/auth.service.ts)"
+      "Bash(git -C /Users/bellinnn/Documents/projects/fce add backend/src/providers/resend-email.provider.ts backend/src/index.ts backend/src/services/auth.service.ts)",
+      "Bash(git -C /Users/bellinnn/Documents/projects/fce add frontend/src/pages/LandingPage.tsx)",
+      "Bash(git -C /Users/bellinnn/Documents/projects/fce add frontend/src/components/workspace-settings/ProjectMembersPanel.tsx docs/superpowers/specs/2026-04-22-add-member-popover-ux-design.md)"
     ],
     "additionalDirectories": [
       "/Users/wildananugrah/Documents/My-Projects/fce/.git"
