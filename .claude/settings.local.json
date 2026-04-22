@@ -111,7 +111,10 @@
       "Bash(bash docs/db-cheatsheet.sh role wildananugrah@gmail.com)",
       "Bash(bash docs/db-cheatsheet.sh query \"SELECT u.email, uwr.role, w.name FROM user_workspace_roles uwr JOIN users u ON u.id = uwr.user_id JOIN workspaces w ON w.id = uwr.workspace_id;\")",
       "Bash(bash docs/db-cheatsheet.sh query \"SELECT COUNT\\(*\\) FROM user_workspace_roles;\")",
-      "Bash(bash docs/db-cheatsheet.sh query \"SELECT id, email, is_superadmin FROM users;\")"
+      "Bash(bash docs/db-cheatsheet.sh query \"SELECT id, email, is_superadmin FROM users;\")",
+      "Bash(unzip -d /Users/bellinnn/Documents/projects/fce/.claude/skills /Users/bellinnn/Documents/projects/fce/data-engineering-expert.skill)",
+      "Bash(unzip -l /Users/bellinnn/Documents/projects/fce/data-pipeline-architect.skill)",
+      "Bash(unzip -d /Users/bellinnn/Documents/projects/fce/.claude/skills /Users/bellinnn/Documents/projects/fce/data-pipeline-architect.skill)"
     ],
     "additionalDirectories": [
       "/Users/wildananugrah/Documents/My-Projects/fce/.git"
