@@ -351,7 +351,14 @@ export function ContentPreviewModal({
 
   const handleStatusPick = (newStatus: string) => {
     // User picked a value in the dropdown but hasn't confirmed yet.
-    if (newStatus === currentStatus) return;
+    // If they re-pick the currently-saved status, treat that as cancelling
+    // any pending change (otherwise pendingStatus would stay stale and the
+    // dropdown would appear stuck on the previous pick).
+    if (newStatus === currentStatus) {
+      setPendingStatus(null);
+      setStatusNote("");
+      return;
+    }
     setPendingStatus(newStatus);
     setStatusNote("");
   };
