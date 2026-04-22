@@ -281,6 +281,7 @@ model OutputFeedbackEvent {
   eventType String   @map("event_type")
   before    Json?
   after     Json?
+  note      String?  @db.Text
   userId    String?  @map("user_id")
   createdAt DateTime @default(now()) @map("created_at")
 

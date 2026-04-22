@@ -208,6 +208,7 @@ export class MockGenerationRepository implements IGenerationRepository {
 			eventType: data.eventType,
 			before: data.before ?? null,
 			after: data.after ?? null,
+			note: null,
 			userId: data.userId ?? null,
 			createdAt: new Date(),
 		};
