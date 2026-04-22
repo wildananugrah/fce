@@ -34,6 +34,10 @@ interface ContentPreviewModalProps {
   onSectionsUpdated?: (itemId: string, sections: Section[]) => void;
   /** When false, the status dropdown is replaced with a read-only badge. */
   canChangeStatus?: boolean;
+  /** When provided, "Save Changes" on a still-`generated` item also promotes
+   *  it to `draft` and calls this callback so the parent can remove it from
+   *  its list. Used by the Content Generator, not the Library. */
+  onSent?: (itemId: string) => void;
 }
 
 function getStatusStyle(status: string) {
@@ -51,6 +55,7 @@ export function ContentPreviewModal({
   onToast,
   onSectionsUpdated,
   canChangeStatus = true,
+  onSent,
 }: ContentPreviewModalProps) {
   const [currentStatus, setCurrentStatus] = useState(item.status);
   const [copied, setCopied] = useState(false);
@@ -212,6 +217,30 @@ export function ContentPreviewModal({
       onToast("Changes saved", "success");
     } catch (e) {
       onToast(e instanceof Error ? e.message : "Failed to save", "error");
+    } finally {
+      setSavingSections(false);
+    }
+  };
+
+  // "Generator context" = modal was opened from the Content Generator
+  // (parent passed onSent) AND the output is still in the pre-library
+  // "generated" state. The primary button then becomes Save-and-Send.
+  const isGeneratorContext = !!onSent && item.status === "generated";
+
+  const handleSaveAndSend = async () => {
+    setSavingSections(true);
+    try {
+      if (isDirty) {
+        await persistSectionEdits();
+      }
+      await api(`/api/workspaces/${workspaceId}/library/${item.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: "draft" }),
+      });
+      onSent?.(item.id);
+      onClose();
+    } catch (e) {
+      onToast(e instanceof Error ? e.message : "Failed to send", "error");
     } finally {
       setSavingSections(false);
     }
@@ -495,15 +524,25 @@ export function ContentPreviewModal({
 
               <button
                 type="button"
-                onClick={handleSaveSections}
-                disabled={!isDirty || savingSections}
+                onClick={isGeneratorContext ? handleSaveAndSend : handleSaveSections}
+                disabled={savingSections || (!isGeneratorContext && !isDirty)}
                 className={`inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-lg transition-colors ${
-                  isDirty
-                    ? "bg-indigo-600 text-white hover:bg-indigo-700"
-                    : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                  isGeneratorContext
+                    ? "bg-green-600 text-white hover:bg-green-700 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed"
+                    : isDirty
+                      ? "bg-indigo-600 text-white hover:bg-indigo-700"
+                      : "bg-gray-100 text-gray-400 cursor-not-allowed"
                 }`}
               >
-                {savingSections ? "Saving..." : "Save Changes"}
+                {savingSections
+                  ? isGeneratorContext
+                    ? "Sending..."
+                    : "Saving..."
+                  : isGeneratorContext
+                    ? isDirty
+                      ? "Save & Send to Library"
+                      : "Send to Library"
+                    : "Save Changes"}
               </button>
             </div>
           ) : (
@@ -519,40 +558,44 @@ export function ContentPreviewModal({
           )}
         </div>
 
-        {/* Footer — Status (editable only for approvers) */}
-        <div className="flex items-center gap-3 px-5 py-4 border-t border-gray-100 shrink-0">
-          <span className="text-xs font-medium text-gray-500">Status:</span>
-          {canChangeStatus ? (
-            <div className="relative">
-              <span className={`absolute left-2.5 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full ${
-                currentStatus === "approved" ? "bg-green-500" :
-                currentStatus === "rejected" ? "bg-red-500" :
-                currentStatus === "in_review" ? "bg-amber-500" : "bg-gray-400"
-              }`} />
-              <select
-                value={currentStatus}
-                disabled={updating}
-                onChange={(e) => handleStatusChange(e.target.value)}
-                className={`appearance-none pl-6 pr-8 py-1.5 text-xs font-medium border rounded-lg cursor-pointer focus:outline-none focus:ring-1 focus:ring-indigo-400 capitalize ${getStatusStyle(currentStatus)}`}
-              >
-                <option value="approved">Approved</option>
-                <option value="in_review">In Review</option>
-                <option value="draft">Draft</option>
-                <option value="rejected">Rejected</option>
-              </select>
-              <svg className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-              </svg>
+        {!isGeneratorContext && (
+          <>
+            {/* Footer — Status (editable only for approvers) */}
+            <div className="flex items-center gap-3 px-5 py-4 border-t border-gray-100 shrink-0">
+              <span className="text-xs font-medium text-gray-500">Status:</span>
+              {canChangeStatus ? (
+                <div className="relative">
+                  <span className={`absolute left-2.5 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full ${
+                    currentStatus === "approved" ? "bg-green-500" :
+                    currentStatus === "rejected" ? "bg-red-500" :
+                    currentStatus === "in_review" ? "bg-amber-500" : "bg-gray-400"
+                  }`} />
+                  <select
+                    value={currentStatus}
+                    disabled={updating}
+                    onChange={(e) => handleStatusChange(e.target.value)}
+                    className={`appearance-none pl-6 pr-8 py-1.5 text-xs font-medium border rounded-lg cursor-pointer focus:outline-none focus:ring-1 focus:ring-indigo-400 capitalize ${getStatusStyle(currentStatus)}`}
+                  >
+                    <option value="approved">Approved</option>
+                    <option value="in_review">In Review</option>
+                    <option value="draft">Draft</option>
+                    <option value="rejected">Rejected</option>
+                  </select>
+                  <svg className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+              ) : (
+                <span
+                  className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium border capitalize ${getStatusStyle(currentStatus)}`}
+                  title="Only approvers can change status"
+                >
+                  {currentStatus.replace(/_/g, " ")}
+                </span>
+              )}
             </div>
-          ) : (
-            <span
-              className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium border capitalize ${getStatusStyle(currentStatus)}`}
-              title="Only approvers can change status"
-            >
-              {currentStatus.replace(/_/g, " ")}
-            </span>
-          )}
-        </div>
+          </>
+        )}
       </div>
     </div>
   );
