@@ -154,7 +154,7 @@ async function main() {
 
 	// ─── Services ───────────────────────────────────────────────────
 	const emailProvider = env.resendApiKey
-		? new ResendEmailProvider(env.resendApiKey, env.emailFrom)
+		? new ResendEmailProvider(env.resendApiKey, env.emailFrom, logger)
 		: new NoopEmailProvider(logger);
 	const workspaceService = new WorkspaceService(
 		workspaceRepository,

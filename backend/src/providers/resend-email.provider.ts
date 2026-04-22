@@ -4,6 +4,7 @@ import type {
 	InvitationEmailInput,
 	VerificationEmailInput,
 } from "../interfaces/providers/email.provider.interface";
+import type { ILogger } from "../interfaces/providers/logger.provider.interface";
 
 export class ResendEmailProvider implements IEmailProvider {
 	private resend: Resend;
@@ -11,6 +12,7 @@ export class ResendEmailProvider implements IEmailProvider {
 	constructor(
 		apiKey: string,
 		private from: string,
+		private logger: ILogger,
 	) {
 		this.resend = new Resend(apiKey);
 	}
@@ -29,12 +31,15 @@ export class ResendEmailProvider implements IEmailProvider {
 			</div>
 		`;
 
-		await this.resend.emails.send({
-			from: this.from,
-			to: input.to,
-			subject,
-			html,
-		});
+		await this.send(
+			{
+				from: this.from,
+				to: input.to,
+				subject,
+				html,
+			},
+			{ kind: "invitation", to: input.to },
+		);
 	}
 
 	async sendVerification(input: VerificationEmailInput): Promise<void> {
@@ -54,11 +59,45 @@ export class ResendEmailProvider implements IEmailProvider {
 			</div>
 		`;
 
-		await this.resend.emails.send({
-			from: this.from,
-			to: input.to,
-			subject,
-			html,
+		await this.send(
+			{
+				from: this.from,
+				to: input.to,
+				subject,
+				html,
+			},
+			{ kind: "verification", to: input.to },
+		);
+	}
+
+	// Single gateway so both send methods inspect the Resend response the
+	// same way. Resend's SDK does NOT throw for most failure modes — it
+	// returns { data, error } with error populated. The previous code
+	// awaited .send() and discarded both halves, so failures were invisible.
+	private async send(
+		payload: { from: string; to: string; subject: string; html: string },
+		context: { kind: "invitation" | "verification"; to: string },
+	): Promise<void> {
+		const { data, error } = await this.resend.emails.send(payload);
+		if (error) {
+			this.logger.error("Resend rejected email send", {
+				kind: context.kind,
+				to: context.to,
+				from: this.from,
+				errorName: (error as any).name,
+				errorMessage: error.message,
+				errorStatusCode: (error as any).statusCode,
+			});
+			// Throw so callers can decide whether to swallow (signup flow) or
+			// bubble (admin-triggered resend). The log above is authoritative.
+			throw new Error(
+				`Resend ${context.kind} send failed: ${error.message}`,
+			);
+		}
+		this.logger.info("Resend accepted email", {
+			kind: context.kind,
+			to: context.to,
+			messageId: data?.id,
 		});
 	}
 }

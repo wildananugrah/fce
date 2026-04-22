@@ -281,11 +281,19 @@ export class AuthService implements IAuthService {
 		const verifyUrl = `${this.config.appUrl}/verify?token=${encodeURIComponent(token)}`;
 		const expiryHuman = humanizeDuration(this.config.emailVerificationTokenExpiry);
 
-		await this.emailProvider.sendVerification({
-			to: email,
-			fullName,
-			verifyUrl,
-			expiryHuman,
-		});
+		// Email failures are swallowed here so signup still completes: the
+		// user row + token exist in the DB, and they can use the "resend
+		// verification" flow once delivery is fixed. The email provider has
+		// already logged the underlying Resend error with full context.
+		try {
+			await this.emailProvider.sendVerification({
+				to: email,
+				fullName,
+				verifyUrl,
+				expiryHuman,
+			});
+		} catch {
+			// Intentionally ignored — provider logged. Caller sees kind: "pending".
+		}
 	}
 }
