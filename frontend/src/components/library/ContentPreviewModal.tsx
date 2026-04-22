@@ -160,47 +160,55 @@ export function ContentPreviewModal({
     frameSections.length === 0 &&
     sceneSections.length === 0;
 
+  // Shared section-persistence. PATCHes existing edits and POSTs any new
+  // sections that were previously only in content.* fallbacks. Reconciles
+  // localSections so both the modal and the parent stay in sync. Throws
+  // on any API error; callers decide how to surface the failure.
+  const persistSectionEdits = async () => {
+    // 1) Update existing edited sections.
+    for (const [id, contentText] of Object.entries(editedSections)) {
+      await api(`/api/workspaces/${workspaceId}/library/${item.id}/sections/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ contentText }),
+      });
+    }
+    // 2) Create any sections that didn't exist before (e.g. caption for
+    //    older outputs whose data only lived in content.caption).
+    const createdSections: Section[] = [];
+    for (const [sectionType, contentText] of Object.entries(pendingNewByType)) {
+      const res = await api<{ data: Section }>(
+        `/api/workspaces/${workspaceId}/library/${item.id}/sections`,
+        {
+          method: "POST",
+          body: JSON.stringify({ sectionType, contentText }),
+        },
+      );
+      const created = (res as any).data ?? res;
+      createdSections.push(created);
+    }
+    const finalSections =
+      createdSections.length > 0 ? [...localSections, ...createdSections] : localSections;
+    const withEdits = finalSections.map((s) =>
+      editedSections[s.id] !== undefined ? { ...s, contentText: editedSections[s.id] } : s,
+    );
+    if (createdSections.length > 0) {
+      setLocalSections(withEdits);
+    } else {
+      setLocalSections((prev) =>
+        prev.map((s) =>
+          editedSections[s.id] !== undefined ? { ...s, contentText: editedSections[s.id] } : s,
+        ),
+      );
+    }
+    onSectionsUpdated?.(item.id, withEdits);
+    setEditedSections({});
+    setPendingNewByType({});
+  };
+
   const handleSaveSections = async () => {
     setSavingSections(true);
     try {
-      // 1) Update existing edited sections.
-      for (const [id, contentText] of Object.entries(editedSections)) {
-        await api(`/api/workspaces/${workspaceId}/library/${item.id}/sections/${id}`, {
-          method: "PATCH",
-          body: JSON.stringify({ contentText }),
-        });
-      }
-      // 2) Create any sections that didn't exist before (e.g. caption for
-      //    older outputs whose data only lived in content.caption).
-      const createdSections: Section[] = [];
-      for (const [sectionType, contentText] of Object.entries(pendingNewByType)) {
-        const res = await api<{ data: Section }>(
-          `/api/workspaces/${workspaceId}/library/${item.id}/sections`,
-          {
-            method: "POST",
-            body: JSON.stringify({ sectionType, contentText }),
-          },
-        );
-        const created = (res as any).data ?? res;
-        createdSections.push(created);
-      }
-      const finalSections =
-        createdSections.length > 0 ? [...localSections, ...createdSections] : localSections;
-      const withEdits = finalSections.map((s) =>
-        editedSections[s.id] !== undefined ? { ...s, contentText: editedSections[s.id] } : s,
-      );
-      if (createdSections.length > 0) {
-        setLocalSections(withEdits);
-      } else {
-        setLocalSections((prev) =>
-          prev.map((s) =>
-            editedSections[s.id] !== undefined ? { ...s, contentText: editedSections[s.id] } : s,
-          ),
-        );
-      }
-      onSectionsUpdated?.(item.id, withEdits);
-      setEditedSections({});
-      setPendingNewByType({});
+      await persistSectionEdits();
       onToast("Changes saved", "success");
     } catch (e) {
       onToast(e instanceof Error ? e.message : "Failed to save", "error");
