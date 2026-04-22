@@ -50,7 +50,8 @@
       "Bash(git -C /Users/bellinnn/Documents/projects/fce branch -d feat/content-pillar-multiselect)"
     ],
     "additionalDirectories": [
-      "/Users/bellinnn/Documents/projects/fce/.claude/skills/bun-postgres-performance/references/scripts"
+      "/Users/bellinnn/Documents/projects/fce/.claude/skills/bun-postgres-performance/references/scripts",
+      "/Users/bellinnn/Documents/projects/fce/.claude/skills"
     ]
   }
 }

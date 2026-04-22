@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "skills": {
+    "business-analyst": {
+      "source": "aj-geddes/claude-code-bmad-skills",
+      "sourceType": "github",
+      "computedHash": "d9520001b077121b9817bb9e0b273ea6d4a5a1b0c4a557b3b2f875cf2ac0b08f"
+    },
+    "product-marketing-context": {
+      "source": "coreyhaines31/marketingskills",
+      "sourceType": "github",
+      "computedHash": "21dd05f970ba54406d7405f92240853f809d0fed09ef6ca2a9204abcdd21548a"
+    },
+    "requesting-code-review": {
+      "source": "obra/superpowers",
+      "sourceType": "github",
+      "computedHash": "246e65cd72a7e360987d94e6c61564ce6d71c6361d1784d529d70e4cbbe8522d"
+    },
+    "software-architecture": {
+      "source": "sickn33/antigravity-awesome-skills",
+      "sourceType": "github",
+      "computedHash": "19ee028010077ff687e3fcf9613b4f9b9d6c839a15396007d9ba263f6930ec6a"
+    }
+  }
+}
