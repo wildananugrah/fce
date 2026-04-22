@@ -786,15 +786,15 @@ export function ContentPreviewModal({
               {canChangeStatus ? (
                 <div className="relative">
                   <span className={`absolute left-2.5 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full ${
-                    currentStatus === "approved" ? "bg-green-500" :
-                    currentStatus === "rejected" ? "bg-red-500" :
-                    currentStatus === "in_review" ? "bg-amber-500" : "bg-gray-400"
+                    (pendingStatus ?? currentStatus) === "approved" ? "bg-green-500" :
+                    (pendingStatus ?? currentStatus) === "rejected" ? "bg-red-500" :
+                    (pendingStatus ?? currentStatus) === "in_review" ? "bg-amber-500" : "bg-gray-400"
                   }`} />
                   <select
-                    value={currentStatus}
+                    value={pendingStatus ?? currentStatus}
                     disabled={updating}
                     onChange={(e) => handleStatusPick(e.target.value)}
-                    className={`appearance-none pl-6 pr-8 py-1.5 text-xs font-medium border rounded-lg cursor-pointer focus:outline-none focus:ring-1 focus:ring-indigo-400 capitalize ${getStatusStyle(currentStatus)}`}
+                    className={`appearance-none pl-6 pr-8 py-1.5 text-xs font-medium border rounded-lg cursor-pointer focus:outline-none focus:ring-1 focus:ring-indigo-400 capitalize ${getStatusStyle(pendingStatus ?? currentStatus)}`}
                   >
                     <option value="approved">Approved</option>
                     <option value="in_review">In Review</option>
