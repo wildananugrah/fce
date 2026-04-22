@@ -466,25 +466,65 @@ export function ContentPreviewModal({
 
                 {/* Slides — carousel, carousel_post, carousel_ad, tiktok_carousel, thread */}
                 {slideSections.length > 0 && (
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-3">
+                    <label className="block text-[10px] font-medium text-gray-400 uppercase tracking-wide">
+                      Slides ({slideSections.length})
+                    </label>
                     {slideSections.map((slide) => {
                       const num = getJsonField(slide.id, slide.contentText, "slideNumber");
                       const url = getJsonField(slide.id, slide.contentText, "referenceImageUrl");
                       return (
-                        <div key={slide.id}>
-                          <p className="text-[10px] font-medium text-indigo-500 uppercase mb-1">
-                            Slide {num}
-                          </p>
-                          <SectionImageCell
-                            sectionId={slide.id}
-                            imageUrl={url}
-                            label={`Slide ${num}`}
-                            workspaceId={workspaceId}
-                            outputId={item.id}
-                            onSectionUpdated={applySectionUpdate}
-                            onError={(m) => onToast(m, "error")}
-                            aspectRatio="1/1"
-                          />
+                        <div key={slide.id} className="bg-white border border-gray-200 rounded-lg p-3 flex gap-3">
+                          <div className="w-32 shrink-0">
+                            <p className="text-[10px] font-semibold text-indigo-500 uppercase mb-1">
+                              Slide {num}
+                            </p>
+                            <SectionImageCell
+                              sectionId={slide.id}
+                              imageUrl={url}
+                              label={`Slide ${num}`}
+                              workspaceId={workspaceId}
+                              outputId={item.id}
+                              onSectionUpdated={applySectionUpdate}
+                              onError={(m) => onToast(m, "error")}
+                              aspectRatio="1/1"
+                            />
+                          </div>
+                          <div className="flex-1 space-y-2">
+                            <div>
+                              <label className="block text-[10px] text-gray-400 mb-0.5">Headline</label>
+                              <input
+                                type="text"
+                                value={getJsonField(slide.id, slide.contentText, "headline")}
+                                onChange={(e) =>
+                                  handleJsonFieldChange(slide.id, slide.contentText, "headline", e.target.value)
+                                }
+                                className="w-full px-2.5 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:border-indigo-400"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] text-gray-400 mb-0.5">Body</label>
+                              <textarea
+                                value={getJsonField(slide.id, slide.contentText, "body")}
+                                onChange={(e) =>
+                                  handleJsonFieldChange(slide.id, slide.contentText, "body", e.target.value)
+                                }
+                                rows={2}
+                                className="w-full px-2.5 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:border-indigo-400 resize-none"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] text-gray-400 mb-0.5">Visual Direction</label>
+                              <textarea
+                                value={getJsonField(slide.id, slide.contentText, "visualDirection")}
+                                onChange={(e) =>
+                                  handleJsonFieldChange(slide.id, slide.contentText, "visualDirection", e.target.value)
+                                }
+                                rows={1}
+                                className="w-full px-2.5 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:border-indigo-400 resize-none"
+                              />
+                            </div>
+                          </div>
                         </div>
                       );
                     })}
@@ -493,25 +533,54 @@ export function ContentPreviewModal({
 
                 {/* Frames — story_image, story_video, facebook story */}
                 {frameSections.length > 0 && (
-                  <div className="grid grid-cols-4 gap-3">
+                  <div className="space-y-3">
+                    <label className="block text-[10px] font-medium text-gray-400 uppercase tracking-wide">
+                      Frames ({frameSections.length})
+                    </label>
                     {frameSections.map((frame) => {
                       const num = getJsonField(frame.id, frame.contentText, "frameNumber");
                       const url = getJsonField(frame.id, frame.contentText, "referenceImageUrl");
                       return (
-                        <div key={frame.id}>
-                          <p className="text-[10px] font-medium text-purple-500 uppercase mb-1">
-                            Frame {num}
-                          </p>
-                          <SectionImageCell
-                            sectionId={frame.id}
-                            imageUrl={url}
-                            label={`Frame ${num}`}
-                            workspaceId={workspaceId}
-                            outputId={item.id}
-                            onSectionUpdated={applySectionUpdate}
-                            onError={(m) => onToast(m, "error")}
-                            aspectRatio="9/16"
-                          />
+                        <div key={frame.id} className="bg-white border border-gray-200 rounded-lg p-3 flex gap-3">
+                          <div className="w-28 shrink-0">
+                            <p className="text-[10px] font-semibold text-purple-500 uppercase mb-1">
+                              Frame {num}
+                            </p>
+                            <SectionImageCell
+                              sectionId={frame.id}
+                              imageUrl={url}
+                              label={`Frame ${num}`}
+                              workspaceId={workspaceId}
+                              outputId={item.id}
+                              onSectionUpdated={applySectionUpdate}
+                              onError={(m) => onToast(m, "error")}
+                              aspectRatio="9/16"
+                            />
+                          </div>
+                          <div className="flex-1 space-y-2">
+                            <div>
+                              <label className="block text-[10px] text-gray-400 mb-0.5">Visual</label>
+                              <textarea
+                                value={getJsonField(frame.id, frame.contentText, "visual")}
+                                onChange={(e) =>
+                                  handleJsonFieldChange(frame.id, frame.contentText, "visual", e.target.value)
+                                }
+                                rows={2}
+                                className="w-full px-2.5 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:border-indigo-400 resize-none"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] text-gray-400 mb-0.5">Text Overlay</label>
+                              <input
+                                type="text"
+                                value={getJsonField(frame.id, frame.contentText, "textOverlay")}
+                                onChange={(e) =>
+                                  handleJsonFieldChange(frame.id, frame.contentText, "textOverlay", e.target.value)
+                                }
+                                className="w-full px-2.5 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:border-indigo-400"
+                              />
+                            </div>
+                          </div>
                         </div>
                       );
                     })}
@@ -520,25 +589,77 @@ export function ContentPreviewModal({
 
                 {/* Scenes — all video content types */}
                 {sceneSections.length > 0 && (
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-3">
+                    <label className="block text-[10px] font-medium text-gray-400 uppercase tracking-wide">
+                      Scenes ({sceneSections.length})
+                    </label>
                     {sceneSections.map((scene) => {
                       const num = getJsonField(scene.id, scene.contentText, "sceneNumber");
                       const url = getJsonField(scene.id, scene.contentText, "referenceImageUrl");
                       return (
-                        <div key={scene.id}>
-                          <p className="text-[10px] font-medium text-red-500 uppercase mb-1">
-                            Scene {num}
-                          </p>
-                          <SectionImageCell
-                            sectionId={scene.id}
-                            imageUrl={url}
-                            label={`Scene ${num}`}
-                            workspaceId={workspaceId}
-                            outputId={item.id}
-                            onSectionUpdated={applySectionUpdate}
-                            onError={(m) => onToast(m, "error")}
-                            aspectRatio="16/9"
-                          />
+                        <div key={scene.id} className="bg-white border border-gray-200 rounded-lg p-3 flex gap-3">
+                          <div className="w-40 shrink-0">
+                            <p className="text-[10px] font-semibold text-red-500 uppercase mb-1">
+                              Scene {num}
+                            </p>
+                            <SectionImageCell
+                              sectionId={scene.id}
+                              imageUrl={url}
+                              label={`Scene ${num}`}
+                              workspaceId={workspaceId}
+                              outputId={item.id}
+                              onSectionUpdated={applySectionUpdate}
+                              onError={(m) => onToast(m, "error")}
+                              aspectRatio="16/9"
+                            />
+                          </div>
+                          <div className="flex-1 space-y-2">
+                            <div>
+                              <label className="block text-[10px] text-gray-400 mb-0.5">Time Range</label>
+                              <input
+                                type="text"
+                                value={getJsonField(scene.id, scene.contentText, "timeRange")}
+                                onChange={(e) =>
+                                  handleJsonFieldChange(scene.id, scene.contentText, "timeRange", e.target.value)
+                                }
+                                placeholder="00:00 – 00:03"
+                                className="w-full px-2.5 py-1.5 text-xs font-mono tabular-nums bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:border-indigo-400"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] text-gray-400 mb-0.5">Visual Direction</label>
+                              <textarea
+                                value={getJsonField(scene.id, scene.contentText, "visualDirection")}
+                                onChange={(e) =>
+                                  handleJsonFieldChange(scene.id, scene.contentText, "visualDirection", e.target.value)
+                                }
+                                rows={2}
+                                className="w-full px-2.5 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:border-indigo-400 resize-none"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] text-gray-400 mb-0.5">Voiceover</label>
+                              <textarea
+                                value={getJsonField(scene.id, scene.contentText, "voiceover")}
+                                onChange={(e) =>
+                                  handleJsonFieldChange(scene.id, scene.contentText, "voiceover", e.target.value)
+                                }
+                                rows={2}
+                                className="w-full px-2.5 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:border-indigo-400 resize-none"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] text-gray-400 mb-0.5">On-Screen Text</label>
+                              <input
+                                type="text"
+                                value={getJsonField(scene.id, scene.contentText, "onScreenText")}
+                                onChange={(e) =>
+                                  handleJsonFieldChange(scene.id, scene.contentText, "onScreenText", e.target.value)
+                                }
+                                className="w-full px-2.5 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:border-indigo-400"
+                              />
+                            </div>
+                          </div>
                         </div>
                       );
                     })}
