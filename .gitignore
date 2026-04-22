@@ -25,3 +25,5 @@ backend/prisma/migrations/
 .superpowers/
 
 references/
+!.claude/skills/**/references/
+!.claude/skills/**/references/**
