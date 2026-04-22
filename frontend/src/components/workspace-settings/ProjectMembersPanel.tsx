@@ -3,6 +3,7 @@ import { UserPlus, Trash2 } from "lucide-react";
 import { api } from "../../services/api";
 import { Button } from "../ui/Button";
 import { Spinner } from "../ui/Spinner";
+import { SearchableSelect } from "../ui/SearchableSelect";
 import { ALL_MENU_KEYS, type MenuKey } from "../../contexts/ProjectContext";
 
 interface Membership {
@@ -136,6 +137,27 @@ export function ProjectMembersPanel({ workspaceId, projectId, onToast, onChanged
         </Button>
       </div>
 
+      {addOpen && (
+        <AddMemberPopover
+          candidates={availableToAdd}
+          onCancel={() => setAddOpen(false)}
+          onAdd={async (userId, isApprover, menuAccess) => {
+            try {
+              await api(`/api/workspaces/${workspaceId}/projects/${projectId}/members`, {
+                method: "POST",
+                body: JSON.stringify({ userId, isApprover, menuAccess }),
+              });
+              onToast("Member added", "success");
+              setAddOpen(false);
+              await load();
+              onChanged?.();
+            } catch (e) {
+              onToast(e instanceof Error ? e.message : "Failed to add member", "error");
+            }
+          }}
+        />
+      )}
+
       {memberships.length === 0 ? (
         <p className="text-sm text-gray-400 py-4 text-center">No members yet.</p>
       ) : (
@@ -202,27 +224,6 @@ export function ProjectMembersPanel({ workspaceId, projectId, onToast, onChanged
           ))}
         </div>
       )}
-
-      {addOpen && (
-        <AddMemberPopover
-          candidates={availableToAdd}
-          onCancel={() => setAddOpen(false)}
-          onAdd={async (userId, isApprover, menuAccess) => {
-            try {
-              await api(`/api/workspaces/${workspaceId}/projects/${projectId}/members`, {
-                method: "POST",
-                body: JSON.stringify({ userId, isApprover, menuAccess }),
-              });
-              onToast("Member added", "success");
-              setAddOpen(false);
-              await load();
-              onChanged?.();
-            } catch (e) {
-              onToast(e instanceof Error ? e.message : "Failed to add member", "error");
-            }
-          }}
-        />
-      )}
     </div>
   );
 }
@@ -247,22 +248,17 @@ function AddMemberPopover({
   return (
     <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-3">
       <h4 className="text-sm font-semibold text-gray-900">Add member</h4>
-      <div>
-        <label className="block text-[11px] font-medium text-gray-600 uppercase tracking-wide mb-1">
-          User
-        </label>
-        <select
-          value={selectedId}
-          onChange={(e) => setSelectedId(e.target.value)}
-          className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-md focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
-        >
-          {candidates.map((c) => (
-            <option key={c.userId} value={c.userId}>
-              {c.fullName || c.email} ({c.email})
-            </option>
-          ))}
-        </select>
-      </div>
+      <SearchableSelect
+        label="User"
+        options={candidates.map((c) => ({
+          value: c.userId,
+          label: c.fullName || c.email,
+          sublabel: c.fullName ? c.email : undefined,
+        }))}
+        value={selectedId}
+        onChange={setSelectedId}
+        placeholder="Search by name or email..."
+      />
 
       <label className="inline-flex items-center gap-1.5 text-xs text-gray-700 cursor-pointer">
         <input
