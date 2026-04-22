@@ -101,12 +101,36 @@ export function ContentPreviewModal({
     return editedSections[section.id] ?? section.contentText;
   };
 
-  const getJsonField = (_sectionId: string, contentText: string, field: string): string => {
+  const getJsonField = (sectionId: string, contentText: string, field: string): string => {
     try {
-      const data = JSON.parse(contentText);
+      const source = editedSections[sectionId] ?? contentText;
+      const data = JSON.parse(source);
       return (data[field] as string) ?? "";
     } catch {
       return "";
+    }
+  };
+
+  const handleJsonFieldChange = (
+    sectionId: string,
+    contentText: string,
+    field: string,
+    value: string,
+  ) => {
+    try {
+      const current = editedSections[sectionId] ?? contentText;
+      const data = JSON.parse(current);
+      const nextText = JSON.stringify({ ...data, [field]: value });
+      if (nextText === contentText) {
+        setEditedSections((prev) => {
+          const { [sectionId]: _removed, ...rest } = prev;
+          return rest;
+        });
+      } else {
+        setEditedSections((prev) => ({ ...prev, [sectionId]: nextText }));
+      }
+    } catch {
+      /* malformed JSON → no-op */
     }
   };
 
