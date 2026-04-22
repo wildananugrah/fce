@@ -235,9 +235,32 @@ export class GenerationRepository implements IGenerationRepository {
 		before?: any;
 		after?: any;
 		userId?: string;
+		note?: string;
 	}): Promise<OutputFeedbackEvent> {
 		return this.prisma.outputFeedbackEvent.create({
 			data,
 		});
+	}
+
+	async findStatusChangesByOutput(outputId: string) {
+		const events = await this.prisma.outputFeedbackEvent.findMany({
+			where: { outputId, eventType: "status_change" },
+			orderBy: { createdAt: "desc" },
+		});
+		const userIds = Array.from(
+			new Set(events.map((e) => e.userId).filter((id): id is string => !!id)),
+		);
+		const users =
+			userIds.length > 0
+				? await this.prisma.user.findMany({
+						where: { id: { in: userIds } },
+						select: { id: true, fullName: true, email: true },
+					})
+				: [];
+		const userMap = new Map(users.map((u) => [u.id, u]));
+		return events.map((e) => ({
+			...e,
+			user: e.userId ? (userMap.get(e.userId) ?? null) : null,
+		}));
 	}
 }

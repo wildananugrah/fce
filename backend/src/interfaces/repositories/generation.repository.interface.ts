@@ -43,5 +43,15 @@ export interface IGenerationRepository {
 		before?: any;
 		after?: any;
 		userId?: string;
+		note?: string;
 	}): Promise<OutputFeedbackEvent>;
+	findStatusChangesByOutput(
+		outputId: string,
+	): Promise<
+		Array<
+			OutputFeedbackEvent & {
+				user: { id: string; fullName: string | null; email: string } | null;
+			}
+		>
+	>;
 }

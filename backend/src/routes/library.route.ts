@@ -77,15 +77,42 @@ export function createLibraryRoutes(
 		}
 	});
 
-	// PATCH /:id — update status (approve/reject) — approver-only
+	// PATCH /:id — update status (approve/reject/draft/in_review) — approver-only
+	// Optional { note } carried alongside. Required when status === "rejected".
 	app.patch("/:id", requireApprover(prisma), async (c) => {
+		const userId = c.get("userId");
 		const body = await c.req.json();
-		const { status } = body;
+		const { status, note } = body as { status?: string; note?: string };
 		if (!status) {
 			return c.json({ error: "status is required" }, 400);
 		}
-		const output = await libraryService.updateStatus(c.req.param("id"), status);
-		return c.json({ data: output });
+		// Fetch current output to get oldStatus for the history event.
+		const existing = await libraryService.list(c.get("workspaceId"));
+		const current = existing.find((o: any) => o.id === c.req.param("id"));
+		if (!current) {
+			return c.json({ error: "Output not found" }, 404);
+		}
+		try {
+			const output = await libraryService.changeStatus(
+				c.req.param("id"),
+				status,
+				userId,
+				current.status,
+				note,
+			);
+			return c.json({ data: output });
+		} catch (e) {
+			return c.json(
+				{ error: e instanceof Error ? e.message : "Failed to update status" },
+				400,
+			);
+		}
+	});
+
+	// GET /:id/history — status-change history for the output (approver-only)
+	app.get("/:id/history", requireApprover(prisma), async (c) => {
+		const history = await libraryService.listStatusHistory(c.req.param("id"));
+		return c.json({ data: history });
 	});
 
 	// POST /:id/feedback — add feedback event

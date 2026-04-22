@@ -201,6 +201,7 @@ export class MockGenerationRepository implements IGenerationRepository {
 		before?: any;
 		after?: any;
 		userId?: string;
+		note?: string;
 	}): Promise<OutputFeedbackEvent> {
 		const event: OutputFeedbackEvent = {
 			id: crypto.randomUUID(),
@@ -208,11 +209,21 @@ export class MockGenerationRepository implements IGenerationRepository {
 			eventType: data.eventType,
 			before: data.before ?? null,
 			after: data.after ?? null,
+			note: data.note ?? null,
 			userId: data.userId ?? null,
 			createdAt: new Date(),
 		};
 		this.feedbackEvents.push(event);
 		return event;
+	}
+
+	async findStatusChangesByOutput(outputId: string) {
+		const events = this.feedbackEvents.filter(
+			(e) => e.outputId === outputId && e.eventType === "status_change",
+		);
+		return events
+			.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+			.map((e) => ({ ...e, user: null }));
 	}
 
 	clear(): void {
