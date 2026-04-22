@@ -130,7 +130,25 @@
       "Bash(git -C /Users/bellinnn/Documents/projects/fce worktree remove .claude/worktrees/modal-save-and-send --force)",
       "Bash(git -C /Users/bellinnn/Documents/projects/fce branch -d feat/modal-save-and-send)",
       "Bash(git -C /Users/bellinnn/Documents/projects/fce add frontend/src/pages/CampaignsPage.tsx)",
-      "Bash(git -C /Users/bellinnn/Documents/projects/fce commit -m ' *)"
+      "Bash(git -C /Users/bellinnn/Documents/projects/fce commit -m ' *)",
+      "Bash(git -C /Users/bellinnn/Documents/projects/fce log --oneline -3)",
+      "Bash(git -C /Users/bellinnn/Documents/projects/fce status --short)",
+      "Bash(git -C /Users/bellinnn/Documents/projects/fce/.claude/worktrees/modal-scene-text-edit add frontend/src/components/library/ContentPreviewModal.tsx)",
+      "Bash(git -C /Users/bellinnn/Documents/projects/fce/.claude/worktrees/modal-scene-text-edit commit --amend --no-edit)",
+      "Bash(git -C /Users/bellinnn/Documents/projects/fce/.claude/worktrees/modal-scene-text-edit log --oneline 487e01c..HEAD)",
+      "Bash(git -C /Users/bellinnn/Documents/projects/fce/.claude/worktrees/modal-scene-text-edit diff 487e01c..HEAD --stat)",
+      "Bash(git -C /Users/bellinnn/Documents/projects/fce merge --no-ff feat/modal-scene-text-edit -m ' *)",
+      "Bash(git -C /Users/bellinnn/Documents/projects/fce worktree remove .claude/worktrees/modal-scene-text-edit --force)",
+      "Bash(git -C /Users/bellinnn/Documents/projects/fce branch -d feat/modal-scene-text-edit)",
+      "Bash(git -C /Users/bellinnn/Documents/projects/fce commit -m \"style\\(content-modal\\): widen to max-w-5xl for roomier edit cards\")",
+      "Bash(git -C /Users/bellinnn/Documents/projects/fce add docs/superpowers/specs/2026-04-22-content-status-notes-and-history-design.md)",
+      "Bash(git -C /Users/bellinnn/Documents/projects/fce add docs/superpowers/plans/2026-04-22-content-status-notes-and-history.md)",
+      "Bash(git -C /Users/bellinnn/Documents/projects/fce worktree add .claude/worktrees/content-status-notes -b feat/content-status-notes)",
+      "Bash(git -C /Users/bellinnn/Documents/projects/fce/.claude/worktrees/content-status-notes log --oneline c697ab9..HEAD)",
+      "Bash(git -C /Users/bellinnn/Documents/projects/fce merge --no-ff feat/content-status-notes -m ' *)",
+      "Bash(git -C /Users/bellinnn/Documents/projects/fce worktree remove .claude/worktrees/content-status-notes --force)",
+      "Bash(git -C /Users/bellinnn/Documents/projects/fce branch -d feat/content-status-notes)",
+      "Bash(git -C /Users/bellinnn/Documents/projects/fce add backend/src/providers/resend-email.provider.ts backend/src/index.ts backend/src/services/auth.service.ts)"
     ],
     "additionalDirectories": [
       "/Users/wildananugrah/Documents/My-Projects/fce/.git"
