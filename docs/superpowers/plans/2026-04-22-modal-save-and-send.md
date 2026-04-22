@@ -95,7 +95,7 @@ The helper body is literally the contents of the old `try` block (minus `setEdit
 - [ ] **Step 2: Frontend typecheck**
 
 ```bash
-cd /Users/bellinnn/Documents/projects/fce/.claude/worktrees/modal-save-and-send/frontend && npx tsc --noEmit 2>&1 | tail -5
+cd /Users/bellinnn/Documents/projects/fce/.claude/worktrees/modal-save-and-send/frontend && bunx tsc --noEmit 2>&1 | tail -5
 ```
 
 Expected: exit 0, no output.
@@ -103,7 +103,7 @@ Expected: exit 0, no output.
 - [ ] **Step 3: Frontend build (sanity)**
 
 ```bash
-cd /Users/bellinnn/Documents/projects/fce/.claude/worktrees/modal-save-and-send/frontend && npm run build 2>&1 | tail -5
+cd /Users/bellinnn/Documents/projects/fce/.claude/worktrees/modal-save-and-send/frontend && bun run build 2>&1 | tail -5
 ```
 
 Expected: build succeeds. Chunk-size warning is pre-existing.
@@ -283,7 +283,7 @@ The existing content inside the div (the "Status:" label, the `canChangeStatus` 
 - [ ] **Step 5: Frontend typecheck**
 
 ```bash
-cd /Users/bellinnn/Documents/projects/fce/.claude/worktrees/modal-save-and-send/frontend && npx tsc --noEmit 2>&1 | tail -5
+cd /Users/bellinnn/Documents/projects/fce/.claude/worktrees/modal-save-and-send/frontend && bunx tsc --noEmit 2>&1 | tail -5
 ```
 
 Expected: exit 0, no output.
@@ -291,7 +291,7 @@ Expected: exit 0, no output.
 - [ ] **Step 6: Frontend build**
 
 ```bash
-cd /Users/bellinnn/Documents/projects/fce/.claude/worktrees/modal-save-and-send/frontend && npm run build 2>&1 | tail -5
+cd /Users/bellinnn/Documents/projects/fce/.claude/worktrees/modal-save-and-send/frontend && bun run build 2>&1 | tail -5
 ```
 
 Expected: build succeeds.
@@ -362,7 +362,7 @@ with:
 - [ ] **Step 2: Frontend typecheck**
 
 ```bash
-cd /Users/bellinnn/Documents/projects/fce/.claude/worktrees/modal-save-and-send/frontend && npx tsc --noEmit 2>&1 | tail -5
+cd /Users/bellinnn/Documents/projects/fce/.claude/worktrees/modal-save-and-send/frontend && bunx tsc --noEmit 2>&1 | tail -5
 ```
 
 Expected: exit 0.
@@ -370,7 +370,7 @@ Expected: exit 0.
 - [ ] **Step 3: Frontend build**
 
 ```bash
-cd /Users/bellinnn/Documents/projects/fce/.claude/worktrees/modal-save-and-send/frontend && npm run build 2>&1 | tail -5
+cd /Users/bellinnn/Documents/projects/fce/.claude/worktrees/modal-save-and-send/frontend && bun run build 2>&1 | tail -5
 ```
 
 Expected: build succeeds.
@@ -391,7 +391,7 @@ cd /Users/bellinnn/Documents/projects/fce/.claude/worktrees/modal-save-and-send 
 
 Backend: `cd /Users/bellinnn/Documents/projects/fce/.claude/worktrees/modal-save-and-send/backend && bun run --hot src/index.ts`
 
-Frontend: `cd /Users/bellinnn/Documents/projects/fce/.claude/worktrees/modal-save-and-send/frontend && npm run dev -- --port 5174`
+Frontend: `cd /Users/bellinnn/Documents/projects/fce/.claude/worktrees/modal-save-and-send/frontend && bun run dev -- --port 5174`
 
 Set `VITE_API_URL` in the frontend `.env` to point at the backend port used (default 3004 or whatever the worktree sets up). If the main dev server is also running, use alternate ports.
 
