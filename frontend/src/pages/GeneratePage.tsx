@@ -1197,6 +1197,20 @@ const frameworkOptions = [{ value: "", label: "PAS (recommended)" }, ...framewor
             setPreviewItem((prev) => prev && prev.id === id ? { ...prev, status } : prev);
           }}
           onToast={showToast}
+          onSent={() => {
+            // The modal just flipped the output's status to "draft". The
+            // backend's list filter (findByWorkspace) only returns requests
+            // with no outputs OR outputs still in "generated" state — so
+            // this request will disappear from the list on reload.
+            // Reload instead of doing id correlation gymnastics:
+            // previewItem carries the output id, not the generation id.
+            setPreviewItem(null);
+            loadGenerations();
+            showToast(
+              "Sent to Library as Draft — review it there to approve or reject.",
+              "success",
+            );
+          }}
         />
       )}
 
