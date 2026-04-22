@@ -47,7 +47,9 @@
       "Bash(pkill -f \"vite --port 5174\")",
       "Bash(git -C /Users/bellinnn/Documents/projects/fce merge --no-ff feat/content-pillar-multiselect -m ' *)",
       "Bash(git -C /Users/bellinnn/Documents/projects/fce worktree remove .claude/worktrees/content-pillar-multiselect --force)",
-      "Bash(git -C /Users/bellinnn/Documents/projects/fce branch -d feat/content-pillar-multiselect)"
+      "Bash(git -C /Users/bellinnn/Documents/projects/fce branch -d feat/content-pillar-multiselect)",
+      "Bash(unzip -l /Users/bellinnn/Documents/projects/fce/security-best-practices.skill)",
+      "Bash(unzip -d /Users/bellinnn/Documents/projects/fce/.claude/skills /Users/bellinnn/Documents/projects/fce/security-best-practices.skill)"
     ],
     "additionalDirectories": [
       "/Users/bellinnn/Documents/projects/fce/.claude/skills/bun-postgres-performance/references/scripts",
