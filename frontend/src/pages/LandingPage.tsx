@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
+import { api } from "../services/api";
 import { Modal } from "../components/ui/Modal";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
@@ -14,6 +15,7 @@ import {
   Zap,
   ArrowRight,
   CheckCircle2,
+  MailCheck,
 } from "lucide-react";
 
 function LoginModal({
@@ -104,13 +106,27 @@ function SignupModal({
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  // "Check your email" state after the signup API responds with
+  // verificationRequired: true. Matches the flow in SignupPage.tsx.
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null);
+  const [resending, setResending] = useState(false);
+  const [resentNotice, setResentNotice] = useState("");
+
+  const resetPendingState = () => {
+    setPendingEmail(null);
+    setResentNotice("");
+  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
     try {
-      await signup(email, password, fullName || undefined);
+      const outcome = await signup(email, password, fullName || undefined);
+      if (outcome.verificationRequired) {
+        setPendingEmail(outcome.email);
+        return;
+      }
       navigate("/");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Signup failed");
@@ -118,6 +134,67 @@ function SignupModal({
       setLoading(false);
     }
   };
+
+  const handleResend = async () => {
+    if (!pendingEmail) return;
+    setResending(true);
+    setResentNotice("");
+    try {
+      await api("/api/auth/resend-verification", {
+        method: "POST",
+        body: JSON.stringify({ email: pendingEmail }),
+      });
+      setResentNotice("A fresh verification email is on its way.");
+    } catch (err) {
+      setResentNotice(
+        err instanceof Error ? err.message : "Couldn't resend. Try again in a moment.",
+      );
+    } finally {
+      setResending(false);
+    }
+  };
+
+  if (pendingEmail) {
+    return (
+      <Modal
+        isOpen={isOpen}
+        onClose={() => {
+          resetPendingState();
+          onClose();
+        }}
+        title="Check your email"
+        size="sm"
+      >
+        <div className="text-center space-y-4">
+          <div className="mx-auto w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center">
+            <MailCheck size={20} className="text-indigo-600" />
+          </div>
+          <p className="text-sm text-gray-600">
+            We sent a verification link to{" "}
+            <strong className="text-gray-900">{pendingEmail}</strong>. Click it to finish
+            setting up your account.
+          </p>
+          <p className="text-xs text-gray-500">
+            Didn&apos;t get it? Check spam, or resend below.
+          </p>
+          <Button variant="secondary" className="w-full" onClick={handleResend} loading={resending}>
+            Resend verification email
+          </Button>
+          {resentNotice && <p className="text-xs text-indigo-600">{resentNotice}</p>}
+          <p className="pt-2 text-xs text-center text-gray-500">
+            Wrong address?{" "}
+            <button
+              type="button"
+              onClick={resetPendingState}
+              className="text-black font-medium hover:underline"
+            >
+              Sign up again
+            </button>
+          </p>
+        </div>
+      </Modal>
+    );
+  }
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Create your FCE account" size="sm">
