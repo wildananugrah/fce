@@ -114,7 +114,23 @@
       "Bash(bash docs/db-cheatsheet.sh query \"SELECT id, email, is_superadmin FROM users;\")",
       "Bash(unzip -d /Users/bellinnn/Documents/projects/fce/.claude/skills /Users/bellinnn/Documents/projects/fce/data-engineering-expert.skill)",
       "Bash(unzip -l /Users/bellinnn/Documents/projects/fce/data-pipeline-architect.skill)",
-      "Bash(unzip -d /Users/bellinnn/Documents/projects/fce/.claude/skills /Users/bellinnn/Documents/projects/fce/data-pipeline-architect.skill)"
+      "Bash(unzip -d /Users/bellinnn/Documents/projects/fce/.claude/skills /Users/bellinnn/Documents/projects/fce/data-pipeline-architect.skill)",
+      "Bash(git -C /Users/bellinnn/Documents/projects/fce/.claude/worktrees/modal-save-and-send add docs/superpowers/plans/2026-04-22-modal-save-and-send.md)",
+      "Bash(git -C /Users/bellinnn/Documents/projects/fce/.claude/worktrees/modal-save-and-send commit -m \"chore\\(plan\\): switch npm commands to bun\")",
+      "Bash(git -C /Users/bellinnn/Documents/projects/fce status --short docs/superpowers/plans/2026-04-22-modal-save-and-send.md)",
+      "Bash(git -C /Users/bellinnn/Documents/projects/fce/.claude/worktrees/modal-save-and-send status --short docs/superpowers/plans/2026-04-22-modal-save-and-send.md)",
+      "Bash(git -C /Users/bellinnn/Documents/projects/fce add docs/superpowers/plans/2026-04-22-modal-save-and-send.md)",
+      "Bash(git -C /Users/bellinnn/Documents/projects/fce commit -m \"chore\\(plan\\): switch modal-save-and-send commands from npm to bun\")",
+      "Bash(git -C /Users/bellinnn/Documents/projects/fce/.claude/worktrees/modal-save-and-send rev-parse HEAD)",
+      "Bash(git -C /Users/bellinnn/Documents/projects/fce/.claude/worktrees/modal-save-and-send show d2c90da --stat)",
+      "Bash(git -C /Users/bellinnn/Documents/projects/fce/.claude/worktrees/modal-save-and-send diff d3b2901..d2c90da --stat)",
+      "Bash(git -C /Users/bellinnn/Documents/projects/fce/.claude/worktrees/modal-save-and-send show d55ae90 --stat)",
+      "Bash(git -C /Users/bellinnn/Documents/projects/fce/.claude/worktrees/modal-save-and-send show d55ae90 -- frontend/src/pages/GeneratePage.tsx)",
+      "Bash(git -C /Users/bellinnn/Documents/projects/fce merge --no-ff feat/modal-save-and-send -m ' *)",
+      "Bash(git -C /Users/bellinnn/Documents/projects/fce worktree remove .claude/worktrees/modal-save-and-send --force)",
+      "Bash(git -C /Users/bellinnn/Documents/projects/fce branch -d feat/modal-save-and-send)",
+      "Bash(git -C /Users/bellinnn/Documents/projects/fce add frontend/src/pages/CampaignsPage.tsx)",
+      "Bash(git -C /Users/bellinnn/Documents/projects/fce commit -m ' *)"
     ],
     "additionalDirectories": [
       "/Users/wildananugrah/Documents/My-Projects/fce/.git"
