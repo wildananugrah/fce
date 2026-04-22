@@ -40,7 +40,7 @@ interface Campaign {
   description?: string | null;
   status: string;
   objective?: string | null;
-  budget?: number | null;
+  budget?: string | null;
   channelMix?: string[] | null;
   culturalContext?: string | null;
   brandId: string;
@@ -125,7 +125,7 @@ function CreateCampaignModal({ workspaceId, brands, onCreated, onClose, onToast 
           description: description.trim() || undefined,
           brandId,
           objective: objective.trim() || undefined,
-          budget: budget ? parseFloat(budget) : undefined,
+          budget: budget.trim() || undefined,
           channelMix: channelMix ? channelMix.split(",").map((s) => s.trim()).filter(Boolean) : undefined,
           culturalContext: culturalContext.trim() || undefined,
           generate: generateStrategy,
