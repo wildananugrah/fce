@@ -69,9 +69,48 @@ export function ContentPreviewModal({
   // otherwise toast-triggered re-renders would overwrite freshly generated
   // image URLs with the stale sections we originally received.
   const [localSections, setLocalSections] = useState<Section[]>(item.sections);
+  // Pending status change — user has picked a new status but hasn't confirmed
+  // yet (so they can type a note, or cancel).
+  const [pendingStatus, setPendingStatus] = useState<string | null>(null);
+  const [statusNote, setStatusNote] = useState<string>("");
+
+  // Status change history, fetched eagerly when the modal opens.
+  const [history, setHistory] = useState<
+    Array<{
+      id: string;
+      before: any;
+      after: any;
+      note: string | null;
+      createdAt: string;
+      user: { id: string; fullName: string | null; email: string } | null;
+    }>
+  >([]);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   useEffect(() => {
     setLocalSections(item.sections);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [item.id]);
+
+  useEffect(() => {
+    if (!canChangeStatus) return;
+    (async () => {
+      try {
+        const res = await api<{
+          data: Array<{
+            id: string;
+            before: any;
+            after: any;
+            note: string | null;
+            createdAt: string;
+            user: { id: string; fullName: string | null; email: string } | null;
+          }>;
+        }>(`/api/workspaces/${workspaceId}/library/${item.id}/history`);
+        setHistory((res as any).data ?? res);
+      } catch {
+        setHistory([]);
+      }
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [item.id]);
 
@@ -310,18 +349,54 @@ export function ContentPreviewModal({
     }
   };
 
-  const handleStatusChange = async (newStatus: string) => {
+  const handleStatusPick = (newStatus: string) => {
+    // User picked a value in the dropdown but hasn't confirmed yet.
     if (newStatus === currentStatus) return;
+    setPendingStatus(newStatus);
+    setStatusNote("");
+  };
+
+  const handleCancelStatusChange = () => {
+    setPendingStatus(null);
+    setStatusNote("");
+  };
+
+  const handleConfirmStatusChange = async () => {
+    if (!pendingStatus) return;
+    if (pendingStatus === "rejected" && !statusNote.trim()) return;
     setUpdating(true);
     try {
-      await api(`/api/workspaces/${workspaceId}/library/${item.id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ status: newStatus }),
-      });
+      const res = await api<{ data: { status: string } }>(
+        `/api/workspaces/${workspaceId}/library/${item.id}`,
+        {
+          method: "PATCH",
+          body: JSON.stringify({
+            status: pendingStatus,
+            note: statusNote.trim() || undefined,
+          }),
+        },
+      );
+      const updated = (res as any).data ?? res;
+      const newStatus = updated.status as string;
+      // Prepend an optimistic history entry so the panel shows it immediately.
+      setHistory((prev) => [
+        {
+          id: crypto.randomUUID(),
+          before: { status: currentStatus },
+          after: { status: newStatus },
+          note: statusNote.trim() || null,
+          createdAt: new Date().toISOString(),
+          user: null, // name not known client-side; a refresh can fill it
+        },
+        ...prev,
+      ]);
       setCurrentStatus(newStatus);
       onStatusChange(item.id, newStatus);
+      setPendingStatus(null);
+      setStatusNote("");
+      onToast(`Status changed to ${newStatus.replace(/_/g, " ")}`, "success");
     } catch (e) {
-      onToast(e instanceof Error ? e.message : "Failed to update status", "error");
+      onToast(e instanceof Error ? e.message : "Failed to change status", "error");
     } finally {
       setUpdating(false);
     }
@@ -718,7 +793,7 @@ export function ContentPreviewModal({
                   <select
                     value={currentStatus}
                     disabled={updating}
-                    onChange={(e) => handleStatusChange(e.target.value)}
+                    onChange={(e) => handleStatusPick(e.target.value)}
                     className={`appearance-none pl-6 pr-8 py-1.5 text-xs font-medium border rounded-lg cursor-pointer focus:outline-none focus:ring-1 focus:ring-indigo-400 capitalize ${getStatusStyle(currentStatus)}`}
                   >
                     <option value="approved">Approved</option>
@@ -738,7 +813,92 @@ export function ContentPreviewModal({
                   {currentStatus.replace(/_/g, " ")}
                 </span>
               )}
+              {pendingStatus && (
+                <div className="ml-auto flex items-center gap-2 w-full sm:w-auto sm:max-w-md">
+                  <textarea
+                    value={statusNote}
+                    onChange={(e) => setStatusNote(e.target.value)}
+                    rows={2}
+                    placeholder={
+                      pendingStatus === "rejected"
+                        ? "Note (required) — why are you rejecting?"
+                        : "Note (optional)"
+                    }
+                    className="flex-1 px-2 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:border-indigo-400 resize-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleCancelStatusChange}
+                    disabled={updating}
+                    className="px-2.5 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded-md hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleConfirmStatusChange}
+                    disabled={
+                      updating ||
+                      (pendingStatus === "rejected" && !statusNote.trim())
+                    }
+                    className="px-2.5 py-1.5 text-xs font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed"
+                  >
+                    {updating ? "Saving..." : "Confirm"}
+                  </button>
+                </div>
+              )}
             </div>
+            {canChangeStatus && history.length > 0 && (
+              <div className="border-t border-gray-100 px-5 py-3 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setHistoryOpen((v) => !v)}
+                  className="flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-gray-900"
+                >
+                  <svg
+                    className={`w-3.5 h-3.5 transition-transform ${historyOpen ? "rotate-90" : ""}`}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                  </svg>
+                  History ({history.length})
+                </button>
+                {historyOpen && (
+                  <ol className="mt-2 space-y-2 max-h-48 overflow-y-auto">
+                    {history.map((h) => {
+                      const oldS = (h.before as any)?.status ?? "—";
+                      const newS = (h.after as any)?.status ?? "—";
+                      const who = h.user?.fullName || h.user?.email || "Someone";
+                      return (
+                        <li key={h.id} className="text-xs">
+                          <div className="text-gray-700">
+                            <span className="font-medium">{who}</span>
+                            <span className="text-gray-400"> · </span>
+                            <span className="capitalize">{oldS.replace(/_/g, " ")}</span>
+                            <span className="text-gray-400"> → </span>
+                            <span className="capitalize">{newS.replace(/_/g, " ")}</span>
+                            <span className="text-gray-400"> · </span>
+                            <span className="text-gray-500">
+                              {new Date(h.createdAt).toLocaleString()}
+                            </span>
+                          </div>
+                          {h.note ? (
+                            <p className="mt-0.5 pl-2 border-l-2 border-gray-200 text-gray-600">
+                              "{h.note}"
+                            </p>
+                          ) : (
+                            <p className="mt-0.5 pl-2 text-gray-400 italic">(no note)</p>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ol>
+                )}
+              </div>
+            )}
           </>
         )}
       </div>
