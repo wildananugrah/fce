@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronRight, ChevronDown, Eye, Check, X, Loader2, Trash2 } from "lucide-react";
 import { api } from "../../services/api";
 import { isVideoContentType } from "../../config/video-content-types";
@@ -62,7 +62,11 @@ export function GenerationResultRow({
   const isDirty = Object.keys(editedSections).length > 0;
 
   const fetchSections = async () => {
-    if (sections !== null) return;
+    // Re-fetch whenever we don't yet have populated sections. An empty array
+    // counts as "not yet populated" because that's what we cache when the job
+    // hasn't finished — without this, a row expanded mid-generation would
+    // stick on empty until the user hard-refreshed the page.
+    if (sections !== null && sections.length > 0) return;
     setLoading(true);
     try {
       const res = await api<{
@@ -94,6 +98,26 @@ export function GenerationResultRow({
     }
     setExpanded(!expanded);
   };
+
+  // If the row was expanded before generation finished, `sections` got cached
+  // as [] (no output existed yet). When status flips to completed via SSE,
+  // re-fetch so the sections appear without requiring a page refresh.
+  const prevStatusRef = useRef(generation.status);
+  useEffect(() => {
+    const prev = prevStatusRef.current;
+    prevStatusRef.current = generation.status;
+    if (
+      prev !== "completed" &&
+      generation.status === "completed" &&
+      expanded &&
+      (sections === null || sections.length === 0)
+    ) {
+      // Reset to null so fetchSections' guard passes.
+      setSections(null);
+      fetchSections();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [generation.status]);
 
   const getSectionText = (type: string): string => {
     if (!sections) return "";
