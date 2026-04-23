@@ -15,4 +15,5 @@ export interface ICompetitorPipelineService {
 	listRuns(projectId: string): Promise<CompetitorPipelineRun[]>;
 	getRun(id: string): Promise<PipelineRunWithVideosAndScripts>;
 	cancelRun(id: string): Promise<CompetitorPipelineRun>;
+	deleteRun(id: string): Promise<void>;
 }

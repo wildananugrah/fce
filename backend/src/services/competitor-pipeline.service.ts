@@ -96,6 +96,19 @@ export class CompetitorPipelineService implements ICompetitorPipelineService {
 		return this.pipelineRepository.updateRun(id, { status: "cancelling" });
 	}
 
+	async deleteRun(id: string): Promise<void> {
+		const run = await this.pipelineRepository.findRunById(id);
+		if (!run) throw new Error("Run not found");
+		// Only terminal runs can be deleted — deleting a live run would orphan
+		// the pg-boss job mid-flight (its next updateRun() call would crash,
+		// and Apify/Gemini work would continue burning quota with no landing
+		// pad). Cancel first, then delete once cancellation settles.
+		if (!PIPELINE_TERMINAL_STATUSES.has(run.status)) {
+			throw new Error("Cannot delete a non-terminal run — cancel it first and wait for it to finish");
+		}
+		await this.pipelineRepository.deleteRun(id);
+	}
+
 	private validateInputRanges(input: CreatePipelineRunInput): void {
 		const {
 			videosPerCreatorMin,

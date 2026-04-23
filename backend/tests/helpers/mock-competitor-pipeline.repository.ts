@@ -53,6 +53,12 @@ export class MockCompetitorPipelineRepository implements ICompetitorPipelineRepo
 		return row;
 	}
 
+	async deleteRun(id: string): Promise<void> {
+		this.runs = this.runs.filter((r) => r.id !== id);
+		this.videos = this.videos.filter((v) => v.runId !== id);
+		this.scripts = this.scripts.filter((s) => s.runId !== id);
+	}
+
 	async getRunStatus(id: string): Promise<string | null> {
 		return this.runs.find((r) => r.id === id)?.status ?? null;
 	}

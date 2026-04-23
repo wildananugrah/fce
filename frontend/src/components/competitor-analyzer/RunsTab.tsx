@@ -1,5 +1,7 @@
 import { useEffect } from "react";
+import { Plus } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
+import { Button } from "../ui/Button";
 import type { useCompetitorAnalyzer } from "../../hooks/useCompetitorAnalyzer";
 import { RunLauncher } from "./RunLauncher";
 import { RunsList } from "./RunsList";
@@ -21,13 +23,36 @@ export function RunsTab({ ca }: { ca: ReturnType<typeof useCompetitorAnalyzer> }
 		setSearchParams(next, { replace: true });
 	}
 
+	function startNewRun() {
+		const next = new URLSearchParams(searchParams);
+		next.delete("runId");
+		setSearchParams(next, { replace: true });
+		ca.clearActiveRun();
+	}
+
+	async function handleDelete(id: string) {
+		await ca.deleteRun(id);
+		// If the deleted run was the one being viewed, drop the runId from the URL
+		// so the right pane falls back to the launcher.
+		if (activeRunId === id) {
+			const next = new URLSearchParams(searchParams);
+			next.delete("runId");
+			setSearchParams(next, { replace: true });
+		}
+	}
+
 	return (
 		<div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-4">
 			<div className="space-y-3">
+				<Button variant="secondary" onClick={startNewRun} className="w-full">
+					<Plus size={14} className="mr-1" />
+					New Run
+				</Button>
 				<RunsList
 					runs={ca.runs}
 					activeId={activeRunId}
 					onSelect={selectRun}
+					onDelete={handleDelete}
 				/>
 			</div>
 

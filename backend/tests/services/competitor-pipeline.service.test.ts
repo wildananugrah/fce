@@ -175,4 +175,35 @@ describe("CompetitorPipelineService", () => {
 			await expect(service.cancelRun(run.id)).rejects.toThrow("terminal");
 		});
 	});
+
+	describe("deleteRun", () => {
+		it("deletes a terminal run", async () => {
+			apifyKeys.set(workspaceId, "apify_test_key");
+			const { configId } = await seedConfigWithCreator();
+			const run = await service.createRun(workspaceId, projectId, userId, {
+				configId,
+				videosPerCreator: 3,
+				lookbackPool: 20,
+				timeframeDays: 30,
+			});
+			await pipelineRepo.updateRun(run.id, { status: "completed" });
+
+			await service.deleteRun(run.id);
+
+			await expect(service.getRun(run.id)).rejects.toThrow("not found");
+		});
+
+		it("refuses to delete a non-terminal run", async () => {
+			apifyKeys.set(workspaceId, "apify_test_key");
+			const { configId } = await seedConfigWithCreator();
+			const run = await service.createRun(workspaceId, projectId, userId, {
+				configId,
+				videosPerCreator: 3,
+				lookbackPool: 20,
+				timeframeDays: 30,
+			});
+			// pending status — non-terminal
+			await expect(service.deleteRun(run.id)).rejects.toThrow("non-terminal");
+		});
+	});
 });

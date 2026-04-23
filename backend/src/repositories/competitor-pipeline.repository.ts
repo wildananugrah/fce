@@ -47,6 +47,11 @@ export class CompetitorPipelineRepository implements ICompetitorPipelineReposito
 		return this.prisma.competitorPipelineRun.update({ where: { id }, data: data as any });
 	}
 
+	async deleteRun(id: string): Promise<void> {
+		// PipelineContent + PipelineScript cascade via FK on competitor_pipeline_runs.
+		await this.prisma.competitorPipelineRun.delete({ where: { id } });
+	}
+
 	async getRunStatus(id: string): Promise<string | null> {
 		const run = await this.prisma.competitorPipelineRun.findUnique({
 			where: { id },

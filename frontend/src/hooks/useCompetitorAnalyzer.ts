@@ -9,6 +9,7 @@ import {
 	createCreator as apiCreateCreator,
 	createRun as apiCreateRun,
 	deleteConfig as apiDeleteConfig,
+	deleteRun as apiDeleteRun,
 	getRun as apiGetRun,
 	listConfigs as apiListConfigs,
 	listCreators as apiListCreators,
@@ -221,6 +222,19 @@ export function useCompetitorAnalyzer() {
 		[workspaceId, projectId, refreshRuns],
 	);
 
+	const deleteRun = useCallback(
+		async (id: string) => {
+			await apiDeleteRun(workspaceId, projectId, id);
+			setRuns((prev) => prev.filter((r) => r.id !== id));
+			setActiveRun((prev) => (prev?.id === id ? null : prev));
+		},
+		[workspaceId, projectId],
+	);
+
+	const clearActiveRun = useCallback(() => {
+		setActiveRun(null);
+	}, []);
+
 	return {
 		ready,
 		loading,
@@ -241,5 +255,7 @@ export function useCompetitorAnalyzer() {
 		removeConfig,
 		launchRun,
 		cancelRun,
+		deleteRun,
+		clearActiveRun,
 	};
 }

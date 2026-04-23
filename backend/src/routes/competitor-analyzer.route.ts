@@ -173,6 +173,16 @@ export function createCompetitorAnalyzerRoutes(
 		}
 	});
 
+	app.delete("/runs/:id", async (c) => {
+		try {
+			await pipelineService.deleteRun(c.req.param("id"));
+			return c.json({ data: { success: true } });
+		} catch (err) {
+			const msg = err instanceof Error ? err.message : "Unknown error";
+			return c.json({ error: msg }, 400);
+		}
+	});
+
 	app.get("/runs/:id/scripts", async (c) => {
 		const run = await pipelineService.getRun(c.req.param("id"));
 		return c.json({ data: run.scripts });

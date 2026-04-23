@@ -267,3 +267,11 @@ export async function cancelRun(
 		method: "POST",
 	});
 }
+
+export async function deleteRun(
+	workspaceId: string,
+	projectId: string,
+	id: string,
+): Promise<void> {
+	await api(`${basePath(workspaceId, projectId)}/runs/${id}`, { method: "DELETE" });
+}

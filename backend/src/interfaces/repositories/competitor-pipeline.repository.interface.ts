@@ -21,6 +21,8 @@ export interface ICompetitorPipelineRepository {
 		data: Partial<CompetitorPipelineRun>,
 	): Promise<CompetitorPipelineRun>;
 
+	deleteRun(id: string): Promise<void>;
+
 	getRunStatus(id: string): Promise<string | null>;
 
 	createContent(
