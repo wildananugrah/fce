@@ -339,9 +339,26 @@ async function main() {
 	};
 
 	const videoFetcher = async (url: string): Promise<{ bytes: Uint8Array; mimeType: string }> => {
-		const resp = await fetch(url);
+		// Browser-like headers — TikTok's own CDN blocks bare fetch() and often
+		// returns HTML error pages. Harmless on Apify-hosted URLs.
+		const resp = await fetch(url, {
+			headers: {
+				"User-Agent":
+					"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+				Referer: "https://www.tiktok.com/",
+			},
+			redirect: "follow",
+		});
 		if (!resp.ok) throw new Error(`Video fetch failed: HTTP ${resp.status}`);
 		const mimeType = resp.headers.get("content-type") ?? "video/mp4";
+		// Fail fast if the server served an HTML error page disguised as a
+		// video URL — better a clear message here than Gemini's opaque
+		// "Unsupported MIME type" rejection downstream.
+		if (!/^video\//i.test(mimeType) && !/^application\/octet-stream/i.test(mimeType)) {
+			throw new Error(
+				`Expected video response, got content-type="${mimeType}" (likely a TikTok CDN block or expired URL)`,
+			);
+		}
 		const ab = await resp.arrayBuffer();
 		return { bytes: new Uint8Array(ab), mimeType };
 	};

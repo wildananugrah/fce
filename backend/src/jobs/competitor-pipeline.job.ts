@@ -161,6 +161,12 @@ export class CompetitorPipelineJob {
 						profiles: [creator.username],
 						resultsPerPage: run.lookbackPool,
 						proxyCountryCode: "US",
+						// Ask the actor to download videos into Apify's KV store so
+						// we get stable CDN URLs — TikTok's own downloadAddr URLs
+						// need session cookies we don't have and often return HTML
+						// error pages or time out. Roughly doubles Apify compute
+						// time per creator but drastically more reliable.
+						shouldDownloadVideos: true,
 					},
 					apifyKey,
 				);
@@ -215,7 +221,14 @@ export class CompetitorPipelineJob {
 					platform: "tiktok",
 					platformPostId: String(r.id ?? r.webVideoUrl),
 					contentType: "video",
-					contentUrl: r.videoMeta?.downloadAddr ?? r.webVideoUrl,
+					// Prefer Apify-hosted URL when shouldDownloadVideos is on —
+					// stable CDN with no TikTok auth headache. Fall back to
+					// TikTok's own download URLs for backwards compatibility.
+					contentUrl:
+						r.mediaUrls?.[0] ??
+						r.videoMeta?.downloadAddr ??
+						r.videoMeta?.playAddr ??
+						r.webVideoUrl,
 					thumbnailUrl: r.covers?.default ?? null,
 					caption: r.text ?? null,
 					viewCount: r.playCount ?? null,
