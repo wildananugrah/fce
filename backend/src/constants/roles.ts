@@ -31,6 +31,7 @@ export const MENU_KEYS = [
 	"content-library",
 	"learning-center",
 	"research-hub",
+	"competitor-analyzer",
 ] as const;
 
 export type MenuKey = (typeof MENU_KEYS)[number];
