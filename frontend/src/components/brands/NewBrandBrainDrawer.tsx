@@ -323,7 +323,7 @@ export function NewBrandBrainDrawer({
 }: NewBrandBrainDrawerProps) {
   const isEditMode = !!editBrand;
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
-  const [form, setForm] = useState<BrandFormData>({ ...INITIAL_DATA });
+  const [form, setForm] = useState<BrandFormData>({ ...INITIAL_BRAND_FORM });
   const [saving, setSaving] = useState(false);
   const [scraping, setScraping] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -334,7 +334,7 @@ export function NewBrandBrainDrawer({
   useEffect(() => {
     if (!isOpen) {
       // Reset form when drawer closes
-      setForm({ ...INITIAL_DATA });
+      setForm({ ...INITIAL_BRAND_FORM });
       setActiveTab("overview");
       setError("");
       return;
