@@ -40,6 +40,7 @@ model Creator {
   id               String    @id @default(uuid())
   workspaceId      String    @map("workspace_id")
   projectId        String    @map("project_id")
+  createdBy        String?   @map("created_by")            // user who added — used to route enrichment SSE back
   platform         String                                  // "tiktok" | "instagram" | "youtube" | "linkedin" | "twitter" | "facebook"
   profileUrl       String    @map("profile_url") @db.Text
   username         String                                  // platform-local handle, without @
@@ -58,6 +59,7 @@ model Creator {
 
   workspace      Workspace               @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   project        Project                 @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  creator        User?                   @relation("CreatorCreator", fields: [createdBy], references: [id], onDelete: SetNull)
   configMembers  AnalysisConfigCreator[]
   pipelineVideos PipelineContent[]
 
