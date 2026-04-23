@@ -128,7 +128,7 @@ export function generateBrandSlug(name: string): string {
 
 // ─── Sub-components (tag inputs, rule lists, etc.) ─────────────
 
-function TagInput({
+export function TagInput({
   value,
   onChange,
   placeholder,
@@ -190,7 +190,7 @@ function TagInput({
   );
 }
 
-function PillarInput({
+export function PillarInput({
   value,
   onChange,
 }: {
@@ -249,7 +249,7 @@ function PillarInput({
   );
 }
 
-function RuleList({
+export function RuleList({
   label,
   color,
   items,
