@@ -300,7 +300,7 @@ Both include the pipeline `runId` in the `userPrompt` body (current `ai_provider
 
 ## Section 3 — Pipeline Orchestration Job
 
-`backend/src/jobs/competitor-pipeline.job.ts`. One pg-boss job per pipeline run. Job expiration is bumped to **30 minutes** via `boss.send("competitor-pipeline", { runId }, { expireInHours: 0.5 })`.
+`backend/src/jobs/competitor-pipeline.job.ts`. One pg-boss job per pipeline run. Job expiration is bumped to **30 minutes** via `boss.send("competitor-pipeline", { runId }, { expireInSeconds: 1800 })`.
 
 ### Stages
 
@@ -399,7 +399,7 @@ In-flight work (a running Apify call, a running Gemini call) is NOT aborted — 
 | Gemini file upload + ACTIVE poll | 90 sec |
 | Gemini video analysis call | 3 min |
 | Gemini script generation call | 3 min |
-| Total pipeline job | 30 min (pg-boss `expireInHours: 0.5`) |
+| Total pipeline job | 30 min (pg-boss `expireInSeconds: 1800`) |
 
 ### Creator Enrichment Job
 

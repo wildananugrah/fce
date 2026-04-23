@@ -2223,7 +2223,7 @@ describe("CompetitorPipelineService", () => {
 			expect(bossCalls).toHaveLength(1);
 			expect(bossCalls[0].queue).toBe("competitor-pipeline");
 			expect(bossCalls[0].data).toEqual({ runId: run.id });
-			expect(bossCalls[0].opts).toEqual({ expireInHours: 0.5 });
+			expect(bossCalls[0].opts).toEqual({ expireInSeconds: 1800 });
 		});
 	});
 
@@ -2344,7 +2344,7 @@ export class CompetitorPipelineService implements ICompetitorPipelineService {
 		await this.boss.send(
 			"competitor-pipeline",
 			{ runId: run.id },
-			{ expireInHours: 0.5 },
+			{ expireInSeconds: 1800 },
 		);
 
 		this.logger.info("Competitor pipeline run enqueued", {
