@@ -1,4 +1,5 @@
-https://github.com/coreyhaines31/marketingskills/tree/main
+https://github.com/coreyhaines31/marketingskills
+https://github.com/coreyhaines31/marketingskills
 
 https://fce-dashboard-six.vercel.app/
 
@@ -118,3 +119,15 @@ bun run scripts/assign-user-to-project.ts fatur@floothink.com Floothink First
 bun run scripts/assign-user-to-project.ts iqbal@floothink.com Floothink First 
 
 bun run scripts/assign-user-to-project.ts alice@floothink.com Floothink First --approver
+
+
+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
+
+# EMAIL Configuration
+EMAIL_HOST=in-v3.mailjet.com
+EMAIL_USER=2b3c637897e41d4236d4c979d6571935
+EMAIL_PASS=d7991150259ae45a846035d07fe77c6a
+EMAIL_PORT=587
+EMAIL_SENDER=norepy-smm@floothink.com
+
+dicoba pake ini mas
