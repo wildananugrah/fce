@@ -138,7 +138,7 @@ export function useCompetitorAnalyzer() {
 	);
 
 	const addCreator = useCallback(
-		async (input: { profileUrl: string; username: string; niche: string }) => {
+		async (input: { profileUrl?: string; username?: string; niche?: string }) => {
 			const created = await apiCreateCreator(workspaceId, projectId, input);
 			setCreators((prev) => [created, ...prev]);
 			return created;

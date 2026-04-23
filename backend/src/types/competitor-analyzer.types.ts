@@ -9,10 +9,12 @@ import type {
 // ─── Creator ───────────────────────────────────────────────────
 
 export interface CreateCreatorInput {
-	profileUrl: string;
-	username: string;
+	// Either profileUrl or username is required; the service derives the
+	// missing one. Niche is optional (free-text tag, nullable in DB).
+	profileUrl?: string;
+	username?: string;
 	platform: string; // "tiktok" only in v1 — enforced at service layer
-	niche: string;
+	niche?: string;
 }
 
 export interface UpdateCreatorInput {

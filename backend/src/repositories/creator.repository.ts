@@ -15,6 +15,13 @@ export class CreatorRepository implements ICreatorRepository {
 		createdBy: string;
 		input: CreateCreatorInput;
 	}): Promise<Creator> {
+		if (!data.input.profileUrl || !data.input.username) {
+			// Service layer enforces both are set after deriving from whichever
+			// was provided. This guard is a defensive check — if we're here with
+			// one missing, the caller skipped the service and tried to write
+			// directly, which is a programming error.
+			throw new Error("Creator create requires profileUrl and username");
+		}
 		return this.prisma.creator.create({
 			data: {
 				workspaceId: data.workspaceId,
@@ -23,7 +30,7 @@ export class CreatorRepository implements ICreatorRepository {
 				platform: data.input.platform,
 				profileUrl: data.input.profileUrl,
 				username: data.input.username,
-				niche: data.input.niche,
+				niche: data.input.niche ?? null,
 			},
 		});
 	}

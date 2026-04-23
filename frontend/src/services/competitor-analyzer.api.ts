@@ -10,7 +10,7 @@ export interface Creator {
 	profileUrl: string;
 	username: string;
 	displayName: string | null;
-	niche: string;
+	niche: string | null;
 	followerCount: number | null;
 	avatarUrl: string | null;
 	bio: string | null;
@@ -127,7 +127,7 @@ export async function listCreators(
 export async function createCreator(
 	workspaceId: string,
 	projectId: string,
-	input: { profileUrl: string; username: string; niche: string; platform?: string },
+	input: { profileUrl?: string; username?: string; niche?: string; platform?: string },
 ): Promise<Creator> {
 	return api<Creator>(`${basePath(workspaceId, projectId)}/creators`, {
 		method: "POST",

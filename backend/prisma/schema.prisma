@@ -906,7 +906,7 @@ model Creator {
   profileUrl       String    @map("profile_url") @db.Text
   username         String
   displayName      String?   @map("display_name")
-  niche            String
+  niche            String?
   followerCount    Int?      @map("follower_count")
   avatarUrl        String?   @map("avatar_url") @db.Text
   bio              String?   @db.Text

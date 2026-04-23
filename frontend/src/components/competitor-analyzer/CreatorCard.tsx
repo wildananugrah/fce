@@ -44,7 +44,8 @@ export function CreatorCard({ creator, onArchive, onRetryEnrichment }: Props) {
 					)}
 				</div>
 				<div className="text-xs text-gray-500 mt-0.5">
-					{creator.niche} · {formatFollowers(creator.followerCount)} followers
+					{creator.niche ? `${creator.niche} · ` : ""}
+					{formatFollowers(creator.followerCount)} followers
 				</div>
 				{isFailed && creator.enrichmentError && (
 					<div className="text-[11px] text-red-600 mt-0.5 truncate" title={creator.enrichmentError}>

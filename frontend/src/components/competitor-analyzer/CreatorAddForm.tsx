@@ -3,7 +3,7 @@ import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
 
 interface Props {
-	onSubmit: (input: { profileUrl: string; username: string; niche: string }) => Promise<void>;
+	onSubmit: (input: { profileUrl?: string; username?: string; niche?: string }) => Promise<void>;
 }
 
 export function CreatorAddForm({ onSubmit }: Props) {
@@ -15,17 +15,19 @@ export function CreatorAddForm({ onSubmit }: Props) {
 
 	async function handleSubmit(e: FormEvent) {
 		e.preventDefault();
-		if (!profileUrl.trim() || !username.trim() || !niche.trim()) {
-			setError("All fields required");
+		const url = profileUrl.trim();
+		const user = username.trim().replace(/^@/, "");
+		if (!url && !user) {
+			setError("Provide a TikTok URL or a username");
 			return;
 		}
 		setSubmitting(true);
 		setError("");
 		try {
 			await onSubmit({
-				profileUrl: profileUrl.trim(),
-				username: username.trim().replace(/^@/, ""),
-				niche: niche.trim(),
+				profileUrl: url || undefined,
+				username: user || undefined,
+				niche: niche.trim() || undefined,
 			});
 			setProfileUrl("");
 			setUsername("");
@@ -40,6 +42,9 @@ export function CreatorAddForm({ onSubmit }: Props) {
 	return (
 		<form onSubmit={handleSubmit} className="bg-white border border-gray-200 rounded-md p-4 space-y-3">
 			<p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Add a creator</p>
+			<p className="text-[11px] text-gray-500">
+				Provide a TikTok URL <em>or</em> a username — whichever you have. Niche is optional.
+			</p>
 			<div className="grid grid-cols-1 md:grid-cols-3 gap-3">
 				<Input
 					label="TikTok URL"
@@ -54,7 +59,7 @@ export function CreatorAddForm({ onSubmit }: Props) {
 					placeholder="handle"
 				/>
 				<Input
-					label="Niche"
+					label="Niche (optional)"
 					value={niche}
 					onChange={(e) => setNiche(e.target.value)}
 					placeholder="fitness, fashion, …"

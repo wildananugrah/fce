@@ -11,6 +11,20 @@ import type {
 
 const SUPPORTED_PLATFORMS_V1 = new Set(["tiktok"]);
 
+/**
+ * Pull the handle out of a TikTok URL: matches `/@handle` anywhere in the
+ * path. Returns null if the URL doesn't look like a TikTok profile link.
+ */
+function extractTikTokHandle(url: string): string | null {
+	const match = url.match(/\/@([A-Za-z0-9._-]+)/);
+	return match ? match[1] : null;
+}
+
+/** Canonical TikTok profile URL for a bare handle. */
+function tikTokProfileUrl(username: string): string {
+	return `https://www.tiktok.com/@${username}`;
+}
+
 export class CreatorService implements ICreatorService {
 	constructor(
 		private creatorRepository: ICreatorRepository,
@@ -28,8 +42,30 @@ export class CreatorService implements ICreatorService {
 			throw new Error(`Platform not supported in v1: ${input.platform}`);
 		}
 
-		const cleanUsername = input.username.trim().replace(/^@/, "");
-		if (!cleanUsername) throw new Error("Username is required");
+		// Accept any one of: (url only), (username only), (both).
+		// Derive the missing one from the provided one.
+		const providedUrl = (input.profileUrl ?? "").trim();
+		const providedUsername = (input.username ?? "").trim().replace(/^@/, "");
+
+		let cleanUsername = providedUsername;
+		let cleanProfileUrl = providedUrl;
+
+		if (!cleanUsername && cleanProfileUrl && input.platform === "tiktok") {
+			const derived = extractTikTokHandle(cleanProfileUrl);
+			if (!derived) {
+				throw new Error("Could not extract username from TikTok URL");
+			}
+			cleanUsername = derived;
+		}
+		if (!cleanProfileUrl && cleanUsername && input.platform === "tiktok") {
+			cleanProfileUrl = tikTokProfileUrl(cleanUsername);
+		}
+
+		if (!cleanUsername) {
+			throw new Error("Provide a TikTok URL or a username");
+		}
+
+		const niche = (input.niche ?? "").trim() || null;
 
 		const exists = await this.creatorRepository.existsByUsername(
 			projectId,
@@ -44,7 +80,12 @@ export class CreatorService implements ICreatorService {
 			workspaceId,
 			projectId,
 			createdBy: userId,
-			input: { ...input, username: cleanUsername },
+			input: {
+				...input,
+				username: cleanUsername,
+				profileUrl: cleanProfileUrl,
+				niche: niche ?? undefined,
+			},
 		});
 
 		await this.boss.send("creator-enrichment", { creatorId: creator.id });

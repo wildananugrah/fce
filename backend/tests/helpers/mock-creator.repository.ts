@@ -21,10 +21,10 @@ export class MockCreatorRepository implements ICreatorRepository {
 			projectId: data.projectId,
 			createdBy: data.createdBy,
 			platform: data.input.platform,
-			profileUrl: data.input.profileUrl,
-			username: data.input.username,
+			profileUrl: data.input.profileUrl ?? "",
+			username: data.input.username ?? "",
 			displayName: null,
-			niche: data.input.niche,
+			niche: data.input.niche ?? null,
 			followerCount: null,
 			avatarUrl: null,
 			bio: null,
@@ -50,7 +50,7 @@ export class MockCreatorRepository implements ICreatorRepository {
 		if (filters?.platform) rows = rows.filter((c) => c.platform === filters.platform);
 		if (filters?.niche) {
 			const q = filters.niche.toLowerCase();
-			rows = rows.filter((c) => c.niche.toLowerCase().includes(q));
+			rows = rows.filter((c) => c.niche?.toLowerCase().includes(q) ?? false);
 		}
 		return rows;
 	}
