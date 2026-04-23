@@ -1,5 +1,19 @@
 import { useState, useEffect, useCallback } from "react";
-import { Trash2, Globe, Dna, Copy, ExternalLink, Check } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import {
+  Trash2,
+  Globe,
+  Palette,
+  Sparkles,
+  ExternalLink,
+  Copy,
+  Check,
+  Pencil,
+  Mic2,
+  Dna,
+  Target,
+  CircleDot,
+} from "lucide-react";
 import { useWorkspace } from "../hooks/useWorkspace";
 import { useProject } from "../hooks/useProject";
 import { api } from "../services/api";
@@ -28,7 +42,7 @@ interface BrainVersion {
   tone?: string | null;
   audiencePersonas?: unknown;
   values?: string[];
-  messagingRules?: unknown;
+  messagingRules?: { do?: string[]; dont?: string[] };
   vocabulary?: {
     preferred?: string[];
     avoided?: string[];
@@ -43,16 +57,19 @@ interface BrainVersion {
 
 type ToastState = { message: string; type: "success" | "error" | "info" } | null;
 
-// ---- Main Page ----
 export function BrandsPage() {
+  const navigate = useNavigate();
   const { activeWorkspace } = useWorkspace();
   const { activeProject } = useProject();
   const [brands, setBrands] = useState<Brand[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showCreate, setShowCreate] = useState(false);
   const [selectedBrand, setSelectedBrand] = useState<Brand | null>(null);
   const [toast, setToast] = useState<ToastState>(null);
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
+
+  const showToast = (message: string, type: "success" | "error" | "info") => {
+    setToast({ message, type });
+  };
 
   const handleCopyUrl = async (url: string) => {
     try {
@@ -60,12 +77,8 @@ export function BrandsPage() {
       setCopiedUrl(url);
       setTimeout(() => setCopiedUrl(null), 1500);
     } catch {
-      // ignore
+      /* ignore */
     }
-  };
-
-  const showToast = (message: string, type: "success" | "error" | "info") => {
-    setToast({ message, type });
   };
 
   const handleDelete = async (brandId: string, brandName: string) => {
@@ -113,210 +126,255 @@ export function BrandsPage() {
     );
   }
 
-  const projectHasBrand = brands.length > 0;
+  if (loading) {
+    return (
+      <div className="p-6 flex justify-center py-16">
+        <Spinner />
+      </div>
+    );
+  }
+
+  // ── Empty state: no brand in this project ─────────────────────────
+  if (brands.length === 0) {
+    return (
+      <div className="p-6">
+        <div className="max-w-xl mx-auto bg-white border border-gray-200 rounded-xl p-10 text-center mt-12">
+          <div className="w-14 h-14 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto mb-4">
+            <Palette size={24} />
+          </div>
+          <h1 className="text-2xl font-semibold text-gray-900 mb-2">
+            Set up this project's brand
+          </h1>
+          <p className="text-sm text-gray-500 mb-6 max-w-md mx-auto">
+            Your brand brain powers every generated topic and post.{" "}
+            <span className="text-gray-700">{activeProject?.name ?? "This project"}</span>{" "}
+            doesn't have a brand yet — create one to get started.
+          </p>
+          <Button onClick={() => navigate("/brands/new")}>
+            <Sparkles size={14} className="mr-1.5" />
+            Create Brand
+          </Button>
+        </div>
+        {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+      </div>
+    );
+  }
+
+  // ── Data state: exactly one brand ─────────────────────────────────
+  const brand = brands[0];
+  const brain = brand.brainVersions?.[0];
+  const vocab = brain?.vocabulary ?? {};
+  const rules = brain?.messagingRules ?? {};
+  const audience = Array.isArray(brain?.audiencePersonas)
+    ? (brain.audiencePersonas as Array<{ name?: string; traits?: string[] }>)
+    : [];
+  const values = Array.isArray(brain?.values) ? brain.values : [];
+  const pillars = vocab.contentPillars ?? [];
+  const platforms = vocab.preferred ?? [];
+  const dos = rules.do ?? [];
+  const donts = rules.dont ?? [];
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-black">Brands</h1>
-        <Button
-          onClick={() => setShowCreate(true)}
-          disabled={projectHasBrand}
-          title={
-            projectHasBrand
-              ? "This project already has a brand. Each project can hold only one brand — create a new project from Workspace Settings → Projects to add another."
-              : undefined
-          }
-        >
-          New Brand
-        </Button>
+      {/* Brand hero header */}
+      <div className="bg-white border border-gray-200 rounded-xl p-6 flex items-start gap-5">
+        <div className="w-16 h-16 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center text-xl font-bold shrink-0">
+          {brand.name.charAt(0).toUpperCase()}
+        </div>
+        <div className="flex-1 min-w-0 space-y-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="text-2xl font-semibold text-gray-900 truncate">{brand.name}</h1>
+            {brand.category && (
+              <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100">
+                {brand.category}
+              </span>
+            )}
+          </div>
+          {brand.websiteUrl && (
+            <div className="flex items-center gap-1.5 group/url">
+              <Globe size={12} className="text-gray-400 shrink-0" />
+              <a
+                href={brand.websiteUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-indigo-600 truncate hover:underline"
+              >
+                {brand.websiteUrl}
+              </a>
+              <button
+                type="button"
+                onClick={() => handleCopyUrl(brand.websiteUrl!)}
+                className="p-1 text-gray-300 hover:text-indigo-600 opacity-0 group-hover/url:opacity-100 transition-opacity rounded"
+                title="Copy URL"
+                aria-label="Copy website URL"
+              >
+                {copiedUrl === brand.websiteUrl ? (
+                  <Check size={12} className="text-green-500" />
+                ) : (
+                  <Copy size={12} />
+                )}
+              </button>
+              <a
+                href={brand.websiteUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-1 text-gray-300 hover:text-indigo-600 opacity-0 group-hover/url:opacity-100 transition-opacity rounded"
+                title="Open in new tab"
+                aria-label="Open website in new tab"
+              >
+                <ExternalLink size={12} />
+              </a>
+            </div>
+          )}
+          {vocab.summary && (
+            <p className="text-sm text-gray-700 leading-relaxed max-w-2xl">{vocab.summary}</p>
+          )}
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <Button variant="secondary" onClick={() => setSelectedBrand(brand)}>
+            <Pencil size={14} className="mr-1.5" />
+            Edit
+          </Button>
+          <button
+            onClick={() => handleDelete(brand.id, brand.name)}
+            className="p-2 text-gray-400 hover:text-red-500 transition-colors rounded-md hover:bg-red-50"
+            title="Delete brand"
+            aria-label="Delete brand"
+          >
+            <Trash2 size={14} />
+          </button>
+        </div>
       </div>
 
-      {projectHasBrand && (
-        <p className="text-xs text-gray-500">
-          Each project holds one brand. To add another brand, create a new project in{" "}
-          <span className="font-medium">Workspace Settings → Projects</span>, then switch to it.
-        </p>
-      )}
-
-      {loading ? (
-        <div className="flex justify-center py-12">
-          <Spinner />
-        </div>
-      ) : brands.length === 0 ? (
-        <div className="bg-white border border-gray-200 rounded-lg p-12 text-center">
-          <p className="text-sm text-gray-400">No brands yet. Create your first brand to get started.</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-          {brands.map((brand) => {
-            const brain = brand.brainVersions?.[0];
-            const pillars = brain?.vocabulary?.contentPillars ?? [];
-            const platforms = brain?.vocabulary?.preferred ?? [];
-            const language = brain?.vocabulary?.contentLanguage;
-            const summary = brain?.vocabulary?.summary;
-
-            return (
-              <div
-                key={brand.id}
-                className="relative bg-white border border-gray-200 rounded-xl hover:border-gray-400 transition-colors overflow-hidden"
-              >
-                {/* Delete button */}
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDelete(brand.id, brand.name);
-                  }}
-                  className="absolute top-3 right-3 p-1.5 text-gray-300 hover:text-red-500 transition-colors rounded-md hover:bg-red-50 z-10"
-                  title="Delete brand"
-                >
-                  <Trash2 size={14} />
-                </button>
-
-                <div
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => setSelectedBrand(brand)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      setSelectedBrand(brand);
-                    }
-                  }}
-                  className="text-left w-full cursor-pointer"
-                >
-                  {/* Header */}
-                  <div className="p-4 pb-2.5">
-                    <div className="flex items-center gap-3 mb-2.5">
-                      <div className="w-10 h-10 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center text-xs font-bold shrink-0">
-                        {brand.name.charAt(0).toUpperCase()}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs font-semibold text-black truncate">{brand.name}</p>
-                        {brand.category && (
-                          <p className="text-xs text-gray-500 truncate">{brand.category}</p>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Website URL */}
-                    {brand.websiteUrl && (
-                      <div className="flex items-center gap-1.5 mb-2 group/url">
-                        <Globe size={12} className="text-gray-400 shrink-0" />
-                        <a
-                          href={brand.websiteUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={(e) => e.stopPropagation()}
-                          className="text-xs text-indigo-600 truncate hover:underline"
-                        >
-                          {brand.websiteUrl}
-                        </a>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleCopyUrl(brand.websiteUrl!);
-                          }}
-                          className="ml-auto p-1 text-gray-300 hover:text-indigo-600 opacity-0 group-hover/url:opacity-100 transition-opacity rounded"
-                          title="Copy URL"
-                        >
-                          {copiedUrl === brand.websiteUrl ? (
-                            <Check size={12} className="text-green-500" />
-                          ) : (
-                            <Copy size={12} />
-                          )}
-                        </button>
-                        <a
-                          href={brand.websiteUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={(e) => e.stopPropagation()}
-                          className="p-1 text-gray-300 hover:text-indigo-600 opacity-0 group-hover/url:opacity-100 transition-opacity rounded"
-                          title="Open in new tab"
-                        >
-                          <ExternalLink size={12} />
-                        </a>
-                      </div>
-                    )}
-
-                    {/* Summary */}
-                    {summary && (
-                      <p className="text-xs text-gray-500 line-clamp-2 mb-2.5 leading-relaxed">{summary}</p>
-                    )}
-                  </div>
-
-                  {/* Brain DNA section */}
-                  {brain && (
-                    <div className="mx-4 mb-3 border border-gray-100 rounded-lg p-3 bg-gray-50/50">
-                      <div className="flex items-center gap-1.5 mb-2">
-                        <Dna size={12} className="text-gray-400" />
-                        <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Brand DNA</span>
-                      </div>
-                      <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
-                        {brain.tone && (
-                          <div>
-                            <span className="text-[10px] text-gray-400">Tone</span>
-                            <p className="text-gray-700 font-medium">{brain.tone}</p>
-                          </div>
-                        )}
-                        {brain.personality && (
-                          <div>
-                            <span className="text-[10px] text-gray-400">Personality</span>
-                            <p className="text-gray-700 font-medium">{brain.personality}</p>
-                          </div>
-                        )}
-                        {language && (
-                          <div>
-                            <span className="text-[10px] text-gray-400">Language</span>
-                            <p className="text-gray-700 font-medium">{language}</p>
-                          </div>
-                        )}
-                        {pillars.length > 0 && (
-                          <div>
-                            <span className="text-[10px] text-gray-400">Pillars</span>
-                            <p className="text-gray-700 font-medium">{pillars.length} defined</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Platform tags */}
-                  {platforms.length > 0 && (
-                    <div className="px-4 pb-4 flex flex-wrap gap-1.5">
-                      {platforms.map((p) => (
-                        <span
-                          key={p}
-                          className="px-2 py-0.5 text-[10px] font-medium bg-indigo-50 text-indigo-600 rounded-full"
-                        >
-                          {p}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Empty state */}
-                  {!brain && (
-                    <div className="px-4 pb-4">
-                      <p className="text-xs text-gray-400">No brain versions yet</p>
-                    </div>
-                  )}
-                </div>
+      {/* Brain sections grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        {/* Personality & Tone */}
+        <SectionCard
+          icon={<Mic2 size={16} className="text-gray-400" />}
+          title="Personality & Tone"
+          empty={!brain?.personality && !brain?.tone && !vocab.contentLanguage}
+          emptyLabel="No voice set"
+        >
+          <DefinitionRow label="Personality" value={brain?.personality} />
+          <DefinitionRow label="Tone" value={brain?.tone} />
+          <DefinitionRow label="Language" value={vocab.contentLanguage} />
+          {platforms.length > 0 && (
+            <div>
+              <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">Platforms</p>
+              <div className="flex flex-wrap gap-1">
+                {platforms.map((p) => (
+                  <span
+                    key={p}
+                    className="px-2 py-0.5 text-[10px] font-medium bg-indigo-50 text-indigo-600 rounded-full"
+                  >
+                    {p}
+                  </span>
+                ))}
               </div>
-            );
-          })}
-        </div>
-      )}
+            </div>
+          )}
+        </SectionCard>
 
-      <NewBrandBrainDrawer
-        isOpen={showCreate}
-        onClose={() => setShowCreate(false)}
-        workspaceId={activeWorkspace.id}
-        projectId={activeProject?.id}
-        onCreated={loadBrands}
-      />
+        {/* Audience & Values */}
+        <SectionCard
+          icon={<Dna size={16} className="text-gray-400" />}
+          title="Audience & Values"
+          empty={audience.length === 0 && values.length === 0 && !vocab.brandPromise && !vocab.usp}
+          emptyLabel="No brand DNA set"
+        >
+          {audience.length > 0 && (
+            <div>
+              <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">Audience</p>
+              <p className="text-sm text-gray-700 leading-relaxed">
+                {audience[0]?.traits?.join(", ") ?? audience[0]?.name ?? ""}
+              </p>
+            </div>
+          )}
+          {values.length > 0 && (
+            <div>
+              <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">Values</p>
+              <div className="flex flex-wrap gap-1">
+                {values.map((v) => (
+                  <span
+                    key={v}
+                    className="px-2 py-0.5 text-[10px] font-medium bg-gray-100 text-gray-700 rounded"
+                  >
+                    {v}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+          <DefinitionRow label="Brand Promise" value={vocab.brandPromise} />
+          <DefinitionRow label="Unique Selling Point" value={vocab.usp} />
+        </SectionCard>
 
+        {/* Content Strategy */}
+        <SectionCard
+          icon={<Target size={16} className="text-gray-400" />}
+          title="Content Strategy"
+          empty={pillars.length === 0 && !vocab.marketingStrategy}
+          emptyLabel="No strategy set"
+        >
+          {pillars.length > 0 && (
+            <div>
+              <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">
+                Pillars ({pillars.length})
+              </p>
+              <div className="flex flex-wrap gap-1">
+                {pillars.map((p) => (
+                  <span
+                    key={p}
+                    className="px-2 py-0.5 text-[10px] font-medium bg-indigo-50 text-indigo-600 rounded"
+                  >
+                    {p}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+          <DefinitionRow label="Marketing Strategy" value={vocab.marketingStrategy} multiline />
+        </SectionCard>
+
+        {/* Messaging Rules */}
+        <SectionCard
+          icon={<CircleDot size={16} className="text-gray-400" />}
+          title="Messaging Rules"
+          empty={dos.length === 0 && donts.length === 0}
+          emptyLabel="No rules set"
+        >
+          {dos.length > 0 && (
+            <div>
+              <p className="text-[10px] text-green-700 uppercase tracking-wider mb-1">Do's ({dos.length})</p>
+              <ul className="text-xs text-gray-700 space-y-0.5">
+                {dos.slice(0, 3).map((d) => (
+                  <li key={d} className="flex items-start gap-1.5">
+                    <span className="w-1 h-1 rounded-full bg-green-500 mt-1.5 shrink-0" />
+                    <span>{d}</span>
+                  </li>
+                ))}
+                {dos.length > 3 && <li className="text-gray-400">+{dos.length - 3} more</li>}
+              </ul>
+            </div>
+          )}
+          {donts.length > 0 && (
+            <div>
+              <p className="text-[10px] text-red-600 uppercase tracking-wider mb-1">Don'ts ({donts.length})</p>
+              <ul className="text-xs text-gray-700 space-y-0.5">
+                {donts.slice(0, 3).map((d) => (
+                  <li key={d} className="flex items-start gap-1.5">
+                    <span className="w-1 h-1 rounded-full bg-red-500 mt-1.5 shrink-0" />
+                    <span>{d}</span>
+                  </li>
+                ))}
+                {donts.length > 3 && <li className="text-gray-400">+{donts.length - 3} more</li>}
+              </ul>
+            </div>
+          )}
+        </SectionCard>
+      </div>
+
+      {/* Edit drawer — entry point is the hero's Edit button */}
       <NewBrandBrainDrawer
         isOpen={!!selectedBrand}
         onClose={() => setSelectedBrand(null)}
@@ -326,13 +384,55 @@ export function BrandsPage() {
         editBrand={selectedBrand}
       />
 
-      {toast && (
-        <Toast
-          message={toast.message}
-          type={toast.type}
-          onClose={() => setToast(null)}
-        />
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+    </div>
+  );
+}
+
+// ─── Small presentational helpers ────────────────────────────────
+
+function SectionCard({
+  icon,
+  title,
+  children,
+  empty,
+  emptyLabel,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  children: React.ReactNode;
+  empty?: boolean;
+  emptyLabel?: string;
+}) {
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-3">
+      <div className="flex items-center gap-2">
+        {icon}
+        <h2 className="text-sm font-semibold text-gray-800">{title}</h2>
+      </div>
+      {empty ? (
+        <p className="text-xs text-gray-400 italic">{emptyLabel ?? "Not yet configured."}</p>
+      ) : (
+        <div className="space-y-3">{children}</div>
       )}
+    </div>
+  );
+}
+
+function DefinitionRow({
+  label,
+  value,
+  multiline,
+}: {
+  label: string;
+  value: string | null | undefined;
+  multiline?: boolean;
+}) {
+  if (!value) return null;
+  return (
+    <div>
+      <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-0.5">{label}</p>
+      <p className={`text-sm text-gray-700 ${multiline ? "leading-relaxed" : "truncate"}`}>{value}</p>
     </div>
   );
 }

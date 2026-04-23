@@ -23,6 +23,14 @@ import { ProductReferences } from "../products/ProductReferences";
 import { useScrapeLanguage } from "../../hooks/useScrapeLanguage";
 import { ScrapeLanguageToggle } from "../ui/ScrapeLanguageToggle";
 
+export function generateBrandSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 // ── Types ──────────────────────────────────────────────────────
 
 interface EditBrand {
@@ -55,7 +63,8 @@ interface NewBrandBrainDrawerProps {
   editBrand?: EditBrand | null;
 }
 
-interface BrandFormData {
+// Exported so NewBrandPage (full-page create flow) can reuse the form shape.
+export interface BrandFormData {
   // Overview
   websiteUrl: string;
   name: string;
@@ -79,7 +88,7 @@ interface BrandFormData {
   donts: string[];
 }
 
-const INITIAL_DATA: BrandFormData = {
+export const INITIAL_BRAND_FORM: BrandFormData = {
   websiteUrl: "",
   name: "",
   industry: "",
@@ -98,7 +107,7 @@ const INITIAL_DATA: BrandFormData = {
   donts: [],
 };
 
-const TABS = [
+export const BRAND_TABS = [
   { key: "overview", label: "Overview", icon: Globe },
   { key: "voice", label: "Brand Voice", icon: Mic2 },
   { key: "dna", label: "Brand DNA", icon: Dna },
@@ -107,15 +116,21 @@ const TABS = [
   { key: "references", label: "References", icon: FileText },
 ] as const;
 
-type TabKey = (typeof TABS)[number]["key"];
+// Keep internal TABS alias so the existing drawer code below compiles unchanged.
+const TABS = BRAND_TABS;
 
-const PLATFORM_OPTIONS = ["Instagram", "TikTok", "YouTube", "Twitter/X", "LinkedIn", "Facebook"];
+export type BrandTabKey = (typeof BRAND_TABS)[number]["key"];
+type TabKey = BrandTabKey;
 
-const LANGUAGE_OPTIONS = ["English", "Bahasa Indonesia", "Malay", "Chinese", "Japanese", "Korean", "Spanish", "French"];
+export const BRAND_PLATFORM_OPTIONS = ["Instagram", "TikTok", "YouTube", "Twitter/X", "LinkedIn", "Facebook"];
+const PLATFORM_OPTIONS = BRAND_PLATFORM_OPTIONS;
+
+export const BRAND_LANGUAGE_OPTIONS = ["English", "Bahasa Indonesia", "Malay", "Chinese", "Japanese", "Korean", "Spanish", "French"];
+const LANGUAGE_OPTIONS = BRAND_LANGUAGE_OPTIONS;
 
 // ── Tag Input Helper ───────────────────────────────────────────
 
-function TagInput({
+export function TagInput({
   value,
   onChange,
   placeholder,
@@ -180,7 +195,7 @@ function TagInput({
 
 // ── Pillar Input ───────────────────────────────────────────────
 
-function PillarInput({
+export function PillarInput({
   value,
   onChange,
 }: {
@@ -240,7 +255,7 @@ function PillarInput({
 
 // ── Do/Don't List ──────────────────────────────────────────────
 
-function RuleList({
+export function RuleList({
   label,
   color,
   items,
@@ -380,13 +395,7 @@ export function NewBrandBrainDrawer({
     if (!isFirst) setActiveTab(TABS[tabIndex - 1].key);
   };
 
-  function generateSlug(name: string): string {
-    return name
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "");
-  }
+  const generateSlug = generateBrandSlug;
 
   const handleAutoFill = async () => {
     if (!form.websiteUrl.trim()) return;

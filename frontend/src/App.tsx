@@ -8,6 +8,7 @@ import { LoginPage } from "./pages/LoginPage";
 import { SignupPage } from "./pages/SignupPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { BrandsPage } from "./pages/BrandsPage";
+import { NewBrandPage } from "./pages/NewBrandPage";
 import { ProductsPage } from "./pages/ProductsPage";
 import { GeneratePage } from "./pages/GeneratePage";
 import { CampaignsPage } from "./pages/CampaignsPage";
@@ -42,6 +43,7 @@ export default function App() {
             <Route element={<AppShell />}>
               <Route path="/" element={<DashboardPage />} />
               <Route path="/brands" element={<BrandsPage />} />
+              <Route path="/brands/new" element={<NewBrandPage />} />
               <Route path="/brands/:id" element={<BrandDetailPage />} />
               <Route path="/products" element={<ProductsPage />} />
               <Route path="/products/:id" element={<ProductDetailPage />} />
