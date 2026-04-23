@@ -144,7 +144,7 @@ describe("CompetitorPipelineService", () => {
 			expect(bossCalls).toHaveLength(1);
 			expect(bossCalls[0].queue).toBe("competitor-pipeline");
 			expect(bossCalls[0].data).toEqual({ runId: run.id });
-			expect(bossCalls[0].opts).toEqual({ expireInHours: 0.5 });
+			expect(bossCalls[0].opts).toEqual({ expireInSeconds: 1800 });
 		});
 	});
 

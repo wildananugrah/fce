@@ -59,11 +59,12 @@ export class CompetitorPipelineService implements ICompetitorPipelineService {
 			timeframeDays: input.timeframeDays,
 		});
 
-		// 5. Enqueue — 30 min expiration budget.
+		// 5. Enqueue — 30 min expiration budget (pg-boss SendOptions uses
+		// expireInSeconds, not expireInHours; 1800s = 30 min).
 		await this.boss.send(
 			"competitor-pipeline",
 			{ runId: run.id },
-			{ expireInHours: 0.5 } as any,
+			{ expireInSeconds: 1800 },
 		);
 
 		this.logger.info("Competitor pipeline run enqueued", {
