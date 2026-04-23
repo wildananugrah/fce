@@ -195,7 +195,9 @@ model Product {
   generationRequests   GenerationRequest[]
   contentTopicProducts ContentTopicProduct[]
 
-  @@unique([workspaceId, slug])
+  // Slug uniqueness is per-brand — two different brands can each have a
+  // product with the same slug (e.g. "classic" under Coca-Cola and Pepsi).
+  @@unique([brandId, slug])
   @@index([workspaceId, archivedAt])
   @@map("products")
 }
