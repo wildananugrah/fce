@@ -99,7 +99,6 @@ describe("CreatorEnrichmentJob", () => {
 
 	it("marks as failed when profile parser returns null (no items)", async () => {
 		apifyKeys.set("ws", "apify_test");
-		(apify as any).getRunResults = async () => [];
 		const creator = await creatorRepo.create({
 			workspaceId: "ws",
 			projectId: "p",
@@ -107,6 +106,8 @@ describe("CreatorEnrichmentJob", () => {
 			input: { platform: "tiktok", profileUrl: "u", username: "acme", niche: "fit" },
 		});
 		const job = buildJob();
+		// Override after buildJob() so it wins over buildJob's default fixture setup.
+		(apify as any).getRunResults = async () => [];
 
 		await job.handle({ creatorId: creator.id });
 
