@@ -569,6 +569,15 @@ export function GeneratePage() {
     loadInitialData();
   }, [loadInitialData]);
 
+  // 1:1 project:brand — auto-select the only brand once it's loaded so the
+  // user doesn't have to pick, and the UI renders the brand name as
+  // read-only context.
+  useEffect(() => {
+    if (brands.length === 1 && brandId !== brands[0].id) {
+      setBrandId(brands[0].id);
+    }
+  }, [brands, brandId]);
+
   // Fetch brain context when brand/product changes
   useEffect(() => {
     if (!activeWorkspace || !brandId) {
@@ -753,12 +762,26 @@ const frameworkOptions = [{ value: "", label: "PAS (recommended)" }, ...framewor
                 Context
               </div>
 
-              <Select
-                label="Brand"
-                options={brandOptions}
-                value={brandId}
-                onChange={(e) => { setBrandId(e.target.value); setSelectedProductIds([]); setContentTopicId(""); }}
-              />
+              {brands.length === 1 ? (
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 uppercase tracking-wide mb-1.5">
+                    Brand
+                  </label>
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-gray-50 border border-gray-200 text-sm">
+                    <span className="w-5 h-5 rounded bg-indigo-100 text-indigo-600 flex items-center justify-center text-[10px] font-bold">
+                      {brands[0].name.charAt(0).toUpperCase()}
+                    </span>
+                    <span className="text-gray-700">{brands[0].name}</span>
+                  </div>
+                </div>
+              ) : (
+                <Select
+                  label="Brand"
+                  options={brandOptions}
+                  value={brandId}
+                  onChange={(e) => { setBrandId(e.target.value); setSelectedProductIds([]); setContentTopicId(""); }}
+                />
+              )}
 
               {brandId && (
                 <>

@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Save, Brain, Sparkles, Loader2, Upload, X, Globe } from "lucide-react";
 import { Input } from "../ui/Input";
 import { Select } from "../ui/Select";
@@ -235,6 +235,16 @@ export function ProductForm({ brands, workspaceId, onSubmit, onCancel, initial, 
     ...brands.map((b) => ({ value: b.id, label: b.name })),
   ];
 
+  // With 1:1 project:brand there's always exactly one brand in scope — auto-
+  // select it on first render so the user doesn't have to, and we can show
+  // the brand name as read-only context instead of a dropdown.
+  const singleBrand = brands.length === 1 ? brands[0] : null;
+  useEffect(() => {
+    if (singleBrand && brandId !== singleBrand.id) {
+      setBrandId(singleBrand.id);
+    }
+  }, [singleBrand, brandId]);
+
   if (brands.length === 0) {
     return (
       <p className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-md p-3">
@@ -297,12 +307,26 @@ export function ProductForm({ brands, workspaceId, onSubmit, onCancel, initial, 
             onChange={handleNameChange}
             placeholder="e.g. Digital Marketing Retainer"
           />
-          <Select
-            label="Brand *"
-            value={brandId}
-            onChange={(e) => setBrandId(e.target.value)}
-            options={brandOptions}
-          />
+          {singleBrand ? (
+            <div>
+              <label className="block text-xs font-medium text-gray-600 uppercase tracking-wide mb-1.5">
+                Brand
+              </label>
+              <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-gray-50 border border-gray-200 text-sm">
+                <span className="w-5 h-5 rounded bg-indigo-100 text-indigo-600 flex items-center justify-center text-[10px] font-bold">
+                  {singleBrand.name.charAt(0).toUpperCase()}
+                </span>
+                <span className="text-gray-700">{singleBrand.name}</span>
+              </div>
+            </div>
+          ) : (
+            <Select
+              label="Brand *"
+              value={brandId}
+              onChange={(e) => setBrandId(e.target.value)}
+              options={brandOptions}
+            />
+          )}
         </div>
 
         <div className="grid grid-cols-2 gap-4">

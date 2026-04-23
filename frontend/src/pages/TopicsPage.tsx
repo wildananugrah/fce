@@ -179,6 +179,15 @@ export function TopicsPage() {
 		loadData();
 	}, [loadData]);
 
+	// 1:1 project:brand — auto-select the only brand once it's loaded so the
+	// user doesn't have to. If the project somehow has multiple (legacy data),
+	// fall through to the selector by leaving brandId empty.
+	useEffect(() => {
+		if (brands.length === 1 && brandId !== brands[0].id) {
+			setBrandId(brands[0].id);
+		}
+	}, [brands, brandId]);
+
 	// Fetch content pillars when brand/product changes
 	useEffect(() => {
 		if (!activeWorkspace || !brandId) {
@@ -443,15 +452,29 @@ export function TopicsPage() {
 								Context
 							</div>
 
-							<Select
-								label="Brand *"
-								options={brandOptions}
-								value={brandId}
-								onChange={(e) => {
-									setBrandId(e.target.value);
-									setSelectedProductIds([]);
-								}}
-							/>
+							{brands.length === 1 ? (
+								<div>
+									<label className="block text-xs font-medium text-gray-600 uppercase tracking-wide mb-1.5">
+										Brand
+									</label>
+									<div className="flex items-center gap-2 px-3 py-2 rounded-md bg-gray-50 border border-gray-200 text-sm">
+										<span className="w-5 h-5 rounded bg-indigo-100 text-indigo-600 flex items-center justify-center text-[10px] font-bold">
+											{brands[0].name.charAt(0).toUpperCase()}
+										</span>
+										<span className="text-gray-700">{brands[0].name}</span>
+									</div>
+								</div>
+							) : (
+								<Select
+									label="Brand *"
+									options={brandOptions}
+									value={brandId}
+									onChange={(e) => {
+										setBrandId(e.target.value);
+										setSelectedProductIds([]);
+									}}
+								/>
+							)}
 
 							{brandId && filteredProducts.length > 0 && (
 								<div>
