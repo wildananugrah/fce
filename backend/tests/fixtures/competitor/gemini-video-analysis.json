@@ -1,0 +1,13 @@
+{
+  "hook": "Opens with a loud sound and a close-up of a kettlebell swing — grabs attention in under 1 second.",
+  "retentionMechanisms": [
+    "Rapid cuts every 1.5 seconds",
+    "Text overlay asks a question at 0:03 to keep viewer watching for the answer",
+    "Reveal at 0:11 resolves the question"
+  ],
+  "pacingNotes": "Very fast cuts front-loaded; slows in the middle reveal; fast cuts again at the end to drive CTA.",
+  "onScreenText": ["How do you get strong arms?", "Do THIS for 30 days", "Save this!"],
+  "audioStyle": "Upbeat hip-hop track at 140 BPM; voice-over in punchy short sentences.",
+  "whyItWentViral": "Combines an instantly visible workout result with a clear, actionable 30-day promise — triggers both curiosity and skepticism, boosting comments and saves.",
+  "ctaAnalysis": "Soft CTA 'Save this!' rather than 'Follow me' — higher save-rate which the algorithm rewards."
+}
