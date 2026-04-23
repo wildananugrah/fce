@@ -441,3 +441,63 @@ LIMIT 1;
 
 
 ```
+
+## Competitor Analyzer — Operator Queries
+
+See also [competitor-analyzer-monitoring.md](competitor-analyzer-monitoring.md) for LogQL + runbook.
+
+### 1. Failed runs in last 24h
+```sql
+SELECT id, project_id, stage, error_message, started_at, completed_at
+FROM competitor_pipeline_runs
+WHERE status = 'failed' AND created_at > NOW() - INTERVAL '24 hours'
+ORDER BY created_at DESC;
+```
+
+### 2. "Stuck" runs (started but not completed beyond 45 min)
+```sql
+SELECT id, project_id, status, stage, started_at
+FROM competitor_pipeline_runs
+WHERE status NOT IN ('completed','failed')
+  AND started_at < NOW() - INTERVAL '45 minutes';
+```
+
+### 3. Per-run video analysis outcome breakdown
+```sql
+SELECT r.id AS run_id,
+       COUNT(*) FILTER (WHERE v.analysis_status = 'completed') AS ok,
+       COUNT(*) FILTER (WHERE v.analysis_status = 'failed')    AS failed,
+       COUNT(*) FILTER (WHERE v.analysis_status = 'pending')   AS pending
+FROM competitor_pipeline_runs r
+LEFT JOIN pipeline_content v ON v.run_id = r.id
+WHERE r.id = '<run-id>'
+GROUP BY r.id;
+```
+
+### 4. Cost per run
+```sql
+SELECT SUM(estimated_cost) AS usd,
+       SUM(input_tokens) AS in_tok,
+       SUM(output_tokens) AS out_tok
+FROM ai_provider_logs
+WHERE generator IN ('competitor_video_analysis','competitor_script_generation')
+  AND user_prompt LIKE '%<run-id>%';
+```
+
+### 5. Creator enrichment queue health
+```sql
+SELECT enrichment_status, COUNT(*)
+FROM creators
+WHERE archived_at IS NULL
+GROUP BY enrichment_status;
+```
+
+### 6. Top-performing analyzed competitor videos per project
+```sql
+SELECT v.view_count, v.like_count, v.caption, c.username, c.platform, v.created_at
+FROM pipeline_content v
+JOIN creators c ON c.id = v.creator_id
+WHERE c.project_id = '<project-id>' AND v.analysis_status = 'completed'
+ORDER BY v.view_count DESC NULLS LAST
+LIMIT 20;
+```
