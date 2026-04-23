@@ -7,7 +7,9 @@ import { ArchiveSweepJob } from "./jobs/archive-sweep.job";
 import { BrandScrapingJob } from "./jobs/brand-scraping.job";
 import { CampaignGenerationJob } from "./jobs/campaign-generation.job";
 import { CampaignPdfGenerationJob } from "./jobs/campaign-pdf-generation.job";
+import { CompetitorPipelineJob } from "./jobs/competitor-pipeline.job";
 import { ContentGenerationJob } from "./jobs/content-generation.job";
+import { CreatorEnrichmentJob } from "./jobs/creator-enrichment.job";
 import { DocumentExtractionJob } from "./jobs/document-extraction.job";
 import { LinkScrapingJob } from "./jobs/link-scraping.job";
 import { RecommendationRecomputeJob } from "./jobs/recommendation-recompute.job";
@@ -22,6 +24,7 @@ import { createWorkspaceMiddleware } from "./middlewares/workspace.middleware";
 import { AnthropicChatProvider } from "./providers/anthropic-chat.provider";
 import { AnthropicProvider } from "./providers/anthropic.provider";
 import { GeminiChatProvider } from "./providers/gemini-chat.provider";
+import { GeminiVideoAnalyzerProvider } from "./providers/gemini-video.provider";
 import { ApifyProvider } from "./providers/apify.provider";
 import { NoopEmailProvider } from "./providers/noop-email.provider";
 import { ResendEmailProvider } from "./providers/resend-email.provider";
@@ -29,10 +32,13 @@ import { GeminiImageProvider } from "./providers/gemini-image.provider";
 import { GeminiProvider } from "./providers/gemini.provider";
 import { MinioStorageProvider } from "./providers/minio.provider";
 import { WinstonLogger } from "./providers/winston-logger.provider";
+import { AnalysisConfigRepository } from "./repositories/analysis-config.repository";
 import { BrandRepository } from "./repositories/brand.repository";
 import { CampaignRevisionRepository } from "./repositories/campaign-revision.repository";
 import { ChatMessageRepository } from "./repositories/chat-message.repository";
 import { CampaignRepository } from "./repositories/campaign.repository";
+import { CompetitorPipelineRepository } from "./repositories/competitor-pipeline.repository";
+import { CreatorRepository } from "./repositories/creator.repository";
 import { DocumentRepository } from "./repositories/document.repository";
 import { GenerationRepository } from "./repositories/generation.repository";
 import { OutputSectionRepository } from "./repositories/output-section.repository";
@@ -58,6 +64,7 @@ import { createLibraryRoutes } from "./routes/library.route";
 import { createProjectRoutes } from "./routes/project.route";
 import { createProductRoutes } from "./routes/product.route";
 import { createRecommendationRoutes } from "./routes/recommendation.route";
+import { createCompetitorAnalyzerRoutes } from "./routes/competitor-analyzer.route";
 import { createResearchRoutes } from "./routes/research.route";
 import { createUrlInspirationRoutes } from "./routes/url-inspiration.route";
 import { createSkillRoutes, createWorkspaceSkillRoutes } from "./routes/skill.route";
@@ -75,10 +82,13 @@ import {
 import { createWorkspaceRoutes } from "./routes/workspace.route";
 import { AdminService } from "./services/admin.service";
 import { AiProviderFactory } from "./services/ai-provider-factory.service";
+import { AnalysisConfigService } from "./services/analysis-config.service";
 import { AuthService } from "./services/auth.service";
 import { ChatService } from "./services/chat.service";
 import { BrandService } from "./services/brand.service";
 import { CampaignService } from "./services/campaign.service";
+import { CompetitorPipelineService } from "./services/competitor-pipeline.service";
+import { CreatorService } from "./services/creator.service";
 import { DashboardService } from "./services/dashboard.service";
 import { DocumentService } from "./services/document.service";
 import { GenerationService } from "./services/generation.service";
@@ -93,6 +103,7 @@ import { TaxonomyService } from "./services/taxonomy.service";
 import { TopicService } from "./services/topic.service";
 import { TrashService } from "./services/trash.service";
 import { WorkspaceService } from "./services/workspace.service";
+import { logAiActivity } from "./utils/ai-activity-logger";
 import { env } from "./utils/env";
 
 // AI provider resolution now lives in AiProviderFactory — see below. Env vars
@@ -128,6 +139,9 @@ async function main() {
 	const chatMessageRepository = new ChatMessageRepository(prisma);
 	const campaignRevisionRepository = new CampaignRevisionRepository(prisma);
 	const workspaceSettingRepository = new WorkspaceSettingRepository(prisma);
+	const creatorRepository = new CreatorRepository(prisma);
+	const analysisConfigRepository = new AnalysisConfigRepository(prisma);
+	const competitorPipelineRepository = new CompetitorPipelineRepository(prisma);
 	const storageProvider = new MinioStorageProvider(
 		env.minioEndpoint,
 		env.minioAccessKey,
@@ -212,6 +226,28 @@ async function main() {
 	const adminService = new AdminService(prisma);
 	const researchService = new ResearchService(researchRepository, apifyProvider, boss, logger);
 
+	// Shared helper used by competitor analyzer jobs to fetch a workspace's
+	// Apify key without coupling to the WorkspaceSetting repo directly.
+	const apifyKeyLookup = async (wsId: string): Promise<string | null> => {
+		const setting = await prisma.workspaceSetting.findUnique({ where: { workspaceId: wsId } });
+		return setting?.apifyApiKey ?? null;
+	};
+
+	const creatorService = new CreatorService(creatorRepository, boss, logger);
+	const analysisConfigService = new AnalysisConfigService(
+		analysisConfigRepository,
+		creatorRepository,
+		logger,
+	);
+	const competitorPipelineService = new CompetitorPipelineService(
+		competitorPipelineRepository,
+		analysisConfigRepository,
+		creatorRepository,
+		boss,
+		apifyKeyLookup,
+		logger,
+	);
+
 	const chatService = new ChatService(
 		prisma,
 		chatMessageRepository,
@@ -283,6 +319,95 @@ async function main() {
 	const researchRunJob = new ResearchRunJob(prisma, apifyProvider, notificationService, logger);
 	const archiveSweepJob = new ArchiveSweepJob(prisma, logger, env.archiveTtlDays);
 
+	const creatorEnrichmentJob = new CreatorEnrichmentJob(
+		creatorRepository,
+		apifyProvider,
+		apifyKeyLookup,
+		notificationService,
+		logger,
+	);
+
+	// Pipeline job resolves a fresh Gemini analyzer per run using the
+	// per-workspace key via AiProviderFactory. Wrap the class construction in
+	// a small closure so the pg-boss worker signature below stays uniform.
+	const buildVideoAnalyzer = async (workspaceId: string): Promise<GeminiVideoAnalyzerProvider> => {
+		const settings = await aiProviderFactory.getSettings(workspaceId);
+		const apiKey = settings.gemini.apiKey ?? env.geminiApiKey;
+		const model = settings.gemini.model ?? env.geminiModel ?? "gemini-2.5-flash";
+		if (!apiKey) throw new Error("Gemini API key not configured");
+		return new GeminiVideoAnalyzerProvider(apiKey, model);
+	};
+
+	const videoFetcher = async (url: string): Promise<{ bytes: Uint8Array; mimeType: string }> => {
+		const resp = await fetch(url);
+		if (!resp.ok) throw new Error(`Video fetch failed: HTTP ${resp.status}`);
+		const mimeType = resp.headers.get("content-type") ?? "video/mp4";
+		const ab = await resp.arrayBuffer();
+		return { bytes: new Uint8Array(ab), mimeType };
+	};
+
+	// The worker loads the run, builds a workspace-scoped analyzer, then
+	// hands off to CompetitorPipelineJob. Reason: analyzer needs the
+	// workspace-specific Gemini key, which isn't known at composition time.
+	const competitorPipelineJob = {
+		async handle(data: { runId: string }) {
+			const run = await prisma.competitorPipelineRun.findUnique({
+				where: { id: data.runId },
+				select: { workspaceId: true },
+			});
+			if (!run) {
+				logger.error("competitor_pipeline_failed", { runId: data.runId, error: "Run not found" });
+				return;
+			}
+			let analyzer: GeminiVideoAnalyzerProvider;
+			try {
+				analyzer = await buildVideoAnalyzer(run.workspaceId);
+			} catch (err) {
+				await prisma.competitorPipelineRun.update({
+					where: { id: data.runId },
+					data: {
+						status: "failed",
+						errorMessage: err instanceof Error ? err.message : "Gemini config error",
+						completedAt: new Date(),
+					},
+				});
+				return;
+			}
+			const job = new CompetitorPipelineJob(
+				competitorPipelineRepository,
+				analysisConfigRepository,
+				creatorRepository,
+				apifyProvider,
+				analyzer,
+				videoFetcher,
+				apifyKeyLookup,
+				notificationService,
+				async (args) =>
+					logAiActivity(
+						prisma,
+						{
+							workspaceId: args.workspaceId,
+							generator: args.generator,
+							provider: "gemini",
+							userId: args.userId,
+							systemPrompt: args.systemPrompt,
+							userPrompt: args.userPrompt,
+						},
+						{
+							inputTokens: args.inputTokens,
+							outputTokens: args.outputTokens,
+							durationMs: args.durationMs,
+							status: args.status,
+							errorMessage: args.errorMessage,
+							responseJson: args.responseJson,
+						},
+					),
+				logger,
+			);
+			await job.handle(data);
+		},
+	};
+
 	// ─── Create PgBoss Queues ───────────────────────────────────────
 	await boss.createQueue("content-generation");
 	await boss.createQueue("campaign-generation");
@@ -295,6 +420,8 @@ async function main() {
 	await boss.createQueue("recommendation-recompute");
 	await boss.createQueue("research-run");
 	await boss.createQueue("archive-sweep");
+	await boss.createQueue("creator-enrichment");
+	await boss.createQueue("competitor-pipeline");
 
 	// ─── Register PgBoss Workers ─────────────────────────────────────
 	// Each queue is tuned for its workload:
@@ -382,6 +509,20 @@ async function main() {
 		async (jobs) => {
 			// Scheduled sweeper — one "tick" per fire; the job ignores its payload.
 			for (const _ of jobs) await archiveSweepJob.handle();
+		},
+	);
+	await boss.work(
+		"creator-enrichment",
+		{ localConcurrency: 3, pollingIntervalSeconds: 2 },
+		async (jobs) => {
+			for (const job of jobs) await creatorEnrichmentJob.handle(job.data as any);
+		},
+	);
+	await boss.work(
+		"competitor-pipeline",
+		{ localConcurrency: 1, pollingIntervalSeconds: 5 },
+		async (jobs) => {
+			for (const job of jobs) await competitorPipelineJob.handle(job.data as any);
 		},
 	);
 
@@ -513,6 +654,15 @@ async function main() {
 	);
 	workspaceScoped.route("/ai-logs", createAiLogRoutes(prisma));
 	workspaceScoped.route("/research", createResearchRoutes(researchService));
+	workspaceScoped.route(
+		"/projects/:projectId/competitor-analyzer",
+		createCompetitorAnalyzerRoutes(
+			prisma,
+			creatorService,
+			analysisConfigService,
+			competitorPipelineService,
+		),
+	);
 	workspaceScoped.route("/url-inspiration", createUrlInspirationRoutes(urlInspirationService));
 	workspaceScoped.route("/reference-images", createUploadRoutes(storageProvider, env.minioBucket));
 	workspaceScoped.route(
