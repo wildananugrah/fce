@@ -4,6 +4,7 @@
  * or bootstrapping without opening the UI.
  *
  *   bun run scripts/create-user.ts <email> <password> [fullName] [--superadmin]
+ *   bun run scripts/create-user.ts iqbal@floothink.com secret123 Iqbal
  *
  * Examples:
  *   bun run scripts/create-user.ts wildananugrah@gmail.com ChangeMe123
