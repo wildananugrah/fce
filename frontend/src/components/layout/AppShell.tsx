@@ -19,6 +19,7 @@ import {
   Plus,
   LogOut,
   Search,
+  LineChart,
 } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import { useProject } from "../../hooks/useProject";
@@ -78,6 +79,7 @@ const navSections: NavSection[] = [
     label: "Research",
     items: [
       { to: "/research", label: "Research Hub", icon: Search, menuKey: "research-hub" },
+      { to: "/competitor-analyzer", label: "Competitor Analyzer", icon: LineChart, menuKey: "competitor-analyzer" },
     ],
   },
 ];
