@@ -28,6 +28,8 @@ import { GeminiVideoAnalyzerProvider } from "./providers/gemini-video.provider";
 import { ApifyProvider } from "./providers/apify.provider";
 import { NoopEmailProvider } from "./providers/noop-email.provider";
 import { ResendEmailProvider } from "./providers/resend-email.provider";
+import { SmtpEmailProvider } from "./providers/smtp-email.provider";
+import type { IEmailProvider } from "./interfaces/providers/email.provider.interface";
 import { GeminiImageProvider } from "./providers/gemini-image.provider";
 import { GeminiProvider } from "./providers/gemini.provider";
 import { MinioStorageProvider } from "./providers/minio.provider";
@@ -167,9 +169,47 @@ async function main() {
 	});
 
 	// ─── Services ───────────────────────────────────────────────────
-	const emailProvider = env.resendApiKey
-		? new ResendEmailProvider(env.resendApiKey, env.emailFrom, logger)
-		: new NoopEmailProvider(logger);
+	// EMAIL_PROVIDER picks the transport. Each branch validates its own
+	// required env vars and falls back to Noop (logs to stdout, never
+	// delivers) if the configuration is incomplete — that way a
+	// missing SMTP_PASS in staging doesn't crash boot, it just leaves
+	// outgoing mail in a known-degraded state that shows up in logs.
+	const emailProvider: IEmailProvider = (() => {
+		const kind = env.emailProvider.toLowerCase();
+		if (kind === "resend") {
+			if (!env.resendApiKey) {
+				logger.warn("EMAIL_PROVIDER=resend but RESEND_API_KEY is empty — falling back to noop");
+				return new NoopEmailProvider(logger);
+			}
+			logger.info("Email provider: Resend", { from: env.emailFrom });
+			return new ResendEmailProvider(env.resendApiKey, env.emailFrom, logger);
+		}
+		if (kind === "smtp") {
+			if (!env.smtpHost || !env.smtpUser || !env.smtpPass) {
+				logger.warn("EMAIL_PROVIDER=smtp but SMTP_HOST/SMTP_USER/SMTP_PASS incomplete — falling back to noop");
+				return new NoopEmailProvider(logger);
+			}
+			logger.info("Email provider: SMTP", {
+				host: env.smtpHost,
+				port: env.smtpPort,
+				secure: env.smtpSecure,
+				from: env.emailFrom,
+			});
+			return new SmtpEmailProvider(
+				{
+					host: env.smtpHost,
+					port: env.smtpPort,
+					secure: env.smtpSecure,
+					user: env.smtpUser,
+					pass: env.smtpPass,
+				},
+				env.emailFrom,
+				logger,
+			);
+		}
+		logger.info("Email provider: noop (EMAIL_PROVIDER unset or 'noop')");
+		return new NoopEmailProvider(logger);
+	})();
 	const workspaceService = new WorkspaceService(
 		workspaceRepository,
 		emailProvider,

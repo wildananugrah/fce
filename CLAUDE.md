@@ -158,7 +158,7 @@ Copy `.env.example` to `.env`. Key variables:
 - `JWT_SECRET`, `JWT_REFRESH_SECRET`, `JWT_EXPIRY`, `JWT_REFRESH_EXPIRY`.
 - `EMAIL_VERIFICATION_TOKEN_EXPIRY` — default `24h`. Parseable as `"30s"`, `"5m"`, `"2h"`, `"7d"`.
 - `ARCHIVE_TTL_DAYS` — default `30`. Soft-archived brands/products/topics/content older than this are hard-deleted by the hourly `archive-sweep` pg-boss worker.
-- `RESEND_API_KEY` + `EMAIL_FROM` — if unset, emails are logged to stdout (dev only).
+- `EMAIL_PROVIDER` (`resend` | `smtp` | `noop` — default `noop`) + `EMAIL_FROM`. `noop` logs to stdout (dev only). Resend uses `RESEND_API_KEY`. SMTP uses `SMTP_HOST` / `SMTP_PORT` / `SMTP_SECURE` / `SMTP_USER` / `SMTP_PASS` — works with Mailjet, Gmail, AWS SES, Mailgun, anything speaking SMTP. Switching providers is a `.env` edit + restart.
 - `APP_URL` — used to build verification + invitation links.
 - **AI defaults (fallbacks only)**: `AI_PROVIDER`, `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `GEMINI_IMAGE_MODEL`. Per-task overrides: `AI_CONTENT_PROVIDER`, `AI_CAMPAIGN_PROVIDER`, `AI_TOPIC_PROVIDER`, `AI_BRAND_SCRAPER_PROVIDER`, `AI_CHAT_PROVIDER`. Workspaces can override any of these from Workspace Settings → Integrations → AI Providers; env values kick in only when a workspace hasn't configured its own.
 

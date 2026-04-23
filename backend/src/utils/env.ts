@@ -38,7 +38,18 @@ export const env = {
 	serviceName: optionalEnv("SERVICE_NAME", "fce-backend"),
 	lokiUrl: optionalEnv("LOKI_URL"),
 	otelEndpoint: optionalEnv("OTEL_EXPORTER_OTLP_ENDPOINT"),
+	// Pick the transactional email provider. Values:
+	//   "resend" — HTTP API via RESEND_API_KEY
+	//   "smtp"   — any SMTP server (Mailjet, Google, SES, Mailgun…) via SMTP_*
+	//   "noop" (or unset) — logs emails to stdout, never delivers; dev only
+	emailProvider: optionalEnv("EMAIL_PROVIDER", "noop"),
 	resendApiKey: optionalEnv("RESEND_API_KEY"),
+	smtpHost: optionalEnv("SMTP_HOST"),
+	smtpPort: Number.parseInt(optionalEnv("SMTP_PORT", "587"), 10),
+	// true for port 465 (implicit TLS); false for 587 (STARTTLS).
+	smtpSecure: optionalEnv("SMTP_SECURE", "false") === "true",
+	smtpUser: optionalEnv("SMTP_USER"),
+	smtpPass: optionalEnv("SMTP_PASS"),
 	emailFrom: optionalEnv("EMAIL_FROM", "onboarding@resend.dev"),
 	appUrl: optionalEnv("APP_URL", "http://localhost:5173"),
 	invitationTokenExpiry: optionalEnv("INVITATION_TOKEN_EXPIRY", "7d"),
