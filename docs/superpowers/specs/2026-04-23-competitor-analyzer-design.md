@@ -138,6 +138,7 @@ model CompetitorPipelineRun {
   workspace Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   project   Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
   config    AnalysisConfig?  @relation(fields: [configId], references: [id], onDelete: SetNull)
+  user      User             @relation(fields: [userId], references: [id], onDelete: Restrict)
   videos    PipelineContent[]
   scripts   PipelineScript[]
 

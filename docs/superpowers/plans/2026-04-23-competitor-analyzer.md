@@ -207,6 +207,7 @@ model CompetitorPipelineRun {
   workspace Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   project   Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
   config    AnalysisConfig?   @relation(fields: [configId], references: [id], onDelete: SetNull)
+  user      User              @relation(fields: [userId], references: [id], onDelete: Restrict)
   videos    PipelineContent[]
   scripts   PipelineScript[]
 
@@ -286,12 +287,13 @@ Find the `model Project {` block and add inside it:
   competitorPipelineRuns CompetitorPipelineRun[]
 ```
 
-- [ ] **Step 3b: Add back-reference to `User` model**
+- [ ] **Step 3b: Add back-references to `User` model**
 
 Find the `model User {` block and add inside it (the `@relation("CreatorCreator")` name disambiguates from other creator-like relations):
 
 ```prisma
-  createdCreators Creator[] @relation("CreatorCreator")
+  createdCreators        Creator[]               @relation("CreatorCreator")
+  competitorPipelineRuns CompetitorPipelineRun[]
 ```
 
 - [ ] **Step 4: Push the schema to the database**
