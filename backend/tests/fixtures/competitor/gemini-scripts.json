@@ -1,0 +1,36 @@
+[
+  {
+    "scriptNumber": 1,
+    "title": "Kettlebell 30-Day Challenge",
+    "hook": "You only need one kettlebell to change your arms in 30 days.",
+    "body": "Day 1–10: 50 swings a day. Day 11–20: add 20 Turkish get-ups. Day 21–30: finisher sets. Form tips on each day.",
+    "broll": [
+      { "scene": "0:00–0:02", "description": "Close-up of kettlebell slamming into frame." },
+      { "scene": "0:02–0:08", "description": "Quick cuts of each exercise." },
+      { "scene": "0:08–0:12", "description": "Before/after shot of trainer." }
+    ],
+    "cta": "Save this for Day 1."
+  },
+  {
+    "scriptNumber": 2,
+    "title": "The 3-Move Arm Finisher",
+    "hook": "If your arms aren't growing, you're skipping THIS.",
+    "body": "Three unconventional arm moves: bottom-half curls, isometric holds, eccentric extensions. 3 sets each, twice a week.",
+    "broll": [
+      { "scene": "0:00–0:03", "description": "Trainer pointing at triceps." },
+      { "scene": "0:03–0:15", "description": "Demo of each move." }
+    ],
+    "cta": "Follow for part 2."
+  },
+  {
+    "scriptNumber": 3,
+    "title": "Why Your Form Is Wrong",
+    "hook": "Stop doing curls like this.",
+    "body": "Common curl mistake demonstration, then fix. Emphasise wrist and elbow alignment.",
+    "broll": [
+      { "scene": "0:00–0:02", "description": "Wrong form in slow-mo." },
+      { "scene": "0:02–0:10", "description": "Correct form in slow-mo with arrows." }
+    ],
+    "cta": "Share with a gym buddy."
+  }
+]

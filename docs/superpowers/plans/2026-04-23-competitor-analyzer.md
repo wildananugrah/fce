@@ -207,6 +207,7 @@ model CompetitorPipelineRun {
   workspace Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   project   Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
   config    AnalysisConfig?   @relation(fields: [configId], references: [id], onDelete: SetNull)
+  user      User              @relation(fields: [userId], references: [id], onDelete: Restrict)
   videos    PipelineContent[]
   scripts   PipelineScript[]
 
@@ -286,12 +287,13 @@ Find the `model Project {` block and add inside it:
   competitorPipelineRuns CompetitorPipelineRun[]
 ```
 
-- [ ] **Step 3b: Add back-reference to `User` model**
+- [ ] **Step 3b: Add back-references to `User` model**
 
 Find the `model User {` block and add inside it (the `@relation("CreatorCreator")` name disambiguates from other creator-like relations):
 
 ```prisma
-  createdCreators Creator[] @relation("CreatorCreator")
+  createdCreators        Creator[]               @relation("CreatorCreator")
+  competitorPipelineRuns CompetitorPipelineRun[]
 ```
 
 - [ ] **Step 4: Push the schema to the database**
@@ -2221,7 +2223,7 @@ describe("CompetitorPipelineService", () => {
 			expect(bossCalls).toHaveLength(1);
 			expect(bossCalls[0].queue).toBe("competitor-pipeline");
 			expect(bossCalls[0].data).toEqual({ runId: run.id });
-			expect(bossCalls[0].opts).toEqual({ expireInHours: 0.5 });
+			expect(bossCalls[0].opts).toEqual({ expireInSeconds: 1800 });
 		});
 	});
 
@@ -2342,7 +2344,7 @@ export class CompetitorPipelineService implements ICompetitorPipelineService {
 		await this.boss.send(
 			"competitor-pipeline",
 			{ runId: run.id },
-			{ expireInHours: 0.5 },
+			{ expireInSeconds: 1800 },
 		);
 
 		this.logger.info("Competitor pipeline run enqueued", {

@@ -33,6 +33,8 @@ model User {
   chatMessages       CampaignChatMessage[]
   projectMemberships UserProjectMembership[]
   verificationTokens EmailVerificationToken[]
+  createdCreators    Creator[]               @relation("CreatorCreator")
+  competitorPipelineRuns CompetitorPipelineRun[]
 
   @@map("users")
 }
@@ -64,11 +66,14 @@ model Workspace {
   auditLogs      AuditLog[]
   documents      BrandDocument[]
   savedTemplates SavedTemplate[]
-  skillMappings    WorkspaceSkillMapping[]
-  aiProviderLogs   AiProviderLog[]
-  workspaceSetting WorkspaceSetting?
-  researchRuns     ResearchRun[]
-  researchResults  ResearchResult[]
+  skillMappings          WorkspaceSkillMapping[]
+  aiProviderLogs         AiProviderLog[]
+  workspaceSetting       WorkspaceSetting?
+  researchRuns           ResearchRun[]
+  researchResults        ResearchResult[]
+  creators               Creator[]
+  analysisConfigs        AnalysisConfig[]
+  competitorPipelineRuns CompetitorPipelineRun[]
 
   @@map("workspaces")
 }
@@ -838,9 +843,12 @@ model Project {
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
 
-  workspace   Workspace               @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  memberships UserProjectMembership[]
-  brands      Brand[]
+  workspace              Workspace               @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  memberships            UserProjectMembership[]
+  brands                 Brand[]
+  creators               Creator[]
+  analysisConfigs        AnalysisConfig[]
+  competitorPipelineRuns CompetitorPipelineRun[]
 
   @@unique([workspaceId, slug])
   @@index([workspaceId])
@@ -882,4 +890,154 @@ model EmailVerificationToken {
 
   @@index([userId])
   @@map("email_verification_tokens")
+}
+
+// ─── Competitor Analyzer ────────────────────────────────────────
+
+model Creator {
+  id               String    @id @default(uuid())
+  workspaceId      String    @map("workspace_id")
+  projectId        String    @map("project_id")
+  // User who added this creator. Used by the enrichment job to route SSE
+  // notifications back to the right browser tab. Nullable = SetNull on user
+  // delete so historical creators survive.
+  createdBy        String?   @map("created_by")
+  platform         String                                  // "tiktok" | "instagram" | "youtube" | "linkedin" | "twitter" | "facebook"
+  profileUrl       String    @map("profile_url") @db.Text
+  username         String
+  displayName      String?   @map("display_name")
+  niche            String
+  followerCount    Int?      @map("follower_count")
+  avatarUrl        String?   @map("avatar_url") @db.Text
+  bio              String?   @db.Text
+  platformMetadata Json?     @map("platform_metadata")
+  enrichmentStatus String    @default("pending") @map("enrichment_status")
+  enrichmentError  String?   @map("enrichment_error") @db.Text
+  lastEnrichedAt   DateTime? @map("last_enriched_at")
+  archivedAt       DateTime? @map("archived_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  workspace      Workspace               @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project        Project                 @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  creator        User?                   @relation("CreatorCreator", fields: [createdBy], references: [id], onDelete: SetNull)
+  configMembers  AnalysisConfigCreator[]
+  pipelineVideos PipelineContent[]
+
+  @@unique([projectId, platform, username])
+  @@index([projectId, platform, archivedAt])
+  @@index([workspaceId])
+  @@map("creators")
+}
+
+model AnalysisConfig {
+  id                   String    @id @default(uuid())
+  workspaceId          String    @map("workspace_id")
+  projectId            String    @map("project_id")
+  name                 String
+  targetNiche          String?   @map("target_niche")
+  brandContext         String    @map("brand_context") @db.Text
+  analysisInstructions String    @map("analysis_instructions") @db.Text
+  outputPreferences    String    @map("output_preferences") @db.Text
+  archivedAt           DateTime? @map("archived_at")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+
+  workspace Workspace               @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project   Project                 @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  creators  AnalysisConfigCreator[]
+  runs      CompetitorPipelineRun[]
+
+  @@index([projectId, archivedAt])
+  @@map("analysis_configs")
+}
+
+model AnalysisConfigCreator {
+  configId  String @map("config_id")
+  creatorId String @map("creator_id")
+
+  config  AnalysisConfig @relation(fields: [configId],  references: [id], onDelete: Cascade)
+  creator Creator        @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  @@id([configId, creatorId])
+  @@index([creatorId])
+  @@map("analysis_config_creators")
+}
+
+model CompetitorPipelineRun {
+  id               String    @id @default(uuid())
+  workspaceId      String    @map("workspace_id")
+  projectId        String    @map("project_id")
+  configId         String?   @map("config_id")
+  userId           String    @map("user_id")
+  videosPerCreator Int       @map("videos_per_creator")
+  lookbackPool     Int       @map("lookback_pool")
+  timeframeDays    Int       @map("timeframe_days")
+  status           String    @default("pending")
+  stage            String?
+  errorMessage     String?   @map("error_message") @db.Text
+  startedAt        DateTime? @map("started_at")
+  completedAt      DateTime? @map("completed_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  workspace Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project   Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  config    AnalysisConfig?   @relation(fields: [configId], references: [id], onDelete: SetNull)
+  user      User              @relation(fields: [userId], references: [id], onDelete: Restrict)
+  videos    PipelineContent[]
+  scripts   PipelineScript[]
+
+  @@index([projectId, createdAt])
+  @@index([status])
+  @@map("competitor_pipeline_runs")
+}
+
+model PipelineContent {
+  id               String    @id @default(uuid())
+  runId            String    @map("run_id")
+  creatorId        String    @map("creator_id")
+  platform         String
+  platformPostId   String    @map("platform_post_id")
+  contentType      String    @map("content_type")
+  contentUrl       String    @map("content_url") @db.Text
+  thumbnailUrl     String?   @map("thumbnail_url") @db.Text
+  caption          String?   @db.Text
+  viewCount        Int?      @map("view_count")
+  likeCount        Int?      @map("like_count")
+  shareCount       Int?      @map("share_count")
+  commentCount     Int?      @map("comment_count")
+  hashtags         Json?
+  postedAt         DateTime? @map("posted_at")
+  platformMetadata Json?     @map("platform_metadata")
+  analysisStatus   String    @default("pending") @map("analysis_status")
+  analysisJson     Json?     @map("analysis_json")
+  analysisError    String?   @map("analysis_error") @db.Text
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  run     CompetitorPipelineRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  creator Creator               @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  @@unique([runId, platform, platformPostId])
+  @@index([runId])
+  @@index([creatorId])
+  @@map("pipeline_content")
+}
+
+model PipelineScript {
+  id            String   @id @default(uuid())
+  runId         String   @map("run_id")
+  sourceVideoId String?  @map("source_video_id")
+  scriptNumber  Int      @map("script_number")
+  title         String?
+  hook          String?  @db.Text
+  body          String?  @db.Text
+  broll         Json?
+  cta           String?  @db.Text
+  rawContent    Json     @map("raw_content")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  run CompetitorPipelineRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([runId])
+  @@map("pipeline_scripts")
 }

@@ -52,3 +52,69 @@ Discussion:
 14. Report -> menu sendiri. 
 15. Research Hub -> pending.
 16. Learning Center -> pending. 
+
+
+== 23 Apr 2026
+
+I would like to build a new featured:
+
+"Create a new Feature for an AI-powered TikTok competitor analysis and script generation tool. The app will scrape viral competitor videos, analyze them, and generate new, tailored video concepts.
+
+Environment: Use a .env file to store API keys.
+
+Required External APIs (Implement integrations for these):
+
+Apify API: To scrape TikTok profiles and pull their most recent/viral videos (specifically fetching video metadata, views, and video URLs).
+
+Google Gemini API (Google AI Studio): To analyze the visual and audio elements of the scraped videos (understanding hooks, retention mechanisms, and content).
+
+Let say we have a menu which is named Competitor Analyzer, in that menu or page we have:
+
+1. Creators Tab (Competitor Database):
+
+A form to add a new competitor by inputting their TikTok URL, Username, and Niche.
+
+A dashboard displaying a grid/list of saved creators, showing their username, niche, follower count, and a preview profile image.
+
+2. Configs Tab (Brand & Output Settings):
+
+A form to create new analysis configurations.
+
+Fields should include: Config Name, Target Niche/Category, Brand Context (who we are, what we sell), Analysis Instructions (e.g., "analyze the hook, retention mechanisms, and CTA"), and Output Preferences (e.g., "Generate 3 different script concepts with B-roll descriptions").
+
+Save and display a list of created configurations.
+
+3. Run Pipeline Tab (Execution & Results):
+
+A settings panel to execute a job. It should have dropdowns/inputs to: Select a Config, specify how many recent videos to pull per creator (e.g., top 3 out of the last 20), and set a timeframe limit (e.g., only videos from the last 30 days).
+
+A "Run Pipeline" button.
+
+Results Display Area: Once the pipeline finishes, display the scraped videos alongside their AI analysis. Show the video thumbnail/link, why the video went viral (Gemini's analysis of the hook/retention).
+
+Core Backend Logic Flow for the Pipeline:
+
+Retrieve the list of creators linked to the selected config's niche.
+
+Trigger Apify to scrape the selected creators' profiles for videos matching the timeframe and view-count parameters.
+
+Send the top viral videos to the Gemini API with instructions to analyze the video/audio for hooks and retention strategies.
+
+Pass Gemini's analysis, along with the specific rules from the user's Config (brand constraints, script format).
+
+----
+
+bun run scripts/create-user.ts kiranainternflo@gmail.com secret123 "Kirana"
+bun run scripts/create-user.ts vita@floothink.com secret123 "Vita"
+bun run scripts/create-user.ts amelia@floothink.com secret123 "Amelia"
+bun run scripts/create-user.ts johan@floothink.com secret123 "Johan"
+bun run scripts/create-user.ts fatur@floothink.com secret123 "Fatur"
+
+bun run scripts/assign-user-to-project.ts kiranainternflo@gmail.com Floothink First
+bun run scripts/assign-user-to-project.ts vita@floothink.com Floothink First
+bun run scripts/assign-user-to-project.ts amelia@floothink.com Floothink First
+bun run scripts/assign-user-to-project.ts johan@floothink.com Floothink First
+bun run scripts/assign-user-to-project.ts fatur@floothink.com Floothink First 
+bun run scripts/assign-user-to-project.ts iqbal@floothink.com Floothink First 
+
+bun run scripts/assign-user-to-project.ts alice@floothink.com Floothink First --approver

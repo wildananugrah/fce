@@ -1,0 +1,21 @@
+[
+  {
+    "id": "7321234567890123456",
+    "text": "sample caption",
+    "createTime": 1711584000,
+    "webVideoUrl": "https://www.tiktok.com/@acme/video/7321234567890123456",
+    "authorMeta": {
+      "id": "user123",
+      "name": "acme",
+      "nickName": "Acme Fitness",
+      "signature": "We help you get stronger.",
+      "avatar": "https://p16-sign-va.tiktokcdn.com/acme_avatar.jpg"
+    },
+    "authorStats": {
+      "followerCount": 125000,
+      "followingCount": 42,
+      "heart": 3100000,
+      "videoCount": 218
+    }
+  }
+]

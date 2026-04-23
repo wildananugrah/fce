@@ -32,6 +32,12 @@ const EVENT_TYPES = [
   "campaign_pdf_progress",
   "campaign_pdf_complete",
   "campaign_pdf_failed",
+  // Competitor analyzer
+  "creator_enrichment_completed",
+  "competitor_pipeline_stage_changed",
+  "competitor_pipeline_video_analyzed",
+  "competitor_pipeline_completed",
+  "competitor_pipeline_failed",
 ] as const;
 
 export function useSSE(onEvent: (event: SSEEvent) => void) {

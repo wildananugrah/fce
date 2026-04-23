@@ -23,6 +23,7 @@ import { BrandDetailPage } from "./pages/BrandDetailPage";
 import { ProductDetailPage } from "./pages/ProductDetailPage";
 import { ResearchPage } from "./pages/Research/ResearchPage";
 import { ResearchRunDetail } from "./pages/Research/ResearchRunDetail";
+import { CompetitorAnalyzerPage } from "./pages/CompetitorAnalyzerPage";
 import { AcceptInvitationPage } from "./pages/AcceptInvitationPage";
 import { VerifyPage } from "./pages/VerifyPage";
 
@@ -52,6 +53,7 @@ export default function App() {
               <Route path="/content-library" element={<LibraryPage />} />
               <Route path="/research" element={<ResearchPage />} />
               <Route path="/research/:runId" element={<ResearchRunDetail />} />
+              <Route path="/competitor-analyzer" element={<CompetitorAnalyzerPage />} />
               <Route path="/learning" element={<LearningPage />} />
               <Route path="/skills" element={<Navigate to="/workspace-settings" replace />} />
               <Route path="/settings" element={<SettingsPage />} />

@@ -12,7 +12,8 @@ export type MenuKey =
   | "topic-library"
   | "content-library"
   | "learning-center"
-  | "research-hub";
+  | "research-hub"
+  | "competitor-analyzer";
 
 export const ALL_MENU_KEYS: MenuKey[] = [
   "brand-brain",
@@ -24,6 +25,7 @@ export const ALL_MENU_KEYS: MenuKey[] = [
   "content-library",
   "learning-center",
   "research-hub",
+  "competitor-analyzer",
 ];
 
 export interface Project {
