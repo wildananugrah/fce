@@ -19,7 +19,7 @@ export function ConfigCreatorPicker({ creators, selectedIds, onSave }: Props) {
 		if (!q) return creators;
 		return creators.filter(
 			(c) =>
-				c.niche.toLowerCase().includes(q) ||
+				(c.niche?.toLowerCase().includes(q) ?? false) ||
 				c.username.toLowerCase().includes(q),
 		);
 	}, [creators, nicheFilter]);

@@ -45,6 +45,7 @@ const MENU_LABELS: Record<MenuKey, string> = {
   "content-library": "Content Library",
   "learning-center": "Learning Center",
   "research-hub": "Research Hub",
+  "competitor-analyzer": "Competitor Analyzer",
 };
 
 export function ProjectMembersPanel({ workspaceId, projectId, onToast, onChanged }: Props) {
