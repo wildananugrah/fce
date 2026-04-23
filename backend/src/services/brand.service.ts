@@ -28,6 +28,16 @@ export class BrandService implements IBrandService {
 		// invisible to every project view.
 		const projectId =
 			input.projectId ?? (await this.brandRepository.findDefaultProjectId(workspaceId)) ?? undefined;
+
+		// Enforce the 1:1 rule: a project can hold at most one brand. The DB
+		// has a unique constraint too, but we pre-check here so the error
+		// message is user-facing and clearer than Prisma's P2002.
+		if (projectId && (await this.brandRepository.projectHasBrand(projectId))) {
+			throw new Error(
+				"This project already has a brand. Each project can contain only one brand — create a new project to add another.",
+			);
+		}
+
 		return this.brandRepository.create({
 			workspaceId,
 			projectId,

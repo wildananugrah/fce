@@ -138,12 +138,14 @@ model Brand {
   generationRequests GenerationRequest[]
   researchRuns       ResearchRun[]
 
-  // Slug uniqueness is per-project, not per-workspace — otherwise you couldn't
-  // have the same brand name (e.g. "acme") in two different client projects
-  // inside one workspace. NULL projectId rows are distinct under this
-  // constraint (SQL NULL ≠ NULL), which is fine — they're legacy pre-migration
-  // and the RBAC backfill assigns them to Default project anyway.
+  // Slug uniqueness is per-project. See BrandRepository for the null-project
+  // fallback.
   @@unique([projectId, slug])
+  // Each project can contain at most ONE brand. Enforced at the schema level
+  // so the service layer can rely on it without a read-before-write race.
+  // NULL projectIds are distinct under this constraint — legacy only, shouldn't
+  // happen in normal flow since creation always falls back to Default project.
+  @@unique([projectId])
   @@index([workspaceId, archivedAt])
   @@map("brands")
 }

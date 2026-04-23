@@ -13,6 +13,8 @@ export interface IBrandRepository {
 	}): Promise<Brand>;
 	/** Resolve the Default project's id for a workspace (`slug = "default"`), or null if missing. */
 	findDefaultProjectId(workspaceId: string): Promise<string | null>;
+	/** True iff the given project already contains a non-archived brand. */
+	projectHasBrand(projectId: string): Promise<boolean>;
 	update(
 		id: string,
 		data: Partial<

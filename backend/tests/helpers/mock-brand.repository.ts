@@ -20,6 +20,10 @@ export class MockBrandRepository implements IBrandRepository {
 		return null;
 	}
 
+	async projectHasBrand(projectId: string): Promise<boolean> {
+		return this.brands.some((b) => b.projectId === projectId && b.archivedAt === null);
+	}
+
 	async findArchivedByWorkspace(workspaceId: string): Promise<Brand[]> {
 		return this.brands.filter((b) => b.workspaceId === workspaceId && b.archivedAt !== null);
 	}

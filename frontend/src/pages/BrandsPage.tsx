@@ -113,12 +113,31 @@ export function BrandsPage() {
     );
   }
 
+  const projectHasBrand = brands.length > 0;
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold text-black">Brands</h1>
-        <Button onClick={() => setShowCreate(true)}>New Brand</Button>
+        <Button
+          onClick={() => setShowCreate(true)}
+          disabled={projectHasBrand}
+          title={
+            projectHasBrand
+              ? "This project already has a brand. Each project can hold only one brand — create a new project from Workspace Settings → Projects to add another."
+              : undefined
+          }
+        >
+          New Brand
+        </Button>
       </div>
+
+      {projectHasBrand && (
+        <p className="text-xs text-gray-500">
+          Each project holds one brand. To add another brand, create a new project in{" "}
+          <span className="font-medium">Workspace Settings → Projects</span>, then switch to it.
+        </p>
+      )}
 
       {loading ? (
         <div className="flex justify-center py-12">

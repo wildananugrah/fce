@@ -41,6 +41,14 @@ export class BrandRepository implements IBrandRepository {
 		return project?.id ?? null;
 	}
 
+	async projectHasBrand(projectId: string): Promise<boolean> {
+		const existing = await this.prisma.brand.findFirst({
+			where: { projectId, archivedAt: null },
+			select: { id: true },
+		});
+		return existing !== null;
+	}
+
 	async findArchivedByWorkspace(workspaceId: string): Promise<Brand[]> {
 		return this.prisma.brand.findMany({
 			where: { workspaceId, archivedAt: { not: null } },
