@@ -138,8 +138,12 @@ model Brand {
   generationRequests GenerationRequest[]
   researchRuns       ResearchRun[]
 
-  @@unique([workspaceId, slug])
-  @@index([projectId])
+  // Slug uniqueness is per-project, not per-workspace — otherwise you couldn't
+  // have the same brand name (e.g. "acme") in two different client projects
+  // inside one workspace. NULL projectId rows are distinct under this
+  // constraint (SQL NULL ≠ NULL), which is fine — they're legacy pre-migration
+  // and the RBAC backfill assigns them to Default project anyway.
+  @@unique([projectId, slug])
   @@index([workspaceId, archivedAt])
   @@map("brands")
 }
