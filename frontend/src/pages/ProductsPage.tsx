@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useWorkspace } from "../hooks/useWorkspace";
+import { useProject } from "../hooks/useProject";
 import { api } from "../services/api";
 import { Button } from "../components/ui/Button";
 import { ProductDrawer } from "../components/products/ProductDrawer";
@@ -48,6 +49,7 @@ type ToastState = { message: string; type: "success" | "error" | "info" } | null
 // ---- Main Page ----
 export function ProductsPage() {
   const { activeWorkspace } = useWorkspace();
+  const { activeProject } = useProject();
   const [products, setProducts] = useState<Product[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
   const [loading, setLoading] = useState(true);
@@ -63,9 +65,10 @@ export function ProductsPage() {
     if (!activeWorkspace) return;
     setLoading(true);
     try {
+      const qs = activeProject ? `?projectId=${activeProject.id}` : "";
       const [p, b] = await Promise.all([
-        api<Product[]>(`/api/workspaces/${activeWorkspace.id}/products`),
-        api<Brand[]>(`/api/workspaces/${activeWorkspace.id}/brands`),
+        api<Product[]>(`/api/workspaces/${activeWorkspace.id}/products${qs}`),
+        api<Brand[]>(`/api/workspaces/${activeWorkspace.id}/brands${qs}`),
       ]);
       setProducts(p);
       setBrands(b);
@@ -74,7 +77,7 @@ export function ProductsPage() {
     } finally {
       setLoading(false);
     }
-  }, [activeWorkspace]);
+  }, [activeWorkspace, activeProject]);
 
   useEffect(() => {
     loadData();

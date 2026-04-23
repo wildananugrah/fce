@@ -6,7 +6,7 @@ import type {
 } from "../../types/brand.types";
 
 export interface IBrandService {
-	list(workspaceId: string): Promise<Brand[]>;
+	list(workspaceId: string, projectId?: string): Promise<Brand[]>;
 	getById(id: string): Promise<Brand & { brainVersions: BrandBrainVersion[] }>;
 	create(workspaceId: string, input: CreateBrandInput): Promise<Brand>;
 	update(id: string, input: UpdateBrandInput): Promise<Brand>;

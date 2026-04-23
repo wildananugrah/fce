@@ -45,7 +45,8 @@ export function createTopicRoutes(topicService: ITopicService, prisma: PrismaCli
 	app.get("/", async (c) => {
 		const workspaceId = c.get("workspaceId");
 		const campaignId = c.req.query("campaignId") || undefined;
-		const topics = await topicService.list(workspaceId, { campaignId });
+		const projectId = c.req.query("projectId") || undefined;
+		const topics = await topicService.list(workspaceId, { campaignId, projectId });
 		return c.json({ data: topics });
 	});
 

@@ -13,8 +13,8 @@ import type {
 export class ProductService implements IProductService {
 	constructor(private productRepository: IProductRepository) {}
 
-	async list(workspaceId: string): Promise<ProductWithRelations[]> {
-		return this.productRepository.findByWorkspace(workspaceId);
+	async list(workspaceId: string, projectId?: string): Promise<ProductWithRelations[]> {
+		return this.productRepository.findByWorkspace(workspaceId, projectId);
 	}
 
 	async getById(id: string): Promise<Product & { brainVersions: ProductBrainVersion[] }> {

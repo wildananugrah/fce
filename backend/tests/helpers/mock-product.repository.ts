@@ -34,7 +34,12 @@ export class MockProductRepository implements IProductRepository {
 		});
 	}
 
-	async findByWorkspace(workspaceId: string): Promise<ProductWithRelations[]> {
+	async findByWorkspace(
+		workspaceId: string,
+		_projectId?: string,
+	): Promise<ProductWithRelations[]> {
+		// NOTE: mock doesn't track brand.projectId — existing product service
+		// tests don't exercise project-scoped filtering. Add if/when needed.
 		return this.products
 			.filter((p) => {
 				if (p.workspaceId !== workspaceId) return false;
@@ -44,6 +49,10 @@ export class MockProductRepository implements IProductRepository {
 				return true;
 			})
 			.map((p) => this.decorate(p));
+	}
+
+	async findDefaultProjectId(_workspaceId: string): Promise<string | null> {
+		return null;
 	}
 
 	async findArchivedByWorkspace(workspaceId: string): Promise<ProductWithRelations[]> {

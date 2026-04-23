@@ -4,14 +4,32 @@ import type { ITopicRepository } from "../interfaces/repositories/topic.reposito
 export class TopicRepository implements ITopicRepository {
 	constructor(private prisma: PrismaClient) {}
 
-	async findByWorkspace(workspaceId: string, filters?: { campaignId?: string }) {
+	async findByWorkspace(
+		workspaceId: string,
+		filters?: { campaignId?: string; projectId?: string },
+	) {
+		// Topics can be brand-less (free-floating for a campaign) — only
+		// enforce the brand's archivedAt when a brand is attached. When a
+		// projectId filter is on, we ALSO require the topic's brand to be in
+		// that project; brand-less topics remain visible regardless (they
+		// belong to a campaign which isn't project-scoped yet).
+		const brandArchiveFilter: any = { archivedAt: null };
+		if (filters?.projectId) {
+			const defaultId = await this.findDefaultProjectId(workspaceId);
+			if (defaultId === filters.projectId) {
+				brandArchiveFilter.OR = [
+					{ projectId: filters.projectId },
+					{ projectId: null },
+				];
+			} else {
+				brandArchiveFilter.projectId = filters.projectId;
+			}
+		}
 		return this.prisma.contentTopic.findMany({
 			where: {
 				workspaceId,
 				archivedAt: null,
-				// Topics can be brand-less (free-floating for a campaign) — only
-				// enforce the brand's archivedAt when a brand is attached.
-				OR: [{ brandId: null }, { brand: { archivedAt: null } }],
+				OR: [{ brandId: null }, { brand: brandArchiveFilter }],
 				...(filters?.campaignId ? { campaignId: filters.campaignId } : {}),
 			},
 			orderBy: { createdAt: "desc" },
@@ -20,6 +38,14 @@ export class TopicRepository implements ITopicRepository {
 				products: { include: { product: { select: { id: true, name: true } } } },
 			},
 		});
+	}
+
+	async findDefaultProjectId(workspaceId: string): Promise<string | null> {
+		const project = await this.prisma.project.findFirst({
+			where: { workspaceId, slug: "default" },
+			select: { id: true },
+		});
+		return project?.id ?? null;
 	}
 
 	async findArchivedByWorkspace(workspaceId: string) {

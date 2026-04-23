@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Trash2, X, Sparkles } from "lucide-react";
 import { useWorkspace } from "../hooks/useWorkspace";
+import { useProject } from "../hooks/useProject";
 import { useSSE } from "../hooks/useSSE";
 import { api } from "../services/api";
 import { Select } from "../components/ui/Select";
@@ -370,6 +371,7 @@ function BrainContextCard({ tone, usp }: { tone?: string; usp?: string }) {
 
 export function GeneratePage() {
   const { activeWorkspace } = useWorkspace();
+  const { activeProject } = useProject();
   const [searchParams, setSearchParams] = useSearchParams();
   const researchContext = searchParams.get("researchContext") || "";
   const researchTitle = searchParams.get("researchTitle") || "";
@@ -539,13 +541,14 @@ export function GeneratePage() {
     }
     setLoading(true);
     try {
+      const qs = activeProject ? `?projectId=${activeProject.id}` : "";
       const [b, p, fw, ht, gen, tp] = await Promise.all([
-        api<Brand[]>(`/api/workspaces/${activeWorkspace.id}/brands`),
-        api<Product[]>(`/api/workspaces/${activeWorkspace.id}/products`),
+        api<Brand[]>(`/api/workspaces/${activeWorkspace.id}/brands${qs}`),
+        api<Product[]>(`/api/workspaces/${activeWorkspace.id}/products${qs}`),
         api<Framework[]>(`/api/taxonomy/frameworks`),
         api<HookType[]>(`/api/taxonomy/hook-types`),
         api<Generation[]>(`/api/workspaces/${activeWorkspace.id}/generations`),
-        api<ContentTopic[]>(`/api/workspaces/${activeWorkspace.id}/topics`),
+        api<ContentTopic[]>(`/api/workspaces/${activeWorkspace.id}/topics${qs}`),
       ]);
       setBrands(b);
       setProducts(p);
@@ -560,7 +563,7 @@ export function GeneratePage() {
     } finally {
       setLoading(false);
     }
-  }, [activeWorkspace]);
+  }, [activeWorkspace, activeProject]);
 
   useEffect(() => {
     loadInitialData();

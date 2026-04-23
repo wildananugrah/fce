@@ -11,8 +11,8 @@ export class LibraryService implements ILibraryService {
 		private boss?: PgBoss,
 	) {}
 
-	async list(workspaceId: string, status?: string): Promise<any[]> {
-		return this.generationRepository.findOutputsByWorkspace(workspaceId, status);
+	async list(workspaceId: string, status?: string, projectId?: string): Promise<any[]> {
+		return this.generationRepository.findOutputsByWorkspace(workspaceId, status, projectId);
 	}
 
 	async updateStatus(id: string, status: string): Promise<GenerationOutput> {

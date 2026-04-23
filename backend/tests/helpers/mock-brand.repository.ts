@@ -5,8 +5,19 @@ export class MockBrandRepository implements IBrandRepository {
 	private brands: Brand[] = [];
 	private brainVersions: BrandBrainVersion[] = [];
 
-	async findByWorkspace(workspaceId: string): Promise<Brand[]> {
-		return this.brands.filter((b) => b.workspaceId === workspaceId && b.archivedAt === null);
+	async findByWorkspace(workspaceId: string, projectId?: string): Promise<Brand[]> {
+		return this.brands.filter(
+			(b) =>
+				b.workspaceId === workspaceId &&
+				b.archivedAt === null &&
+				(projectId ? b.projectId === projectId || b.projectId === null : true),
+		);
+	}
+
+	async findDefaultProjectId(_workspaceId: string): Promise<string | null> {
+		// Mock: no Project table in memory. Tests that care about the
+		// default-project fallback should stub this explicitly.
+		return null;
 	}
 
 	async findArchivedByWorkspace(workspaceId: string): Promise<Brand[]> {
@@ -22,6 +33,7 @@ export class MockBrandRepository implements IBrandRepository {
 
 	async create(data: {
 		workspaceId: string;
+		projectId?: string | null;
 		name: string;
 		slug: string;
 		category?: string;
@@ -30,7 +42,7 @@ export class MockBrandRepository implements IBrandRepository {
 		const brand: Brand = {
 			id: crypto.randomUUID(),
 			workspaceId: data.workspaceId,
-			projectId: null,
+			projectId: data.projectId ?? null,
 			name: data.name,
 			slug: data.slug,
 			category: data.category ?? null,

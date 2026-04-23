@@ -1,15 +1,18 @@
 import type { Brand, BrandBrainVersion } from "@prisma/client";
 
 export interface IBrandRepository {
-	findByWorkspace(workspaceId: string): Promise<Brand[]>;
+	findByWorkspace(workspaceId: string, projectId?: string): Promise<Brand[]>;
 	findById(id: string): Promise<(Brand & { brainVersions: BrandBrainVersion[] }) | null>;
 	create(data: {
 		workspaceId: string;
+		projectId?: string | null;
 		name: string;
 		slug: string;
 		category?: string;
 		websiteUrl?: string;
 	}): Promise<Brand>;
+	/** Resolve the Default project's id for a workspace (`slug = "default"`), or null if missing. */
+	findDefaultProjectId(workspaceId: string): Promise<string | null>;
 	update(
 		id: string,
 		data: Partial<

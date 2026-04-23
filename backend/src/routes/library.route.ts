@@ -24,7 +24,8 @@ export function createLibraryRoutes(
 	app.get("/", async (c) => {
 		const workspaceId = c.get("workspaceId");
 		const status = c.req.query("status") || undefined;
-		const outputs = await libraryService.list(workspaceId, status);
+		const projectId = c.req.query("projectId") || undefined;
+		const outputs = await libraryService.list(workspaceId, status, projectId);
 		return c.json({ data: outputs });
 	});
 

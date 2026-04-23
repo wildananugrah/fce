@@ -119,7 +119,7 @@ const BULK_STATUS_OPTIONS = [
 
 export function LibraryPage() {
   const { activeWorkspace } = useWorkspace();
-  const { isApprover } = useProject();
+  const { activeProject, isApprover } = useProject();
   const [items, setItems] = useState<LibraryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -144,8 +144,9 @@ export function LibraryPage() {
     try {
       // Pull every library-side status: drafts land here straight from the
       // generator, then transition through in_review → approved/rejected.
+      const projectParam = activeProject ? `&projectId=${activeProject.id}` : "";
       const data = await api<LibraryItem[]>(
-        `/api/workspaces/${activeWorkspace.id}/library?status=draft,in_review,approved,rejected`,
+        `/api/workspaces/${activeWorkspace.id}/library?status=draft,in_review,approved,rejected${projectParam}`,
       );
       setItems(data);
     } catch (e) {
@@ -153,7 +154,7 @@ export function LibraryPage() {
     } finally {
       setLoading(false);
     }
-  }, [activeWorkspace]);
+  }, [activeWorkspace, activeProject]);
 
   useEffect(() => {
     loadItems();

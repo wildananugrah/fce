@@ -3,6 +3,7 @@ export interface CreateBrandInput {
 	slug: string;
 	category?: string;
 	websiteUrl?: string;
+	projectId?: string;
 }
 
 export interface UpdateBrandInput {

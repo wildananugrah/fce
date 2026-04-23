@@ -13,7 +13,10 @@ export class TopicService implements ITopicService {
 		private boss: PgBoss,
 	) {}
 
-	async list(workspaceId: string, filters?: { campaignId?: string }): Promise<TopicWithBrand[]> {
+	async list(
+		workspaceId: string,
+		filters?: { campaignId?: string; projectId?: string },
+	): Promise<TopicWithBrand[]> {
 		return this.topicRepository.findByWorkspace(workspaceId, filters);
 	}
 

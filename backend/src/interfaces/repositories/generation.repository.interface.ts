@@ -29,7 +29,9 @@ export interface IGenerationRepository {
 	findOutputsByWorkspace(
 		workspaceId: string,
 		status?: string,
+		projectId?: string,
 	): Promise<(GenerationOutput & { request: GenerationRequest })[]>;
+	findDefaultProjectId(workspaceId: string): Promise<string | null>;
 	findArchivedOutputsByWorkspace(
 		workspaceId: string,
 	): Promise<(GenerationOutput & { request: GenerationRequest })[]>;

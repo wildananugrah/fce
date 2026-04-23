@@ -125,16 +125,25 @@ export class GenerationRepository implements IGenerationRepository {
 		});
 	}
 
-	async findOutputsByWorkspace(workspaceId: string, status?: string) {
+	async findOutputsByWorkspace(workspaceId: string, status?: string, projectId?: string) {
 		// Two-step query to avoid Prisma WASM "out of bounds" bug
 		// with deeply nested includes + relation filters. The first query
 		// already narrows to live (non-archived) requests whose brand is also
 		// live, so archived brands/products don't leak into the library.
+		const brandFilter: any = { archivedAt: null };
+		if (projectId) {
+			const defaultId = await this.findDefaultProjectId(workspaceId);
+			if (defaultId === projectId) {
+				brandFilter.OR = [{ projectId }, { projectId: null }];
+			} else {
+				brandFilter.projectId = projectId;
+			}
+		}
 		const requestIds = await this.prisma.generationRequest.findMany({
 			where: {
 				workspaceId,
 				archivedAt: null,
-				brand: { archivedAt: null },
+				brand: brandFilter,
 			},
 			select: { id: true },
 		});
@@ -262,5 +271,13 @@ export class GenerationRepository implements IGenerationRepository {
 			...e,
 			user: e.userId ? (userMap.get(e.userId) ?? null) : null,
 		}));
+	}
+
+	async findDefaultProjectId(workspaceId: string): Promise<string | null> {
+		const project = await this.prisma.project.findFirst({
+			where: { workspaceId, slug: "default" },
+			select: { id: true },
+		});
+		return project?.id ?? null;
 	}
 }

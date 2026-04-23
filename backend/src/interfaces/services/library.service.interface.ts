@@ -1,7 +1,7 @@
 import type { GenerationOutput, OutputFeedbackEvent } from "@prisma/client";
 
 export interface ILibraryService {
-	list(workspaceId: string, status?: string): Promise<any[]>;
+	list(workspaceId: string, status?: string, projectId?: string): Promise<any[]>;
 	updateStatus(id: string, status: string): Promise<GenerationOutput>;
 	changeStatus(
 		id: string,

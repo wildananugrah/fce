@@ -17,10 +17,11 @@ export function createBrandRoutes(
 ) {
 	const app = new Hono<{ Variables: Variables }>();
 
-	// GET / — list brands
+	// GET / — list brands (optionally filtered by ?projectId=)
 	app.get("/", async (c) => {
 		const workspaceId = c.get("workspaceId");
-		const brands = await brandService.list(workspaceId);
+		const projectId = c.req.query("projectId") || undefined;
+		const brands = await brandService.list(workspaceId, projectId);
 		return c.json({ data: brands });
 	});
 
@@ -28,11 +29,17 @@ export function createBrandRoutes(
 	app.post("/", async (c) => {
 		const workspaceId = c.get("workspaceId");
 		const body = await c.req.json();
-		const { name, slug, category, websiteUrl } = body;
+		const { name, slug, category, websiteUrl, projectId } = body;
 		if (!name || !slug) {
 			return c.json({ error: "Name and slug are required" }, 400);
 		}
-		const brand = await brandService.create(workspaceId, { name, slug, category, websiteUrl });
+		const brand = await brandService.create(workspaceId, {
+			name,
+			slug,
+			category,
+			websiteUrl,
+			projectId,
+		});
 		return c.json({ data: brand }, 201);
 	});
 

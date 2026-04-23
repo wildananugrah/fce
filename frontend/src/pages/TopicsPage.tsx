@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useWorkspace } from "../hooks/useWorkspace";
+import { useProject } from "../hooks/useProject";
 import { useSSE } from "../hooks/useSSE";
 import { api } from "../services/api";
 import { Button } from "../components/ui/Button";
@@ -108,6 +109,7 @@ const PILLAR_COLORS = [
 
 export function TopicsPage() {
 	const { activeWorkspace } = useWorkspace();
+	const { activeProject } = useProject();
 	const [brands, setBrands] = useState<Brand[]>([]);
 	const [products, setProducts] = useState<Product[]>([]);
 	const [loading, setLoading] = useState(true);
@@ -156,9 +158,10 @@ export function TopicsPage() {
 		}
 		setLoading(true);
 		try {
+			const qs = activeProject ? `?projectId=${activeProject.id}` : "";
 			const [b, p] = await Promise.all([
-				api<Brand[]>(`/api/workspaces/${activeWorkspace.id}/brands`),
-				api<Product[]>(`/api/workspaces/${activeWorkspace.id}/products`),
+				api<Brand[]>(`/api/workspaces/${activeWorkspace.id}/brands${qs}`),
+				api<Product[]>(`/api/workspaces/${activeWorkspace.id}/products${qs}`),
 			]);
 			setBrands(b);
 			setProducts(p);
@@ -170,7 +173,7 @@ export function TopicsPage() {
 		} finally {
 			setLoading(false);
 		}
-	}, [activeWorkspace]);
+	}, [activeWorkspace, activeProject]);
 
 	useEffect(() => {
 		loadData();

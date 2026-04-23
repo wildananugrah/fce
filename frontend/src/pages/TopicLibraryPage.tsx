@@ -197,7 +197,7 @@ interface BrandGroup {
 // ---- Main Page ----
 export function TopicLibraryPage() {
   const { activeWorkspace } = useWorkspace();
-  const { isApprover } = useProject();
+  const { activeProject, isApprover } = useProject();
   const navigate = useNavigate();
   const [topics, setTopics] = useState<Topic[]>([]);
   const [loading, setLoading] = useState(true);
@@ -225,7 +225,8 @@ export function TopicLibraryPage() {
     }
     setLoading(true);
     try {
-      const data = await api<Topic[]>(`/api/workspaces/${activeWorkspace.id}/topics`);
+      const qs = activeProject ? `?projectId=${activeProject.id}` : "";
+      const data = await api<Topic[]>(`/api/workspaces/${activeWorkspace.id}/topics${qs}`);
       setTopics(data);
       // Auto-expand all brands on first load
       const brandIds = new Set(data.map((t) => t.brand?.id ?? t.brandId ?? "unknown"));
@@ -235,7 +236,7 @@ export function TopicLibraryPage() {
     } finally {
       setLoading(false);
     }
-  }, [activeWorkspace]);
+  }, [activeWorkspace, activeProject]);
 
   useEffect(() => {
     loadTopics();

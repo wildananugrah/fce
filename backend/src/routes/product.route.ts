@@ -217,7 +217,8 @@ export function createProductRoutes(
 	// GET / — list products
 	app.get("/", async (c) => {
 		const workspaceId = c.get("workspaceId");
-		const products = await productService.list(workspaceId);
+		const projectId = c.req.query("projectId") || undefined;
+		const products = await productService.list(workspaceId, projectId);
 		return c.json({ data: products });
 	});
 

@@ -10,8 +10,8 @@ import type {
 export class BrandService implements IBrandService {
 	constructor(private brandRepository: IBrandRepository) {}
 
-	async list(workspaceId: string): Promise<Brand[]> {
-		return this.brandRepository.findByWorkspace(workspaceId);
+	async list(workspaceId: string, projectId?: string): Promise<Brand[]> {
+		return this.brandRepository.findByWorkspace(workspaceId, projectId);
 	}
 
 	async getById(id: string): Promise<Brand & { brainVersions: BrandBrainVersion[] }> {
@@ -23,8 +23,14 @@ export class BrandService implements IBrandService {
 	}
 
 	async create(workspaceId: string, input: CreateBrandInput): Promise<Brand> {
+		// Assign a project. If the caller provided one, use it. Otherwise fall
+		// back to the workspace's Default project so new brands don't end up
+		// invisible to every project view.
+		const projectId =
+			input.projectId ?? (await this.brandRepository.findDefaultProjectId(workspaceId)) ?? undefined;
 		return this.brandRepository.create({
 			workspaceId,
+			projectId,
 			name: input.name,
 			slug: input.slug,
 			category: input.category,

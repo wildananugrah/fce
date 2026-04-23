@@ -48,6 +48,9 @@ interface NewBrandBrainDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   workspaceId: string;
+  /** New brands are assigned to this project id; if omitted, backend falls
+   * back to the workspace's Default project. */
+  projectId?: string;
   onCreated: () => void;
   editBrand?: EditBrand | null;
 }
@@ -299,6 +302,7 @@ export function NewBrandBrainDrawer({
   isOpen,
   onClose,
   workspaceId,
+  projectId,
   onCreated,
   editBrand,
 }: NewBrandBrainDrawerProps) {
@@ -490,6 +494,7 @@ export function NewBrandBrainDrawer({
             slug: generateSlug(form.name.trim()),
             category: form.industry.trim() || undefined,
             websiteUrl: form.websiteUrl.trim() || undefined,
+            projectId,
           }),
         });
 

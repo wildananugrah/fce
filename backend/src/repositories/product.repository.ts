@@ -4,15 +4,26 @@ import type { IProductRepository } from "../interfaces/repositories/product.repo
 export class ProductRepository implements IProductRepository {
 	constructor(private prisma: PrismaClient) {}
 
-	async findByWorkspace(workspaceId: string) {
+	async findByWorkspace(workspaceId: string, projectId?: string) {
+		// A product is visible if neither it nor its brand is archived.
+		// Hiding descendants of an archived brand is what lets us "collapse"
+		// the brand in the trash view and keep the main list clean.
+		const brandFilter: any = { archivedAt: null };
+		if (projectId) {
+			// If asking for the Default project, also include brands without
+			// a projectId (legacy rows). See BrandRepository.findByWorkspace.
+			const defaultId = await this.findDefaultProjectId(workspaceId);
+			if (defaultId === projectId) {
+				brandFilter.OR = [{ projectId }, { projectId: null }];
+			} else {
+				brandFilter.projectId = projectId;
+			}
+		}
 		return this.prisma.product.findMany({
-			// A product is visible if neither it nor its brand is archived.
-			// Hiding descendants of an archived brand is what lets us "collapse"
-			// the brand in the trash view and keep the main list clean.
 			where: {
 				workspaceId,
 				archivedAt: null,
-				brand: { archivedAt: null },
+				brand: brandFilter,
 			},
 			orderBy: { updatedAt: "desc" },
 			include: {
@@ -23,6 +34,14 @@ export class ProductRepository implements IProductRepository {
 				},
 			},
 		});
+	}
+
+	async findDefaultProjectId(workspaceId: string): Promise<string | null> {
+		const project = await this.prisma.project.findFirst({
+			where: { workspaceId, slug: "default" },
+			select: { id: true },
+		});
+		return project?.id ?? null;
 	}
 
 	async findArchivedByWorkspace(workspaceId: string) {

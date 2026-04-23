@@ -9,6 +9,10 @@ class MockTopicRepository {
 		return this.topics.filter((t) => t.workspaceId === workspaceId);
 	}
 
+	async findDefaultProjectId(_workspaceId: string) {
+		return null;
+	}
+
 	async findById(id: string) {
 		return this.topics.find((t) => t.id === id) ?? null;
 	}

@@ -6,9 +6,23 @@ export class BrandRepository implements IBrandRepository {
 
 	async findByWorkspace(
 		workspaceId: string,
+		projectId?: string,
 	): Promise<(Brand & { brainVersions: BrandBrainVersion[] })[]> {
+		const where: any = { workspaceId, archivedAt: null };
+		if (projectId) {
+			// If the caller is asking for the Default project, also include
+			// brands with projectId = null (legacy rows that were created
+			// before the RBAC migration or slipped past its backfill — the
+			// schema comment says `null = "default project"` by convention).
+			const defaultId = await this.findDefaultProjectId(workspaceId);
+			if (defaultId === projectId) {
+				where.OR = [{ projectId }, { projectId: null }];
+			} else {
+				where.projectId = projectId;
+			}
+		}
 		return this.prisma.brand.findMany({
-			where: { workspaceId, archivedAt: null },
+			where,
 			orderBy: { updatedAt: "desc" },
 			include: {
 				brainVersions: {
@@ -17,6 +31,14 @@ export class BrandRepository implements IBrandRepository {
 				},
 			},
 		});
+	}
+
+	async findDefaultProjectId(workspaceId: string): Promise<string | null> {
+		const project = await this.prisma.project.findFirst({
+			where: { workspaceId, slug: "default" },
+			select: { id: true },
+		});
+		return project?.id ?? null;
 	}
 
 	async findArchivedByWorkspace(workspaceId: string): Promise<Brand[]> {
@@ -39,6 +61,7 @@ export class BrandRepository implements IBrandRepository {
 
 	async create(data: {
 		workspaceId: string;
+		projectId?: string | null;
 		name: string;
 		slug: string;
 		category?: string;

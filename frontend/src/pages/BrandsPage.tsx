@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Trash2, Globe, Dna, Copy, ExternalLink, Check } from "lucide-react";
 import { useWorkspace } from "../hooks/useWorkspace";
+import { useProject } from "../hooks/useProject";
 import { api } from "../services/api";
 import { Button } from "../components/ui/Button";
 import { Spinner } from "../components/ui/Spinner";
@@ -45,6 +46,7 @@ type ToastState = { message: string; type: "success" | "error" | "info" } | null
 // ---- Main Page ----
 export function BrandsPage() {
   const { activeWorkspace } = useWorkspace();
+  const { activeProject } = useProject();
   const [brands, setBrands] = useState<Brand[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
@@ -89,14 +91,15 @@ export function BrandsPage() {
     if (!activeWorkspace) return;
     setLoading(true);
     try {
-      const data = await api<Brand[]>(`/api/workspaces/${activeWorkspace.id}/brands`);
+      const qs = activeProject ? `?projectId=${activeProject.id}` : "";
+      const data = await api<Brand[]>(`/api/workspaces/${activeWorkspace.id}/brands${qs}`);
       setBrands(data);
     } catch (e) {
       showToast(e instanceof Error ? e.message : "Failed to load brands", "error");
     } finally {
       setLoading(false);
     }
-  }, [activeWorkspace]);
+  }, [activeWorkspace, activeProject]);
 
   useEffect(() => {
     loadBrands();
@@ -291,6 +294,7 @@ export function BrandsPage() {
         isOpen={showCreate}
         onClose={() => setShowCreate(false)}
         workspaceId={activeWorkspace.id}
+        projectId={activeProject?.id}
         onCreated={loadBrands}
       />
 
@@ -298,6 +302,7 @@ export function BrandsPage() {
         isOpen={!!selectedBrand}
         onClose={() => setSelectedBrand(null)}
         workspaceId={activeWorkspace.id}
+        projectId={activeProject?.id}
         onCreated={loadBrands}
         editBrand={selectedBrand}
       />

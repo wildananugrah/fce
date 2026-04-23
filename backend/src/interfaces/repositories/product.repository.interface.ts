@@ -6,7 +6,9 @@ export type ProductWithRelations = Product & {
 };
 
 export interface IProductRepository {
-	findByWorkspace(workspaceId: string): Promise<ProductWithRelations[]>;
+	findByWorkspace(workspaceId: string, projectId?: string): Promise<ProductWithRelations[]>;
+	/** Resolve the Default project's id for a workspace, or null. */
+	findDefaultProjectId(workspaceId: string): Promise<string | null>;
 	findById(id: string): Promise<(Product & { brainVersions: ProductBrainVersion[] }) | null>;
 	create(data: {
 		workspaceId: string;

@@ -130,6 +130,8 @@ export class MockGenerationRepository implements IGenerationRepository {
 
 	async findOutputsByWorkspace(
 		workspaceId: string,
+		_status?: string,
+		_projectId?: string,
 	): Promise<(GenerationOutput & { request: GenerationRequest })[]> {
 		return this.outputs
 			.filter((o) => o.archivedAt === null)
@@ -224,6 +226,10 @@ export class MockGenerationRepository implements IGenerationRepository {
 		return events
 			.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
 			.map((e) => ({ ...e, user: null }));
+	}
+
+	async findDefaultProjectId(_workspaceId: string): Promise<string | null> {
+		return null;
 	}
 
 	clear(): void {
