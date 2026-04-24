@@ -27,6 +27,21 @@ import { ResearchRunDetail } from "./pages/Research/ResearchRunDetail";
 import { CompetitorAnalyzerPage } from "./pages/CompetitorAnalyzerPage";
 import { AcceptInvitationPage } from "./pages/AcceptInvitationPage";
 import { VerifyPage } from "./pages/VerifyPage";
+import { isMenuEnabled, type MenuFlagKey } from "./config/menu-flags";
+
+function Gated({ flag, children }: { flag: MenuFlagKey; children: React.ReactNode }) {
+  return isMenuEnabled(flag) ? <>{children}</> : <Navigate to="/" replace />;
+}
+
+function DisabledMenuNotice() {
+  return (
+    <div className="p-6">
+      <p className="text-sm text-gray-500">
+        This menu is currently disabled. Pick another page from the sidebar.
+      </p>
+    </div>
+  );
+}
 
 export default function App() {
   return (
@@ -41,22 +56,22 @@ export default function App() {
             <Route path="/accept-invitation" element={<AcceptInvitationPage />} />
             <Route path="/verify" element={<VerifyPage />} />
             <Route element={<AppShell />}>
-              <Route path="/" element={<DashboardPage />} />
-              <Route path="/brands" element={<BrandsPage />} />
-              <Route path="/brands/new" element={<NewBrandPage />} />
-              <Route path="/brands/:id" element={<BrandDetailPage />} />
-              <Route path="/products" element={<ProductsPage />} />
-              <Route path="/products/:id" element={<ProductDetailPage />} />
-              <Route path="/generate" element={<GeneratePage />} />
-              <Route path="/campaigns" element={<CampaignsPage />} />
-              <Route path="/campaigns/:id" element={<CampaignDetailPage />} />
-              <Route path="/topics" element={<TopicsPage />} />
-              <Route path="/topic-library" element={<TopicLibraryPage />} />
-              <Route path="/content-library" element={<LibraryPage />} />
-              <Route path="/research" element={<ResearchPage />} />
-              <Route path="/research/:runId" element={<ResearchRunDetail />} />
-              <Route path="/competitor-analyzer" element={<CompetitorAnalyzerPage />} />
-              <Route path="/learning" element={<LearningPage />} />
+              <Route path="/" element={isMenuEnabled("dashboard") ? <DashboardPage /> : <DisabledMenuNotice />} />
+              <Route path="/brands" element={<Gated flag="brand-brain"><BrandsPage /></Gated>} />
+              <Route path="/brands/new" element={<Gated flag="brand-brain"><NewBrandPage /></Gated>} />
+              <Route path="/brands/:id" element={<Gated flag="brand-brain"><BrandDetailPage /></Gated>} />
+              <Route path="/products" element={<Gated flag="product-brain"><ProductsPage /></Gated>} />
+              <Route path="/products/:id" element={<Gated flag="product-brain"><ProductDetailPage /></Gated>} />
+              <Route path="/generate" element={<Gated flag="content-generator"><GeneratePage /></Gated>} />
+              <Route path="/campaigns" element={<Gated flag="campaign-generator"><CampaignsPage /></Gated>} />
+              <Route path="/campaigns/:id" element={<Gated flag="campaign-generator"><CampaignDetailPage /></Gated>} />
+              <Route path="/topics" element={<Gated flag="topic-generator"><TopicsPage /></Gated>} />
+              <Route path="/topic-library" element={<Gated flag="topic-library"><TopicLibraryPage /></Gated>} />
+              <Route path="/content-library" element={<Gated flag="content-library"><LibraryPage /></Gated>} />
+              <Route path="/research" element={<Gated flag="research-hub"><ResearchPage /></Gated>} />
+              <Route path="/research/:runId" element={<Gated flag="research-hub"><ResearchRunDetail /></Gated>} />
+              <Route path="/competitor-analyzer" element={<Gated flag="competitor-analyzer"><CompetitorAnalyzerPage /></Gated>} />
+              <Route path="/learning" element={<Gated flag="learning-center"><LearningPage /></Gated>} />
               <Route path="/skills" element={<Navigate to="/workspace-settings" replace />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/workspace-settings" element={<WorkspaceSettingsPage />} />

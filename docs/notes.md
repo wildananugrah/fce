@@ -131,3 +131,19 @@ EMAIL_PORT=587
 EMAIL_SENDER=norepy-smm@floothink.com
 
 dicoba pake ini mas
+
+
+== 23 April 2026 - Discussion
+1. Email often error, ga ngirim email nya -> better ganti pake gmail klo gtu deh. [done]
+2. Brands are not filtered by project. [done]
+3. One project is only one brands. [done]
+4. Topic library default calender di bawah table nya.
+5. Campaign Generator -> Chatbot. 
+6. Double Check ke Competitor Analyzer pake skills UI/UX
+7. satu user create workspace di limit, ini harus configurable di db.
+8. yang create project cuman superdamin doang. 
+9. Skills ini dibuat global. tapi butuh mappingan-nya. 
+10. Campaign -> input nya output butuh struktur nya mau gmana ? disabled dulu
+11. Learning Center -> disabled dulu
+12. Research Hub -> disabled dulu. 
+13. Create baby step for tutorial

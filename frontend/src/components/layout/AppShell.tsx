@@ -31,14 +31,23 @@ import { Button } from "../ui/Button";
 import { api } from "../../services/api";
 
 import type { MenuKey } from "../../contexts/ProjectContext";
+import { isMenuEnabled, type MenuFlagKey } from "../../config/menu-flags";
 
 interface NavItem {
   to: string;
   label: string;
   icon: React.ComponentType<{ size?: number }>;
   exact?: boolean;
-  /** Omit to show the item to every signed-in user (e.g. Dashboard). */
+  /**
+   * RBAC key — drives per-user visibility via menuAccess. Omit for items that
+   * should always pass the RBAC check (e.g. Dashboard).
+   */
   menuKey?: MenuKey;
+  /**
+   * Global flag key — drives the on/off toggle in frontend/src/config/menu-flags.ts.
+   * Items without a `flagKey` are always shown when RBAC allows.
+   */
+  flagKey?: MenuFlagKey;
 }
 
 interface NavSection {
@@ -49,37 +58,37 @@ interface NavSection {
 const navSections: NavSection[] = [
   {
     items: [
-      { to: "/", label: "Dashboard", icon: LayoutDashboard, exact: true },
+      { to: "/", label: "Dashboard", icon: LayoutDashboard, exact: true, flagKey: "dashboard" },
     ],
   },
   {
     label: "Core",
     items: [
-      { to: "/brands", label: "Brand Brain", icon: Palette, menuKey: "brand-brain" },
-      { to: "/products", label: "Product Brain", icon: Package, menuKey: "product-brain" },
+      { to: "/brands", label: "Brand Brain", icon: Palette, menuKey: "brand-brain", flagKey: "brand-brain" },
+      { to: "/products", label: "Product Brain", icon: Package, menuKey: "product-brain", flagKey: "product-brain" },
     ],
   },
   {
     label: "Generate",
     items: [
-      { to: "/topics", label: "Topic Generator", icon: Lightbulb, menuKey: "topic-generator" },
-      { to: "/generate", label: "Content Generator", icon: Sparkles, menuKey: "content-generator" },
-      { to: "/campaigns", label: "Campaign Generator", icon: Megaphone, menuKey: "campaign-generator" },
+      { to: "/topics", label: "Topic Generator", icon: Lightbulb, menuKey: "topic-generator", flagKey: "topic-generator" },
+      { to: "/generate", label: "Content Generator", icon: Sparkles, menuKey: "content-generator", flagKey: "content-generator" },
+      { to: "/campaigns", label: "Campaign Generator", icon: Megaphone, menuKey: "campaign-generator", flagKey: "campaign-generator" },
     ],
   },
   {
     label: "Manage",
     items: [
-      { to: "/topic-library", label: "Topic Library", icon: BookOpen, menuKey: "topic-library" },
-      { to: "/content-library", label: "Content Library", icon: Library, menuKey: "content-library" },
-      { to: "/learning", label: "Learning Center", icon: GraduationCap, menuKey: "learning-center" },
+      { to: "/topic-library", label: "Topic Library", icon: BookOpen, menuKey: "topic-library", flagKey: "topic-library" },
+      { to: "/content-library", label: "Content Library", icon: Library, menuKey: "content-library", flagKey: "content-library" },
+      { to: "/learning", label: "Learning Center", icon: GraduationCap, menuKey: "learning-center", flagKey: "learning-center" },
     ],
   },
   {
     label: "Research",
     items: [
-      { to: "/research", label: "Research Hub", icon: Search, menuKey: "research-hub" },
-      { to: "/competitor-analyzer", label: "Competitor Analyzer", icon: LineChart, menuKey: "competitor-analyzer" },
+      { to: "/research", label: "Research Hub", icon: Search, menuKey: "research-hub", flagKey: "research-hub" },
+      { to: "/competitor-analyzer", label: "Competitor Analyzer", icon: LineChart, menuKey: "competitor-analyzer", flagKey: "competitor-analyzer" },
     ],
   },
 ];
@@ -95,10 +104,13 @@ export function AppShell() {
     setActiveProject,
   } = useProject();
   const [projectSwitcherOpen, setProjectSwitcherOpen] = useState(false);
-  const canSeeMenu = (menuKey?: string) => {
-    if (!menuKey) return true; // always-on items (Dashboard)
+  const canSeeMenu = (item: NavItem) => {
+    // Global flag hides a menu for everyone, admins included.
+    if (item.flagKey && !isMenuEnabled(item.flagKey)) return false;
+    // No RBAC key → always-on for any signed-in user (e.g. Dashboard).
+    if (!item.menuKey) return true;
     if (hasFullAccess) return true;
-    return (menuAccess as string[]).includes(menuKey);
+    return (menuAccess as string[]).includes(item.menuKey);
   };
   const canSeeWorkspaceSettings = hasFullAccess || Boolean(user?.isSuperadmin);
   const [workspaceSwitcherOpen, setWorkspaceSwitcherOpen] = useState(false);
@@ -240,7 +252,7 @@ export function AppShell() {
         {/* Main Navigation — filtered by the active project's menuAccess */}
         <nav className="flex-1 px-3 py-3 overflow-y-auto space-y-4">
           {navSections.map((section, i) => {
-            const items = section.items.filter((item) => canSeeMenu(item.menuKey));
+            const items = section.items.filter((item) => canSeeMenu(item));
             if (items.length === 0) return null;
             return (
               <div key={section.label ?? i}>
