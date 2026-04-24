@@ -4,6 +4,8 @@ import { ArrowLeft, Save } from "lucide-react";
 import { Button } from "../components/ui/Button";
 import { useWorkspace } from "../hooks/useWorkspace";
 import { useProject } from "../hooks/useProject";
+import { CoachMark } from "../components/onboarding/CoachMark";
+import { HelpButton } from "../components/onboarding/HelpButton";
 import {
   BrandBrainForm,
   type BrandBrainFormHandle,
@@ -57,6 +59,7 @@ export function NewBrandPage() {
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          <HelpButton pageKey="brand-new" />
           <Button variant="secondary" onClick={() => navigate("/brands")} disabled={saving}>
             Cancel
           </Button>
@@ -66,6 +69,12 @@ export function NewBrandPage() {
           </Button>
         </div>
       </div>
+
+      <CoachMark
+        pageKey="brand-new"
+        title="Create your first brand"
+        body="Paste your website URL and click Auto-fill to pre-fill the brand from your site. Otherwise, work through the tabs manually — you can always refine it later."
+      />
 
       {/* Scraping banner — BrandBrainForm pushes content here via callback */}
       {scrapingBanner}
