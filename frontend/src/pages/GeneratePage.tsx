@@ -5,6 +5,8 @@ import { useWorkspace } from "../hooks/useWorkspace";
 import { useProject } from "../hooks/useProject";
 import { useSSE } from "../hooks/useSSE";
 import { api } from "../services/api";
+import { CoachMark } from "../components/onboarding/CoachMark";
+import { HelpButton } from "../components/onboarding/HelpButton";
 import { Select } from "../components/ui/Select";
 import { SearchableSelect } from "../components/ui/SearchableSelect";
 import { Spinner } from "../components/ui/Spinner";
@@ -709,6 +711,7 @@ const frameworkOptions = [{ value: "", label: "PAS (recommended)" }, ...framewor
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <HelpButton pageKey="generate" />
           <span className="text-sm text-gray-500">{advancedMode ? "Advanced mode" : "Basic mode"}</span>
           <button
             type="button"
@@ -725,6 +728,7 @@ const frameworkOptions = [{ value: "", label: "PAS (recommended)" }, ...framewor
           </button>
         </div>
       </div>
+      <CoachMark pageKey="generate" title="Generate content" body="Generate content by picking a product and describing the angle. FCE runs the job in the background — you can keep working, and we'll notify you when it's done." />
       <ActiveSkillsBadges generator="content" />
 
       {researchContext && (
