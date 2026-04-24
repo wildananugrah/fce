@@ -152,14 +152,16 @@ model Brand {
   generationRequests GenerationRequest[]
   researchRuns       ResearchRun[]
 
-  // Slug uniqueness is per-project. See BrandRepository for the null-project
-  // fallback.
-  @@unique([projectId, slug])
-  // Each project can contain at most ONE brand. Enforced at the schema level
-  // so the service layer can rely on it without a read-before-write race.
-  // NULL projectIds are distinct under this constraint — legacy only, shouldn't
-  // happen in normal flow since creation always falls back to Default project.
-  @@unique([projectId])
+  // Uniqueness for brands is managed by PARTIAL unique indexes rather than
+  // `@@unique`, because Prisma schema syntax can't express "unique only when
+  // archived_at IS NULL". The two indexes below are created and maintained by
+  // scripts/migrate-brand-partial-unique.ts — run that script after any
+  // `prisma db push` on a fresh environment:
+  //   - brands_project_id_slug_active_key: UNIQUE(project_id, slug) WHERE archived_at IS NULL
+  //   - brands_project_id_active_key:      UNIQUE(project_id)        WHERE archived_at IS NULL
+  // This lets archived brands coexist with live ones that reuse the same
+  // slug/project — matches the intent of soft-delete (hidden rows don't
+  // block user-visible actions).
   @@index([workspaceId, archivedAt])
   @@map("brands")
 }
