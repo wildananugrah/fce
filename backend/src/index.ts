@@ -136,6 +136,16 @@ async function main() {
 
 	// Initialize PgBoss
 	const boss = new PgBoss({ connectionString: env.databaseUrl });
+	// pg-boss surfaces worker and driver failures on an EventEmitter. Without a
+	// listener, Node treats them as ERR_UNHANDLED_ERROR and kills the process —
+	// we've been burned by this when a Prisma 7 WASM error contained NUL bytes
+	// and Postgres rejected the re-serialized JSON during a subsequent poll.
+	// Keep the process alive; log and move on.
+	boss.on("error", (err) => {
+		const message = err instanceof Error ? err.message : String(err);
+		const stack = err instanceof Error ? err.stack : undefined;
+		logger.error("pg-boss worker error", { error: message, stack });
+	});
 	await boss.start();
 
 	// ─── Repositories ───────────────────────────────────────────────
