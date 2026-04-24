@@ -3,6 +3,8 @@ import { useWorkspace } from "../hooks/useWorkspace";
 import { useProject } from "../hooks/useProject";
 import { api } from "../services/api";
 import { Button } from "../components/ui/Button";
+import { CoachMark } from "../components/onboarding/CoachMark";
+import { HelpButton } from "../components/onboarding/HelpButton";
 import { ProductDrawer } from "../components/products/ProductDrawer";
 import { Spinner } from "../components/ui/Spinner";
 import { Toast } from "../components/ui/Toast";
@@ -203,8 +205,12 @@ export function ProductsPage() {
           <h1 className="text-lg font-semibold text-black">Product Brain</h1>
           <p className="text-sm text-gray-500">Manage your products and their AI-powered content context.</p>
         </div>
-        <Button onClick={() => setShowCreate(true)}>+ Add Product</Button>
+        <div className="flex items-center gap-2">
+          <HelpButton pageKey="products" />
+          <Button onClick={() => setShowCreate(true)}>+ Add Product</Button>
+        </div>
       </div>
+      <CoachMark pageKey="products" title="Products" body="Products live inside a brand and represent what you're talking about — a service, a launch, a feature. Content is generated against a product, not a brand." />
 
       {loading ? (
         <div className="flex justify-center py-12">
