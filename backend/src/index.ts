@@ -621,6 +621,8 @@ async function main() {
 		"Workspace not found",
 		"Slug already taken",
 		"Brand not found",
+		"A brand with this name already exists in this project. Choose a different name.",
+		"This project already has a brand. Each project can contain only one brand — create a new project to add another.",
 		"Product not found",
 		"Cannot remove the last admin",
 		"Invitation not found",
