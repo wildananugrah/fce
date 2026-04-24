@@ -69,11 +69,11 @@ model User {
 
 Checklist progress is **not persisted**. It is derived per-request from the active workspace:
 
-- `hasBrand` — `prisma.brand.count({ workspaceId, archivedAt: null }) > 0`
-- `hasProduct` — `prisma.product.count({ brand: { workspaceId, archivedAt: null }, archivedAt: null }) > 0`
-- `hasGenerated` — `prisma.generationOutput.count({ request: { workspaceId } }) > 0`
+- `hasBrand` — `prisma.brand.count({ where: { workspaceId, archivedAt: null } }) > 0`
+- `hasProduct` — `prisma.product.count({ where: { workspaceId, archivedAt: null, brand: { archivedAt: null } } }) > 0`
+- `hasGenerated` — `prisma.generationRequest.count({ where: { workspaceId, archivedAt: null, brand: { archivedAt: null } } }) > 0`
 
-Archived brands/products are excluded. This matches the visibility rules documented in CLAUDE.md.
+Archived brands/products are excluded. Filters mirror `dashboard.service.ts` so "progress" agrees with what the user sees in the main lists.
 
 ### Backend
 
