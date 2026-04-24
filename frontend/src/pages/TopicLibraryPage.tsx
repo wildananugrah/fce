@@ -24,6 +24,8 @@ import { Spinner } from "../components/ui/Spinner";
 import { Toast } from "../components/ui/Toast";
 import { TopicDetailDrawer } from "../components/topics/TopicDetailDrawer";
 import { TopicCalendarView } from "../components/topics/TopicCalendarView";
+import { CoachMark } from "../components/onboarding/CoachMark";
+import { HelpButton } from "../components/onboarding/HelpButton";
 
 type ViewMode = "table" | "month" | "week";
 
@@ -494,6 +496,7 @@ export function TopicLibraryPage() {
           <p className="text-sm text-gray-500 mt-1">All saved content topics, grouped by brand.</p>
         </div>
         <div className="flex items-center gap-2">
+          <HelpButton pageKey="topic-library" />
           <Button
             onClick={() => handleExportToExcel(filteredTopics)}
             className="!bg-white !text-gray-700 !border !border-gray-300 hover:!bg-gray-50 !rounded-lg disabled:!text-gray-400 disabled:!border-gray-200 disabled:cursor-not-allowed"
@@ -524,6 +527,12 @@ export function TopicLibraryPage() {
           </button>
         </div>
       </div>
+
+      <CoachMark
+        pageKey="topic-library"
+        title="Topic Library"
+        body="Browse every saved topic across your brands — filter by brand, platform, or status, switch to calendar view to plan a schedule, or approve topics here before they become posts."
+      />
 
       {/* Stats Cards */}
       <div className="flex gap-4">
