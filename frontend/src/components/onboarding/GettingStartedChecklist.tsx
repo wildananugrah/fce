@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { Check, X } from "lucide-react";
 import { useOnboarding } from "../../hooks/useOnboarding";
@@ -17,20 +17,27 @@ const ITEMS: Item[] = [
 
 export function GettingStartedChecklist() {
 	const { welcomeSeenAt, checklistDismissedAt, progress, dismissChecklist } = useOnboarding();
-	const [celebrating, setCelebrating] = useState(false);
+	const celebratedRef = useRef(false);
 
 	// Auto-dismiss ~2 seconds after all three items complete — gives the user
-	// a moment to see the 🎉 state before the card disappears forever.
+	// a moment to see the 🎉 state before the card disappears forever. A ref
+	// (not state) guards against re-scheduling because this flag is read-only
+	// once it flips true; it never needs to drive a re-render.
 	useEffect(() => {
 		if (!progress) return;
-		if (progress.hasBrand && progress.hasProduct && progress.hasGenerated && !celebrating) {
-			setCelebrating(true);
+		if (
+			progress.hasBrand &&
+			progress.hasProduct &&
+			progress.hasGenerated &&
+			!celebratedRef.current
+		) {
+			celebratedRef.current = true;
 			const t = setTimeout(() => {
 				dismissChecklist();
 			}, 2000);
 			return () => clearTimeout(t);
 		}
-	}, [progress, celebrating, dismissChecklist]);
+	}, [progress, dismissChecklist]);
 
 	// Guard: wait for the welcome modal to be handled first, and don't show if
 	// already dismissed or while progress is still loading.
