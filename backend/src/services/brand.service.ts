@@ -56,7 +56,7 @@ export class BrandService implements IBrandService {
 			// message instead of a generic 500.
 			if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
 				throw new Error(
-					"A brand with this name already exists in this project. Choose a different name.",
+					"A brand with this name is already in this project — possibly in Workspace Settings → Trash. Restore it, permanently delete it from Trash, or pick a different name.",
 				);
 			}
 			throw e;
