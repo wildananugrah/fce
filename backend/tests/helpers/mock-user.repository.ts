@@ -1,5 +1,8 @@
 import type { User } from "@prisma/client";
-import type { IUserRepository } from "../../src/interfaces/repositories/user.repository.interface";
+import type {
+	IUserRepository,
+	OnboardingPatch,
+} from "../../src/interfaces/repositories/user.repository.interface";
 
 export class MockUserRepository implements IUserRepository {
 	private users: User[] = [];
@@ -31,6 +34,9 @@ export class MockUserRepository implements IUserRepository {
 			maxWorkspaces: data.maxWorkspaces ?? 1,
 			maxProjects: data.maxProjects ?? 3,
 			emailVerifiedAt: null,
+			onboardingWelcomeSeenAt: null,
+			onboardingChecklistDismissedAt: null,
+			seenCoachMarks: [],
 			createdAt: new Date(),
 			updatedAt: new Date(),
 		};
@@ -48,6 +54,33 @@ export class MockUserRepository implements IUserRepository {
 		if (index === -1) throw new Error("User not found");
 		this.users[index] = { ...this.users[index], ...data, updatedAt: new Date() };
 		return this.users[index];
+	}
+
+	async updateOnboarding(id: string, patch: OnboardingPatch): Promise<User> {
+		const index = this.users.findIndex((u) => u.id === id);
+		if (index === -1) throw new Error("User not found");
+		const user = this.users[index];
+		const now = new Date();
+		const next = { ...user };
+		let changed = false;
+
+		if (patch.welcomeSeen && next.onboardingWelcomeSeenAt === null) {
+			next.onboardingWelcomeSeenAt = now;
+			changed = true;
+		}
+		if (patch.checklistDismissed && next.onboardingChecklistDismissedAt === null) {
+			next.onboardingChecklistDismissedAt = now;
+			changed = true;
+		}
+		if (patch.markCoachSeen && !next.seenCoachMarks.includes(patch.markCoachSeen)) {
+			next.seenCoachMarks = [...next.seenCoachMarks, patch.markCoachSeen];
+			changed = true;
+		}
+
+		if (!changed) return user;
+		next.updatedAt = now;
+		this.users[index] = next;
+		return next;
 	}
 
 	clear(): void {
