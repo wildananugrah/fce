@@ -2,6 +2,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { Pool } from "pg";
 import { PgBoss } from "pg-boss";
 import { ArchiveSweepJob } from "./jobs/archive-sweep.job";
 import { BrandScrapingJob } from "./jobs/brand-scraping.job";
@@ -117,7 +118,8 @@ async function main() {
 	// across all queues, and each job makes multiple Prisma queries. Bump the
 	// adapter pool past the default (10) so workers don't starve waiting for a
 	// free connection. `max` flows through to node-postgres' Pool.
-	const adapter = new PrismaPg({ connectionString: env.databaseUrl, max: 25 });
+	const pool = new Pool({ connectionString: env.databaseUrl, max: 25 });
+	const adapter = new PrismaPg(pool);
 	const prisma = new PrismaClient({ adapter });
 	const logger = new WinstonLogger(env.serviceName, env.lokiUrl || undefined);
 
