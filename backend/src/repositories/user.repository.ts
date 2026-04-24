@@ -39,6 +39,14 @@ export class UserRepository implements IUserRepository {
 		// this in a single query would require COALESCE + array_append SQL
 		// which Prisma doesn't expose cleanly — one extra round-trip keeps the
 		// code in the ORM and the behavior observable.
+		//
+		// Known race: two concurrent PATCHes from the same user could both
+		// read before either writes, and one write could drop a seenCoachMarks
+		// append. In practice users don't fire simultaneous requests (the
+		// frontend patches are tied to discrete UI actions and the
+		// welcomeSeen/checklistDismissed flags are idempotent set-once). If
+		// this becomes a real problem, switch to a $transaction or a single
+		// SQL UPDATE with a CASE expression.
 		const user = await this.prisma.user.findUnique({ where: { id } });
 		if (!user) throw new Error("User not found");
 
