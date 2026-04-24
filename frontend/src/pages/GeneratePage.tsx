@@ -4,6 +4,7 @@ import { Trash2, X, Sparkles } from "lucide-react";
 import { useWorkspace } from "../hooks/useWorkspace";
 import { useProject } from "../hooks/useProject";
 import { useSSE } from "../hooks/useSSE";
+import { useOnboarding } from "../hooks/useOnboarding";
 import { api } from "../services/api";
 import { CoachMark } from "../components/onboarding/CoachMark";
 import { HelpButton } from "../components/onboarding/HelpButton";
@@ -374,6 +375,7 @@ function BrainContextCard({ tone, usp }: { tone?: string; usp?: string }) {
 export function GeneratePage() {
   const { activeWorkspace } = useWorkspace();
   const { activeProject } = useProject();
+  const { refreshProgress } = useOnboarding();
   const [searchParams, setSearchParams] = useSearchParams();
   const researchContext = searchParams.get("researchContext") || "";
   const researchTitle = searchParams.get("researchTitle") || "";
@@ -675,6 +677,7 @@ export function GeneratePage() {
         }),
       });
       showToast("Generation submitted", "success");
+      refreshProgress();
       await loadGenerations();
     } catch (e) {
       showToast(e instanceof Error ? e.message : "Failed to submit generation", "error");

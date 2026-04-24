@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useWorkspace } from "../hooks/useWorkspace";
 import { useProject } from "../hooks/useProject";
+import { useOnboarding } from "../hooks/useOnboarding";
 import { api } from "../services/api";
 import { Button } from "../components/ui/Button";
 import { CoachMark } from "../components/onboarding/CoachMark";
@@ -52,6 +53,7 @@ type ToastState = { message: string; type: "success" | "error" | "info" } | null
 export function ProductsPage() {
   const { activeWorkspace } = useWorkspace();
   const { activeProject } = useProject();
+  const { refreshProgress } = useOnboarding();
   const [products, setProducts] = useState<Product[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
   const [loading, setLoading] = useState(true);
@@ -123,6 +125,7 @@ export function ProductsPage() {
 
     await loadData();
     setShowCreate(false);
+    refreshProgress();
     showToast("Product created", "success");
   };
 
