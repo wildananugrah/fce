@@ -72,6 +72,8 @@ import { createDashboardRoutes } from "./routes/dashboard.route";
 import { createDocumentRoutes } from "./routes/document.route";
 import { createGenerationRoutes } from "./routes/generation.route";
 import { createLibraryRoutes } from "./routes/library.route";
+import { createOnboardingProgressRoutes } from "./routes/onboarding-progress.route";
+import { createOnboardingRoutes } from "./routes/onboarding.route";
 import { createProjectRoutes } from "./routes/project.route";
 import { createProductRoutes } from "./routes/product.route";
 import { createRecommendationRoutes } from "./routes/recommendation.route";
@@ -105,6 +107,7 @@ import { DocumentService } from "./services/document.service";
 import { GenerationService } from "./services/generation.service";
 import { LibraryService } from "./services/library.service";
 import { NotificationService } from "./services/notification.service";
+import { OnboardingService } from "./services/onboarding.service";
 import { ProductService } from "./services/product.service";
 import { RecommendationService } from "./services/recommendation.service";
 import { ResearchService } from "./services/research.service";
@@ -280,6 +283,7 @@ async function main() {
 		userDefaultMaxProjects: env.userDefaultMaxProjects,
 	});
 	const researchService = new ResearchService(researchRepository, apifyProvider, boss, logger);
+	const onboardingService = new OnboardingService(userRepository, prisma);
 
 	// Shared helper used by competitor analyzer jobs to fetch a workspace's
 	// Apify key without coupling to the WorkspaceSetting repo directly.
@@ -689,6 +693,7 @@ async function main() {
 
 	app.route("/api/invitations", createAuthenticatedInvitationRoutes(workspaceService));
 	app.route("/api/me", createMeInvitationRoutes(workspaceService));
+	app.route("/api/users/me/onboarding", createOnboardingRoutes(onboardingService));
 
 	// Workspace routes (auth protected)
 	app.route("/api/workspaces", createWorkspaceRoutes(workspaceService));
@@ -720,6 +725,10 @@ async function main() {
 	workspaceScoped.route("/recommendations", createRecommendationRoutes(recommendationService));
 	workspaceScoped.route("/skills", createWorkspaceSkillRoutes(prisma));
 	workspaceScoped.route("/projects", createProjectRoutes(prisma));
+	workspaceScoped.route(
+		"/onboarding-progress",
+		createOnboardingProgressRoutes(onboardingService),
+	);
 	workspaceScoped.route(
 		"/ai-settings",
 		createWorkspaceAiSettingsRoutes(workspaceSettingRepository, aiProviderFactory),
