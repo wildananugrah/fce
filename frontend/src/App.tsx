@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import { WorkspaceProvider } from "./contexts/WorkspaceContext";
 import { ProjectProvider } from "./contexts/ProjectContext";
+import { OnboardingProvider } from "./contexts/OnboardingContext";
 import { AppShell } from "./components/layout/AppShell";
 import { LandingPage } from "./pages/LandingPage";
 import { LoginPage } from "./pages/LoginPage";
@@ -49,6 +50,7 @@ export default function App() {
       <AuthProvider>
         <WorkspaceProvider>
           <ProjectProvider>
+            <OnboardingProvider>
           <Routes>
             <Route path="/landing" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
@@ -79,6 +81,7 @@ export default function App() {
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+            </OnboardingProvider>
           </ProjectProvider>
         </WorkspaceProvider>
       </AuthProvider>
