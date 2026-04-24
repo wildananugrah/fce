@@ -44,6 +44,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
 	useEffect(() => {
 		if (authLoading) return;
 		if (!user) {
+			// eslint-disable-next-line react-hooks/set-state-in-effect -- syncing auth->local state.
 			setFlags(parseFlags(null));
 			setProgress(null);
 			return;
@@ -68,6 +69,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
 	// Refresh progress when the active workspace changes.
 	useEffect(() => {
 		if (!user) return;
+		// eslint-disable-next-line react-hooks/set-state-in-effect -- fire-and-forget async refresh.
 		refreshProgress();
 	}, [user, activeWorkspace?.id, refreshProgress]);
 
