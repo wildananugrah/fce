@@ -7,7 +7,7 @@
  *   - onboardingWelcomeSeenAt:        null → now()
  *   - onboardingChecklistDismissedAt: null → now()
  *   - seenCoachMarks (if []):                 →
- *     ["dashboard","brands","products","generate","campaigns","topics","brand-new"]
+ *     ["dashboard","brands","products","generate","campaigns","topics","brand-new","product-new"]
  *
  * Only affects users created BEFORE the script runs (bounded by createdAt <= now).
  * Users created after this run (i.e. real new signups) go through the full
@@ -21,7 +21,7 @@ import { PrismaClient } from "@prisma/client";
 import { Pool } from "pg";
 
 const DRY_RUN = process.argv.includes("--dry-run");
-const COACH_MARK_KEYS = ["dashboard", "brands", "products", "generate", "campaigns", "topics", "brand-new"];
+const COACH_MARK_KEYS = ["dashboard", "brands", "products", "generate", "campaigns", "topics", "brand-new", "product-new"];
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) throw new Error("DATABASE_URL is not set");
