@@ -50,6 +50,8 @@ export class MockWorkspaceRepository implements IWorkspaceRepository {
 		ownerUserId: string,
 	): Promise<Workspace> {
 		const workspace = await this.create(data);
+		// Mirror production behavior — the real repo stamps the creator on the row.
+		workspace.createdBy = ownerUserId;
 		await this.addMember(workspace.id, ownerUserId, "admin");
 		return workspace;
 	}
@@ -70,6 +72,10 @@ export class MockWorkspaceRepository implements IWorkspaceRepository {
 		const index = this.workspaces.findIndex((w) => w.id === id);
 		if (index === -1) throw new Error("Workspace not found");
 		this.workspaces.splice(index, 1);
+	}
+
+	async countCreatedBy(userId: string): Promise<number> {
+		return this.workspaces.filter((w) => w.createdBy === userId).length;
 	}
 
 	async findRole(userId: string, workspaceId: string): Promise<UserWorkspaceRole | null> {

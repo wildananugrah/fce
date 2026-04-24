@@ -12,7 +12,13 @@ export class UserRepository implements IUserRepository {
 		return this.prisma.user.findUnique({ where: { email } });
 	}
 
-	async create(data: { email: string; passwordHash: string; fullName?: string }): Promise<User> {
+	async create(data: {
+		email: string;
+		passwordHash: string;
+		fullName?: string;
+		maxWorkspaces?: number;
+		maxProjects?: number;
+	}): Promise<User> {
 		return this.prisma.user.create({ data });
 	}
 

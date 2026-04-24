@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { QuotaExceededError } from "../errors/quota-exceeded-error";
 import type { IWorkspaceService } from "../interfaces/services/workspace.service.interface";
 
 type Variables = {
@@ -26,8 +27,24 @@ export function createWorkspaceRoutes(workspaceService: IWorkspaceService) {
 		if (!name || !slug) {
 			return c.json({ error: "Name and slug are required" }, 400);
 		}
-		const workspace = await workspaceService.create(userId, { name, slug, description });
-		return c.json({ data: workspace }, 201);
+		try {
+			const workspace = await workspaceService.create(userId, { name, slug, description });
+			return c.json({ data: workspace }, 201);
+		} catch (e) {
+			if (e instanceof QuotaExceededError) {
+				return c.json(
+					{
+						error: e.message,
+						quotaExceeded: true,
+						resource: e.resource,
+						limit: e.limit,
+						current: e.current,
+					},
+					403,
+				);
+			}
+			throw e;
+		}
 	});
 
 	// DELETE /:id — delete workspace (admin or creator)

@@ -17,6 +17,12 @@ model User {
   isSuperadmin Boolean  @default(false) @map("is_superadmin")
   status       String   @default("active")
   defaultScrapeLanguage String @default("indonesian") @map("default_scrape_language")
+  // Per-user quotas. Superadmins bypass both. Tune via SQL when a customer
+  // asks for more, e.g. `UPDATE users SET max_projects = 10 WHERE email = ?`.
+  // Counts what the user CREATED; being invited into someone else's workspace
+  // or project doesn't consume their quota.
+  maxWorkspaces Int     @default(1) @map("max_workspaces")
+  maxProjects   Int     @default(3) @map("max_projects")
   // Set when the user clicks the verification link we email at signup. Null =
   // signed up but hasn't proven address ownership yet; login should refuse.
   // Users who accept a workspace invitation OR existing users before this
@@ -35,6 +41,7 @@ model User {
   verificationTokens EmailVerificationToken[]
   createdCreators    Creator[]               @relation("CreatorCreator")
   competitorPipelineRuns CompetitorPipelineRun[]
+  createdProjects    Project[]               @relation("ProjectCreator")
 
   @@map("users")
 }
@@ -848,10 +855,15 @@ model Project {
   slug        String
   description String?
   archivedAt  DateTime? @map("archived_at")
+  // Nullable — legacy rows backfilled to Workspace.createdBy by
+  // scripts/migrate-project-creator.ts. Counted against User.maxProjects
+  // when creating new projects.
+  createdById String?   @map("created_by_id")
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
 
   workspace              Workspace               @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  creator                User?                   @relation("ProjectCreator", fields: [createdById], references: [id], onDelete: SetNull)
   memberships            UserProjectMembership[]
   brands                 Brand[]
   creators               Creator[]
@@ -860,6 +872,7 @@ model Project {
 
   @@unique([workspaceId, slug])
   @@index([workspaceId])
+  @@index([createdById])
   @@map("projects")
 }
 

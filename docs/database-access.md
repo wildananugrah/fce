@@ -501,3 +501,14 @@ WHERE c.project_id = '<project-id>' AND v.analysis_status = 'completed'
 ORDER BY v.view_count DESC NULLS LAST
 LIMIT 20;
 ```
+
+### 7. Workspace and Project Limitation
+```sql
+-- Raise one user's limits
+UPDATE users SET max_projects = 10, max_workspaces = 3 WHERE email = 'x@y.com';
+
+-- Check who's close to the limit
+SELECT u.email, u.max_projects, COUNT(p.id) AS used
+FROM users u LEFT JOIN projects p ON p.created_by_id = u.id
+GROUP BY u.id HAVING COUNT(p.id) >= u.max_projects;
+```

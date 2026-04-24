@@ -29,6 +29,8 @@ interface AuthConfig {
 	jwtRefreshExpiry: string;
 	appUrl: string;
 	emailVerificationTokenExpiry: string;
+	userDefaultMaxWorkspaces: number;
+	userDefaultMaxProjects: number;
 }
 
 export class AuthService implements IAuthService {
@@ -51,6 +53,8 @@ export class AuthService implements IAuthService {
 			email: input.email,
 			passwordHash,
 			fullName: input.fullName,
+			maxWorkspaces: this.config.userDefaultMaxWorkspaces,
+			maxProjects: this.config.userDefaultMaxProjects,
 		});
 
 		// Invitation path: if the token exists and accepting succeeds, the user

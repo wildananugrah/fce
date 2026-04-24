@@ -60,4 +60,9 @@ export const env = {
 	// Soft-deleted brands, products, topics, and content older than this are
 	// hard-deleted by the scheduled sweeper (runs hourly via pg-boss).
 	archiveTtlDays: Number.parseInt(optionalEnv("ARCHIVE_TTL_DAYS", "30"), 10),
+	// Default quota for freshly-created users. Persisted to User.maxWorkspaces
+	// and User.maxProjects at signup/admin-create time; per-user tuning via
+	// direct SQL takes precedence over the env value.
+	userDefaultMaxWorkspaces: Number.parseInt(optionalEnv("USER_DEFAULT_MAX_WORKSPACES", "1"), 10),
+	userDefaultMaxProjects: Number.parseInt(optionalEnv("USER_DEFAULT_MAX_PROJECTS", "3"), 10),
 } as const;

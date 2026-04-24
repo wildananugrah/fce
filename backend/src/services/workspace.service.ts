@@ -1,4 +1,5 @@
 import type { Workspace, WorkspaceInvitation } from "@prisma/client";
+import { QuotaExceededError } from "../errors/quota-exceeded-error";
 import type { IEmailProvider } from "../interfaces/providers/email.provider.interface";
 import type { IUserRepository } from "../interfaces/repositories/user.repository.interface";
 import type { IWorkspaceRepository } from "../interfaces/repositories/workspace.repository.interface";
@@ -51,6 +52,17 @@ export class WorkspaceService implements IWorkspaceService {
 	}
 
 	async create(userId: string, input: CreateWorkspaceInput): Promise<Workspace> {
+		const user = await this.userRepository.findById(userId);
+		if (!user) throw new Error("User not found");
+
+		// Superadmins bypass the quota; everyone else is capped by User.maxWorkspaces.
+		if (!user.isSuperadmin) {
+			const current = await this.workspaceRepository.countCreatedBy(userId);
+			if (current >= user.maxWorkspaces) {
+				throw new QuotaExceededError("workspaces", user.maxWorkspaces, current);
+			}
+		}
+
 		const existing = await this.workspaceRepository.findBySlug(input.slug);
 		if (existing) {
 			throw new Error("Slug already taken");

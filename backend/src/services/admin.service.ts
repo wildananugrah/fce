@@ -3,8 +3,16 @@ import type { IAdminService } from "../interfaces/services/admin.service.interfa
 import { WORKSPACE_ROLES } from "../constants/roles";
 import { hashPassword } from "../utils/password";
 
+interface AdminConfig {
+	userDefaultMaxWorkspaces: number;
+	userDefaultMaxProjects: number;
+}
+
 export class AdminService implements IAdminService {
-	constructor(private prisma: PrismaClient) {}
+	constructor(
+		private prisma: PrismaClient,
+		private config: AdminConfig,
+	) {}
 
 	async listUsers() {
 		return this.prisma.user.findMany({
@@ -40,6 +48,8 @@ export class AdminService implements IAdminService {
 				passwordHash,
 				fullName: input.fullName ?? null,
 				isSuperadmin: input.isSuperadmin ?? false,
+				maxWorkspaces: this.config.userDefaultMaxWorkspaces,
+				maxProjects: this.config.userDefaultMaxProjects,
 			},
 			select: { id: true, email: true, fullName: true, status: true, isSuperadmin: true, createdAt: true },
 		});

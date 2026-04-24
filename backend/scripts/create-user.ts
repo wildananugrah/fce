@@ -52,24 +52,38 @@ async function main() {
 	}
 
 	const passwordHash = await hashPassword(password);
+	const maxWorkspaces = Number.parseInt(process.env.USER_DEFAULT_MAX_WORKSPACES ?? "1", 10);
+	const maxProjects = Number.parseInt(process.env.USER_DEFAULT_MAX_PROJECTS ?? "3", 10);
 	const user = await prisma.user.create({
 		data: {
 			email: normalized,
 			passwordHash,
 			fullName: fullName ?? null,
 			isSuperadmin: flagSuperadmin,
+			maxWorkspaces,
+			maxProjects,
 			// CLI-created users skip the email verification flow — creating them
 			// from the shell is already a trusted action.
 			emailVerifiedAt: new Date(),
 		},
-		select: { id: true, email: true, fullName: true, isSuperadmin: true, createdAt: true },
+		select: {
+			id: true,
+			email: true,
+			fullName: true,
+			isSuperadmin: true,
+			maxWorkspaces: true,
+			maxProjects: true,
+			createdAt: true,
+		},
 	});
 
 	console.log("Created user:");
-	console.log(`  id:           ${user.id}`);
-	console.log(`  email:        ${user.email}`);
-	console.log(`  fullName:     ${user.fullName ?? "(none)"}`);
-	console.log(`  isSuperadmin: ${user.isSuperadmin}`);
+	console.log(`  id:            ${user.id}`);
+	console.log(`  email:         ${user.email}`);
+	console.log(`  fullName:      ${user.fullName ?? "(none)"}`);
+	console.log(`  isSuperadmin:  ${user.isSuperadmin}`);
+	console.log(`  maxWorkspaces: ${user.maxWorkspaces}`);
+	console.log(`  maxProjects:   ${user.maxProjects}`);
 	console.log("");
 	console.log("Next steps (pick whichever applies):");
 	console.log(`  • Add to a workspace as admin:`);

@@ -1,3 +1,11 @@
+// Force UTC before any imports. Prisma maps `DateTime` to Postgres
+// `timestamp(3) without time zone`, which stores UTC values but omits the tz
+// marker. Node's pg driver then parses those bare strings as LOCAL time on the
+// host — on a Mac in WIB that shifts every timestamp by −7h. Pinning the
+// process to UTC makes the round-trip lossless regardless of where the server
+// runs. Browsers still localize for display via Date#toLocale*.
+if (!process.env.TZ) process.env.TZ = "UTC";
+
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 import { Hono } from "hono";
@@ -227,6 +235,8 @@ async function main() {
 			jwtRefreshExpiry: env.jwtRefreshExpiry,
 			appUrl: env.appUrl,
 			emailVerificationTokenExpiry: env.emailVerificationTokenExpiry,
+			userDefaultMaxWorkspaces: env.userDefaultMaxWorkspaces,
+			userDefaultMaxProjects: env.userDefaultMaxProjects,
 		},
 		workspaceService,
 		prisma,
@@ -265,7 +275,10 @@ async function main() {
 		boss,
 		env.minioBucket,
 	);
-	const adminService = new AdminService(prisma);
+	const adminService = new AdminService(prisma, {
+		userDefaultMaxWorkspaces: env.userDefaultMaxWorkspaces,
+		userDefaultMaxProjects: env.userDefaultMaxProjects,
+	});
 	const researchService = new ResearchService(researchRepository, apifyProvider, boss, logger);
 
 	// Shared helper used by competitor analyzer jobs to fetch a workspace's

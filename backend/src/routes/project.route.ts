@@ -8,6 +8,7 @@ import {
 	isMenuKey,
 	type MenuKey,
 } from "../constants/roles";
+import { QuotaExceededError } from "../errors/quota-exceeded-error";
 import { requireWorkspaceAdmin } from "../middlewares/rbac.middleware";
 
 type Variables = {
@@ -93,6 +94,8 @@ export function createProjectRoutes(prisma: PrismaClient) {
 	// POST / — create project (admin only).
 	app.post("/", requireWorkspaceAdmin(), async (c) => {
 		const workspaceId = c.get("workspaceId");
+		const userId = c.get("userId");
+		const isSuperadmin = c.get("isSuperadmin");
 		const body = (await c.req.json()) as { name?: unknown; slug?: unknown; description?: unknown };
 		const name = typeof body.name === "string" ? body.name.trim() : "";
 		if (!name) return c.json({ error: "Name is required" }, 400);
@@ -101,6 +104,30 @@ export function createProjectRoutes(prisma: PrismaClient) {
 				? slugify(body.slug)
 				: slugify(name);
 		const description = typeof body.description === "string" ? body.description : null;
+
+		// Quota check: count projects this user has created across all workspaces.
+		// Superadmins bypass. Legacy rows with createdById = null don't count.
+		if (!isSuperadmin) {
+			const user = await prisma.user.findUnique({
+				where: { id: userId },
+				select: { maxProjects: true },
+			});
+			if (!user) return c.json({ error: "User not found" }, 404);
+			const current = await prisma.project.count({ where: { createdById: userId } });
+			if (current >= user.maxProjects) {
+				const err = new QuotaExceededError("projects", user.maxProjects, current);
+				return c.json(
+					{
+						error: err.message,
+						quotaExceeded: true,
+						resource: err.resource,
+						limit: err.limit,
+						current: err.current,
+					},
+					403,
+				);
+			}
+		}
 
 		const existing = await prisma.project.findUnique({
 			where: { workspaceId_slug: { workspaceId, slug } },
@@ -111,7 +138,7 @@ export function createProjectRoutes(prisma: PrismaClient) {
 		}
 
 		const project = await prisma.project.create({
-			data: { workspaceId, name, slug, description },
+			data: { workspaceId, name, slug, description, createdById: userId },
 		});
 		return c.json({ data: project }, 201);
 	});

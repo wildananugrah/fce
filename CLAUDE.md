@@ -155,6 +155,7 @@ Every AI provider call (content, topic, campaign, brand scraping, product scrapi
 Copy `.env.example` to `.env`. Key variables:
 
 - `DATABASE_URL` — Postgres connection string.
+- `TZ=UTC` — **required**. Prisma's default `DateTime` maps to `timestamp(3) without time zone`, which stores UTC but drops the tz marker. Node's pg driver then parses bare timestamps using the host's local tz, so running on a non-UTC host (e.g. a Mac in WIB) shifts every `createdAt`/`updatedAt` on read. Pinning the process to UTC makes reads lossless. Browsers localize for display on top of this. `backend/src/index.ts` also sets `process.env.TZ ||= "UTC"` as a runtime safety net.
 - `JWT_SECRET`, `JWT_REFRESH_SECRET`, `JWT_EXPIRY`, `JWT_REFRESH_EXPIRY`.
 - `EMAIL_VERIFICATION_TOKEN_EXPIRY` — default `24h`. Parseable as `"30s"`, `"5m"`, `"2h"`, `"7d"`.
 - `ARCHIVE_TTL_DAYS` — default `30`. Soft-archived brands/products/topics/content older than this are hard-deleted by the hourly `archive-sweep` pg-boss worker.

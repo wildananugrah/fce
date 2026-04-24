@@ -55,6 +55,8 @@ describe("AuthService", () => {
 			jwtRefreshExpiry: "7d",
 			appUrl: "http://localhost:5173",
 			emailVerificationTokenExpiry: "24h",
+			userDefaultMaxWorkspaces: 1,
+			userDefaultMaxProjects: 3,
 		},
 		workspaceServiceStub,
 		prismaStub,

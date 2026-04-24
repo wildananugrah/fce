@@ -171,7 +171,8 @@
       "Bash(xargs -I{} echo \"{} commits to merge\")",
       "Bash(grep -n \"activeWorkspace\\\\|useWorkspace\\\\|api<.*>\\\\`/api\" /Users/bellinnn/Documents/projects/fce/frontend/src/pages/TopicLibraryPage.tsx)",
       "Bash(grep -n \"api<Brand\\\\|brands\\\\`\" /Users/bellinnn/Documents/projects/fce/frontend/src/pages/GeneratePage.tsx)",
-      "Bash(docker exec *)"
+      "Bash(docker exec *)",
+      "Read(//Users/bellinnn/.claude/skills/**)"
     ],
     "additionalDirectories": [
       "/Users/wildananugrah/Documents/My-Projects/fce/.git"

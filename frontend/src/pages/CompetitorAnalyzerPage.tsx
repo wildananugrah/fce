@@ -1,4 +1,5 @@
 import { useSearchParams } from "react-router-dom";
+import { Users, Settings2, Play, FileText, Check, ChevronRight } from "lucide-react";
 import { useCompetitorAnalyzer } from "../hooks/useCompetitorAnalyzer";
 import { CreatorsTab } from "../components/competitor-analyzer/CreatorsTab";
 import { ConfigsTab } from "../components/competitor-analyzer/ConfigsTab";
@@ -6,14 +7,14 @@ import { RunsTab } from "../components/competitor-analyzer/RunsTab";
 import { OutputsTab } from "../components/competitor-analyzer/OutputsTab";
 import { Spinner } from "../components/ui/Spinner";
 
-const TABS = [
-	{ key: "creators", label: "Creators" },
-	{ key: "configs", label: "Configs" },
-	{ key: "runs", label: "Run Pipeline" },
-	{ key: "outputs", label: "Outputs" },
+const STEPS = [
+	{ key: "creators", label: "Add Creators", icon: Users, blurb: "Pick TikTok accounts to study" },
+	{ key: "configs", label: "Create Config", icon: Settings2, blurb: "Brand context + analysis rules" },
+	{ key: "runs", label: "Run Pipeline", icon: Play, blurb: "Scrape → analyze → write scripts" },
+	{ key: "outputs", label: "View Outputs", icon: FileText, blurb: "Generated scripts to use" },
 ] as const;
 
-type TabKey = (typeof TABS)[number]["key"];
+type TabKey = (typeof STEPS)[number]["key"];
 
 export function CompetitorAnalyzerPage() {
 	const [searchParams, setSearchParams] = useSearchParams();
@@ -29,43 +30,103 @@ export function CompetitorAnalyzerPage() {
 
 	if (!ca.ready) {
 		return (
-			<div className="p-8 text-center text-gray-500 text-sm">
+			<div className="p-8 text-center text-sm text-gray-500">
 				Select a workspace and project to use Competitor Analyzer.
 			</div>
 		);
 	}
 
+	const completedRuns = ca.runs.filter((r) => r.status === "completed").length;
+	const configsWithCreators = ca.configs.filter((c) => (c.creators?.length ?? 0) > 0).length;
+
+	const stepState: Record<TabKey, { count: number; done: boolean }> = {
+		creators: { count: ca.creators.length, done: ca.creators.length > 0 },
+		configs: { count: ca.configs.length, done: configsWithCreators > 0 },
+		runs: { count: ca.runs.length, done: completedRuns > 0 },
+		outputs: { count: completedRuns, done: completedRuns > 0 },
+	};
+
 	return (
-		<div className="space-y-4">
+		<div className="space-y-6">
 			<header>
 				<h1 className="text-2xl font-semibold text-gray-900">Competitor Analyzer</h1>
-				<p className="text-sm text-gray-500 mt-1">
-					Scrape viral competitor videos, analyze their hooks and retention, and generate
-					tailored scripts.
+				<p className="mt-1 text-sm text-gray-500">
+					Scrape viral competitor videos, score their hooks and retention, and generate tailored scripts — step by step.
 				</p>
 			</header>
 
-			<div className="border-b border-gray-200">
-				<nav className="flex gap-6">
-					{TABS.map((tab) => {
-						const active = activeTab === tab.key;
+			{/* Workflow stepper — replaces the flat tab bar so the canonical order is obvious. */}
+			<nav aria-label="Workflow" className="bg-white border border-gray-200 rounded-xl p-2">
+				<ol className="flex items-stretch gap-1 overflow-x-auto">
+					{STEPS.map((step, i) => {
+						const state = stepState[step.key];
+						const isActive = activeTab === step.key;
+						const Icon = step.icon;
 						return (
-							<button
-								key={tab.key}
-								type="button"
-								onClick={() => setTab(tab.key)}
-								className={`py-3 text-sm font-medium border-b-2 transition-colors ${
-									active
-										? "border-indigo-600 text-indigo-700"
-										: "border-transparent text-gray-500 hover:text-gray-700"
-								}`}
-							>
-								{tab.label}
-							</button>
+							<li key={step.key} className="flex items-stretch gap-1 flex-1 min-w-0">
+								<button
+									type="button"
+									onClick={() => setTab(step.key)}
+									aria-current={isActive ? "step" : undefined}
+									className={`group flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors w-full min-w-0 text-left ${
+										isActive
+											? "bg-indigo-50 border border-indigo-200"
+											: "border border-transparent hover:bg-gray-50"
+									} focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2`}
+								>
+									<span
+										className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-semibold ${
+											state.done
+												? "bg-indigo-600 text-white"
+												: isActive
+													? "bg-white text-indigo-700 border border-indigo-300"
+													: "bg-gray-100 text-gray-500"
+										}`}
+										aria-hidden
+									>
+										{state.done ? <Check size={14} /> : <Icon size={14} />}
+									</span>
+									<span className="min-w-0 flex-1">
+										<span className="flex items-center gap-1.5">
+											<span
+												className={`text-[10px] font-semibold uppercase tracking-wide ${
+													isActive ? "text-indigo-700" : "text-gray-400"
+												}`}
+											>
+												Step {i + 1}
+											</span>
+											<span
+												className={`text-[11px] px-1.5 py-0.5 rounded font-medium ${
+													state.done
+														? "bg-indigo-100 text-indigo-700"
+														: "bg-gray-100 text-gray-500"
+												}`}
+											>
+												{state.count}
+											</span>
+										</span>
+										<span
+											className={`block text-sm font-semibold truncate ${
+												isActive ? "text-indigo-900" : "text-gray-900"
+											}`}
+										>
+											{step.label}
+										</span>
+										<span className="block text-[11px] text-gray-500 truncate">
+											{step.blurb}
+										</span>
+									</span>
+								</button>
+								{i < STEPS.length - 1 && (
+									<div aria-hidden className="self-center text-gray-300 shrink-0">
+										<ChevronRight size={16} />
+									</div>
+								)}
+							</li>
 						);
 					})}
-				</nav>
-			</div>
+				</ol>
+			</nav>
 
 			{ca.loading && (
 				<div className="py-12 flex justify-center">
@@ -73,17 +134,24 @@ export function CompetitorAnalyzerPage() {
 				</div>
 			)}
 			{ca.error && (
-				<div className="rounded-md bg-red-50 text-red-700 text-sm px-4 py-2">{ca.error}</div>
+				<div
+					role="alert"
+					className="rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-2"
+				>
+					{ca.error}
+				</div>
 			)}
 
 			{!ca.loading && (
 				<>
-					{activeTab === "creators" && <CreatorsTab ca={ca} />}
-					{activeTab === "configs" && <ConfigsTab ca={ca} />}
-					{activeTab === "runs" && <RunsTab ca={ca} />}
-					{activeTab === "outputs" && <OutputsTab ca={ca} />}
+					{activeTab === "creators" && <CreatorsTab ca={ca} onGoToStep={setTab} />}
+					{activeTab === "configs" && <ConfigsTab ca={ca} onGoToStep={setTab} />}
+					{activeTab === "runs" && <RunsTab ca={ca} onGoToStep={setTab} />}
+					{activeTab === "outputs" && <OutputsTab ca={ca} onGoToStep={setTab} />}
 				</>
 			)}
 		</div>
 	);
 }
+
+export type CompetitorAnalyzerStepKey = TabKey;

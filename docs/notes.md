@@ -140,10 +140,11 @@ dicoba pake ini mas
 4. Topic library default calender di bawah table nya.
 5. Campaign Generator -> Chatbot. 
 6. Double Check ke Competitor Analyzer pake skills UI/UX
-7. satu user create workspace di limit, ini harus configurable di db.
+7. satu user create workspace di limit, ini harus configurable di db. [done]
 8. yang create project cuman superdamin doang. 
 9. Skills ini dibuat global. tapi butuh mappingan-nya. 
 10. Campaign -> input nya output butuh struktur nya mau gmana ? disabled dulu
-11. Learning Center -> disabled dulu
-12. Research Hub -> disabled dulu. 
+11. Learning Center -> disabled dulu [done]
+12. Research Hub -> disabled dulu.  [done]
 13. Create baby step for tutorial
+14. timestamp seems like not valid. 

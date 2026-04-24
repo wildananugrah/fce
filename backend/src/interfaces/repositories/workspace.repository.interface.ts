@@ -17,6 +17,9 @@ export interface IWorkspaceRepository {
 	): Promise<Workspace>;
 	delete(id: string): Promise<void>;
 
+	/** Count workspaces whose `createdBy` is `userId` — used to enforce User.maxWorkspaces. */
+	countCreatedBy(userId: string): Promise<number>;
+
 	findRole(userId: string, workspaceId: string): Promise<UserWorkspaceRole | null>;
 	findMembers(workspaceId: string): Promise<
 		(UserWorkspaceRole & {

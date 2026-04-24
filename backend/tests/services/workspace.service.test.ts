@@ -17,6 +17,18 @@ describe("WorkspaceService", () => {
 		tokenExpiry: "7d",
 	});
 
+	// Seed a user with generous quotas — these tests predate the per-user quota
+	// system and don't care about it.
+	async function seedUser() {
+		const user = await userRepo.create({
+			email: `test-${crypto.randomUUID()}@example.com`,
+			passwordHash: "x",
+			maxWorkspaces: 99,
+			maxProjects: 99,
+		});
+		return user.id;
+	}
+
 	afterEach(() => {
 		workspaceRepo.clear();
 		userRepo.clear?.();
@@ -25,7 +37,7 @@ describe("WorkspaceService", () => {
 
 	describe("create", () => {
 		it("should create workspace and add creator as admin", async () => {
-			const userId = crypto.randomUUID();
+			const userId = await seedUser();
 			const workspace = await workspaceService.create(userId, {
 				name: "My Workspace",
 				slug: "my-workspace",
@@ -43,17 +55,30 @@ describe("WorkspaceService", () => {
 		});
 
 		it("should throw when slug is already taken", async () => {
-			const userId = crypto.randomUUID();
+			const userId = await seedUser();
 			await workspaceService.create(userId, { name: "Workspace 1", slug: "taken-slug" });
 			await expect(
 				workspaceService.create(userId, { name: "Workspace 2", slug: "taken-slug" }),
 			).rejects.toThrow("Slug already taken");
 		});
+
+		it("should reject with QuotaExceededError when the user has hit maxWorkspaces", async () => {
+			const user = await userRepo.create({
+				email: `quota-${crypto.randomUUID()}@example.com`,
+				passwordHash: "x",
+				maxWorkspaces: 1,
+				maxProjects: 3,
+			});
+			await workspaceService.create(user.id, { name: "First", slug: "first-ws" });
+			await expect(
+				workspaceService.create(user.id, { name: "Second", slug: "second-ws" }),
+			).rejects.toThrow(/reached your workspaces limit/);
+		});
 	});
 
 	describe("listByUser", () => {
 		it("should return workspaces with user's role", async () => {
-			const userId = crypto.randomUUID();
+			const userId = await seedUser();
 			await workspaceService.create(userId, { name: "Workspace A", slug: "ws-a" });
 			await workspaceService.create(userId, { name: "Workspace B", slug: "ws-b" });
 
@@ -68,7 +93,7 @@ describe("WorkspaceService", () => {
 
 	describe("getById", () => {
 		it("should return workspace when found", async () => {
-			const userId = crypto.randomUUID();
+			const userId = await seedUser();
 			const created = await workspaceService.create(userId, { name: "Found WS", slug: "found-ws" });
 
 			const workspace = await workspaceService.getById(created.id);
@@ -85,7 +110,7 @@ describe("WorkspaceService", () => {
 
 	describe("invite", () => {
 		it("should create an invitation", async () => {
-			const userId = crypto.randomUUID();
+			const userId = await seedUser();
 			const workspace = await workspaceService.create(userId, {
 				name: "Invite WS",
 				slug: "invite-ws",
@@ -105,7 +130,7 @@ describe("WorkspaceService", () => {
 
 	describe("acceptInvitation", () => {
 		it("should add member with invitation's role", async () => {
-			const adminId = crypto.randomUUID();
+			const adminId = await seedUser();
 			const inviteeId = crypto.randomUUID();
 			const inviteeEmail = "invitee@example.com";
 
@@ -127,7 +152,7 @@ describe("WorkspaceService", () => {
 		});
 
 		it("should throw when invitation email does not match", async () => {
-			const adminId = crypto.randomUUID();
+			const adminId = await seedUser();
 			const workspace = await workspaceService.create(adminId, {
 				name: "Mismatch WS",
 				slug: "mismatch-ws",
@@ -145,7 +170,7 @@ describe("WorkspaceService", () => {
 
 	describe("removeMember", () => {
 		it("should remove a member", async () => {
-			const adminId = crypto.randomUUID();
+			const adminId = await seedUser();
 			const memberId = crypto.randomUUID();
 
 			const workspace = await workspaceService.create(adminId, {
@@ -161,7 +186,7 @@ describe("WorkspaceService", () => {
 		});
 
 		it("should throw when removing the last admin", async () => {
-			const adminId = crypto.randomUUID();
+			const adminId = await seedUser();
 			const workspace = await workspaceService.create(adminId, {
 				name: "LastAdmin WS",
 				slug: "lastadmin-ws",

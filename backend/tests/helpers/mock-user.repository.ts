@@ -12,7 +12,13 @@ export class MockUserRepository implements IUserRepository {
 		return this.users.find((u) => u.email === email) ?? null;
 	}
 
-	async create(data: { email: string; passwordHash: string; fullName?: string }): Promise<User> {
+	async create(data: {
+		email: string;
+		passwordHash: string;
+		fullName?: string;
+		maxWorkspaces?: number;
+		maxProjects?: number;
+	}): Promise<User> {
 		const user: User = {
 			id: crypto.randomUUID(),
 			email: data.email,
@@ -22,6 +28,8 @@ export class MockUserRepository implements IUserRepository {
 			isSuperadmin: false,
 			status: "active",
 			defaultScrapeLanguage: "indonesian",
+			maxWorkspaces: data.maxWorkspaces ?? 1,
+			maxProjects: data.maxProjects ?? 3,
 			emailVerifiedAt: null,
 			createdAt: new Date(),
 			updatedAt: new Date(),
