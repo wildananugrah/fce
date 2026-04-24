@@ -4,6 +4,8 @@ import { useProject } from "../hooks/useProject";
 import { useSSE } from "../hooks/useSSE";
 import { api } from "../services/api";
 import { Button } from "../components/ui/Button";
+import { CoachMark } from "../components/onboarding/CoachMark";
+import { HelpButton } from "../components/onboarding/HelpButton";
 import { Select } from "../components/ui/Select";
 import { Spinner } from "../components/ui/Spinner";
 import { Toast } from "../components/ui/Toast";
@@ -395,29 +397,33 @@ export function TopicsPage() {
 						individual posts.
 					</p>
 				</div>
-				{generatedTopics.length > 0 && !topicsSaved && (
-					<Button
-						onClick={handleSaveAll}
-						loading={saving}
-						className="!bg-indigo-600 hover:!bg-indigo-700 !rounded-lg"
-					>
-						<svg
-							className="w-4 h-4 mr-2"
-							fill="none"
-							viewBox="0 0 24 24"
-							stroke="currentColor"
-							strokeWidth={2}
+				<div className="flex items-center gap-2">
+					<HelpButton pageKey="topics" />
+					{generatedTopics.length > 0 && !topicsSaved && (
+						<Button
+							onClick={handleSaveAll}
+							loading={saving}
+							className="!bg-indigo-600 hover:!bg-indigo-700 !rounded-lg"
 						>
-							<path
-								strokeLinecap="round"
-								strokeLinejoin="round"
-								d="M5 13l4 4L19 7"
-							/>
-						</svg>
-						Save All Topics
-					</Button>
-				)}
+							<svg
+								className="w-4 h-4 mr-2"
+								fill="none"
+								viewBox="0 0 24 24"
+								stroke="currentColor"
+								strokeWidth={2}
+							>
+								<path
+									strokeLinecap="round"
+									strokeLinejoin="round"
+									d="M5 13l4 4L19 7"
+								/>
+							</svg>
+							Save All Topics
+						</Button>
+					)}
+				</div>
 			</div>
+			<CoachMark pageKey="topics" title="Topics" body="Topics are content ideas you can save, refine, and turn into posts later. Useful for capturing ideas you're not ready to generate yet." />
 			<ActiveSkillsBadges generator="topic" />
 
 			{loading ? (
