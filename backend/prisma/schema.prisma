@@ -28,6 +28,13 @@ model User {
   // Users who accept a workspace invitation OR existing users before this
   // feature rolled out are seeded as verified — see migrate-email-verification.ts.
   emailVerifiedAt DateTime? @map("email_verified_at")
+  // Onboarding tutorial flags — see docs/superpowers/specs/2026-04-24-onboarding-tutorial-design.md.
+  // Null = not yet seen/dismissed. seenCoachMarks holds page keys that have
+  // been dismissed. Progress for the Getting Started checklist is derived
+  // per-workspace from brand/product/generation counts — not stored here.
+  onboardingWelcomeSeenAt        DateTime?  @map("onboarding_welcome_seen_at")
+  onboardingChecklistDismissedAt DateTime?  @map("onboarding_checklist_dismissed_at")
+  seenCoachMarks                 String[]   @default([]) @map("seen_coach_marks")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
