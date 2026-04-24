@@ -27,10 +27,20 @@ export function WelcomeModal() {
 
 	return (
 		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-			<div className="w-[min(560px,90vw)] rounded-2xl bg-white p-8 shadow-2xl">
+			<div
+				className="w-[min(560px,90vw)] rounded-2xl bg-white p-8 shadow-2xl"
+				role="dialog"
+				aria-modal="true"
+				aria-labelledby="welcome-modal-title"
+			>
 				{slide === 0 && (
 					<div>
-						<h2 className="text-2xl font-semibold text-gray-900">Welcome to FCE 👋</h2>
+						<h2
+							id="welcome-modal-title"
+							className="text-2xl font-semibold text-gray-900"
+						>
+							Welcome to FCE 👋
+						</h2>
 						<p className="mt-3 text-gray-600">
 							You're set up and ready to go. In the next 30 seconds, we'll show you how FCE
 							helps you turn your brand into ready-to-post content.
@@ -39,7 +49,12 @@ export function WelcomeModal() {
 				)}
 				{slide === 1 && (
 					<div>
-						<h2 className="text-2xl font-semibold text-gray-900">Three steps from idea to post</h2>
+						<h2
+							id="welcome-modal-title"
+							className="text-2xl font-semibold text-gray-900"
+						>
+							Three steps from idea to post
+						</h2>
 						<ol className="mt-4 space-y-3 text-gray-700">
 							<li>
 								<strong>1. Brand</strong> — the voice, audience, and messaging rules your content
@@ -58,7 +73,12 @@ export function WelcomeModal() {
 				)}
 				{slide === 2 && (
 					<div>
-						<h2 className="text-2xl font-semibold text-gray-900">Let's set up your first brand</h2>
+						<h2
+							id="welcome-modal-title"
+							className="text-2xl font-semibold text-gray-900"
+						>
+							Let's set up your first brand
+						</h2>
 						<p className="mt-3 text-gray-600">
 							You'll give it a name, describe your audience, and paste any reference links you
 							have. Takes about 2 minutes.
