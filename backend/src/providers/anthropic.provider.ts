@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { generatorTuning, type GeneratorTuning } from "../config/generator-tuning";
 import type {
 	BrandScrapingInput,
 	BrandScrapingOutput,
@@ -66,6 +67,32 @@ export class AnthropicProvider
 		this.client = new Anthropic({ apiKey });
 	}
 
+	/**
+	 * Translate provider-agnostic GeneratorTuning into Anthropic SDK params.
+	 *
+	 * Extended thinking has two API constraints we enforce here so the config
+	 * file can stay simple:
+	 *   1. temperature MUST be 1 when thinking is enabled.
+	 *   2. max_tokens MUST be greater than thinking.budget_tokens.
+	 * If thinkingBudget is set, we override temperature to 1 and bump
+	 * max_tokens by the budget so there's room for the response on top.
+	 */
+	private anthropicParams(t: GeneratorTuning): {
+		max_tokens: number;
+		temperature: number;
+		thinking?: { type: "enabled"; budget_tokens: number };
+	} {
+		const useThinking = !!t.thinkingBudget && t.thinkingBudget > 0;
+		if (useThinking) {
+			return {
+				max_tokens: t.maxOutputTokens + (t.thinkingBudget ?? 0),
+				temperature: 1,
+				thinking: { type: "enabled", budget_tokens: t.thinkingBudget! },
+			};
+		}
+		return { max_tokens: t.maxOutputTokens, temperature: t.temperature };
+	}
+
 	async generate(input: ContentGenerationInput): Promise<ContentGenerationOutput>;
 	async generate(input: CampaignGenerationInput): Promise<CampaignGenerationOutput>;
 	async generate(input: TopicGenerationInput): Promise<TopicGenerationOutput>;
@@ -99,8 +126,7 @@ export class AnthropicProvider
 
 		const response = await this.client.messages.create({
 			model: this.model,
-			max_tokens: 2048,
-			temperature: 0,
+			...this.anthropicParams(generatorTuning.content),
 			system: systemPrompt,
 			messages: [{ role: "user", content: userContent }],
 		});
@@ -126,8 +152,7 @@ export class AnthropicProvider
 
 		const response = await this.client.messages.create({
 			model: this.model,
-			max_tokens: 2048,
-			temperature: 0,
+			...this.anthropicParams(generatorTuning.campaign),
 			system: systemPrompt,
 			messages: [{ role: "user", content: userPrompt }],
 		});
@@ -161,8 +186,7 @@ export class AnthropicProvider
 
 		const response = await this.client.messages.create({
 			model: this.model,
-			max_tokens: 2048,
-			temperature: 0,
+			...this.anthropicParams(generatorTuning.topic),
 			system: systemPrompt,
 			messages: [{ role: "user", content: userContent }],
 		});
@@ -207,8 +231,7 @@ export class AnthropicProvider
 
 		const response = await this.client.messages.create({
 			model: this.model,
-			max_tokens: 1024,
-			temperature: 0,
+			...this.anthropicParams(generatorTuning.productBrain),
 			system:
 				"You are a product marketing expert. You MUST respond with ONLY valid JSON. No markdown, no code blocks, no explanations.",
 			messages: [
@@ -298,8 +321,7 @@ ${combined}`;
 
 		const response = await this.client.messages.create({
 			model: this.model,
-			max_tokens: 1500,
-			temperature: 0,
+			...this.anthropicParams(generatorTuning.productScraper),
 			system:
 				"You are a product analyst. You MUST respond with ONLY valid JSON. No markdown, no code blocks, no explanations.",
 			messages: [{ role: "user", content: userPrompt }],
@@ -363,8 +385,7 @@ ${fetched.content}`;
 
 		const response = await this.client.messages.create({
 			model: this.model,
-			max_tokens: 2048,
-			temperature: 0,
+			...this.anthropicParams(generatorTuning.brandScraper),
 			system: systemPrompt,
 			messages: [{ role: "user", content: userPrompt }],
 		});
@@ -388,8 +409,7 @@ ${fetched.content}`;
 
 		const response = await this.client.messages.create({
 			model: this.model,
-			max_tokens: 2048,
-			temperature: 0,
+			...this.anthropicParams(generatorTuning.briefSummary),
 			system: systemPrompt,
 			messages: [{ role: "user", content: userPrompt }],
 		});
