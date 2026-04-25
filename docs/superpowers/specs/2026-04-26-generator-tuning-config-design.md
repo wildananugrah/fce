@@ -44,28 +44,26 @@ export interface GeneratorTuning {
 }
 
 export type GeneratorKey =
-  | "content"           // ContentGenerationJob — final post copy
-  | "campaign"          // CampaignGenerationJob — multi-post campaign brief
-  | "campaignPdf"       // CampaignPdfGenerationJob — PDF synthesis text
-  | "topic"             // TopicGenerationJob — bulk topic ideation
-  | "topicRegeneration" // TopicRegenerationJob — single-topic refresh
-  | "brandScraper"      // BrandScrapingJob — site → brand DNA
-  | "productScraper"    // product page → product brain auto-fill
-  | "productBrain"      // manual "Generate with AI" on product form
-  | "recommendation"    // RecommendationRecomputeJob
-  | "chat";             // ChatService (campaign chat)
+  | "content"         // generateContent — final post copy
+  | "campaign"        // generateCampaign — multi-post campaign brief
+  | "topic"           // generateTopics — bulk topic ideation (and topic regen, which calls with count=1)
+  | "productBrain"    // generateProductBrain — manual "Generate with AI" on product form
+  | "productScraper"  // scrapeProduct — product page → product brain auto-fill
+  | "brandScraper"    // scrape — site → brand DNA
+  | "briefSummary"    // summarizeBrief — campaign PDF synthesis text
+  | "urlInspiration"  // summarizeInspiration — URL inspiration summarizer (Gemini-only call site)
+  | "chat";           // ChatService (campaign chat) via *-chat.provider.ts
 
 export const generatorTuning: Record<GeneratorKey, GeneratorTuning> = {
-  content:           { maxOutputTokens: 4096, temperature: 0.7, thinkingBudget: 4000 },
-  campaign:          { maxOutputTokens: 4096, temperature: 0.5, thinkingBudget: 6000 },
-  campaignPdf:       { maxOutputTokens: 8192, temperature: 0.3 },
-  topic:             { maxOutputTokens: 4096, temperature: 0.8, thinkingBudget: 3000 },
-  topicRegeneration: { maxOutputTokens: 2048, temperature: 0.8 },
-  brandScraper:      { maxOutputTokens: 3000, temperature: 0.2 },
-  productScraper:    { maxOutputTokens: 3000, temperature: 0.2 },
-  productBrain:      { maxOutputTokens: 2500, temperature: 0.4 },
-  recommendation:    { maxOutputTokens: 2000, temperature: 0.3 },
-  chat:              { maxOutputTokens: 4096, temperature: 0.5 },
+  content:        { maxOutputTokens: 4096, temperature: 0.7, thinkingBudget: 4000 },
+  campaign:       { maxOutputTokens: 4096, temperature: 0.5, thinkingBudget: 6000 },
+  topic:          { maxOutputTokens: 4096, temperature: 0.8, thinkingBudget: 3000 },
+  productBrain:   { maxOutputTokens: 2500, temperature: 0.4 },
+  productScraper: { maxOutputTokens: 3000, temperature: 0.2 },
+  brandScraper:   { maxOutputTokens: 3000, temperature: 0.2 },
+  briefSummary:   { maxOutputTokens: 4096, temperature: 0.3 },
+  urlInspiration: { maxOutputTokens: 2000, temperature: 0.3 },
+  chat:           { maxOutputTokens: 4096, temperature: 0.5 },
 };
 ```
 
@@ -131,26 +129,25 @@ private geminiConfig(t: GeneratorTuning, systemInstruction: string) {
 
 **`backend/src/providers/anthropic-chat.provider.ts` and `backend/src/providers/gemini-chat.provider.ts`** also pull from `generatorTuning.chat` — same chat experience regardless of which provider the workspace selected.
 
-### Mapping the existing literals to keys
+### Mapping table — provider method → key
 
-The implementer must read each provider method and bind it to the matching `GeneratorKey`. The mapping rule is:
+Verified by grep against the current code (the `summarizeInspiration` site is Gemini-only):
 
-- The provider method's name and docstring identify its purpose. `generateContent` → `content`, `generateCampaign` → `campaign`, `generateCampaignPdf` → `campaignPdf`, `generateTopics` → `topic`, `regenerateTopic` → `topicRegeneration`, `scrapeBrand` → `brandScraper`, `scrapeProduct` (or equivalent) → `productScraper`, `generateProductBrain` → `productBrain`, `recomputeRecommendations` (or equivalent) → `recommendation`. Chat-provider files map to `chat`.
-- Anthropic and Gemini have parallel method-per-generator structures, so the same set of keys covers both files.
-- A `grep -n "max_tokens\|maxOutputTokens\|temperature: 0" backend/src/providers/anthropic.provider.ts backend/src/providers/gemini.provider.ts backend/src/providers/anthropic-chat.provider.ts backend/src/providers/gemini-chat.provider.ts` enumerates every call site that needs replacement.
-- Anthropic has ~7 hardcoded sites; Gemini has ~6–8 (some helper methods may share the same shape). If the implementer finds a site that doesn't correspond to any `GeneratorKey` (e.g., an internal utility that happens to call the SDK), STOP and surface it — adding a new key is fine, but silent reuse of an existing key for a different purpose is not.
+| Anthropic (file:line)                          | Gemini (file:line)                              | Method                | Key              |
+|-------------------------------------------------|--------------------------------------------------|------------------------|-------------------|
+| `anthropic.provider.ts:102`                    | `gemini.provider.ts:110`                         | `generateContent`     | `content`         |
+| `anthropic.provider.ts:129`                    | `gemini.provider.ts:145`                         | `generateCampaign`    | `campaign`        |
+| `anthropic.provider.ts:164`                    | `gemini.provider.ts:171`                         | `generateTopics`      | `topic`           |
+| `anthropic.provider.ts:210`                    | `gemini.provider.ts:238`                         | `generateProductBrain`| `productBrain`    |
+| `anthropic.provider.ts:301`                    | `gemini.provider.ts:318`                         | `scrapeProduct`       | `productScraper`  |
+| `anthropic.provider.ts:366`                    | `gemini.provider.ts:384`                         | `scrape`              | `brandScraper`    |
+| `anthropic.provider.ts:391`                    | `gemini.provider.ts:409`                         | `summarizeBrief`      | `briefSummary`    |
+| (no Anthropic equivalent today)                 | `gemini.provider.ts:462`                         | `summarizeInspiration`| `urlInspiration`  |
+| `anthropic-chat.provider.ts:38`                | `gemini-chat.provider.ts` (config block in `stream`) | `stream`         | `chat`            |
 
-If a generator method exists on one provider but not the other (e.g., a Gemini-only video method), it's out of scope — those don't appear in the `GeneratorKey` enum and continue to use whatever literals they have today.
+7 sites in Anthropic, 8 in Gemini (the extra is `summarizeInspiration`). Chat is one site per chat-provider file.
 
-### Validation hooks
-
-Console warnings (logged once at process boot) for misconfigured entries:
-
-- `temperature` outside `[0, 1]` — both providers reject this.
-- `thinkingBudget < 1024` for Anthropic (Anthropic's minimum is `1024` for extended thinking).
-- `maxOutputTokens < thinkingBudget` (would cause Anthropic to forcibly raise max_tokens; we already do that automatically, so the warning just flags the config drift).
-
-These warnings are aggregated and logged once at provider construction — not on every call.
+If the implementer finds a site that doesn't correspond to any of these keys, STOP and surface it before proceeding.
 
 ## Edge cases
 
@@ -189,3 +186,4 @@ These warnings are aggregated and logged once at provider construction — not o
 - Per-call tuning overrides.
 - Snapshot tests of config → SDK mapping.
 - Image-generator tuning.
+- Validation/warning hooks for misconfigured entries (e.g., `temperature` out of `[0, 1]`, `thinkingBudget < 1024`). The adapter forces correctness for extended-thinking constraints automatically; otherwise SDK errors at call time are clear enough for now.
