@@ -1,5 +1,9 @@
 import { GoogleGenAI } from "@google/genai";
-import { generatorTuning, type GeneratorTuning } from "../config/generator-tuning";
+import {
+	generatorTuning,
+	resolveThinkingBudget,
+	type GeneratorTuning,
+} from "../config/generator-tuning";
 import type {
 	BrandScrapingInput,
 	BrandScrapingOutput,
@@ -108,8 +112,9 @@ export class GeminiProvider
 			maxOutputTokens: t.maxOutputTokens,
 		};
 		if (systemInstruction !== undefined) cfg.systemInstruction = systemInstruction;
-		if (t.thinkingBudget && t.thinkingBudget > 0) {
-			cfg.thinkingConfig = { thinkingBudget: t.thinkingBudget };
+		const budget = resolveThinkingBudget(t);
+		if (budget > 0) {
+			cfg.thinkingConfig = { thinkingBudget: budget };
 		}
 		return cfg;
 	}

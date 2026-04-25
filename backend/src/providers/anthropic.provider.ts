@@ -1,5 +1,9 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { generatorTuning, type GeneratorTuning } from "../config/generator-tuning";
+import {
+	generatorTuning,
+	resolveThinkingBudget,
+	type GeneratorTuning,
+} from "../config/generator-tuning";
 import type {
 	BrandScrapingInput,
 	BrandScrapingOutput,
@@ -82,12 +86,12 @@ export class AnthropicProvider
 		temperature: number;
 		thinking?: { type: "enabled"; budget_tokens: number };
 	} {
-		const useThinking = !!t.thinkingBudget && t.thinkingBudget > 0;
-		if (useThinking) {
+		const budget = resolveThinkingBudget(t);
+		if (budget > 0) {
 			return {
-				max_tokens: t.maxOutputTokens + (t.thinkingBudget ?? 0),
+				max_tokens: t.maxOutputTokens + budget,
 				temperature: 1,
-				thinking: { type: "enabled", budget_tokens: t.thinkingBudget! },
+				thinking: { type: "enabled", budget_tokens: budget },
 			};
 		}
 		return { max_tokens: t.maxOutputTokens, temperature: t.temperature };
