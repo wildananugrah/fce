@@ -5,6 +5,7 @@ import type {
 	IChatAiProvider,
 } from "../interfaces/providers/chat-ai.provider.interface";
 import type { ChatMessage } from "../types/chat.types";
+import { generatorTuning } from "../config/generator-tuning";
 
 /**
  * Gemini implementation of IChatAiProvider. v1 emits text_delta + done events
@@ -35,6 +36,8 @@ export class GeminiChatProvider implements IChatAiProvider {
 				contents,
 				config: {
 					systemInstruction: input.systemPrompt,
+					temperature: generatorTuning.chat.temperature,
+					maxOutputTokens: generatorTuning.chat.maxOutputTokens,
 					tools: functionDeclarations.length > 0 ? [{ functionDeclarations }] : undefined,
 				},
 			});
