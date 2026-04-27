@@ -62,7 +62,6 @@ export function createTopicRoutes(topicService: ITopicService, prisma: PrismaCli
 			objective,
 			formats,
 			pillars,
-			language,
 			dateFrom,
 			dateTo,
 			count,
@@ -76,7 +75,6 @@ export function createTopicRoutes(topicService: ITopicService, prisma: PrismaCli
 			objective,
 			formats,
 			pillars,
-			language,
 			dateFrom,
 			dateTo,
 			count,
@@ -91,11 +89,11 @@ export function createTopicRoutes(topicService: ITopicService, prisma: PrismaCli
 		const workspaceId = c.get("workspaceId");
 		const userId = c.get("userId");
 		const body = await c.req.json();
-		const { brandId, productIds, platform, format, objective, pillar, language, hint } = body;
+		const { brandId, productIds, platform, format, objective, pillar, hint } = body;
 		const result = await topicService.regeneratePreview(
 			workspaceId,
 			userId,
-			{ brandId, productIds, platform, format, objective, pillar, language },
+			{ brandId, productIds, platform, format, objective, pillar },
 			hint,
 		);
 		return c.json({ data: result }, 202);

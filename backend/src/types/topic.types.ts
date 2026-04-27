@@ -17,6 +17,7 @@ export interface GenerateTopicsInput {
 	objective?: string;
 	formats?: string[];
 	pillars?: string[];
+	/** @internal — sourced from brand.language inside the service, NOT from request body. */
 	language?: string;
 	dateFrom?: string;
 	dateTo?: string;

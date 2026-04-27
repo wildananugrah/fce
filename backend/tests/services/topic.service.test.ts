@@ -76,10 +76,20 @@ class MockPgBoss {
 	}
 }
 
+// ─── Mock Prisma ────────────────────────────────────────────────
+function makeMockPrisma(brandLanguage: string | null = "en") {
+	return {
+		brand: {
+			findUnique: async (_args: unknown) => ({ language: brandLanguage }),
+		},
+	} as any;
+}
+
 describe("TopicService", () => {
 	const repo = new MockTopicRepository();
 	const boss = new MockPgBoss();
-	const service = new TopicService(repo as any, boss as any);
+	const mockPrisma = makeMockPrisma("en");
+	const service = new TopicService(repo as any, boss as any, mockPrisma);
 
 	afterEach(() => {
 		repo.clear();
@@ -97,7 +107,7 @@ describe("TopicService", () => {
 					return "job-id";
 				},
 			} as any;
-			const service = new TopicService(repo as any, fakeBoss);
+			const service = new TopicService(repo as any, fakeBoss, makeMockPrisma("en"));
 			await service.generate(workspaceId, userId, {
 				brandId: "b1",
 				pillars: ["Education", "Lifestyle"],
@@ -129,6 +139,7 @@ describe("TopicService", () => {
 			expect(jobData.productIds).toEqual(productIds);
 			expect(jobData.formats).toEqual(["carousel", "reels"]);
 			expect(jobData.count).toBe(5);
+			expect(jobData.language).toBe("en");
 		});
 	});
 
@@ -184,6 +195,7 @@ describe("TopicService", () => {
 			expect(jobData.preview).toBe(true);
 			expect(jobData.hint).toBe("more educational");
 			expect(jobData.format).toBe("reels");
+			expect(jobData.language).toBe("en");
 		});
 	});
 });
