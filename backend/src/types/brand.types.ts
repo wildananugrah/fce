@@ -4,6 +4,7 @@ export interface CreateBrandInput {
 	category?: string;
 	websiteUrl?: string;
 	projectId?: string;
+	language?: "indonesian" | "english";
 }
 
 export interface UpdateBrandInput {
@@ -11,6 +12,7 @@ export interface UpdateBrandInput {
 	category?: string;
 	websiteUrl?: string;
 	status?: string;
+	language?: "indonesian" | "english";
 }
 
 export interface CreateBrainVersionInput {

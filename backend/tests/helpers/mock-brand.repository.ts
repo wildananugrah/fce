@@ -42,6 +42,7 @@ export class MockBrandRepository implements IBrandRepository {
 		slug: string;
 		category?: string;
 		websiteUrl?: string;
+		language?: string;
 	}): Promise<Brand> {
 		const brand: Brand = {
 			id: crypto.randomUUID(),
@@ -51,6 +52,7 @@ export class MockBrandRepository implements IBrandRepository {
 			slug: data.slug,
 			category: data.category ?? null,
 			websiteUrl: data.websiteUrl ?? null,
+			language: data.language ?? "indonesian",
 			activeBrainVersionId: null,
 			status: "draft",
 			archivedAt: null,
@@ -64,7 +66,7 @@ export class MockBrandRepository implements IBrandRepository {
 	async update(
 		id: string,
 		data: Partial<
-			Pick<Brand, "name" | "category" | "websiteUrl" | "status" | "activeBrainVersionId">
+			Pick<Brand, "name" | "category" | "websiteUrl" | "status" | "activeBrainVersionId" | "language">
 		>,
 	): Promise<Brand> {
 		const index = this.brands.findIndex((b) => b.id === id);

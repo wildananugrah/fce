@@ -74,6 +74,7 @@ export class BrandRepository implements IBrandRepository {
 		slug: string;
 		category?: string;
 		websiteUrl?: string;
+		language?: string;
 	}): Promise<Brand> {
 		return this.prisma.brand.create({ data });
 	}
@@ -81,7 +82,7 @@ export class BrandRepository implements IBrandRepository {
 	async update(
 		id: string,
 		data: Partial<
-			Pick<Brand, "name" | "category" | "websiteUrl" | "status" | "activeBrainVersionId">
+			Pick<Brand, "name" | "category" | "websiteUrl" | "status" | "activeBrainVersionId" | "language">
 		>,
 	): Promise<Brand> {
 		return this.prisma.brand.update({ where: { id }, data });

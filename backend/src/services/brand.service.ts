@@ -47,6 +47,7 @@ export class BrandService implements IBrandService {
 				slug: input.slug,
 				category: input.category,
 				websiteUrl: input.websiteUrl,
+				language: input.language,
 			});
 		} catch (e) {
 			// P2002 on (project_id, slug) fires when an archived brand with the
