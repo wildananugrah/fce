@@ -24,6 +24,8 @@ import {
 	type WorkspaceResearchSettings,
 } from "../../services/research.service";
 import { api } from "../../services/api";
+import { CoachMark } from "../../components/onboarding/CoachMark";
+import { HelpButton } from "../../components/onboarding/HelpButton";
 
 type ToastState = { message: string; type: "success" | "error" | "info" } | null;
 
@@ -176,12 +178,17 @@ export function ResearchPage() {
 	return (
 		<div className="p-6 max-w-6xl">
 			{/* Header */}
-			<div className="mb-6">
-				<h1 className="text-xl font-semibold text-gray-900">Research Hub</h1>
-				<p className="text-sm text-gray-500 mt-1">
-					Scrape competitors, discover trends, and research content ideas.
-				</p>
+			<div className="flex items-start justify-between mb-6">
+				<div>
+					<h1 className="text-xl font-semibold text-gray-900">Research Hub</h1>
+					<p className="text-sm text-gray-500 mt-1">
+						Scrape competitors, discover trends, and research content ideas.
+					</p>
+				</div>
+				<HelpButton pageKey="research" />
 			</div>
+
+			<CoachMark pageKey="research" title="Research" body="Run research briefs — paste URLs or keywords and get a synthesized summary you can feed back into topic and content generation." />
 
 			{/* Launch Panel */}
 			<div className="mb-8">

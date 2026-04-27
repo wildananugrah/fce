@@ -72,6 +72,8 @@ import { createDashboardRoutes } from "./routes/dashboard.route";
 import { createDocumentRoutes } from "./routes/document.route";
 import { createGenerationRoutes } from "./routes/generation.route";
 import { createLibraryRoutes } from "./routes/library.route";
+import { createOnboardingProgressRoutes } from "./routes/onboarding-progress.route";
+import { createOnboardingRoutes } from "./routes/onboarding.route";
 import { createProjectRoutes } from "./routes/project.route";
 import { createProductRoutes } from "./routes/product.route";
 import { createRecommendationRoutes } from "./routes/recommendation.route";
@@ -105,6 +107,7 @@ import { DocumentService } from "./services/document.service";
 import { GenerationService } from "./services/generation.service";
 import { LibraryService } from "./services/library.service";
 import { NotificationService } from "./services/notification.service";
+import { OnboardingService } from "./services/onboarding.service";
 import { ProductService } from "./services/product.service";
 import { RecommendationService } from "./services/recommendation.service";
 import { ResearchService } from "./services/research.service";
@@ -133,6 +136,16 @@ async function main() {
 
 	// Initialize PgBoss
 	const boss = new PgBoss({ connectionString: env.databaseUrl });
+	// pg-boss surfaces worker and driver failures on an EventEmitter. Without a
+	// listener, Node treats them as ERR_UNHANDLED_ERROR and kills the process —
+	// we've been burned by this when a Prisma 7 WASM error contained NUL bytes
+	// and Postgres rejected the re-serialized JSON during a subsequent poll.
+	// Keep the process alive; log and move on.
+	boss.on("error", (err) => {
+		const message = err instanceof Error ? err.message : String(err);
+		const stack = err instanceof Error ? err.stack : undefined;
+		logger.error("pg-boss worker error", { error: message, stack });
+	});
 	await boss.start();
 
 	// ─── Repositories ───────────────────────────────────────────────
@@ -280,6 +293,7 @@ async function main() {
 		userDefaultMaxProjects: env.userDefaultMaxProjects,
 	});
 	const researchService = new ResearchService(researchRepository, apifyProvider, boss, logger);
+	const onboardingService = new OnboardingService(userRepository, prisma);
 
 	// Shared helper used by competitor analyzer jobs to fetch a workspace's
 	// Apify key without coupling to the WorkspaceSetting repo directly.
@@ -314,6 +328,45 @@ async function main() {
 
 	// URL inspiration pipeline — cache + Apify + per-workspace summarizer
 	const urlScrapeCacheRepository = new UrlScrapeCacheRepository(prisma);
+
+	// Pipeline job resolves a fresh Gemini analyzer per run using the
+	// per-workspace key via AiProviderFactory. Wrap the class construction in
+	// a small closure so the pg-boss worker signature below stays uniform.
+	const buildVideoAnalyzer = async (workspaceId: string): Promise<GeminiVideoAnalyzerProvider> => {
+		const settings = await aiProviderFactory.getSettings(workspaceId);
+		const apiKey = settings.gemini.apiKey ?? env.geminiApiKey;
+		const model = settings.gemini.model ?? env.geminiModel ?? "gemini-2.5-flash";
+		if (!apiKey) throw new Error("Gemini API key not configured");
+		return new GeminiVideoAnalyzerProvider(apiKey, model);
+	};
+
+	const videoFetcher = async (url: string): Promise<{ bytes: Uint8Array; mimeType: string }> => {
+		// Browser-like headers — TikTok's own CDN blocks bare fetch() and often
+		// returns HTML error pages. Harmless on Apify-hosted URLs.
+		const resp = await fetch(url, {
+			headers: {
+				"User-Agent":
+					"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+				Referer: "https://www.tiktok.com/",
+			},
+			redirect: "follow",
+		});
+		if (!resp.ok) throw new Error(`Video fetch failed: HTTP ${resp.status}`);
+		const mimeType = resp.headers.get("content-type") ?? "video/mp4";
+		// Fail fast if the server served an HTML error page disguised as a
+		// video URL — better a clear message here than Gemini's opaque
+		// "Unsupported MIME type" rejection downstream.
+		if (!/^video\//i.test(mimeType) && !/^application\/octet-stream/i.test(mimeType)) {
+			throw new Error(
+				`Expected video response, got content-type="${mimeType}" (likely a TikTok CDN block or expired URL)`,
+			);
+		}
+		const ab = await resp.arrayBuffer();
+		return { bytes: new Uint8Array(ab), mimeType };
+	};
+
+	// URL inspiration service — constructed here so it can reference videoFetcher
+	// and buildVideoAnalyzer, which are defined above.
 	const urlInspirationService = new UrlInspirationService(
 		prisma,
 		apifyProvider,
@@ -321,6 +374,12 @@ async function main() {
 		aiProviderFactory,
 		urlScrapeCacheRepository,
 		logger,
+		videoFetcher,
+		buildVideoAnalyzer,
+		{
+			maxMb: env.videoInspirationMaxMb,
+			maxDurationSeconds: env.videoInspirationMaxDurationSeconds,
+		},
 	);
 
 	// ─── Job Handlers ────────────────────────────────────────────────
@@ -381,42 +440,6 @@ async function main() {
 		notificationService,
 		logger,
 	);
-
-	// Pipeline job resolves a fresh Gemini analyzer per run using the
-	// per-workspace key via AiProviderFactory. Wrap the class construction in
-	// a small closure so the pg-boss worker signature below stays uniform.
-	const buildVideoAnalyzer = async (workspaceId: string): Promise<GeminiVideoAnalyzerProvider> => {
-		const settings = await aiProviderFactory.getSettings(workspaceId);
-		const apiKey = settings.gemini.apiKey ?? env.geminiApiKey;
-		const model = settings.gemini.model ?? env.geminiModel ?? "gemini-2.5-flash";
-		if (!apiKey) throw new Error("Gemini API key not configured");
-		return new GeminiVideoAnalyzerProvider(apiKey, model);
-	};
-
-	const videoFetcher = async (url: string): Promise<{ bytes: Uint8Array; mimeType: string }> => {
-		// Browser-like headers — TikTok's own CDN blocks bare fetch() and often
-		// returns HTML error pages. Harmless on Apify-hosted URLs.
-		const resp = await fetch(url, {
-			headers: {
-				"User-Agent":
-					"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-				Referer: "https://www.tiktok.com/",
-			},
-			redirect: "follow",
-		});
-		if (!resp.ok) throw new Error(`Video fetch failed: HTTP ${resp.status}`);
-		const mimeType = resp.headers.get("content-type") ?? "video/mp4";
-		// Fail fast if the server served an HTML error page disguised as a
-		// video URL — better a clear message here than Gemini's opaque
-		// "Unsupported MIME type" rejection downstream.
-		if (!/^video\//i.test(mimeType) && !/^application\/octet-stream/i.test(mimeType)) {
-			throw new Error(
-				`Expected video response, got content-type="${mimeType}" (likely a TikTok CDN block or expired URL)`,
-			);
-		}
-		const ab = await resp.arrayBuffer();
-		return { bytes: new Uint8Array(ab), mimeType };
-	};
 
 	// The worker loads the run, builds a workspace-scoped analyzer, then
 	// hands off to CompetitorPipelineJob. Reason: analyzer needs the
@@ -617,6 +640,8 @@ async function main() {
 		"Workspace not found",
 		"Slug already taken",
 		"Brand not found",
+		"A brand with this name is already in this project — possibly in Workspace Settings → Trash. Restore it, permanently delete it from Trash, or pick a different name.",
+		"This project already has a brand. Each project can contain only one brand — create a new project to add another.",
 		"Product not found",
 		"Cannot remove the last admin",
 		"Invitation not found",
@@ -689,6 +714,7 @@ async function main() {
 
 	app.route("/api/invitations", createAuthenticatedInvitationRoutes(workspaceService));
 	app.route("/api/me", createMeInvitationRoutes(workspaceService));
+	app.route("/api/users/me/onboarding", createOnboardingRoutes(onboardingService));
 
 	// Workspace routes (auth protected)
 	app.route("/api/workspaces", createWorkspaceRoutes(workspaceService));
@@ -720,6 +746,10 @@ async function main() {
 	workspaceScoped.route("/recommendations", createRecommendationRoutes(recommendationService));
 	workspaceScoped.route("/skills", createWorkspaceSkillRoutes(prisma));
 	workspaceScoped.route("/projects", createProjectRoutes(prisma));
+	workspaceScoped.route(
+		"/onboarding-progress",
+		createOnboardingProgressRoutes(onboardingService),
+	);
 	workspaceScoped.route(
 		"/ai-settings",
 		createWorkspaceAiSettingsRoutes(workspaceSettingRepository, aiProviderFactory),

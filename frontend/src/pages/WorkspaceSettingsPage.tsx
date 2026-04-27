@@ -17,6 +17,8 @@ import { AiProvidersSection } from "../components/workspace-settings/AiProviders
 import { ProjectsTab } from "../components/workspace-settings/ProjectsTab";
 import { SkillsTab } from "../components/workspace-settings/SkillsTab";
 import { TrashTab } from "../components/workspace-settings/TrashTab";
+import { CoachMark } from "../components/onboarding/CoachMark";
+import { HelpButton } from "../components/onboarding/HelpButton";
 
 type ToastState = { message: string; type: "success" | "error" | "info" } | null;
 
@@ -723,12 +725,17 @@ export function WorkspaceSettingsPage() {
   return (
     <div className="p-6 w-full max-w-[1600px] mx-auto">
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-xl font-semibold text-gray-900">Workspace Settings</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Manage <span className="font-medium text-gray-700">{activeWorkspace.name}</span> settings, team, and integrations.
-        </p>
+      <div className="flex items-start justify-between mb-6">
+        <div>
+          <h1 className="text-xl font-semibold text-gray-900">Workspace Settings</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Manage <span className="font-medium text-gray-700">{activeWorkspace.name}</span> settings, team, and integrations.
+          </p>
+        </div>
+        <HelpButton pageKey="workspace-settings" />
       </div>
+
+      <CoachMark pageKey="workspace-settings" title="Workspace Settings" body="Manage members, invitations, AI provider keys, and the Trash for this workspace. Settings here affect everyone in the workspace — only admins can edit." />
 
       {/* Tabs */}
       <div className="border-b border-gray-200 mb-6">

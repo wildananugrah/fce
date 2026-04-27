@@ -42,4 +42,15 @@ export class UrlScrapeCacheRepository implements IUrlScrapeCacheRepository {
 			},
 		});
 	}
+
+	async setVideoSummary(urlHash: string, videoSummary: string): Promise<void> {
+		await this.prisma.urlScrapeCache
+			.update({
+				where: { urlHash },
+				data: { videoSummary },
+			})
+			.catch(() => {
+				// Row missing — no-op. The next getInspiration call will populate it.
+			});
+	}
 }

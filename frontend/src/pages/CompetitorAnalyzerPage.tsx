@@ -6,6 +6,8 @@ import { ConfigsTab } from "../components/competitor-analyzer/ConfigsTab";
 import { RunsTab } from "../components/competitor-analyzer/RunsTab";
 import { OutputsTab } from "../components/competitor-analyzer/OutputsTab";
 import { Spinner } from "../components/ui/Spinner";
+import { CoachMark } from "../components/onboarding/CoachMark";
+import { HelpButton } from "../components/onboarding/HelpButton";
 
 const STEPS = [
 	{ key: "creators", label: "Add Creators", icon: Users, blurb: "Pick TikTok accounts to study" },
@@ -48,12 +50,17 @@ export function CompetitorAnalyzerPage() {
 
 	return (
 		<div className="space-y-6">
-			<header>
-				<h1 className="text-2xl font-semibold text-gray-900">Competitor Analyzer</h1>
-				<p className="mt-1 text-sm text-gray-500">
-					Scrape viral competitor videos, score their hooks and retention, and generate tailored scripts — step by step.
-				</p>
+			<header className="flex items-start justify-between">
+				<div>
+					<h1 className="text-2xl font-semibold text-gray-900">Competitor Analyzer</h1>
+					<p className="mt-1 text-sm text-gray-500">
+						Scrape viral competitor videos, score their hooks and retention, and generate tailored scripts — step by step.
+					</p>
+				</div>
+				<HelpButton pageKey="competitor-analyzer" />
 			</header>
+
+			<CoachMark pageKey="competitor-analyzer" title="Competitor Analyzer" body="Add competitor creators from TikTok or Instagram and run an analysis to surface their content patterns, hooks, and posting cadence — useful input for your own topic brainstorms." />
 
 			{/* Workflow stepper — replaces the flat tab bar so the canonical order is obvious. */}
 			<nav aria-label="Workflow" className="bg-white border border-gray-200 rounded-xl p-2">

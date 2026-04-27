@@ -172,7 +172,7 @@ export class ContentGenerationJob {
 			// Get URL inspirations via Apify + Gemini summarizer
 			let enrichedPrompt: string | undefined = request.prompt ?? undefined;
 			if (this.urlInspirationService) {
-				const inspirations = await this.urlInspirationService.getInspirationsFromPrompt(
+				const inspirations = await this.urlInspirationService.enrichInspirationsFromPrompt(
 					request.workspaceId,
 					request.prompt,
 					userId,

@@ -26,6 +26,7 @@ import { Input } from "../ui/Input";
 import { ScrapeLanguageToggle } from "../ui/ScrapeLanguageToggle";
 import { useScrapeLanguage } from "../../hooks/useScrapeLanguage";
 import { api, ApiError } from "../../services/api";
+import { useOnboarding } from "../../hooks/useOnboarding";
 import { ProductReferences } from "../products/ProductReferences";
 
 // ─── Types ──────────────────────────────────────────────────────
@@ -335,6 +336,7 @@ export const BrandBrainForm = forwardRef<BrandBrainFormHandle, BrandBrainFormPro
     const { workspaceId, projectId, editBrand, onSaved, onSavingChange, renderScrapingBanner } =
       props;
     const isEditMode = !!editBrand;
+    const { refreshProgress } = useOnboarding();
 
     const [activeTab, setActiveTab] = useState<BrandTabKey>("overview");
     const [form, setForm] = useState<BrandFormData>({ ...INITIAL_BRAND_FORM });
@@ -529,6 +531,7 @@ export const BrandBrainForm = forwardRef<BrandBrainFormHandle, BrandBrainFormPro
             method: "POST",
             body: JSON.stringify(buildBrainPayload()),
           });
+          refreshProgress();
         }
         onSaved();
       } catch (e) {

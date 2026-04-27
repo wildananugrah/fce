@@ -4,6 +4,7 @@ import type {
 	ChatStreamInput,
 	IChatAiProvider,
 } from "../interfaces/providers/chat-ai.provider.interface";
+import { generatorTuning } from "../config/generator-tuning";
 
 /**
  * Anthropic implementation of IChatAiProvider. Mirrors GeminiChatProvider:
@@ -35,7 +36,7 @@ export class AnthropicChatProvider implements IChatAiProvider {
 			const stream = this.client.messages.stream({
 				model: this.model,
 				system: input.systemPrompt,
-				max_tokens: 4096,
+				max_tokens: generatorTuning.chat.maxOutputTokens,
 				messages: messages as Anthropic.MessageParam[],
 				tools: tools.length > 0 ? tools : undefined,
 			});

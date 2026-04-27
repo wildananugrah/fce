@@ -1,4 +1,5 @@
 import type { Brand, BrandBrainVersion } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import type { IBrandRepository } from "../interfaces/repositories/brand.repository.interface";
 import type { IBrandService } from "../interfaces/services/brand.service.interface";
 import type {
@@ -38,14 +39,28 @@ export class BrandService implements IBrandService {
 			);
 		}
 
-		return this.brandRepository.create({
-			workspaceId,
-			projectId,
-			name: input.name,
-			slug: input.slug,
-			category: input.category,
-			websiteUrl: input.websiteUrl,
-		});
+		try {
+			return await this.brandRepository.create({
+				workspaceId,
+				projectId,
+				name: input.name,
+				slug: input.slug,
+				category: input.category,
+				websiteUrl: input.websiteUrl,
+			});
+		} catch (e) {
+			// P2002 on (project_id, slug) fires when an archived brand with the
+			// same slug still sits in this project (archivedAt doesn't nullify
+			// the unique constraint), or when a rapid double-submit races past
+			// projectHasBrand. Surface a clear 400 so the UI can show a useful
+			// message instead of a generic 500.
+			if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+				throw new Error(
+					"A brand with this name is already in this project — possibly in Workspace Settings → Trash. Restore it, permanently delete it from Trash, or pick a different name.",
+				);
+			}
+			throw e;
+		}
 	}
 
 	async update(id: string, input: UpdateBrandInput): Promise<Brand> {

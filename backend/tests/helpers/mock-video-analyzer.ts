@@ -43,6 +43,31 @@ export class MockVideoAnalyzer implements IVideoAnalyzer {
 		};
 	}
 
+	async analyzeVideoFromUri(params: {
+		videoUri: string;
+		mimeType?: string;
+		instructions: string;
+	}): Promise<{
+		analysis: VideoAnalysisResult;
+		usage: VideoAnalyzerUsage;
+		systemPrompt: string;
+		userPrompt: string;
+	}> {
+		this.analyzeCalls.push({ instructions: params.instructions, byteCount: 0 });
+		if (this.analyzeFail === "always") throw new Error("video analysis failed");
+		if (this.analyzeFail === "once") {
+			this.analyzeFail = null;
+			throw new Error("video analysis failed");
+		}
+		if (!this.cannedAnalysis) throw new Error("MockVideoAnalyzer.cannedAnalysis not set");
+		return {
+			analysis: this.cannedAnalysis,
+			usage: { inputTokens: 100, outputTokens: 200 },
+			systemPrompt: "system",
+			userPrompt: params.instructions,
+		};
+	}
+
 	async generateScripts(params: any): Promise<{
 		scripts: GeneratedScript[];
 		usage: VideoAnalyzerUsage;

@@ -172,7 +172,11 @@ cd backend
 bunx prisma db push                                  # sync schema
 bun run scripts/migrate-rbac.ts                      # default project + memberships
 bun run scripts/migrate-email-verification.ts        # grandfather existing users
+bun run scripts/migrate-onboarding.ts                # grandfather existing users past the onboarding tutorial
+bun run scripts/migrate-brand-partial-unique.ts      # partial unique indexes on brands (soft-delete-aware)
 ```
+
+The `migrate-brand-partial-unique.ts` script is required because Prisma schema cannot express `UNIQUE(...) WHERE archived_at IS NULL`. Without it, an archived (soft-deleted) brand still owns its `(project_id, slug)` and project slot at the DB level, so users see confusing P2002 errors when trying to create a brand with a name that's only in Trash. See comments at the top of the script for details.
 
 User management (full reference in [docs/database-access.md](docs/database-access.md)):
 

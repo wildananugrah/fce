@@ -9,12 +9,34 @@ export interface InspirationSummary {
   engagementSignal?: string;
 }
 
+export interface MediaSkipped {
+  reason:
+    | "size cap exceeded"
+    | "duration cap exceeded"
+    | "duration unknown"
+    | "fetch failed"
+    | "analysis failed"
+    | "video analysis requires Gemini";
+  sizeMb?: number;
+  durationSeconds?: number;
+  capMb?: number;
+  capSeconds?: number;
+}
+
+export interface InspirationMedia {
+  hasVideo: boolean;
+  durationSeconds?: number;
+  sizeMb?: number;
+  skipped?: MediaSkipped;
+}
+
 export interface InspirationResult {
   url: string;
   kind: string;
   summary: InspirationSummary | null;
   status: "cached" | "scraped" | "fallback" | "failed";
   error?: string;
+  media?: InspirationMedia;
 }
 
 export const urlInspirationApi = {

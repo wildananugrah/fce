@@ -128,6 +128,56 @@ export class GeminiVideoAnalyzerProvider implements IVideoAnalyzer {
 		}
 	}
 
+	async analyzeVideoFromUri(params: {
+		videoUri: string;
+		mimeType?: string;
+		instructions: string;
+	}): Promise<{
+		analysis: VideoAnalysisResult;
+		usage: VideoAnalyzerUsage;
+		systemPrompt: string;
+		userPrompt: string;
+	}> {
+		const { videoUri, mimeType, instructions } = params;
+
+		const systemPrompt =
+			"You are a video analysis assistant. Watch the video and produce structured JSON.";
+		const userPrompt = instructions;
+
+		const response = await this.ai.models.generateContent({
+			model: this.model,
+			contents: [
+				{
+					parts: [
+						{ text: instructions },
+						{
+							fileData: {
+								fileUri: videoUri,
+								...(mimeType ? { mimeType } : {}),
+							},
+						},
+					],
+				},
+			],
+			config: { temperature: 0.3, responseMimeType: "application/json" },
+		});
+
+		const text = response.text ?? "";
+		const usage: VideoAnalyzerUsage = {
+			inputTokens: response.usageMetadata?.promptTokenCount ?? 0,
+			outputTokens: response.usageMetadata?.candidatesTokenCount ?? 0,
+		};
+		this.lastUsage = usage;
+
+		const analysis = parseJson(text) as VideoAnalysisResult;
+		return {
+			analysis,
+			usage,
+			systemPrompt,
+			userPrompt,
+		};
+	}
+
 	async generateScripts(params: {
 		brandContext: string;
 		analysisInstructions: string;

@@ -54,3 +54,18 @@ export async function hashUrl(url: string): Promise<string> {
 		.map((b) => b.toString(16).padStart(2, "0"))
 		.join("");
 }
+
+/**
+ * True when the URL is a video host that Gemini's generateContent can fetch
+ * directly via fileData.fileUri (no download, no Files API upload).
+ *
+ * Today only YouTube qualifies — verified against current Gemini docs:
+ *   https://ai.google.dev/gemini-api/docs/video-understanding
+ *
+ * If Gemini documents support for additional hosts later, add them here in
+ * one place; the analyzer branch in UrlInspirationService picks up the
+ * change with no other code edits.
+ */
+export function isDirectGeminiVideoUri(url: string): boolean {
+	return detectUrlKind(url).type === "youtube";
+}

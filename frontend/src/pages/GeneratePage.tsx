@@ -4,7 +4,10 @@ import { Trash2, X, Sparkles } from "lucide-react";
 import { useWorkspace } from "../hooks/useWorkspace";
 import { useProject } from "../hooks/useProject";
 import { useSSE } from "../hooks/useSSE";
+import { useOnboarding } from "../hooks/useOnboarding";
 import { api } from "../services/api";
+import { CoachMark } from "../components/onboarding/CoachMark";
+import { HelpButton } from "../components/onboarding/HelpButton";
 import { Select } from "../components/ui/Select";
 import { SearchableSelect } from "../components/ui/SearchableSelect";
 import { Spinner } from "../components/ui/Spinner";
@@ -372,6 +375,7 @@ function BrainContextCard({ tone, usp }: { tone?: string; usp?: string }) {
 export function GeneratePage() {
   const { activeWorkspace } = useWorkspace();
   const { activeProject } = useProject();
+  const { refreshProgress } = useOnboarding();
   const [searchParams, setSearchParams] = useSearchParams();
   const researchContext = searchParams.get("researchContext") || "";
   const researchTitle = searchParams.get("researchTitle") || "";
@@ -673,6 +677,7 @@ export function GeneratePage() {
         }),
       });
       showToast("Generation submitted", "success");
+      refreshProgress();
       await loadGenerations();
     } catch (e) {
       showToast(e instanceof Error ? e.message : "Failed to submit generation", "error");
@@ -709,6 +714,7 @@ const frameworkOptions = [{ value: "", label: "PAS (recommended)" }, ...framewor
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <HelpButton pageKey="generate" />
           <span className="text-sm text-gray-500">{advancedMode ? "Advanced mode" : "Basic mode"}</span>
           <button
             type="button"
@@ -725,6 +731,7 @@ const frameworkOptions = [{ value: "", label: "PAS (recommended)" }, ...framewor
           </button>
         </div>
       </div>
+      <CoachMark pageKey="generate" title="Generate content" body="Generate content by picking a product and describing the angle. FCE runs the job in the background — you can keep working, and we'll notify you when it's done." />
       <ActiveSkillsBadges generator="content" />
 
       {researchContext && (

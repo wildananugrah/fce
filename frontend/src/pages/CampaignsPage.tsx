@@ -5,6 +5,8 @@ import { useWorkspace } from "../hooks/useWorkspace";
 import { useSSE } from "../hooks/useSSE";
 import { api } from "../services/api";
 import { Button } from "../components/ui/Button";
+import { CoachMark } from "../components/onboarding/CoachMark";
+import { HelpButton } from "../components/onboarding/HelpButton";
 import { UploadBriefModal } from "../components/campaigns/UploadBriefModal";
 import { Input } from "../components/ui/Input";
 import { Select } from "../components/ui/Select";
@@ -772,6 +774,7 @@ export function CampaignsPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold text-black">Campaigns</h1>
         <div className="flex gap-2">
+          <HelpButton pageKey="campaigns" />
           <Button variant="secondary" onClick={() => setShowCreate(true)}>
             Create Manually
           </Button>
@@ -781,6 +784,7 @@ export function CampaignsPage() {
           </Button>
         </div>
       </div>
+      <CoachMark pageKey="campaigns" title="Campaigns" body="Campaigns group related content under one goal or launch — e.g., a product launch with posts, stories, and a long-form piece." />
 
       {loading ? (
         <div className="flex justify-center py-12"><Spinner /></div>

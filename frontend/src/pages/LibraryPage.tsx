@@ -8,6 +8,8 @@ import { Toast } from "../components/ui/Toast";
 import { Modal } from "../components/ui/Modal";
 import { Button } from "../components/ui/Button";
 import { ContentPreviewModal } from "../components/library/ContentPreviewModal";
+import { CoachMark } from "../components/onboarding/CoachMark";
+import { HelpButton } from "../components/onboarding/HelpButton";
 
 interface LibraryItem {
   id: string;
@@ -258,14 +260,19 @@ export function LibraryPage() {
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-black">Content Library</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Review and approve generated content. Items start as <span className="font-medium">Draft</span>, move to
-          <span className="font-medium"> In Review</span>, then become <span className="font-medium">Approved</span> or
-          <span className="font-medium"> Rejected</span>.
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-black">Content Library</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Review and approve generated content. Items start as <span className="font-medium">Draft</span>, move to
+            <span className="font-medium"> In Review</span>, then become <span className="font-medium">Approved</span> or
+            <span className="font-medium"> Rejected</span>.
+          </p>
+        </div>
+        <HelpButton pageKey="content-library" />
       </div>
+
+      <CoachMark pageKey="content-library" title="Content Library" body="Every piece of content you've generated, grouped by brand and product. Preview, approve, or re-generate individual posts here before publishing." />
 
       {/* Search + Filters */}
       <div className="flex items-center gap-3">

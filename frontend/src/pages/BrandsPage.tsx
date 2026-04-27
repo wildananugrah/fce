@@ -17,6 +17,8 @@ import {
   X,
   Save,
 } from "lucide-react";
+import { CoachMark } from "../components/onboarding/CoachMark";
+import { HelpButton } from "../components/onboarding/HelpButton";
 import { useWorkspace } from "../hooks/useWorkspace";
 import { useProject } from "../hooks/useProject";
 import { api, ApiError } from "../services/api";
@@ -275,17 +277,27 @@ export function BrandsPage() {
     );
   }
 
+  // Single CoachMark above both render branches — avoids mounting two instances
+  // and prevents state desync when the user creates a brand (branch switches).
+  const brandsCoachMark = (
+    <CoachMark pageKey="brands" title="Brands" body="Brands hold the voice, audience, and messaging rules that all your content follows. Create one brand per business or sub-brand you manage." />
+  );
+
   // ── Empty state ───────────────────────────────────────────────
   if (brands.length === 0) {
     return (
       <div className="p-6">
+        {brandsCoachMark}
         <div className="max-w-xl mx-auto bg-white border border-gray-200 rounded-xl p-10 text-center mt-12">
           <div className="w-14 h-14 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto mb-4">
             <Palette size={24} />
           </div>
-          <h1 className="text-2xl font-semibold text-gray-900 mb-2">
-            Set up this project's brand
-          </h1>
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <h1 className="text-2xl font-semibold text-gray-900">
+              Set up this project's brand
+            </h1>
+            <HelpButton pageKey="brands" />
+          </div>
           <p className="text-sm text-gray-500 mb-6 max-w-md mx-auto">
             Your brand brain powers every generated topic and post.{" "}
             <span className="text-gray-700">{activeProject?.name ?? "This project"}</span>{" "}
@@ -317,6 +329,11 @@ export function BrandsPage() {
 
   return (
     <div className="p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-lg font-semibold text-black">Brands</h1>
+        <HelpButton pageKey="brands" />
+      </div>
+      {brandsCoachMark}
       {/* ── Hero ─────────────────────────────────────────────── */}
       {editing && draft ? (
         <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-4">

@@ -1,5 +1,5 @@
 import type { ApifyResultItem } from "../../interfaces/providers/apify.interface";
-import type { IActorResultParser, ParsedResearchResult } from "./types";
+import type { IActorResultParser, MediaInfo, ParsedResearchResult } from "./types";
 
 export class FacebookParser implements IActorResultParser {
 	parse(rawItems: ApifyResultItem[]): ParsedResearchResult[] {
@@ -20,5 +20,20 @@ export class FacebookParser implements IActorResultParser {
 				},
 				scrapedAt: item.time ? new Date(item.time) : new Date(),
 			}));
+	}
+
+	extractMedia(rawItem: ApifyResultItem): MediaInfo | null {
+		const item = rawItem as Record<string, unknown>;
+		const videoUrl =
+			typeof item.videoUrl === "string"
+				? item.videoUrl
+				: typeof item.video === "string"
+					? item.video
+					: undefined;
+		if (!videoUrl) return null;
+
+		const duration =
+			typeof item.duration === "number" ? Math.round(item.duration) : undefined;
+		return { videoUrl, durationSeconds: duration };
 	}
 }

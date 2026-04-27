@@ -28,6 +28,13 @@ model User {
   // Users who accept a workspace invitation OR existing users before this
   // feature rolled out are seeded as verified — see migrate-email-verification.ts.
   emailVerifiedAt DateTime? @map("email_verified_at")
+  // Onboarding tutorial flags — see docs/superpowers/specs/2026-04-24-onboarding-tutorial-design.md.
+  // Null = not yet seen/dismissed. seenCoachMarks holds page keys that have
+  // been dismissed. Progress for the Getting Started checklist is derived
+  // per-workspace from brand/product/generation counts — not stored here.
+  onboardingWelcomeSeenAt        DateTime?  @map("onboarding_welcome_seen_at")
+  onboardingChecklistDismissedAt DateTime?  @map("onboarding_checklist_dismissed_at")
+  seenCoachMarks                 String[]   @default([]) @map("seen_coach_marks")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
@@ -145,14 +152,16 @@ model Brand {
   generationRequests GenerationRequest[]
   researchRuns       ResearchRun[]
 
-  // Slug uniqueness is per-project. See BrandRepository for the null-project
-  // fallback.
-  @@unique([projectId, slug])
-  // Each project can contain at most ONE brand. Enforced at the schema level
-  // so the service layer can rely on it without a read-before-write race.
-  // NULL projectIds are distinct under this constraint — legacy only, shouldn't
-  // happen in normal flow since creation always falls back to Default project.
-  @@unique([projectId])
+  // Uniqueness for brands is managed by PARTIAL unique indexes rather than
+  // `@@unique`, because Prisma schema syntax can't express "unique only when
+  // archived_at IS NULL". The two indexes below are created and maintained by
+  // scripts/migrate-brand-partial-unique.ts — run that script after any
+  // `prisma db push` on a fresh environment:
+  //   - brands_project_id_slug_active_key: UNIQUE(project_id, slug) WHERE archived_at IS NULL
+  //   - brands_project_id_active_key:      UNIQUE(project_id)        WHERE archived_at IS NULL
+  // This lets archived brands coexist with live ones that reuse the same
+  // slug/project — matches the intent of soft-delete (hidden rows don't
+  // block user-visible actions).
   @@index([workspaceId, archivedAt])
   @@map("brands")
 }
@@ -615,15 +624,16 @@ model DocumentChunk {
 // ─── URL Scrape Cache ───────────────────────────────────────────
 
 model UrlScrapeCache {
-  id        String   @id @default(uuid())
-  urlHash   String   @unique @map("url_hash")
-  url       String   @db.Text
-  kind      String
-  rawData   Json     @map("raw_data")
-  summary   String?  @db.Text
-  scrapedAt DateTime @default(now()) @map("scraped_at")
-  expiresAt DateTime @map("expires_at")
-  createdAt DateTime @default(now()) @map("created_at")
+  id           String   @id @default(uuid())
+  urlHash      String   @unique @map("url_hash")
+  url          String   @db.Text
+  kind         String
+  rawData      Json     @map("raw_data")
+  summary      String?  @db.Text
+  videoSummary String?  @db.Text @map("video_summary")
+  scrapedAt    DateTime @default(now()) @map("scraped_at")
+  expiresAt    DateTime @map("expires_at")
+  createdAt    DateTime @default(now()) @map("created_at")
 
   @@index([expiresAt])
   @@map("url_scrape_cache")

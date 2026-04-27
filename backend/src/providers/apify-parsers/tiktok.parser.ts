@@ -1,5 +1,5 @@
 import type { ApifyResultItem } from "../../interfaces/providers/apify.interface";
-import type { IActorResultParser, ParsedResearchResult } from "./types";
+import type { IActorResultParser, MediaInfo, ParsedResearchResult } from "./types";
 
 export class TikTokParser implements IActorResultParser {
 	parse(rawItems: ApifyResultItem[]): ParsedResearchResult[] {
@@ -22,5 +22,23 @@ export class TikTokParser implements IActorResultParser {
 				},
 				scrapedAt: item.createTime ? new Date(item.createTime * 1000) : new Date(),
 			}));
+	}
+
+	extractMedia(rawItem: ApifyResultItem): MediaInfo | null {
+		const item = rawItem as Record<string, unknown>;
+		// Common TikTok actor field names. videoUrl at top level OR
+		// videoMeta.downloadAddr depending on actor version.
+		const videoUrl =
+			typeof item.videoUrl === "string"
+				? item.videoUrl
+				: typeof (item.videoMeta as Record<string, unknown> | undefined)?.downloadAddr === "string"
+					? ((item.videoMeta as Record<string, unknown>).downloadAddr as string)
+					: undefined;
+		if (!videoUrl) return null;
+
+		const meta = item.videoMeta as Record<string, unknown> | undefined;
+		const duration =
+			typeof meta?.duration === "number" ? Math.round(meta.duration) : undefined;
+		return { videoUrl, durationSeconds: duration };
 	}
 }

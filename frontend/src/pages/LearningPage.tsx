@@ -6,6 +6,8 @@ import { Select } from "../components/ui/Select";
 import { Spinner } from "../components/ui/Spinner";
 import { Card } from "../components/ui/Card";
 import { Badge } from "../components/ui/Badge";
+import { CoachMark } from "../components/onboarding/CoachMark";
+import { HelpButton } from "../components/onboarding/HelpButton";
 
 interface Brand {
   id: string;
@@ -118,7 +120,10 @@ export function LearningPage() {
             AI-powered insights based on your approved content and editing patterns.
           </p>
         </div>
+        <HelpButton pageKey="learning" />
       </div>
+
+      <CoachMark pageKey="learning" title="Learning Center" body="Guides and tutorials for getting the most out of FCE — start here if you're new, or jump to a specific topic when you're stuck." />
 
       {brandsLoading ? (
         <div className="flex justify-center py-12">

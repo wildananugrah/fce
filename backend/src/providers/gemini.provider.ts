@@ -1,4 +1,9 @@
 import { GoogleGenAI } from "@google/genai";
+import {
+	generatorTuning,
+	resolveThinkingBudget,
+	type GeneratorTuning,
+} from "../config/generator-tuning";
 import type {
 	BrandScrapingInput,
 	BrandScrapingOutput,
@@ -83,6 +88,37 @@ export class GeminiProvider
 		this.ai = new GoogleGenAI({ apiKey });
 	}
 
+	/**
+	 * Translate provider-agnostic GeneratorTuning into a Gemini SDK config block.
+	 * Caller spreads the result into `config: { ...this.geminiConfig(t, sys) }`
+	 * (or merges into an existing config object).
+	 */
+	private geminiConfig(
+		t: GeneratorTuning,
+		systemInstruction?: string,
+	): {
+		temperature: number;
+		maxOutputTokens: number;
+		systemInstruction?: string;
+		thinkingConfig?: { thinkingBudget: number };
+	} {
+		const cfg: {
+			temperature: number;
+			maxOutputTokens: number;
+			systemInstruction?: string;
+			thinkingConfig?: { thinkingBudget: number };
+		} = {
+			temperature: t.temperature,
+			maxOutputTokens: t.maxOutputTokens,
+		};
+		if (systemInstruction !== undefined) cfg.systemInstruction = systemInstruction;
+		const budget = resolveThinkingBudget(t);
+		if (budget > 0) {
+			cfg.thinkingConfig = { thinkingBudget: budget };
+		}
+		return cfg;
+	}
+
 	async generate(input: ContentGenerationInput): Promise<ContentGenerationOutput>;
 	async generate(input: CampaignGenerationInput): Promise<CampaignGenerationOutput>;
 	async generate(input: TopicGenerationInput): Promise<TopicGenerationOutput>;
@@ -106,10 +142,7 @@ export class GeminiProvider
 
 		const response = await this.ai.models.generateContent({
 			model: this.model,
-			config: {
-				temperature: 0,
-				systemInstruction: systemPrompt,
-			},
+			config: this.geminiConfig(generatorTuning.content, systemPrompt),
 			contents: input.referenceImages?.length
 				? [
 						...input.referenceImages.map((url) => ({
@@ -141,10 +174,7 @@ export class GeminiProvider
 
 		const response = await this.ai.models.generateContent({
 			model: this.model,
-			config: {
-				temperature: 0,
-				systemInstruction: systemPrompt,
-			},
+			config: this.geminiConfig(generatorTuning.campaign, systemPrompt),
 			contents: userPrompt,
 		});
 		this.lastUsage = {
@@ -167,10 +197,7 @@ export class GeminiProvider
 
 		const response = await this.ai.models.generateContent({
 			model: this.model,
-			config: {
-				temperature: 0,
-				systemInstruction: systemPrompt,
-			},
+			config: this.geminiConfig(generatorTuning.topic, systemPrompt),
 			contents: input.referenceImages?.length
 				? [
 						...input.referenceImages.map((url) => ({
@@ -235,7 +262,7 @@ Return JSON with these fields:
 
 		const response = await this.ai.models.generateContent({
 			model: this.model,
-			config: { temperature: 0, systemInstruction: systemPrompt },
+			config: this.geminiConfig(generatorTuning.productBrain, systemPrompt),
 			contents: userPrompt,
 		});
 		this.lastUsage = {
@@ -315,7 +342,7 @@ ${combined}`;
 
 		const response = await this.ai.models.generateContent({
 			model: this.model,
-			config: { temperature: 0, systemInstruction: systemPrompt },
+			config: this.geminiConfig(generatorTuning.productScraper, systemPrompt),
 			contents: userPrompt,
 		});
 		this.lastUsage = {
@@ -381,7 +408,7 @@ ${fetched.content}`;
 
 		const response = await this.ai.models.generateContent({
 			model: this.model,
-			config: { temperature: 0, systemInstruction: systemPrompt },
+			config: this.geminiConfig(generatorTuning.brandScraper, systemPrompt),
 			contents: userPrompt,
 		});
 		this.lastUsage = {
@@ -406,7 +433,7 @@ ${fetched.content}`;
 
 		const response = await this.ai.models.generateContent({
 			model: this.model,
-			config: { temperature: 0, systemInstruction: systemPrompt },
+			config: this.geminiConfig(generatorTuning.briefSummary, systemPrompt),
 			contents: userPrompt,
 		});
 		this.lastUsage = {
@@ -458,10 +485,7 @@ Return JSON with these fields:
 
 		const response = await this.ai.models.generateContent({
 			model: this.model,
-			config: {
-				temperature: 0,
-				systemInstruction: systemPrompt,
-			},
+			config: this.geminiConfig(generatorTuning.urlInspiration, systemPrompt),
 			contents: userPrompt,
 		});
 

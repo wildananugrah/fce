@@ -29,6 +29,8 @@ import { Modal } from "../ui/Modal";
 import { Input } from "../ui/Input";
 import { Button } from "../ui/Button";
 import { api } from "../../services/api";
+import { WelcomeModal } from "../onboarding/WelcomeModal";
+import { GettingStartedChecklist } from "../onboarding/GettingStartedChecklist";
 
 import type { MenuKey } from "../../contexts/ProjectContext";
 import { isMenuEnabled, type MenuFlagKey } from "../../config/menu-flags";
@@ -427,6 +429,8 @@ export function AppShell() {
           </div>
         </div>
       </Modal>
+      <WelcomeModal />
+      <GettingStartedChecklist />
     </div>
   );
 }

@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Drawer } from "../ui/Drawer";
 import { ProductForm, type ProductFormData } from "./ProductForm";
 import { ProductReferences } from "./ProductReferences";
+import { CoachMark } from "../onboarding/CoachMark";
+import { HelpButton } from "../onboarding/HelpButton";
 import { Package, FileText } from "lucide-react";
 
 interface Brand {
@@ -45,8 +47,16 @@ export function ProductDrawer({
 }: ProductDrawerProps) {
   const [activeTab, setActiveTab] = useState<TabKey>("details");
 
+  const isCreating = mode !== "edit";
+
   return (
-    <Drawer isOpen={isOpen} onClose={onClose} title={title} subtitle={subtitle}>
+    <Drawer
+      isOpen={isOpen}
+      onClose={onClose}
+      title={title}
+      subtitle={subtitle}
+      headerActions={isCreating ? <HelpButton pageKey="product-new" /> : undefined}
+    >
       <div className="flex h-full">
         {/* Sidebar tabs */}
         <div className="w-40 border-r border-gray-200 py-2 shrink-0">
@@ -73,6 +83,13 @@ export function ProductDrawer({
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
+          {isCreating && (
+            <CoachMark
+              pageKey="product-new"
+              title="Create your first product"
+              body="Paste a product page URL and click Auto-fill to pre-fill everything. Otherwise, work through the fields manually — you can refine the Product Brain later."
+            />
+          )}
           {activeTab === "details" && (
             <ProductForm
               brands={brands}

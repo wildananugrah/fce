@@ -46,38 +46,48 @@ export function useSSE(onEvent: (event: SSEEvent) => void) {
   onEventRef.current = onEvent;
 
   useEffect(() => {
-    const token = getAccessToken();
-    if (!token) return;
+    let destroyed = false;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
-    const baseUrl = import.meta.env.VITE_API_URL || "";
-    const es = new EventSource(`${baseUrl}/api/sse?token=${token}`);
-    eventSourceRef.current = es;
+    const connect = () => {
+      if (destroyed) return;
 
-    // Register a listener for each known event type. EventSource only
-    // delivers named events to listeners explicitly subscribed to them.
-    for (const eventType of EVENT_TYPES) {
-      es.addEventListener(eventType, (e) => {
-        try {
-          onEventRef.current({ type: eventType, data: JSON.parse(e.data) });
-        } catch {
-          // ignore malformed events
+      const token = getAccessToken();
+      if (!token) return;
+
+      const baseUrl = import.meta.env.VITE_API_URL || "";
+      const es = new EventSource(`${baseUrl}/api/sse?token=${token}`);
+      eventSourceRef.current = es;
+
+      // Register a listener for each known event type. EventSource only
+      // delivers named events to listeners explicitly subscribed to them.
+      for (const eventType of EVENT_TYPES) {
+        es.addEventListener(eventType, (e) => {
+          try {
+            onEventRef.current({ type: eventType, data: JSON.parse(e.data) });
+          } catch {
+            // ignore malformed events
+          }
+        });
+      }
+
+      es.onerror = () => {
+        es.close();
+        eventSourceRef.current = null;
+        // Reconnect after 3s with a fresh token so the stream survives
+        // network blips and access-token rotations.
+        if (!destroyed) {
+          reconnectTimer = setTimeout(connect, 3000);
         }
-      });
-    }
-
-    es.onerror = () => {
-      es.close();
-      // Reconnect after 3s
-      setTimeout(() => {
-        const newToken = getAccessToken();
-        if (newToken) {
-          // Re-mount will reconnect via effect cleanup + re-run
-        }
-      }, 3000);
+      };
     };
 
+    connect();
+
     return () => {
-      es.close();
+      destroyed = true;
+      if (reconnectTimer !== null) clearTimeout(reconnectTimer);
+      eventSourceRef.current?.close();
       eventSourceRef.current = null;
     };
   }, []);

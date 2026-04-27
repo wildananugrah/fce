@@ -24,6 +24,22 @@ export interface IVideoAnalyzer {
 	}>;
 
 	/**
+	 * Sends the video URL directly to Gemini as fileData.fileUri so the model
+	 * fetches it server-side. Used for YouTube URLs in URL inspiration to skip
+	 * the download + Files API upload roundtrip.
+	 */
+	analyzeVideoFromUri(params: {
+		videoUri: string;
+		mimeType?: string; // optional; YouTube URLs don't need it
+		instructions: string;
+	}): Promise<{
+		analysis: VideoAnalysisResult;
+		usage: VideoAnalyzerUsage;
+		systemPrompt: string;
+		userPrompt: string;
+	}>;
+
+	/**
 	 * One call that takes all prior analyses + the Config's brand context and
 	 * generates a list of scripts.
 	 */

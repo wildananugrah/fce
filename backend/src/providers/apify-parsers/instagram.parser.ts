@@ -1,5 +1,5 @@
 import type { ApifyResultItem } from "../../interfaces/providers/apify.interface";
-import type { IActorResultParser, ParsedResearchResult } from "./types";
+import type { IActorResultParser, MediaInfo, ParsedResearchResult } from "./types";
 
 export class InstagramParser implements IActorResultParser {
 	parse(rawItems: ApifyResultItem[]): ParsedResearchResult[] {
@@ -23,5 +23,19 @@ export class InstagramParser implements IActorResultParser {
 				},
 				scrapedAt: item.timestamp ? new Date(item.timestamp) : new Date(),
 			}));
+	}
+
+	extractMedia(rawItem: ApifyResultItem): MediaInfo | null {
+		// Instagram Apify actor: posts have `videoUrl` only when they're a Reel
+		// or video post. Image-only posts return null here.
+		const item = rawItem as Record<string, unknown>;
+		const videoUrl = typeof item.videoUrl === "string" ? item.videoUrl : undefined;
+		if (!videoUrl) return null;
+
+		const duration =
+			typeof item.videoDuration === "number"
+				? Math.round(item.videoDuration)
+				: undefined;
+		return { videoUrl, durationSeconds: duration };
 	}
 }

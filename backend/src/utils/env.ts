@@ -65,4 +65,6 @@ export const env = {
 	// direct SQL takes precedence over the env value.
 	userDefaultMaxWorkspaces: Number.parseInt(optionalEnv("USER_DEFAULT_MAX_WORKSPACES", "1"), 10),
 	userDefaultMaxProjects: Number.parseInt(optionalEnv("USER_DEFAULT_MAX_PROJECTS", "3"), 10),
+	videoInspirationMaxMb: Number.parseInt(optionalEnv("VIDEO_INSPIRATION_MAX_MB", "100"), 10),
+	videoInspirationMaxDurationSeconds: Number.parseInt(optionalEnv("VIDEO_INSPIRATION_MAX_DURATION_SECONDS", "300"), 10),
 } as const;
