@@ -7,6 +7,7 @@ export interface CreateGenerationInput {
 	contentType: string;
 	framework: string;
 	hookType: string;
+	/** @internal — sourced from brand.language inside the service, NOT from request body. */
 	language?: string;
 	prompt?: string;
 	objective?: string;

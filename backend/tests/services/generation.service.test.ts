@@ -16,15 +16,28 @@ class MockPgBoss {
 	}
 }
 
+// Minimal prisma mock — brand.findUnique returns a brand with a configurable language
+class MockPrisma {
+	brandLanguage = "id";
+
+	brand = {
+		findUnique: async (_args: unknown): Promise<{ language: string } | null> => {
+			return { language: this.brandLanguage };
+		},
+	};
+}
+
 describe("GenerationService", () => {
 	const generationRepo = new MockGenerationRepository();
 	const mockBoss = new MockPgBoss();
-	// Cast mockBoss to satisfy the PgBoss type — only .send() is exercised at runtime
-	const generationService = new GenerationService(generationRepo, mockBoss as any);
+	const mockPrisma = new MockPrisma();
+	// Cast mocks to satisfy types — only the exercised methods are implemented
+	const generationService = new GenerationService(generationRepo, mockBoss as any, mockPrisma as any);
 
 	afterEach(() => {
 		generationRepo.clear();
 		mockBoss.clear();
+		mockPrisma.brandLanguage = "id";
 	});
 
 	describe("create", () => {
@@ -37,10 +50,11 @@ describe("GenerationService", () => {
 				contentType: "reels",
 				framework: "aida",
 				hookType: "question",
-				language: "en",
 				prompt: "Sell our new product",
 			};
 
+			// language is sourced from brand.language, not the request body
+			mockPrisma.brandLanguage = "en";
 			const request = await generationService.create(workspaceId, userId, input);
 
 			// The created record should carry the correct workspace / fields
@@ -50,7 +64,7 @@ describe("GenerationService", () => {
 			expect(request.contentType).toBe(input.contentType);
 			expect(request.framework).toBe(input.framework);
 			expect(request.hookType).toBe(input.hookType);
-			expect(request.language).toBe(input.language);
+			expect(request.language).toBe("en");
 			expect(request.prompt).toBe(input.prompt);
 
 			// Status must be "pending" (set by the repository default)
@@ -64,7 +78,7 @@ describe("GenerationService", () => {
 			expect((job.data as any).userId).toBe(userId);
 		});
 
-		it("should default language to 'id' when not provided", async () => {
+		it("should use language from brand (not request body)", async () => {
 			const workspaceId = crypto.randomUUID();
 			const userId = crypto.randomUUID();
 			const input = {
@@ -73,9 +87,10 @@ describe("GenerationService", () => {
 				contentType: "video",
 				framework: "pas",
 				hookType: "statement",
-				// language intentionally omitted
+				// language is intentionally absent — sourced from brand.language
 			};
 
+			// mockPrisma defaults to brandLanguage = "id"
 			const request = await generationService.create(workspaceId, userId, input);
 
 			expect(request.language).toBe("id");

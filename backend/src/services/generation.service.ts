@@ -1,3 +1,4 @@
+import type { PrismaClient } from "@prisma/client";
 import type { GenerationRequest } from "@prisma/client";
 import type { PgBoss } from "pg-boss";
 import type { IGenerationRepository } from "../interfaces/repositories/generation.repository.interface";
@@ -8,6 +9,7 @@ export class GenerationService implements IGenerationService {
 	constructor(
 		private generationRepository: IGenerationRepository,
 		private boss: PgBoss,
+		private prisma: PrismaClient,
 	) {}
 
 	async list(workspaceId: string): Promise<GenerationRequest[]> {
@@ -42,6 +44,12 @@ export class GenerationService implements IGenerationService {
 		// Use first productId for the FK, or fall back to single productId
 		const primaryProductId = input.productIds?.[0] ?? input.productId ?? null;
 
+		const brand = await this.prisma.brand.findUnique({
+			where: { id: input.brandId },
+			select: { language: true },
+		});
+		if (!brand) throw new Error("Brand not found");
+
 		const request = await this.generationRepository.create({
 			workspaceId,
 			brandId: input.brandId,
@@ -51,7 +59,7 @@ export class GenerationService implements IGenerationService {
 			contentType: input.contentType,
 			framework: input.framework,
 			hookType: input.hookType,
-			language: input.language || "id",
+			language: brand.language,
 			prompt: input.prompt || null,
 			objective: input.objective || null,
 			tonePreset: input.tonePreset || null,

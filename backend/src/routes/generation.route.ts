@@ -26,7 +26,6 @@ export function createGenerationRoutes(generationService: IGenerationService) {
 			contentType: body.contentType,
 			framework: body.framework,
 			hookType: body.hookType,
-			language: body.language,
 			prompt: body.prompt,
 			objective: body.objective,
 			tonePreset: body.tonePreset,
