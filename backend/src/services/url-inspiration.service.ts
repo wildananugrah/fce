@@ -5,16 +5,20 @@ import type {
 	InspirationSummary,
 } from "../interfaces/providers/inspiration-summarizer.interface";
 import type { ILogger } from "../interfaces/providers/logger.provider.interface";
+import type { IVideoAnalyzer } from "../interfaces/providers/video-analyzer.interface";
 import type { IUrlScrapeCacheRepository } from "../interfaces/repositories/url-scrape-cache.repository.interface";
 import type { IResearchService } from "../interfaces/services/research.service.interface";
 import type {
+	InspirationMedia,
 	InspirationResult,
 	IUrlInspirationService,
+	MediaSkipped,
 } from "../interfaces/services/url-inspiration.service.interface";
+import type { MediaInfo } from "../providers/apify-parsers/types";
 import type { AiProviderFactory } from "./ai-provider-factory.service";
 import { logAiActivity } from "../utils/ai-activity-logger";
 import { buildActorInput } from "../utils/apify-actor-inputs";
-import { detectUrlKind, hashUrl, normalizeUrl } from "../utils/url-router";
+import { detectUrlKind, hashUrl, isDirectGeminiVideoUri, normalizeUrl } from "../utils/url-router";
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 const APIFY_WAIT_SECONDS = 90;
@@ -41,6 +45,9 @@ export class UrlInspirationService implements IUrlInspirationService {
 		private aiFactory: AiProviderFactory,
 		private cacheRepository: IUrlScrapeCacheRepository,
 		private logger: ILogger,
+		private videoFetcher: (url: string) => Promise<{ bytes: Uint8Array; mimeType: string }>,
+		private buildVideoAnalyzer: (workspaceId: string) => Promise<IVideoAnalyzer>,
+		private videoCaps: { maxMb: number; maxDurationSeconds: number },
 	) {}
 
 	async getInspiration(
@@ -148,6 +155,191 @@ export class UrlInspirationService implements IUrlInspirationService {
 			urls.map((url) => this.getInspiration(workspaceId, url, userId)),
 		);
 		return results;
+	}
+
+	async enrichWithVideo(
+		workspaceId: string,
+		url: string,
+		userId?: string,
+	): Promise<InspirationResult> {
+		// Always start from the base text-only flow. This populates the cache
+		// row if it doesn't exist and gives us the metadata summary as the
+		// fallback for any video-stage failure.
+		const base = await this.getInspiration(workspaceId, url, userId);
+		if (!base.summary) return base;
+
+		const { maxMb, maxDurationSeconds } = this.videoCaps;
+		// Caps both at 0 = feature disabled. Return base as-is, no media field.
+		if (maxMb === 0 && maxDurationSeconds === 0) return base;
+
+		// Look up cached row to check for an already-enriched videoSummary.
+		const urlHash = await hashUrl(url);
+		const cached = await this.cacheRepository.findByHash(urlHash);
+		if (cached?.videoSummary) {
+			return {
+				...base,
+				summary: JSON.parse(cached.videoSummary) as InspirationSummary,
+				media: { hasVideo: true },
+			};
+		}
+
+		// Resolve the video URL and duration. For YouTube, the input URL IS
+		// the video URL — no need to consult the parser. For other hosts,
+		// the parser extracts it from Apify metadata stored in cache.
+		let videoUrl: string | undefined;
+		let durationSeconds: number | undefined;
+
+		if (isDirectGeminiVideoUri(url)) {
+			videoUrl = url;
+			const media = this.tryExtractMedia(cached?.rawData);
+			durationSeconds = media?.durationSeconds;
+		} else {
+			const media = this.tryExtractMedia(cached?.rawData);
+			if (!media) return base; // No video in this URL.
+			videoUrl = media.videoUrl;
+			durationSeconds = media.durationSeconds;
+		}
+		if (!videoUrl) return base;
+
+		// Provider availability check — video analysis is Gemini-only.
+		const settings = await this.aiFactory.getSettings(workspaceId);
+		if (settings.providers.content !== "gemini") {
+			return {
+				...base,
+				media: this.skipped("video analysis requires Gemini", { durationSeconds }),
+			};
+		}
+
+		// Duration cap (applies to both paths if known).
+		if (
+			maxDurationSeconds > 0 &&
+			durationSeconds !== undefined &&
+			durationSeconds > maxDurationSeconds
+		) {
+			return {
+				...base,
+				media: this.skipped("duration cap exceeded", {
+					durationSeconds,
+					capSeconds: maxDurationSeconds,
+				}),
+			};
+		}
+
+		// Branch on YouTube vs bytes.
+		try {
+			const analyzer = await this.buildVideoAnalyzer(workspaceId);
+			let analysisText: string;
+			let sizeMb: number | undefined;
+
+			if (isDirectGeminiVideoUri(videoUrl)) {
+				const result = await analyzer.analyzeVideoFromUri({
+					videoUri: videoUrl,
+					instructions: this.videoInstructions(),
+				});
+				analysisText = JSON.stringify(result.analysis);
+			} else {
+				// Bytes path. Apply size cap after fetch.
+				const { bytes, mimeType } = await this.videoFetcher(videoUrl);
+				sizeMb = bytes.byteLength / (1024 * 1024);
+				if (maxMb > 0 && sizeMb > maxMb) {
+					return {
+						...base,
+						media: this.skipped("size cap exceeded", {
+							sizeMb: Math.round(sizeMb * 10) / 10,
+							capMb: maxMb,
+							durationSeconds,
+						}),
+					};
+				}
+				const result = await analyzer.analyzeVideo({
+					bytes,
+					mimeType,
+					instructions: this.videoInstructions(),
+				});
+				analysisText = JSON.stringify(result.analysis);
+			}
+
+			// Re-summarize with the video description merged in.
+			const enriched = await this.summarizeAndLog(
+				workspaceId,
+				url,
+				{ metadata: cached?.rawData, videoAnalysis: analysisText },
+				userId,
+			);
+
+			await this.cacheRepository.setVideoSummary(urlHash, JSON.stringify(enriched));
+
+			return {
+				...base,
+				summary: enriched,
+				media: { hasVideo: true, durationSeconds, sizeMb },
+			};
+		} catch (err) {
+			this.logger.warn("video inspiration failed, falling back to text-only", {
+				url,
+				error: err instanceof Error ? err.message : String(err),
+			});
+			return {
+				...base,
+				media: this.skipped("analysis failed", { durationSeconds }),
+			};
+		}
+	}
+
+	async enrichInspirationsFromPrompt(
+		workspaceId: string,
+		prompt: string | null | undefined,
+		userId?: string,
+	): Promise<InspirationResult[]> {
+		if (!prompt) return [];
+		const matches = prompt.match(URL_REGEX) ?? [];
+		const urls = Array.from(new Set(matches)).slice(0, MAX_URLS_PER_PROMPT);
+		if (urls.length === 0) return [];
+
+		// SEQUENTIAL — bounds worst-case latency and avoids parallel Gemini
+		// Files API uploads racing on quota.
+		const results: InspirationResult[] = [];
+		for (const url of urls) {
+			results.push(await this.enrichWithVideo(workspaceId, url, userId));
+		}
+		return results;
+	}
+
+	private skipped(
+		reason: MediaSkipped["reason"],
+		extras: Partial<Omit<MediaSkipped, "reason">> = {},
+	): InspirationMedia {
+		return { hasVideo: true, skipped: { reason, ...extras } };
+	}
+
+	private videoInstructions(): string {
+		return [
+			"Watch the entire video and produce a JSON object with the following keys:",
+			"  description: a 2-3 sentence summary of what happens in the video.",
+			"  hook: how the video opens and grabs attention.",
+			"  pacing: short notes on rhythm, cuts, pacing.",
+			"  visualStyle: dominant visual elements (color, framing, motion).",
+			"  audioNotes: music, voiceover, sound design hooks.",
+			"  takeaway: the main thing a content creator could borrow from this video.",
+			"Output ONLY the JSON object, no markdown or commentary.",
+		].join("\n");
+	}
+
+	private tryExtractMedia(rawData: unknown): MediaInfo | null {
+		// Inline shim — reads canonical Apify field names (videoUrl, videoDuration,
+		// videoMeta.duration). Works because parsers pass raw items verbatim into
+		// the cache. If/when a parser registry exists, swap to that.
+		if (!rawData) return null;
+		const item = rawData as Record<string, unknown>;
+		const videoUrl = typeof item.videoUrl === "string" ? item.videoUrl : undefined;
+		if (!videoUrl) return null;
+		const duration =
+			typeof item.videoDuration === "number"
+				? Math.round(item.videoDuration)
+				: typeof (item.videoMeta as Record<string, unknown> | undefined)?.duration === "number"
+					? Math.round((item.videoMeta as Record<string, unknown>).duration as number)
+					: undefined;
+		return { videoUrl, durationSeconds: duration };
 	}
 
 	private async summarizeAndLog(

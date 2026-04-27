@@ -328,6 +328,45 @@ async function main() {
 
 	// URL inspiration pipeline — cache + Apify + per-workspace summarizer
 	const urlScrapeCacheRepository = new UrlScrapeCacheRepository(prisma);
+
+	// Pipeline job resolves a fresh Gemini analyzer per run using the
+	// per-workspace key via AiProviderFactory. Wrap the class construction in
+	// a small closure so the pg-boss worker signature below stays uniform.
+	const buildVideoAnalyzer = async (workspaceId: string): Promise<GeminiVideoAnalyzerProvider> => {
+		const settings = await aiProviderFactory.getSettings(workspaceId);
+		const apiKey = settings.gemini.apiKey ?? env.geminiApiKey;
+		const model = settings.gemini.model ?? env.geminiModel ?? "gemini-2.5-flash";
+		if (!apiKey) throw new Error("Gemini API key not configured");
+		return new GeminiVideoAnalyzerProvider(apiKey, model);
+	};
+
+	const videoFetcher = async (url: string): Promise<{ bytes: Uint8Array; mimeType: string }> => {
+		// Browser-like headers — TikTok's own CDN blocks bare fetch() and often
+		// returns HTML error pages. Harmless on Apify-hosted URLs.
+		const resp = await fetch(url, {
+			headers: {
+				"User-Agent":
+					"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+				Referer: "https://www.tiktok.com/",
+			},
+			redirect: "follow",
+		});
+		if (!resp.ok) throw new Error(`Video fetch failed: HTTP ${resp.status}`);
+		const mimeType = resp.headers.get("content-type") ?? "video/mp4";
+		// Fail fast if the server served an HTML error page disguised as a
+		// video URL — better a clear message here than Gemini's opaque
+		// "Unsupported MIME type" rejection downstream.
+		if (!/^video\//i.test(mimeType) && !/^application\/octet-stream/i.test(mimeType)) {
+			throw new Error(
+				`Expected video response, got content-type="${mimeType}" (likely a TikTok CDN block or expired URL)`,
+			);
+		}
+		const ab = await resp.arrayBuffer();
+		return { bytes: new Uint8Array(ab), mimeType };
+	};
+
+	// URL inspiration service — constructed here so it can reference videoFetcher
+	// and buildVideoAnalyzer, which are defined above.
 	const urlInspirationService = new UrlInspirationService(
 		prisma,
 		apifyProvider,
@@ -335,6 +374,12 @@ async function main() {
 		aiProviderFactory,
 		urlScrapeCacheRepository,
 		logger,
+		videoFetcher,
+		buildVideoAnalyzer,
+		{
+			maxMb: env.videoInspirationMaxMb,
+			maxDurationSeconds: env.videoInspirationMaxDurationSeconds,
+		},
 	);
 
 	// ─── Job Handlers ────────────────────────────────────────────────
@@ -395,42 +440,6 @@ async function main() {
 		notificationService,
 		logger,
 	);
-
-	// Pipeline job resolves a fresh Gemini analyzer per run using the
-	// per-workspace key via AiProviderFactory. Wrap the class construction in
-	// a small closure so the pg-boss worker signature below stays uniform.
-	const buildVideoAnalyzer = async (workspaceId: string): Promise<GeminiVideoAnalyzerProvider> => {
-		const settings = await aiProviderFactory.getSettings(workspaceId);
-		const apiKey = settings.gemini.apiKey ?? env.geminiApiKey;
-		const model = settings.gemini.model ?? env.geminiModel ?? "gemini-2.5-flash";
-		if (!apiKey) throw new Error("Gemini API key not configured");
-		return new GeminiVideoAnalyzerProvider(apiKey, model);
-	};
-
-	const videoFetcher = async (url: string): Promise<{ bytes: Uint8Array; mimeType: string }> => {
-		// Browser-like headers — TikTok's own CDN blocks bare fetch() and often
-		// returns HTML error pages. Harmless on Apify-hosted URLs.
-		const resp = await fetch(url, {
-			headers: {
-				"User-Agent":
-					"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-				Referer: "https://www.tiktok.com/",
-			},
-			redirect: "follow",
-		});
-		if (!resp.ok) throw new Error(`Video fetch failed: HTTP ${resp.status}`);
-		const mimeType = resp.headers.get("content-type") ?? "video/mp4";
-		// Fail fast if the server served an HTML error page disguised as a
-		// video URL — better a clear message here than Gemini's opaque
-		// "Unsupported MIME type" rejection downstream.
-		if (!/^video\//i.test(mimeType) && !/^application\/octet-stream/i.test(mimeType)) {
-			throw new Error(
-				`Expected video response, got content-type="${mimeType}" (likely a TikTok CDN block or expired URL)`,
-			);
-		}
-		const ab = await resp.arrayBuffer();
-		return { bytes: new Uint8Array(ab), mimeType };
-	};
 
 	// The worker loads the run, builds a workspace-scoped analyzer, then
 	// hands off to CompetitorPipelineJob. Reason: analyzer needs the
