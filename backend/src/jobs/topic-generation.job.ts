@@ -158,7 +158,7 @@ export class TopicGenerationJob {
 			}
 
 			// Get URL inspirations via Apify + Gemini summarizer
-			const inspirations = await this.urlInspirationService.getInspirationsFromPrompt(
+			const inspirations = await this.urlInspirationService.enrichInspirationsFromPrompt(
 				workspaceId,
 				prompt,
 				userId,
