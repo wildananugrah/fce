@@ -4,8 +4,6 @@ import { Input } from "../ui/Input";
 import { Select } from "../ui/Select";
 import { Button } from "../ui/Button";
 import { api, apiUpload } from "../../services/api";
-import { useScrapeLanguage } from "../../hooks/useScrapeLanguage";
-import { ScrapeLanguageToggle } from "../ui/ScrapeLanguageToggle";
 
 interface Brand {
   id: string;
@@ -61,7 +59,6 @@ export function ProductForm({ brands, workspaceId, onSubmit, onCancel, initial, 
 
   const [productUrl, setProductUrl] = useState("");
   const [scraping, setScraping] = useState(false);
-  const [scrapeLanguage, setScrapeLanguage] = useScrapeLanguage();
   const [imageUrl, setImageUrl] = useState(initial?.imageUrl ?? "");
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -89,7 +86,7 @@ export function ProductForm({ brands, workspaceId, onSubmit, onCancel, initial, 
         imageUrl?: string;
       }>(`/api/workspaces/${workspaceId}/products/scrape-preview`, {
         method: "POST",
-        body: JSON.stringify({ url: productUrl.trim(), language: scrapeLanguage }),
+        body: JSON.stringify({ url: productUrl.trim(), brandId }),
       });
       if (result.name && !name.trim()) {
         setName(result.name);
@@ -167,6 +164,7 @@ export function ProductForm({ brands, workspaceId, onSubmit, onCancel, initial, 
         body: JSON.stringify({
           productName: name.trim(),
           brandName: brand.name,
+          brandId,
           productType: type.trim() || undefined,
           priceTier: priceTier.trim() || undefined,
           summary: summary.trim() || undefined,
@@ -275,11 +273,6 @@ export function ProductForm({ brands, workspaceId, onSubmit, onCancel, initial, 
               onChange={(e) => setProductUrl(e.target.value)}
               placeholder="https://example.com/product"
               className="flex-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-black placeholder-gray-400 focus:border-black focus:ring-1 focus:ring-black focus:outline-none"
-            />
-            <ScrapeLanguageToggle
-              value={scrapeLanguage}
-              onChange={setScrapeLanguage}
-              disabled={scraping}
             />
             <button
               type="button"
