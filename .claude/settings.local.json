@@ -172,7 +172,22 @@
       "Bash(grep -n \"activeWorkspace\\\\|useWorkspace\\\\|api<.*>\\\\`/api\" /Users/bellinnn/Documents/projects/fce/frontend/src/pages/TopicLibraryPage.tsx)",
       "Bash(grep -n \"api<Brand\\\\|brands\\\\`\" /Users/bellinnn/Documents/projects/fce/frontend/src/pages/GeneratePage.tsx)",
       "Bash(docker exec *)",
-      "Read(//Users/bellinnn/.claude/skills/**)"
+      "Read(//Users/bellinnn/.claude/skills/**)",
+      "Bash(export DATABASE_URL=\"postgresql://user:password@localhost:5433/fce\")",
+      "Bash(git --no-pager show e661f27)",
+      "Bash(git --no-pager show ca8d213)",
+      "Bash(git --no-pager show 81fa782)",
+      "Bash(git diff *)",
+      "Bash(tee /tmp/tsc-output.txt)",
+      "Bash(git -C /Users/bellinnn/Documents/projects/fce log --oneline -n 5)",
+      "Bash(git -C /Users/bellinnn/Documents/projects/fce show --stat HEAD~2)",
+      "Bash(git -C /Users/bellinnn/Documents/projects/fce show --stat HEAD~1)",
+      "Bash(git -C /Users/bellinnn/Documents/projects/fce show --stat HEAD)",
+      "Bash(git -C /Users/bellinnn/Documents/projects/fce show HEAD -- frontend/src/components/layout/AppShell.tsx)",
+      "Bash(git -C /Users/bellinnn/Documents/projects/fce diff main...HEAD -- frontend/src/pages/BrandsPage.tsx)",
+      "Bash(git -C /Users/bellinnn/Documents/projects/fce diff main...HEAD --name-only)",
+      "Bash(git -C /Users/bellinnn/Documents/projects/fce diff main...HEAD -- backend/src/routes/workspace.route.ts)",
+      "Bash(git -C /Users/bellinnn/Documents/projects/fce diff main...HEAD --stat)"
     ],
     "additionalDirectories": [
       "/Users/wildananugrah/Documents/My-Projects/fce/.git"

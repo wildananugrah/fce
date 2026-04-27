@@ -146,5 +146,14 @@ dicoba pake ini mas
 10. Campaign -> input nya output butuh struktur nya mau gmana ? disabled dulu
 11. Learning Center -> disabled dulu [done]
 12. Research Hub -> disabled dulu.  [done]
-13. Create baby step for tutorial
-14. timestamp seems like not valid. 
+13. Create baby step for tutorial [in progress]
+14. timestamp seems like not valid. [done]
+15. Pindahin workspace nya brand-brand ke project. check chat nya adam di Group RND
+16. Mapping skils-nya.
+17. Issue di advance mode, strategy controls. 
+
+== 24 Apr 2026 - Tutor anak content:
+
+1. intinya sih bikin default-nya language nya di Brain. di Product, Topic, Content generator itu ga usah pilih.
+
+idealnya ngikut brand brain dulu sih mas, nanti kalau mau dirubah baru dipilih, biar ngurang2in input aja. tapi sementara gini dulu gpp

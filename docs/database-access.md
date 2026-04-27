@@ -512,3 +512,18 @@ SELECT u.email, u.max_projects, COUNT(p.id) AS used
 FROM users u LEFT JOIN projects p ON p.created_by_id = u.id
 GROUP BY u.id HAVING COUNT(p.id) >= u.max_projects;
 ```
+
+### 8. Onboarding users
+```sql
+-- via `psql` or Prisma Studio
+UPDATE users
+SET onboarding_welcome_seen_at = NULL,
+    onboarding_checklist_dismissed_at = NULL,
+    seen_coach_marks = '{}'
+WHERE email = 'wildananugrah@gmail.com';
+
+UPDATE users
+SET seen_coach_marks = array_remove(seen_coach_marks, 'brand-new')
+WHERE email = 'wildananugrah@gmail.com';
+
+```
