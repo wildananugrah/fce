@@ -4,6 +4,25 @@ set -e
 REPO_DIR="/root/repo/fce"
 DEPLOY_DIR="/var/www/html/fce"
 
+START_TS=$(date +%s)
+START_AT=$(date "+%Y-%m-%d %H:%M:%S %Z")
+echo "Deploy started at: $START_AT"
+
+# Print elapsed time on exit (success or failure)
+on_exit() {
+  local exit_code=$?
+  local end_ts=$(date +%s)
+  local end_at=$(date "+%Y-%m-%d %H:%M:%S %Z")
+  local elapsed=$((end_ts - START_TS))
+  local h=$((elapsed / 3600))
+  local m=$(((elapsed % 3600) / 60))
+  local s=$((elapsed % 60))
+  printf "Deploy finished at: %s\n" "$end_at"
+  printf "Elapsed: %02d:%02d:%02d (%ds)\n" "$h" "$m" "$s" "$elapsed"
+  printf "Exit code: %d\n" "$exit_code"
+}
+trap on_exit EXIT
+
 echo "Restart Database, Minio, Monitoring"
 cd "$REPO_DIR"
 make down; make up
