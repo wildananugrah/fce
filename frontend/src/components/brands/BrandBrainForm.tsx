@@ -37,6 +37,7 @@ export interface EditBrand {
   slug: string;
   category: string | null;
   websiteUrl: string | null;
+  language?: "indonesian" | "english";
   brainVersions?: {
     id: string;
     version: number;
@@ -346,6 +347,13 @@ export const BrandBrainForm = forwardRef<BrandBrainFormHandle, BrandBrainFormPro
     const [error, setError] = useState("");
     const [scrapeLanguage, setScrapeLanguage] = useScrapeLanguage();
 
+    // On edit, pre-select the toggle from the brand's persisted language.
+    useEffect(() => {
+      if (editBrand?.language) {
+        setScrapeLanguage(editBrand.language);
+      }
+    }, [editBrand?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
     // Mirror saving state to parent so a header Save button can show "Saving…"
     useEffect(() => {
       onSavingChange?.(saving);
@@ -510,6 +518,7 @@ export const BrandBrainForm = forwardRef<BrandBrainFormHandle, BrandBrainFormPro
               name: form.name.trim(),
               category: form.industry.trim() || null,
               websiteUrl: form.websiteUrl.trim() || null,
+              language: scrapeLanguage,
             }),
           });
           await api(`/api/workspaces/${workspaceId}/brands/${editBrand.id}/brain-versions`, {
@@ -525,6 +534,7 @@ export const BrandBrainForm = forwardRef<BrandBrainFormHandle, BrandBrainFormPro
               category: form.industry.trim() || undefined,
               websiteUrl: form.websiteUrl.trim() || undefined,
               projectId,
+              language: scrapeLanguage,
             }),
           });
           await api(`/api/workspaces/${workspaceId}/brands/${brand.id}/brain-versions`, {
