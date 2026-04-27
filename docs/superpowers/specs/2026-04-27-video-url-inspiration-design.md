@@ -45,11 +45,10 @@ The job processes each URL in `additionalDirection` (current limit `MAX_URLS_PER
 2. If `videoSummary` is already cached, use the enriched summary.
 3. Otherwise, call the parser's `extractMedia(rawData)` to get `{ videoUrl?, durationSeconds? }`.
 4. If no `videoUrl`, use the existing text summary.
-5. If `videoUrl` present:
-   - HEAD request first if `durationSeconds` is missing — extract `Content-Length`.
-   - If size or duration exceeds env caps → use existing text summary with `mediaSkipped: { reason }`.
-   - Else fetch bytes via the existing `videoFetcher`, hand to `GeminiVideoAnalyzerProvider`.
-   - On success: re-run `summarizeInspiration` with the metadata + video description merged into the prompt. Persist the enriched summary to `UrlScrapeCache.videoSummary`. Same 24h TTL.
+5. If `videoUrl` present, branch on `isDirectGeminiVideoUri(videoUrl)`:
+   - **YouTube path** (`isDirectGeminiVideoUri` returns true): apply duration cap only (size cap doesn't apply since we never download). If duration exceeds cap → use text summary with `mediaSkipped`. Else call `analyzer.analyzeVideoFromUri({ videoUrl, instructions })`.
+   - **Bytes path** (any other host): HEAD request if `durationSeconds` is missing → extract `Content-Length`. If size or duration exceeds env caps → use text summary with `mediaSkipped`. Else fetch bytes via the existing `videoFetcher`, then call `analyzer.analyzeVideo({ bytes, mimeType, instructions })`.
+   - On success (either path): re-run `summarizeInspiration` with the metadata + video description merged into the prompt. Persist the enriched summary to `UrlScrapeCache.videoSummary`. Same 24h TTL.
    - On failure: catch, log, fall back to the text summary with `mediaSkipped: { reason: "analysis failed" }`. Don't fail the parent generation job.
 6. Each enriched summary becomes one of the inputs to the topic / content AI prompt.
 
@@ -88,7 +87,44 @@ videoInspirationMaxMb: number;            // default 100
 videoInspirationMaxDurationSeconds: number; // default 300
 ```
 
-Surface in `.env.example` with comments. Setting either to `0` disables video analysis entirely (useful for cost-sensitive deployments).
+Surface in `.env.example` with comments. Setting either to `0` disables video analysis entirely (useful for cost-sensitive deployments). Note that the size cap doesn't apply to YouTube URLs (see "YouTube short-circuit" below) — only the duration cap.
+
+### YouTube short-circuit
+
+Gemini's `generateContent` supports YouTube URLs directly via `fileData.fileUri` — the model fetches the video server-side. We use this for any URL whose hostname is `youtube.com`, `youtu.be`, or `m.youtube.com`. For all other video hosts (TikTok, Instagram, Facebook, etc.), Gemini doesn't accept arbitrary URLs and we must download the bytes and upload via the Files API (the existing `videoFetcher` + `GeminiVideoAnalyzerProvider.analyzeVideo` path).
+
+Concretely:
+
+- **YouTube path:** skip `videoFetcher`, skip Files API. Build the analyzer call with `{ fileData: { fileUri: youtubeUrl } }` as the video part. Saves ~5–15s per URL and a download round-trip.
+- **All other hosts:** unchanged from the rest of this spec — fetch bytes → upload to Files API → poll until ACTIVE → analyze.
+
+Cap behavior split:
+
+| Cap | YouTube | Other |
+|---|---|---|
+| `VIDEO_INSPIRATION_MAX_MB` (size) | Not enforced — we never see bytes. Skip the check. | Enforced via HEAD or post-fetch. |
+| `VIDEO_INSPIRATION_MAX_DURATION_SECONDS` (duration) | Enforced if Apify YouTube parser surfaces `durationSeconds`. If duration is unknown, allow (Gemini will charge tokens proportional to length anyway, bounded by `urlInspirationVideo.maxOutputTokens`). | Enforced; HEAD-fall-back when missing. |
+
+A small helper `isDirectGeminiVideoUri(url: string): boolean` lives in `backend/src/utils/url-router.ts` (next to `detectUrlKind`). The analyzer uses it as the branch predicate. Today only YouTube returns true; if Gemini adds other supported hosts later, this is the single place to add them.
+
+### `GeminiVideoAnalyzerProvider` change
+
+Add one new method to the existing analyzer that takes a URI instead of bytes:
+
+```ts
+async analyzeVideoFromUri(params: {
+  videoUri: string;
+  mimeType?: string; // optional; YouTube URLs don't need it
+  instructions: string;
+}): Promise<{
+  analysis: VideoAnalysisResult;
+  usage: VideoAnalyzerUsage;
+  systemPrompt: string;
+  userPrompt: string;
+}>;
+```
+
+The existing `analyzeVideo({ bytes, mimeType, instructions })` method stays unchanged so the competitor pipeline isn't disturbed. The URL inspiration service picks the method based on `isDirectGeminiVideoUri(url)`.
 
 ### Apify parser interface change
 
@@ -247,8 +283,10 @@ Existing URL inspiration components live under `frontend/src/components/url-insp
 | Scenario | Behavior |
 |---|---|
 | Apify parser doesn't implement `extractMedia` | Skip video stage; no badge. |
-| Parser returns `videoUrl` but no `durationSeconds` | HEAD request to read `Content-Length`; if absent, skip with reason `"duration unknown"`. |
-| Video URL returns 4xx/5xx (CDN block, expired) | `videoFetcher` throws; service catches, logs, returns text-only with `mediaSkipped: "fetch failed"`. |
+| URL is YouTube, parser returns no `durationSeconds` | Allow (skip duration check). Gemini fetches it server-side; output cost is bounded by `urlInspirationVideo.maxOutputTokens`. |
+| URL is YouTube but Gemini returns an error (private video, region-locked, etc.) | Service catches, logs, returns text-only with `mediaSkipped: "analysis failed"`. |
+| Parser returns `videoUrl` but no `durationSeconds` (non-YouTube) | HEAD request to read `Content-Length`; if absent, skip with reason `"duration unknown"`. |
+| Video URL returns 4xx/5xx (CDN block, expired — non-YouTube) | `videoFetcher` throws; service catches, logs, returns text-only with `mediaSkipped: "fetch failed"`. |
 | Video URL returns HTML (CDN block disguising as video) | `videoFetcher` already detects via `Content-Type` mismatch and throws. Same fallback. |
 | Gemini Files API upload fails or polling times out | Service catches, logs, returns text-only with `mediaSkipped: "analysis failed"`. |
 | Workspace has no Gemini key | Skip video stage with `mediaSkipped: "video analysis requires Gemini"`. Don't silently fall back to a different provider. |
@@ -271,16 +309,19 @@ Both visible in the existing token usage / AI logs UI.
 
 - **Backend unit tests** in `backend/tests/services/url-inspiration.service.test.ts` (new):
   - Skips video when `extractMedia` returns null (no video URL).
-  - Skips video when size cap exceeded; verifies `mediaSkipped.reason === "size cap exceeded"` and the actual + cap values.
-  - Skips video when duration cap exceeded; same shape.
+  - Skips video when size cap exceeded (non-YouTube); verifies `mediaSkipped.reason === "size cap exceeded"` and the actual + cap values.
+  - Skips video when duration cap exceeded; same shape; covers both YouTube and bytes paths.
+  - **YouTube path**: when `isDirectGeminiVideoUri` returns true, the service calls `analyzer.analyzeVideoFromUri` and does NOT call `videoFetcher` or `analyzer.analyzeVideo`. Verify the size cap is not enforced.
+  - **Bytes path**: when `isDirectGeminiVideoUri` returns false, the service calls `videoFetcher` and `analyzer.analyzeVideo` (not `analyzeVideoFromUri`).
   - Caches `videoSummary` after success; second call returns cached result without invoking analyzer.
   - Falls back to text-only on `videoFetcher` failure.
-  - Falls back to text-only on analyzer failure.
+  - Falls back to text-only on analyzer failure (both paths).
   - Skips video when no Gemini key in workspace settings.
   - Caps set to `0` disables the feature entirely.
 - **Manual smoke verification** (per the existing manual-smoke pattern from prior features):
-  - Paste a real TikTok URL into the topic generator. Submit. Topic uses video analysis.
-  - Paste a real Instagram Reel URL. Same.
+  - Paste a real TikTok URL into the topic generator. Submit. Topic uses video analysis (bytes path: download + Files API).
+  - Paste a real Instagram Reel URL. Same bytes path.
+  - Paste a short YouTube URL (under cap). Submit. Topic uses video analysis (YouTube path: direct fileUri, no download). Confirm no `videoFetcher` call in logs.
   - Paste a long YouTube URL (>5 min). Preview shows duration cap badge. Submit anyway. Generation uses text-only.
   - Paste an Instagram URL twice in two minutes. Second submit hits cache.
 - **Frontend** — manual visual check of the four badge states.
