@@ -136,7 +136,8 @@ export function UrlInspirationChips({ workspaceId, prompt }: Props) {
 
       {/* Expanded summary card */}
       {expandedUrl && inspirations.get(expandedUrl)?.summary && (() => {
-        const summary = inspirations.get(expandedUrl)!.summary!;
+        const expandedInsp = inspirations.get(expandedUrl)!;
+        const summary = expandedInsp.summary!;
         return (
           <div className="p-3 bg-indigo-50/40 border border-indigo-100 rounded-lg text-[11px] space-y-1.5">
             <p className="font-semibold text-indigo-700 truncate">{expandedUrl}</p>
@@ -173,6 +174,26 @@ export function UrlInspirationChips({ workspaceId, prompt }: Props) {
                 <span className="font-medium text-gray-700">Engagement:</span>{" "}
                 <span className="text-gray-600">{summary.engagementSignal}</span>
               </p>
+            )}
+            {expandedInsp.media?.hasVideo && !expandedInsp.media.skipped && (
+              <div className="mt-3 inline-flex items-center gap-2 rounded-md bg-indigo-50 px-3 py-1.5 text-xs text-indigo-700">
+                🎥 Video detected — will be analyzed during generation
+              </div>
+            )}
+            {expandedInsp.media?.skipped?.reason === "size cap exceeded" && (
+              <div className="mt-3 inline-flex items-center gap-2 rounded-md bg-amber-50 px-3 py-1.5 text-xs text-amber-700">
+                🎥 Video exceeds {expandedInsp.media.skipped.sizeMb} MB (cap {expandedInsp.media.skipped.capMb} MB). Try a shorter clip.
+              </div>
+            )}
+            {expandedInsp.media?.skipped?.reason === "duration cap exceeded" && (
+              <div className="mt-3 inline-flex items-center gap-2 rounded-md bg-amber-50 px-3 py-1.5 text-xs text-amber-700">
+                🎥 Video exceeds {expandedInsp.media.skipped.durationSeconds}s (cap {expandedInsp.media.skipped.capSeconds}s). Try a shorter clip.
+              </div>
+            )}
+            {expandedInsp.media?.skipped?.reason === "video analysis requires Gemini" && (
+              <div className="mt-3 inline-flex items-center gap-2 rounded-md bg-amber-50 px-3 py-1.5 text-xs text-amber-700">
+                🎥 Video analysis requires Gemini. Configure a Gemini key in Workspace Settings.
+              </div>
             )}
           </div>
         );
