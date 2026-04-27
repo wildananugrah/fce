@@ -167,12 +167,6 @@ const PLATFORM_FORMATS: Record<string, FormatOption[]> = {
   ],
 };
 
-// Language defaults to Bahasa Indonesia — most users here write in
-// Indonesian, but English is the common override.
-const LANGUAGE_OPTIONS = [
-  { value: "indonesian", label: "Bahasa Indonesia" },
-  { value: "english", label: "English" },
-];
 
 const OBJECTIVE_OPTIONS = [
   { value: "", label: "Select Objective" },
@@ -394,7 +388,6 @@ export function GeneratePage() {
   const [contentType, setContentType] = useState(initialContentType);
   const [frameworkId, setFrameworkId] = useState("");
   const [hookTypeId, setHookTypeId] = useState("");
-  const [language, setLanguage] = useState("indonesian");
   const [contentTopicId, setContentTopicId] = useState(searchParams.get("topicId") ?? "");
   const [customPrompt, setCustomPrompt] = useState("");
   const [referenceImages, setReferenceImages] = useState<ImageRef[]>([]);
@@ -663,7 +656,6 @@ export function GeneratePage() {
           contentType,
           framework: frameworkId || "PAS",
           hookType: hookTypeId || "curiosity",
-          language,
           customPrompt: customPrompt.trim() || undefined,
           referenceImages: referenceImages.filter((i) => !i.uploading).map((i) => i.url).length > 0
             ? referenceImages.filter((i) => !i.uploading).map((i) => i.url)
@@ -1002,29 +994,6 @@ const frameworkOptions = [{ value: "", label: "PAS (recommended)" }, ...framewor
                       }`}
                     >
                       {o.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Language */}
-              <div>
-                <label className="block text-xs font-medium text-gray-600 uppercase tracking-wide mb-2">
-                  Language
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {LANGUAGE_OPTIONS.map((l) => (
-                    <button
-                      key={l.value}
-                      type="button"
-                      onClick={() => setLanguage(l.value)}
-                      className={`px-3.5 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-                        language === l.value
-                          ? "bg-indigo-600 text-white border-indigo-600"
-                          : "bg-white text-gray-600 border-gray-300 hover:border-gray-400"
-                      }`}
-                    >
-                      {l.label}
                     </button>
                   ))}
                 </div>
