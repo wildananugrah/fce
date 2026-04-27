@@ -63,6 +63,7 @@ export type GeneratorKey =
 	| "brandScraper" // scrape — site → brand DNA
 	| "briefSummary" // summarizeBrief — campaign PDF synthesis text
 	| "urlInspiration" // summarizeInspiration — URL inspiration summarizer (Gemini-only call site)
+	| "urlInspirationVideo" // NEW — Gemini Video Analyzer call inside enrichWithVideo
 	| "chat"; // ChatService (campaign chat) via *-chat.provider.ts
 
 export const generatorTuning: Record<GeneratorKey, GeneratorTuning> = {
@@ -74,5 +75,6 @@ export const generatorTuning: Record<GeneratorKey, GeneratorTuning> = {
 	brandScraper: { maxOutputTokens: 3000, temperature: 0.2 },
 	briefSummary: { maxOutputTokens: 4096, temperature: 0.3 },
 	urlInspiration: { maxOutputTokens: 2000, temperature: 0.3 },
+	urlInspirationVideo: { maxOutputTokens: 3000, temperature: 0.3 },
 	chat: { maxOutputTokens: 4096, temperature: 0.5 },
 };
