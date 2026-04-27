@@ -19,6 +19,7 @@ type ProductAIProvider = {
 		productType?: string;
 		priceTier?: string;
 		summary?: string;
+		language?: string;
 	}): Promise<{
 		usp?: string;
 		rtb?: string;
@@ -61,11 +62,21 @@ export function createProductRoutes(
 	// POST /scrape-preview — scrape product URL and return all fields
 	app.post("/scrape-preview", async (c) => {
 		const body = await c.req.json();
-		const { url, urls, language } = body as {
+		const { url, urls, brandId } = body as {
 			url?: string;
 			urls?: string[];
-			language?: string;
+			brandId?: string;
 		};
+		if (!brandId) {
+			return c.json({ error: "brandId is required" }, 400);
+		}
+		const brand = await prisma!.brand.findUnique({
+			where: { id: brandId },
+			select: { language: true },
+		});
+		if (!brand) {
+			return c.json({ error: "Brand not found" }, 404);
+		}
 		const urlList = Array.isArray(urls) && urls.length > 0 ? urls : url ? [url] : [];
 		if (urlList.length === 0) {
 			return c.json({ error: "url or urls is required" }, 400);
@@ -76,7 +87,7 @@ export function createProductRoutes(
 		const providerName = await getProviderName(workspaceId);
 		const startTime = Date.now();
 		try {
-			const result = await aiGenerator.scrapeProduct({ urls: urlList, language });
+			const result = await aiGenerator.scrapeProduct({ urls: urlList, language: brand.language });
 			const durationMs = Date.now() - startTime;
 			if (prisma) {
 				const usage = (aiGenerator as any).lastUsage;
@@ -130,9 +141,19 @@ export function createProductRoutes(
 	// POST /generate-brain — AI-generate product brain fields
 	app.post("/generate-brain", async (c) => {
 		const body = await c.req.json();
-		const { productName, brandName, productType, priceTier, summary } = body;
+		const { productName, brandName, brandId, productType, priceTier, summary } = body;
 		if (!productName || !brandName) {
 			return c.json({ error: "productName and brandName are required" }, 400);
+		}
+		if (!brandId) {
+			return c.json({ error: "brandId is required" }, 400);
+		}
+		const brand = await prisma!.brand.findUnique({
+			where: { id: brandId },
+			select: { language: true },
+		});
+		if (!brand) {
+			return c.json({ error: "Brand not found" }, 404);
 		}
 		const workspaceId = c.get("workspaceId");
 		const userId = c.get("userId");
@@ -146,6 +167,7 @@ export function createProductRoutes(
 				productType,
 				priceTier,
 				summary,
+				language: brand.language,
 			});
 			const durationMs = Date.now() - startTime;
 			if (prisma) {

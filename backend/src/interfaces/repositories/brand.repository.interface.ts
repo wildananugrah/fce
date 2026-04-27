@@ -10,6 +10,7 @@ export interface IBrandRepository {
 		slug: string;
 		category?: string;
 		websiteUrl?: string;
+		language?: string;
 	}): Promise<Brand>;
 	/** Resolve the Default project's id for a workspace (`slug = "default"`), or null if missing. */
 	findDefaultProjectId(workspaceId: string): Promise<string | null>;
@@ -18,7 +19,7 @@ export interface IBrandRepository {
 	update(
 		id: string,
 		data: Partial<
-			Pick<Brand, "name" | "category" | "websiteUrl" | "status" | "activeBrainVersionId">
+			Pick<Brand, "name" | "category" | "websiteUrl" | "status" | "activeBrainVersionId" | "language">
 		>,
 	): Promise<Brand>;
 

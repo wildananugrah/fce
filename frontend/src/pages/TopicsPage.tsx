@@ -129,7 +129,6 @@ export function TopicsPage() {
 	const [referenceImages, setReferenceImages] = useState<ImageRef[]>([]);
 	const [platform, setPlatform] = useState("instagram");
 	const [objective, setObjective] = useState("");
-	const [language, setLanguage] = useState<string>("indonesian");
 	const [dateFrom, setDateFrom] = useState(() => {
 		const d = new Date();
 		return d.toISOString().split("T")[0];
@@ -293,7 +292,6 @@ export function TopicsPage() {
 						platform: platform || undefined,
 						objective: objective || undefined,
 						pillars: selectedPillars.length > 0 ? selectedPillars : undefined,
-						language,
 						dateFrom,
 						dateTo,
 						count,
@@ -342,7 +340,6 @@ export function TopicsPage() {
 						format: topic?.format || undefined,
 						objective: topic?.objective || objective || undefined,
 						pillar: topic?.pillar || selectedPillars[0] || undefined,
-						language,
 						hint: regenHints[topicId] || undefined,
 					}),
 				}
@@ -642,32 +639,6 @@ export function TopicsPage() {
 											}`}
 										>
 											{o.label}
-										</button>
-									))}
-								</div>
-							</div>
-
-							{/* Language */}
-							<div>
-								<label className="block text-xs font-medium text-gray-600 uppercase tracking-wide mb-2">
-									Language
-								</label>
-								<div className="flex flex-wrap gap-2">
-									{[
-										{ value: "indonesian", label: "Bahasa Indonesia" },
-										{ value: "english", label: "English" },
-									].map((l) => (
-										<button
-											key={l.value}
-											type="button"
-											onClick={() => setLanguage(l.value)}
-											className={`px-3.5 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-												language === l.value
-													? "bg-indigo-600 text-white border-indigo-600"
-													: "bg-white text-gray-600 border-gray-300 hover:border-gray-400"
-											}`}
-										>
-											{l.label}
 										</button>
 									))}
 								</div>

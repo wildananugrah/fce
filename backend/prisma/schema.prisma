@@ -134,6 +134,7 @@ model Brand {
   name                 String
   slug                 String
   category             String?
+  language             String    @default("indonesian")
   websiteUrl           String?   @map("website_url")
   activeBrainVersionId String?   @map("active_brain_version_id")
   status               String    @default("draft")

@@ -29,7 +29,7 @@ export function createBrandRoutes(
 	app.post("/", async (c) => {
 		const workspaceId = c.get("workspaceId");
 		const body = await c.req.json();
-		const { name, slug, category, websiteUrl, projectId } = body;
+		const { name, slug, category, websiteUrl, projectId, language } = body;
 		if (!name || !slug) {
 			return c.json({ error: "Name and slug are required" }, 400);
 		}
@@ -39,6 +39,7 @@ export function createBrandRoutes(
 			category,
 			websiteUrl,
 			projectId,
+			language,
 		});
 		return c.json({ data: brand }, 201);
 	});

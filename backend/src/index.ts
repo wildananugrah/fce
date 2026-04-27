@@ -258,7 +258,7 @@ async function main() {
 	const brandService = new BrandService(brandRepository);
 	const productService = new ProductService(productRepository);
 	const taxonomyService = new TaxonomyService(taxonomyRepository);
-	const generationService = new GenerationService(generationRepository, boss);
+	const generationService = new GenerationService(generationRepository, boss, prisma);
 	const libraryService = new LibraryService(generationRepository, outputSectionRepository, boss);
 	// Scene image generator (Imagen via @google/genai). Always constructed —
 	// per-workspace Gemini key lookup happens on each call. Surfaces a clear
@@ -272,7 +272,7 @@ async function main() {
 	);
 	const recommendationService = new RecommendationService(recommendationRepository);
 	const campaignService = new CampaignService(campaignRepository, boss);
-	const topicService = new TopicService(topicRepository, boss);
+	const topicService = new TopicService(topicRepository, boss, prisma);
 	const trashService = new TrashService(
 		brandRepository,
 		productRepository,

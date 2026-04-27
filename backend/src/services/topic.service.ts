@@ -1,4 +1,4 @@
-import type { ContentTopic } from "@prisma/client";
+import type { ContentTopic, PrismaClient } from "@prisma/client";
 import type { PgBoss } from "pg-boss";
 import type {
 	ITopicRepository,
@@ -11,6 +11,7 @@ export class TopicService implements ITopicService {
 	constructor(
 		private topicRepository: ITopicRepository,
 		private boss: PgBoss,
+		private prisma: PrismaClient,
 	) {}
 
 	async list(
@@ -55,6 +56,13 @@ export class TopicService implements ITopicService {
 		userId: string,
 		input: GenerateTopicsInput,
 	): Promise<{ jobId: string }> {
+		const brand = await this.prisma.brand.findUnique({
+			where: { id: input.brandId },
+			select: { language: true },
+		});
+		if (!brand) throw new Error("Brand not found");
+		const language = brand.language;
+
 		const jobId = await this.boss.send("topic-generation", {
 			workspaceId,
 			brandId: input.brandId,
@@ -63,7 +71,7 @@ export class TopicService implements ITopicService {
 			objective: input.objective,
 			formats: input.formats,
 			pillars: input.pillars,
-			language: input.language,
+			language,
 			dateFrom: input.dateFrom,
 			dateTo: input.dateTo,
 			count: input.count ?? 10,
@@ -113,10 +121,16 @@ export class TopicService implements ITopicService {
 			format?: string;
 			objective?: string;
 			pillar?: string;
-			language?: string;
 		},
 		hint?: string,
 	): Promise<{ jobId: string }> {
+		const brand = await this.prisma.brand.findUnique({
+			where: { id: params.brandId },
+			select: { language: true },
+		});
+		if (!brand) throw new Error("Brand not found");
+		const language = brand.language;
+
 		const jobId = await this.boss.send("topic-regeneration", {
 			workspaceId,
 			brandId: params.brandId,
@@ -125,7 +139,7 @@ export class TopicService implements ITopicService {
 			format: params.format,
 			objective: params.objective,
 			pillar: params.pillar,
-			language: params.language,
+			language,
 			hint,
 			preview: true,
 			userId,
