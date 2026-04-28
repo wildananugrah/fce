@@ -13,7 +13,7 @@ function buildRegistry(): SkillRegistry {
 			slug,
 			name: slug
 				.split("-")
-				.map((p) => p[0].toUpperCase() + p.slice(1))
+				.map((p) => p.charAt(0).toUpperCase() + p.slice(1))
 				.join(" "),
 			description: `Description for ${slug}`,
 			content: "",
@@ -56,4 +56,9 @@ describe("skill-list routes", () => {
 			}
 		});
 	}
+
+	test("/api/skills/unknown returns 404", async () => {
+		const res = await app.request("/api/skills/unknown");
+		expect(res.status).toBe(404);
+	});
 });
