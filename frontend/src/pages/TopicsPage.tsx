@@ -11,6 +11,7 @@ import { Spinner } from "../components/ui/Spinner";
 import { Toast } from "../components/ui/Toast";
 import { ReferenceImageUpload, type ImageRef } from "../components/ui/ReferenceImageUpload";
 import { UrlInspirationChips } from "../components/url-inspiration/UrlInspirationChips";
+import { SkillsAppliedStrip } from "../components/skills/SkillsAppliedStrip";
 
 interface Brand {
 	id: string;
@@ -800,6 +801,8 @@ export function TopicsPage() {
 								/>
 							</div>
 						</div>
+
+						<SkillsAppliedStrip generator="topic" className="mb-3 px-1" />
 
 						{/* Generate Button */}
 						<Button
