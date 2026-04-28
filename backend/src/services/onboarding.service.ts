@@ -46,6 +46,9 @@ export class OnboardingService implements IOnboardingService {
 		const productCount = await this.prisma.product.count({
 			where: { workspaceId, archivedAt: null, brand: { archivedAt: null } },
 		});
+		const topicCount = await this.prisma.contentTopic.count({
+			where: { workspaceId, archivedAt: null, brand: { archivedAt: null } },
+		});
 		const generationCount = await this.prisma.generationRequest.count({
 			where: { workspaceId, archivedAt: null, brand: { archivedAt: null } },
 		});
@@ -53,6 +56,7 @@ export class OnboardingService implements IOnboardingService {
 		return {
 			hasBrand: brandCount > 0,
 			hasProduct: productCount > 0,
+			hasTopic: topicCount > 0,
 			hasGenerated: generationCount > 0,
 		};
 	}
