@@ -9,6 +9,7 @@ export interface OnboardingFlags {
 export interface OnboardingProgress {
 	hasBrand: boolean;
 	hasProduct: boolean;
+	hasTopic: boolean;
 	hasGenerated: boolean;
 }
 

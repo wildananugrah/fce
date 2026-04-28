@@ -12,11 +12,13 @@ describe("OnboardingService", () => {
 	const counts = {
 		brand: 0,
 		product: 0,
+		contentTopic: 0,
 		generationRequest: 0,
 	};
 	const lastWhere = {
 		brand: null as Record<string, unknown> | null,
 		product: null as Record<string, unknown> | null,
+		contentTopic: null as Record<string, unknown> | null,
 		generationRequest: null as Record<string, unknown> | null,
 	};
 	const prismaStub = {
@@ -30,6 +32,12 @@ describe("OnboardingService", () => {
 			count: async (args: CountArgs) => {
 				lastWhere.product = args.where ?? null;
 				return counts.product;
+			},
+		},
+		contentTopic: {
+			count: async (args: CountArgs) => {
+				lastWhere.contentTopic = args.where ?? null;
+				return counts.contentTopic;
 			},
 		},
 		generationRequest: {
@@ -50,9 +58,11 @@ describe("OnboardingService", () => {
 	beforeEach(() => {
 		counts.brand = 0;
 		counts.product = 0;
+		counts.contentTopic = 0;
 		counts.generationRequest = 0;
 		lastWhere.brand = null;
 		lastWhere.product = null;
+		lastWhere.contentTopic = null;
 		lastWhere.generationRequest = null;
 	});
 
@@ -117,15 +127,34 @@ describe("OnboardingService", () => {
 	describe("getProgress", () => {
 		it("returns all false when workspace is empty", async () => {
 			const progress = await service.getProgress("ws-1");
-			expect(progress).toEqual({ hasBrand: false, hasProduct: false, hasGenerated: false });
+			expect(progress).toEqual({
+				hasBrand: false,
+				hasProduct: false,
+				hasTopic: false,
+				hasGenerated: false,
+			});
 		});
 
 		it("reflects counts > 0 as true", async () => {
 			counts.brand = 2;
 			counts.product = 0;
+			counts.contentTopic = 0;
 			counts.generationRequest = 5;
 			const progress = await service.getProgress("ws-1");
-			expect(progress).toEqual({ hasBrand: true, hasProduct: false, hasGenerated: true });
+			expect(progress).toEqual({
+				hasBrand: true,
+				hasProduct: false,
+				hasTopic: false,
+				hasGenerated: true,
+			});
+		});
+
+		it("hasTopic true when topicCount > 0, hasGenerated false when generationCount is 0", async () => {
+			counts.contentTopic = 3;
+			counts.generationRequest = 0;
+			const progress = await service.getProgress("ws-1");
+			expect(progress.hasTopic).toBe(true);
+			expect(progress.hasGenerated).toBe(false);
 		});
 
 		it("filters out archived rows — brand.archivedAt: null must be in the where clause", async () => {
@@ -136,6 +165,15 @@ describe("OnboardingService", () => {
 		it("product filter respects both product and parent brand archive state", async () => {
 			await service.getProgress("ws-1");
 			expect(lastWhere.product).toEqual({
+				workspaceId: "ws-1",
+				archivedAt: null,
+				brand: { archivedAt: null },
+			});
+		});
+
+		it("topic filter respects both topic and parent brand archive state", async () => {
+			await service.getProgress("ws-1");
+			expect(lastWhere.contentTopic).toEqual({
 				workspaceId: "ws-1",
 				archivedAt: null,
 				brand: { archivedAt: null },
