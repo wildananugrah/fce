@@ -2,11 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "../services/api";
 
 export interface SkillSummary {
-  id: string;
   slug: string;
   name: string;
   description: string;
-  category: string;
 }
 
 let cache: SkillSummary[] | null = null;
@@ -15,7 +13,7 @@ let inflight: Promise<SkillSummary[]> | null = null;
 async function loadSkills(): Promise<SkillSummary[]> {
   if (cache) return cache;
   if (inflight) return inflight;
-  inflight = api<SkillSummary[]>("/api/skills")
+  inflight = api<SkillSummary[]>("/api/skills/chat")
     .then((rows) => {
       cache = Array.isArray(rows) ? rows : [];
       return cache;
@@ -30,34 +28,17 @@ async function loadSkills(): Promise<SkillSummary[]> {
   return inflight;
 }
 
-/**
- * Returns the full list of skills available for @-mention in the chat. Cached
- * across components for the page lifetime; cheap to call anywhere.
- */
-export function useAvailableSkills(): {
-  skills: SkillSummary[];
-  loading: boolean;
-} {
+export function useAvailableSkills() {
   const [skills, setSkills] = useState<SkillSummary[]>(cache ?? []);
-  const [loading, setLoading] = useState(!cache);
-  const mountedRef = useRef(true);
-
+  const mounted = useRef(true);
   useEffect(() => {
-    mountedRef.current = true;
-    if (cache) {
-      setSkills(cache);
-      setLoading(false);
-      return;
-    }
-    loadSkills().then((rows) => {
-      if (!mountedRef.current) return;
-      setSkills(rows);
-      setLoading(false);
+    mounted.current = true;
+    loadSkills().then((list) => {
+      if (mounted.current) setSkills(list);
     });
     return () => {
-      mountedRef.current = false;
+      mounted.current = false;
     };
   }, []);
-
-  return { skills, loading };
+  return { skills };
 }

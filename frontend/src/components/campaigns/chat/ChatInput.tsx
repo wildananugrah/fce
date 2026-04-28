@@ -40,7 +40,7 @@ export function ChatInput({ workspaceId, campaignId, onSend, onStop, isStreaming
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
-  // Map of nameToken → skillId for everything the user has @-mentioned in this
+  // Map of nameToken → skillSlug for everything the user has @-mentioned in this
   // draft. We don't filter it down on every keystroke; we recompute the active
   // list at submit time by scanning the final text.
   const mentionsRef = useRef<Map<string, string>>(new Map());
@@ -63,8 +63,7 @@ export function ChatInput({ workspaceId, campaignId, onSend, onStop, isStreaming
       .filter(
         (s) =>
           s.name.toLowerCase().includes(q) ||
-          s.slug.toLowerCase().includes(q) ||
-          s.category.toLowerCase().includes(q),
+          s.slug.toLowerCase().includes(q),
       )
       .slice(0, MAX_MENTION_SUGGESTIONS);
   }, [query, skills]);
@@ -147,7 +146,7 @@ export function ChatInput({ workspaceId, campaignId, onSend, onStop, isStreaming
     const after = value.slice(caret);
     // add a trailing space so the user can keep typing after the pill
     const next = `${before}${token} ${after}`;
-    mentionsRef.current.set(token, skill.id);
+    mentionsRef.current.set(token, skill.slug);
     setValue(next);
     setMenuOpen(false);
     setQuery("");

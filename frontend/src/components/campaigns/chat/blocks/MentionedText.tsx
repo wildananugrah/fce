@@ -17,12 +17,12 @@ const TOKEN_RE = /@([A-Za-z0-9_-]+)/g;
 export function MentionedText({ content, skillIds }: MentionedTextProps) {
   const { skills } = useAvailableSkills();
 
-  // Resolve skillIds for this message to their skill rows so we can name pills
-  // even if the token spelling doesn't exactly match (e.g. skill was renamed).
-  const explicitSkillsById = new Map<string, SkillSummary>();
-  for (const id of skillIds ?? []) {
-    const s = skills.find((x) => x.id === id);
-    if (s) explicitSkillsById.set(id, s);
+  // Resolve skillIds (which now hold slugs) for this message to their skill rows
+  // so we can name pills even if the token spelling doesn't exactly match.
+  const explicitSkillsBySlug = new Map<string, SkillSummary>();
+  for (const slug of skillIds ?? []) {
+    const s = skills.find((x) => x.slug === slug);
+    if (s) explicitSkillsBySlug.set(slug, s);
   }
   const byToken = new Map<string, SkillSummary>();
   for (const s of skills) {
