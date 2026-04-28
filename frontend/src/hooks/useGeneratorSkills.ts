@@ -16,11 +16,13 @@ async function load(generator: GeneratorKey): Promise<SkillSummary[]> {
   if (cache[generator]) return cache[generator] as SkillSummary[];
   const existing = inflight[generator];
   if (existing) return existing;
-  const promise = api<{ data: SkillSummary[] }>(`/api/skills/${generator}`)
-    .then((res) => {
-      const rows = Array.isArray(res.data) ? res.data : [];
-      cache[generator] = rows;
-      return rows;
+  // The `api()` helper already unwraps `.data` from the backend envelope,
+  // so the response we receive is the bare SkillSummary[] array.
+  const promise = api<SkillSummary[]>(`/api/skills/${generator}`)
+    .then((rows) => {
+      const list = Array.isArray(rows) ? rows : [];
+      cache[generator] = list;
+      return list;
     })
     .catch(() => {
       // Cache empty so the strip silently renders nothing for the rest of the
