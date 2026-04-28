@@ -13,7 +13,8 @@ import type { ChatAttachment, ChatBlock, ChatMessage, ToolDefinition } from "../
 import { logAiActivity } from "../utils/ai-activity-logger";
 import { humanizeChatError } from "../utils/humanize-error";
 import { PDF_EXTRACT_MAX_CHARS, extractPdfText, truncateExtractedText } from "../utils/pdf-extractor";
-import { buildSkillContextFromIds } from "../utils/skill-context-builder";
+import { buildSkillContextFromSlugs } from "../utils/skill-context-builder";
+import type { SkillRegistry } from "../config/skills/loader";
 import type { AiProviderFactory } from "./ai-provider-factory.service";
 
 interface ChatConfig {
@@ -29,6 +30,7 @@ export class ChatService implements IChatService {
 		private aiFactory: AiProviderFactory,
 		private storage: IStorageProvider,
 		private config: ChatConfig,
+		private skillRegistry: SkillRegistry = new Map(),
 	) {}
 
 	async listMessages(campaignId: string): Promise<CampaignChatMessage[]> {
@@ -83,9 +85,9 @@ export class ChatService implements IChatService {
 	}
 
 	async *sendMessage(input: SendChatMessageInput): AsyncIterable<ChatStreamEmission> {
-		// Cap skillIds to keep prompt size bounded.
-		const requestedSkillIds = Array.from(new Set(input.skillIds ?? [])).slice(0, 5);
-		const skillCtx = await buildSkillContextFromIds(this.prisma, requestedSkillIds);
+		// Cap skillSlugs to keep prompt size bounded.
+		const requestedSkillSlugs = Array.from(new Set(input.skillSlugs ?? [])).slice(0, 5);
+		const skillCtx = buildSkillContextFromSlugs(this.skillRegistry, requestedSkillSlugs);
 
 		// 1. Persist the user message.
 		const userMsg = await this.messageRepo.create({
@@ -94,7 +96,7 @@ export class ChatService implements IChatService {
 			userId: input.userId,
 			contentBlocks: [{ type: "text", content: input.content }],
 			attachments: input.attachments,
-			skillIds: skillCtx.skillIds,
+			skillIds: skillCtx.skillSlugs,
 		});
 
 		const systemPrompt = await this.buildSystemPrompt(input.campaignId, skillCtx);
@@ -142,7 +144,7 @@ export class ChatService implements IChatService {
 					userId: input.userId,
 					systemPrompt: `<chat system prompt omitted — campaign id: ${input.campaignId}>`,
 					userPrompt: input.content,
-					skillIds: skillCtx.skillIds.length > 0 ? skillCtx.skillIds : undefined,
+					skillSlugs: skillCtx.skillSlugs.length > 0 ? skillCtx.skillSlugs : undefined,
 					skillNames: skillCtx.skillNames.length > 0 ? skillCtx.skillNames : undefined,
 				},
 				{
@@ -580,9 +582,9 @@ export class ChatService implements IChatService {
 
 	private async buildSystemPrompt(
 		campaignId: string,
-		skillCtx: Awaited<ReturnType<typeof buildSkillContextFromIds>> = {
+		skillCtx: ReturnType<typeof buildSkillContextFromSlugs> = {
 			context: "",
-			skillIds: [],
+			skillSlugs: [],
 			skillNames: [],
 			includedCount: 0,
 			truncatedCount: 0,

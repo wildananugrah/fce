@@ -329,6 +329,7 @@ async function main() {
 		aiProviderFactory,
 		storageProvider,
 		{ historyWindow: env.chatHistoryWindow, bucket: env.minioBucket },
+		skillRegistry,
 	);
 
 	// URL inspiration pipeline — cache + Apify + per-workspace summarizer

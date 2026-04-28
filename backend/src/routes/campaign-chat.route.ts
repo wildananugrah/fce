@@ -35,8 +35,8 @@ export function createCampaignChatRoutes(chatService: IChatService) {
 		const body = await c.req.json();
 		const content = typeof body.content === "string" ? body.content : "";
 		const attachments = Array.isArray(body.attachments) ? body.attachments : [];
-		const skillIds = Array.isArray(body.skillIds)
-			? body.skillIds.filter((id: unknown): id is string => typeof id === "string")
+		const skillSlugs = Array.isArray(body.skillSlugs)
+			? body.skillSlugs.filter((s: unknown): s is string => typeof s === "string")
 			: [];
 
 		if (!content.trim() && attachments.length === 0) {
@@ -51,7 +51,7 @@ export function createCampaignChatRoutes(chatService: IChatService) {
 					userId,
 					content,
 					attachments,
-					skillIds,
+					skillSlugs,
 				})) {
 					await stream.writeSSE({
 						event: evt.type,
