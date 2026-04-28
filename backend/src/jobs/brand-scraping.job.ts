@@ -1,4 +1,5 @@
 import type { PrismaClient } from "@prisma/client";
+import type { SkillRegistry } from "../config/skills/loader";
 import type { IApifyProvider } from "../interfaces/providers/apify.interface";
 import type { IBrandScraper } from "../interfaces/providers/brand-scraper.interface";
 import type { ILogger } from "../interfaces/providers/logger.provider.interface";
@@ -6,6 +7,7 @@ import type { INotificationService } from "../interfaces/services/notification.s
 import { WebsiteCrawlerParser } from "../providers/apify-parsers/website-crawler.parser";
 import type { AiProviderFactory } from "../services/ai-provider-factory.service";
 import { logAiActivity } from "../utils/ai-activity-logger";
+import { buildSkillContext } from "../utils/skill-context-builder";
 
 interface BrandScrapingJobData {
 	brandId: string;
@@ -19,7 +21,8 @@ export class BrandScrapingJob {
 		private aiFactory: AiProviderFactory,
 		private notificationService: INotificationService,
 		private logger: ILogger,
-		private apifyProvider?: IApifyProvider,
+		private apifyProvider: IApifyProvider | undefined,
+		private skillRegistry: SkillRegistry,
 	) {}
 
 	async handle(data: BrandScrapingJobData): Promise<void> {
@@ -87,6 +90,9 @@ export class BrandScrapingJob {
 				}
 			}
 
+			// Build skill context from the brandBrain manifest
+			const skillResult = buildSkillContext(this.skillRegistry, "brandBrain");
+
 			// Scrape brand data from URL (with optional enriched content)
 			const brandScraper = await this.aiFactory.getBrandScraper(workspaceId);
 			const providerName = (await this.aiFactory.getSettings(workspaceId)).providers.brandScraper;
@@ -94,8 +100,12 @@ export class BrandScrapingJob {
 			let scraped: Awaited<ReturnType<IBrandScraper["scrape"]>>;
 			try {
 				scraped = enrichedContent
-					? await brandScraper.scrape({ url, enrichedContent } as any)
-					: await brandScraper.scrape({ url });
+					? await brandScraper.scrape({
+							url,
+							enrichedContent,
+							skillContext: skillResult.context,
+						} as any)
+					: await brandScraper.scrape({ url, skillContext: skillResult.context });
 				const durationMs = Date.now() - startTime;
 				const usage = (brandScraper as any).lastUsage;
 				await logAiActivity(
@@ -108,6 +118,8 @@ export class BrandScrapingJob {
 						systemPrompt: "",
 						userPrompt: `Scrape URL: ${url}`,
 						brandId,
+						skillSlugs: skillResult.skillSlugs,
+						skillNames: skillResult.skillNames,
 					},
 					{
 						responseJson: scraped,
@@ -130,6 +142,8 @@ export class BrandScrapingJob {
 						systemPrompt: "",
 						userPrompt: `Scrape URL: ${url}`,
 						brandId,
+						skillSlugs: skillResult.skillSlugs,
+						skillNames: skillResult.skillNames,
 					},
 					{
 						inputTokens: usage?.inputTokens,

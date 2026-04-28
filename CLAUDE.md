@@ -178,6 +178,17 @@ bun run scripts/migrate-brand-partial-unique.ts      # partial unique indexes on
 
 The `migrate-brand-partial-unique.ts` script is required because Prisma schema cannot express `UNIQUE(...) WHERE archived_at IS NULL`. Without it, an archived (soft-deleted) brand still owns its `(project_id, slug)` and project slot at the DB level, so users see confusing P2002 errors when trying to create a brand with a name that's only in Trash. See comments at the top of the script for details.
 
+Skills library sync (the markdown files in `backend/src/config/skills/library/` are sourced from [coreyhaines31/marketingskills](https://github.com/coreyhaines31/marketingskills); the script picks up new skills added upstream):
+
+```bash
+bun run scripts/sync-skills.ts                           # add new skills only (skip existing)
+bun run scripts/sync-skills.ts --overwrite               # also overwrite existing files
+bun run scripts/sync-skills.ts --only=ab-test-setup,ad-creative
+bun run scripts/sync-skills.ts --dry-run
+```
+
+After adding a new skill, edit `backend/src/config/skills/manifests.ts` to wire it into one or more generators (`brandBrain`, `productBrain`, `topic`, `content`, `chat`). The loader's boot-time validation will tell you if a manifest references a slug whose file is missing.
+
 User management (full reference in [docs/database-access.md](docs/database-access.md)):
 
 ```bash

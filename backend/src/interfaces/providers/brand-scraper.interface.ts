@@ -4,6 +4,10 @@ export interface BrandScrapingInput {
 	// fields (summary, tone, dos/donts, etc). Defaults to indonesian when
 	// omitted to match the rest of the app.
 	language?: string;
+	// Optional skill context string built from the brandBrain manifest.
+	// When provided, it is prepended to the system prompt so active skills
+	// can influence the brand-analysis output.
+	skillContext?: string;
 }
 
 export interface BrandScrapingOutput {

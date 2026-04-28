@@ -9,7 +9,6 @@ import { HelpButton } from "../components/onboarding/HelpButton";
 import { Select } from "../components/ui/Select";
 import { Spinner } from "../components/ui/Spinner";
 import { Toast } from "../components/ui/Toast";
-import { ActiveSkillsBadges } from "../components/skills/ActiveSkillsBadges";
 import { ReferenceImageUpload, type ImageRef } from "../components/ui/ReferenceImageUpload";
 import { UrlInspirationChips } from "../components/url-inspiration/UrlInspirationChips";
 
@@ -421,7 +420,6 @@ export function TopicsPage() {
 				</div>
 			</div>
 			<CoachMark pageKey="topics" title="Topics" body="Topics are content ideas you can save, refine, and turn into posts later. Useful for capturing ideas you're not ready to generate yet." />
-			<ActiveSkillsBadges generator="topic" />
 
 			{loading ? (
 				<div className="flex justify-center py-12">

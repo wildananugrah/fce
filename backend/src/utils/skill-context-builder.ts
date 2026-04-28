@@ -1,57 +1,53 @@
-import type { PrismaClient } from "@prisma/client";
+import type { SkillRegistry } from "../config/skills/loader";
+import { filterByManifest } from "../config/skills/loader";
+import type { GeneratorName } from "../config/skills/manifests";
 
 // Cap the total skill context at ~8000 characters to keep prompts predictable
-// regardless of how many skills are mapped to a generator.
+// regardless of how many skills are mapped to a generator. Unchanged from the
+// previous implementation.
 const MAX_SKILL_CONTEXT_CHARS = 8000;
-
-// Reference files are intentionally excluded from the default prompt because
-// they bloat token counts with little benefit. Skill content alone should
-// describe how the AI uses them conceptually.
 
 export interface SkillContextResult {
 	context: string;
-	skillIds: string[];
+	skillSlugs: string[];
 	skillNames: string[];
 	includedCount: number;
 	truncatedCount: number;
 }
 
-export async function buildSkillContext(
-	prisma: PrismaClient,
-	workspaceId: string,
-	generator: "topic" | "content",
-): Promise<SkillContextResult> {
-	const skillMappings = await prisma.workspaceSkillMapping.findMany({
-		where: { workspaceId, generator, isActive: true },
-		include: { skill: true },
-	});
-
-	return renderSkills(skillMappings.map((m) => m.skill));
+/**
+ * Build the skill-context block for a generator. Reads from the in-memory
+ * registry filtered by the manifest entry for that generator.
+ */
+export function buildSkillContext(
+	registry: SkillRegistry,
+	generator: GeneratorName,
+): SkillContextResult {
+	return renderSkills(filterByManifest(registry, generator));
 }
 
 /**
- * Build a skill-context block from an explicit list of skill IDs (e.g. from
- * @-mentions in chat). Unknown IDs are silently dropped. Result uses the same
- * formatting + char cap as `buildSkillContext`.
+ * Build the skill-context block from an explicit list of skill slugs (e.g.
+ * @-mentions in chat). Unknown slugs are silently dropped. Same formatting +
+ * char cap as `buildSkillContext`.
  */
-export async function buildSkillContextFromIds(
-	prisma: PrismaClient,
-	skillIds: string[],
-): Promise<SkillContextResult> {
-	if (skillIds.length === 0) {
-		return { context: "", skillIds: [], skillNames: [], includedCount: 0, truncatedCount: 0 };
+export function buildSkillContextFromSlugs(
+	registry: SkillRegistry,
+	slugs: string[],
+): SkillContextResult {
+	if (slugs.length === 0) {
+		return { context: "", skillSlugs: [], skillNames: [], includedCount: 0, truncatedCount: 0 };
 	}
-	const skills = await prisma.aiSkill.findMany({
-		where: { id: { in: skillIds } },
-		orderBy: { name: "asc" },
-	});
+	const skills = slugs
+		.map((slug) => registry.get(slug))
+		.filter((s): s is NonNullable<typeof s> => s !== undefined);
 	return renderSkills(skills);
 }
 
-type SkillLike = { id: string; name: string; content: string };
+type SkillLike = { slug: string; name: string; content: string };
 
 function renderSkills(skills: SkillLike[]): SkillContextResult {
-	const skillIds = skills.map((s) => s.id);
+	const skillSlugs = skills.map((s) => s.slug);
 	const skillNames = skills.map((s) => s.name);
 
 	let context = "";
@@ -80,7 +76,7 @@ function renderSkills(skills: SkillLike[]): SkillContextResult {
 
 	return {
 		context,
-		skillIds,
+		skillSlugs,
 		skillNames,
 		includedCount,
 		truncatedCount: skills.length - includedCount,

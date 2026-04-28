@@ -74,7 +74,6 @@ export default function App() {
               <Route path="/research/:runId" element={<Gated flag="research-hub"><ResearchRunDetail /></Gated>} />
               <Route path="/competitor-analyzer" element={<Gated flag="competitor-analyzer"><CompetitorAnalyzerPage /></Gated>} />
               <Route path="/learning" element={<Gated flag="learning-center"><LearningPage /></Gated>} />
-              <Route path="/skills" element={<Navigate to="/workspace-settings" replace />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/workspace-settings" element={<WorkspaceSettingsPage />} />
               <Route path="/admin" element={<AdminPage />} />

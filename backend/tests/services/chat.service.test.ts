@@ -42,7 +42,7 @@ describe("ChatService.sendMessage (text-only)", () => {
 		service = new ChatService(prisma, messageRepo, revisionRepo, aiFactory, mockStorage, {
 			historyWindow: 20,
 			bucket: "test-bucket",
-		});
+		}, new Map());
 	});
 
 	afterEach(() => {

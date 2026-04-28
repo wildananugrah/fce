@@ -111,7 +111,7 @@ export function useChatStream(opts: UseChatStreamOptions) {
             "Content-Type": "application/json",
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
-          body: JSON.stringify({ content, attachments, skillIds }),
+          body: JSON.stringify({ content, attachments, skillSlugs: skillIds }),
           signal: controller.signal,
         },
       );

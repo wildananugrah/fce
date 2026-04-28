@@ -39,7 +39,7 @@ export function SkillMentionMenu({
       </div>
       <ul ref={listRef} className="py-1">
         {skills.map((skill, i) => (
-          <li key={skill.id} data-idx={i}>
+          <li key={skill.slug} data-idx={i}>
             <button
               type="button"
               onMouseDown={(e) => {
@@ -68,9 +68,6 @@ export function SkillMentionMenu({
                   </p>
                 )}
               </div>
-              <span className="shrink-0 text-[10px] text-gray-400 mt-0.5">
-                {skill.category}
-              </span>
             </button>
           </li>
         ))}

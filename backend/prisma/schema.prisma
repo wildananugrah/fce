@@ -80,7 +80,6 @@ model Workspace {
   auditLogs      AuditLog[]
   documents      BrandDocument[]
   savedTemplates SavedTemplate[]
-  skillMappings          WorkspaceSkillMapping[]
   aiProviderLogs         AiProviderLog[]
   workspaceSetting       WorkspaceSetting?
   researchRuns           ResearchRun[]
@@ -693,40 +692,6 @@ model RecommendationProfile {
 
   @@unique([scopeType, scopeId])
   @@map("recommendation_profiles")
-}
-
-// ─── AI Skills System ───────────────────────────────────────────
-
-model AiSkill {
-  id             String   @id @default(uuid())
-  slug           String   @unique
-  name           String
-  description    String   @db.Text
-  content        String   @db.Text
-  category       String
-  referenceFiles Json?    @map("reference_files")
-  isSystem       Boolean  @default(true) @map("is_system")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
-
-  workspaceMappings WorkspaceSkillMapping[]
-
-  @@map("ai_skills")
-}
-
-model WorkspaceSkillMapping {
-  id          String  @id @default(uuid())
-  workspaceId String  @map("workspace_id")
-  skillId     String  @map("skill_id")
-  generator   String
-  isActive    Boolean @default(true) @map("is_active")
-
-  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  skill     AiSkill   @relation(fields: [skillId], references: [id], onDelete: Cascade)
-
-  @@unique([workspaceId, skillId, generator])
-  @@index([workspaceId, generator])
-  @@map("workspace_skill_mappings")
 }
 
 // ─── AI Provider Activity Log ───────────────────────────────────

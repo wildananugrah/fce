@@ -13,7 +13,7 @@ export interface AiActivityInput {
 	productId?: string;
 	platform?: string;
 	contentType?: string;
-	skillIds?: string[];
+	skillSlugs?: string[];
 	skillNames?: string[];
 }
 
@@ -50,7 +50,7 @@ export async function logAiActivity(
 				productId: input.productId ?? null,
 				platform: input.platform ?? null,
 				contentType: input.contentType ?? null,
-				skillIds: input.skillIds ?? undefined,
+				skillIds: input.skillSlugs ?? undefined,
 				skillNames: input.skillNames ?? undefined,
 				inputTokens: result.inputTokens ?? null,
 				outputTokens: result.outputTokens ?? null,

@@ -1,4 +1,5 @@
 import type { PrismaClient } from "@prisma/client";
+import type { SkillRegistry } from "../config/skills/loader";
 import type { ILogger } from "../interfaces/providers/logger.provider.interface";
 import type { INotificationService } from "../interfaces/services/notification.service.interface";
 import type { AiProviderFactory } from "../services/ai-provider-factory.service";
@@ -26,6 +27,7 @@ export class TopicRegenerationJob {
 		private aiFactory: AiProviderFactory,
 		private notificationService: INotificationService,
 		private logger: ILogger,
+		private skillRegistry: SkillRegistry,
 	) {}
 
 	async handle(data: TopicRegenJobData): Promise<void> {
@@ -125,7 +127,7 @@ export class TopicRegenerationJob {
 					brandId: brandId ?? undefined,
 					productId: productIds?.[0] ?? undefined,
 					platform: platform ?? undefined,
-					skillIds: [],
+					skillSlugs: [],
 					skillNames: [],
 				},
 				{

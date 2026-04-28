@@ -18,7 +18,7 @@ export interface SendChatMessageInput {
 	userId: string;
 	content: string;
 	attachments?: ChatAttachment[];
-	skillIds?: string[];
+	skillSlugs?: string[];
 }
 
 export interface UploadAttachmentInput {

@@ -12,6 +12,8 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { Pool } from "pg";
 import { PgBoss } from "pg-boss";
+import { loadSkillRegistry } from "./config/skills/loader";
+import type { SkillRegistry } from "./config/skills/loader";
 import { ArchiveSweepJob } from "./jobs/archive-sweep.job";
 import { BrandScrapingJob } from "./jobs/brand-scraping.job";
 import { CampaignGenerationJob } from "./jobs/campaign-generation.job";
@@ -80,7 +82,7 @@ import { createRecommendationRoutes } from "./routes/recommendation.route";
 import { createCompetitorAnalyzerRoutes } from "./routes/competitor-analyzer.route";
 import { createResearchRoutes } from "./routes/research.route";
 import { createUrlInspirationRoutes } from "./routes/url-inspiration.route";
-import { createSkillRoutes, createWorkspaceSkillRoutes } from "./routes/skill.route";
+import { createSkillListRoutes } from "./routes/skill-list.route";
 import { createWorkspaceAiSettingsRoutes } from "./routes/workspace-ai-settings.route";
 import { createSSERoutes } from "./routes/sse.route";
 import { createTaxonomyRoutes } from "./routes/taxonomy.route";
@@ -133,6 +135,9 @@ async function main() {
 	const adapter = new PrismaPg(pool);
 	const prisma = new PrismaClient({ adapter });
 	const logger = new WinstonLogger(env.serviceName, env.lokiUrl || undefined);
+
+	const skillRegistry: SkillRegistry = await loadSkillRegistry();
+	logger.info(`Loaded ${skillRegistry.size} skills`);
 
 	// Initialize PgBoss
 	const boss = new PgBoss({ connectionString: env.databaseUrl });
@@ -324,6 +329,7 @@ async function main() {
 		aiProviderFactory,
 		storageProvider,
 		{ historyWindow: env.chatHistoryWindow, bucket: env.minioBucket },
+		skillRegistry,
 	);
 
 	// URL inspiration pipeline — cache + Apify + per-workspace summarizer
@@ -390,6 +396,7 @@ async function main() {
 		logger,
 		outputSectionRepository,
 		urlInspirationService,
+		skillRegistry,
 	);
 	const campaignGenerationJob = new CampaignGenerationJob(
 		prisma,
@@ -409,12 +416,14 @@ async function main() {
 		notificationService,
 		logger,
 		urlInspirationService,
+		skillRegistry,
 	);
 	const topicRegenerationJob = new TopicRegenerationJob(
 		prisma,
 		aiProviderFactory,
 		notificationService,
 		logger,
+		skillRegistry,
 	);
 	const brandScrapingJob = new BrandScrapingJob(
 		prisma,
@@ -422,6 +431,7 @@ async function main() {
 		notificationService,
 		logger,
 		apifyProvider,
+		skillRegistry,
 	);
 	const documentExtractionJob = new DocumentExtractionJob(documentRepository, logger);
 	const linkScrapingJob = new LinkScrapingJob(documentRepository, logger);
@@ -723,7 +733,7 @@ async function main() {
 	app.route("/api/taxonomy", createTaxonomyRoutes(taxonomyService));
 
 	// Skills routes (auth protected, no workspace scoping)
-	app.route("/api/skills", createSkillRoutes(prisma));
+	app.route("/api/skills", createSkillListRoutes(skillRegistry));
 
 	// Workspace-scoped routes (auth + workspace middleware)
 	const workspaceScoped = new Hono();
@@ -731,7 +741,7 @@ async function main() {
 	workspaceScoped.route("/brands", createBrandRoutes(brandService, boss, aiProviderFactory));
 	workspaceScoped.route(
 		"/products",
-		createProductRoutes(productService, aiProviderFactory, storageProvider, env.minioBucket, prisma),
+		createProductRoutes(productService, aiProviderFactory, storageProvider, env.minioBucket, prisma, skillRegistry),
 	);
 	workspaceScoped.route("/generations", createGenerationRoutes(generationService));
 	workspaceScoped.route("/library", createLibraryRoutes(libraryService, prisma, sceneImageService));
@@ -744,7 +754,6 @@ async function main() {
 	workspaceScoped.route("/dashboard", createDashboardRoutes(dashboardService));
 	workspaceScoped.route("/documents", createDocumentRoutes(documentService));
 	workspaceScoped.route("/recommendations", createRecommendationRoutes(recommendationService));
-	workspaceScoped.route("/skills", createWorkspaceSkillRoutes(prisma));
 	workspaceScoped.route("/projects", createProjectRoutes(prisma));
 	workspaceScoped.route(
 		"/onboarding-progress",
