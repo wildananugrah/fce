@@ -15,7 +15,6 @@ import { Toast } from "../components/ui/Toast";
 import { TokenUsageSection } from "../components/token-usage/TokenUsageSection";
 import { AiProvidersSection } from "../components/workspace-settings/AiProvidersSection";
 import { ProjectsTab } from "../components/workspace-settings/ProjectsTab";
-import { SkillsTab } from "../components/workspace-settings/SkillsTab";
 import { TrashTab } from "../components/workspace-settings/TrashTab";
 import { CoachMark } from "../components/onboarding/CoachMark";
 import { HelpButton } from "../components/onboarding/HelpButton";
@@ -41,7 +40,6 @@ const TABS = [
   { key: "team", label: "Team" },
   { key: "invitations", label: "Invitations" },
   { key: "projects", label: "Projects" },
-  { key: "skills", label: "AI Skills" },
   { key: "usage", label: "Token Usage" },
   { key: "integrations", label: "Integrations" },
   { key: "trash", label: "Trash" },
@@ -776,11 +774,7 @@ export function WorkspaceSettingsPage() {
           <ProjectsTab workspaceId={activeWorkspace.id} onToast={showToast} />
         )}
 
-        {activeTab === "skills" && (
-          <SkillsTab workspaceId={activeWorkspace.id} onToast={showToast} />
-        )}
-
-        {activeTab === "usage" && (
+{activeTab === "usage" && (
           <TokenUsageSection
             workspaceId={activeWorkspace.id}
             scope="workspace"

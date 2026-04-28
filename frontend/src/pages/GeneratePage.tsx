@@ -13,7 +13,6 @@ import { SearchableSelect } from "../components/ui/SearchableSelect";
 import { Spinner } from "../components/ui/Spinner";
 import { ContentPreviewModal } from "../components/library/ContentPreviewModal";
 import { Toast } from "../components/ui/Toast";
-import { ActiveSkillsBadges } from "../components/skills/ActiveSkillsBadges";
 import { GenerationResultRow } from "../components/generation/GenerationResultRow";
 import { ReferenceImageUpload, type ImageRef } from "../components/ui/ReferenceImageUpload";
 import { UrlInspirationChips } from "../components/url-inspiration/UrlInspirationChips";
@@ -724,7 +723,6 @@ const frameworkOptions = [{ value: "", label: "PAS (recommended)" }, ...framewor
         </div>
       </div>
       <CoachMark pageKey="generate" title="Generate content" body="Generate content by picking a product and describing the angle. FCE runs the job in the background — you can keep working, and we'll notify you when it's done." />
-      <ActiveSkillsBadges generator="content" />
 
       {researchContext && (
         <div className="flex items-center justify-between rounded-lg border border-violet-500/30 bg-violet-500/10 px-4 py-3 mb-4">
