@@ -16,6 +16,7 @@ import { Toast } from "../components/ui/Toast";
 import { GenerationResultRow } from "../components/generation/GenerationResultRow";
 import { ReferenceImageUpload, type ImageRef } from "../components/ui/ReferenceImageUpload";
 import { UrlInspirationChips } from "../components/url-inspiration/UrlInspirationChips";
+import { SkillsAppliedStrip } from "../components/skills/SkillsAppliedStrip";
 
 interface Brand {
   id: string;
@@ -1082,6 +1083,8 @@ const frameworkOptions = [{ value: "", label: "PAS (recommended)" }, ...framewor
                 />
               </div>
             </div>
+
+            <SkillsAppliedStrip generator="content" className="mb-3 px-1" />
 
             {/* Generate Button */}
             <button
