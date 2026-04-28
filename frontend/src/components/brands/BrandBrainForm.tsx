@@ -28,6 +28,7 @@ import { useScrapeLanguage } from "../../hooks/useScrapeLanguage";
 import { api, ApiError } from "../../services/api";
 import { useOnboarding } from "../../hooks/useOnboarding";
 import { ProductReferences } from "../products/ProductReferences";
+import { SkillsAppliedStrip } from "../skills/SkillsAppliedStrip";
 
 // ─── Types ──────────────────────────────────────────────────────
 
@@ -645,6 +646,7 @@ export const BrandBrainForm = forwardRef<BrandBrainFormHandle, BrandBrainFormPro
                           Auto-fill from Website
                         </Button>
                       </div>
+                      <SkillsAppliedStrip generator="brand-brain" className="mt-2" />
                     </div>
 
                     <div>

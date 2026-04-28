@@ -4,6 +4,7 @@ import { Input } from "../ui/Input";
 import { Select } from "../ui/Select";
 import { Button } from "../ui/Button";
 import { api, apiUpload } from "../../services/api";
+import { SkillsAppliedStrip } from "../skills/SkillsAppliedStrip";
 
 interface Brand {
   id: string;
@@ -288,6 +289,7 @@ export function ProductForm({ brands, workspaceId, onSubmit, onCancel, initial, 
               {scraping ? "Analyzing..." : "Auto-fill from URL"}
             </button>
           </div>
+          <SkillsAppliedStrip generator="product-brain" className="mt-2" />
         </div>
       )}
 
