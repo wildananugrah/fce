@@ -430,6 +430,7 @@ async function main() {
 		notificationService,
 		logger,
 		apifyProvider,
+		skillRegistry,
 	);
 	const documentExtractionJob = new DocumentExtractionJob(documentRepository, logger);
 	const linkScrapingJob = new LinkScrapingJob(documentRepository, logger);

@@ -373,8 +373,11 @@ ${combined}`;
 			);
 		}
 
-		const systemPrompt =
+		const baseSystemPrompt =
 			"You are a brand analyst expert. Analyze the provided website content and extract structured brand identity information. You MUST respond with ONLY valid JSON. No markdown, no code blocks, no explanations.";
+		const systemPrompt = input.skillContext
+			? `${input.skillContext}\n\n${baseSystemPrompt}`
+			: baseSystemPrompt;
 
 		const userPrompt = `Based on the extracted website content below, extract structured brand information.
 
