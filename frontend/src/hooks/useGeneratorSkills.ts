@@ -16,19 +16,16 @@ async function load(generator: GeneratorKey): Promise<SkillSummary[]> {
   if (cache[generator]) return cache[generator] as SkillSummary[];
   const existing = inflight[generator];
   if (existing) return existing;
-  const promise = api<{ data: SkillSummary[] } | SkillSummary[]>(
-    `/api/skills/${generator}`
-  )
+  const promise = api<{ data: SkillSummary[] }>(`/api/skills/${generator}`)
     .then((res) => {
-      const rows = Array.isArray(res)
-        ? res
-        : Array.isArray((res as { data?: SkillSummary[] }).data)
-          ? (res as { data: SkillSummary[] }).data
-          : [];
+      const rows = Array.isArray(res.data) ? res.data : [];
       cache[generator] = rows;
       return rows;
     })
     .catch(() => {
+      // Cache empty so the strip silently renders nothing for the rest of the
+      // session — matches the plan's "no error toast" requirement. Remove the
+      // cache write here if a future spec requires retry on subsequent renders.
       cache[generator] = [];
       return [] as SkillSummary[];
     })
