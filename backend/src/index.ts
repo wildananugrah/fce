@@ -82,7 +82,7 @@ import { createRecommendationRoutes } from "./routes/recommendation.route";
 import { createCompetitorAnalyzerRoutes } from "./routes/competitor-analyzer.route";
 import { createResearchRoutes } from "./routes/research.route";
 import { createUrlInspirationRoutes } from "./routes/url-inspiration.route";
-import { createSkillRoutes, createWorkspaceSkillRoutes } from "./routes/skill.route";
+import { createSkillListRoutes } from "./routes/skill-list.route";
 import { createWorkspaceAiSettingsRoutes } from "./routes/workspace-ai-settings.route";
 import { createSSERoutes } from "./routes/sse.route";
 import { createTaxonomyRoutes } from "./routes/taxonomy.route";
@@ -733,7 +733,7 @@ async function main() {
 	app.route("/api/taxonomy", createTaxonomyRoutes(taxonomyService));
 
 	// Skills routes (auth protected, no workspace scoping)
-	app.route("/api/skills", createSkillRoutes(prisma));
+	app.route("/api/skills", createSkillListRoutes(skillRegistry));
 
 	// Workspace-scoped routes (auth + workspace middleware)
 	const workspaceScoped = new Hono();
@@ -754,7 +754,6 @@ async function main() {
 	workspaceScoped.route("/dashboard", createDashboardRoutes(dashboardService));
 	workspaceScoped.route("/documents", createDocumentRoutes(documentService));
 	workspaceScoped.route("/recommendations", createRecommendationRoutes(recommendationService));
-	workspaceScoped.route("/skills", createWorkspaceSkillRoutes(prisma));
 	workspaceScoped.route("/projects", createProjectRoutes(prisma));
 	workspaceScoped.route(
 		"/onboarding-progress",
