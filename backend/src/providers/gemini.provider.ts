@@ -228,6 +228,7 @@ export class GeminiProvider
 		productType?: string;
 		priceTier?: string;
 		summary?: string;
+		skillContext?: string;
 	}): Promise<{
 		usp?: string;
 		rtb?: string;
@@ -246,8 +247,11 @@ export class GeminiProvider
 			.filter(Boolean)
 			.join("\n");
 
-		const systemPrompt =
+		const baseSystemPrompt =
 			"You are a product marketing expert. You MUST respond with ONLY valid JSON. No markdown, no code blocks, no explanations.";
+		const systemPrompt = input.skillContext
+			? `${input.skillContext}\n\n${baseSystemPrompt}`
+			: baseSystemPrompt;
 		const userPrompt = `Based on the following product information, generate product brain content for AI-powered content generation.
 
 ${context}
@@ -282,6 +286,7 @@ Return JSON with these fields:
 		url?: string;
 		urls?: string[];
 		language?: string;
+		skillContext?: string;
 	}): Promise<{
 		name?: string;
 		type?: string;
@@ -316,8 +321,11 @@ Return JSON with these fields:
 			);
 		}
 
-		const systemPrompt =
+		const baseSystemPromptScraper =
 			"You are a product analyst. You MUST respond with ONLY valid JSON. No markdown, no code blocks, no explanations.";
+		const systemPrompt = input.skillContext
+			? `${input.skillContext}\n\n${baseSystemPromptScraper}`
+			: baseSystemPromptScraper;
 		const userPrompt = `You are a product analyst. Based on the extracted website and social media content below, extract structured product information.
 
 Return ONLY a valid JSON object with these exact fields (use empty string "" or empty array [] if not found):

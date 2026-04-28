@@ -215,6 +215,7 @@ export class AnthropicProvider
 		productType?: string;
 		priceTier?: string;
 		summary?: string;
+		skillContext?: string;
 	}): Promise<{
 		usp?: string;
 		rtb?: string;
@@ -233,11 +234,16 @@ export class AnthropicProvider
 			.filter(Boolean)
 			.join("\n");
 
+		const baseSystemPrompt =
+			"You are a product marketing expert. You MUST respond with ONLY valid JSON. No markdown, no code blocks, no explanations.";
+		const systemPrompt = input.skillContext
+			? `${input.skillContext}\n\n${baseSystemPrompt}`
+			: baseSystemPrompt;
+
 		const response = await this.client.messages.create({
 			model: this.model,
 			...this.anthropicParams(generatorTuning.productBrain),
-			system:
-				"You are a product marketing expert. You MUST respond with ONLY valid JSON. No markdown, no code blocks, no explanations.",
+			system: systemPrompt,
 			messages: [
 				{
 					role: "user",
@@ -272,6 +278,7 @@ Return JSON with these fields:
 		url?: string;
 		urls?: string[];
 		language?: string;
+		skillContext?: string;
 	}): Promise<{
 		name?: string;
 		type?: string;
@@ -323,11 +330,16 @@ ${languageDirective(input.language)}
 === EXTRACTED WEBSITE AND SOCIAL MEDIA CONTENT ===
 ${combined}`;
 
+		const baseSystemPromptScraper =
+			"You are a product analyst. You MUST respond with ONLY valid JSON. No markdown, no code blocks, no explanations.";
+		const systemPromptScraper = input.skillContext
+			? `${input.skillContext}\n\n${baseSystemPromptScraper}`
+			: baseSystemPromptScraper;
+
 		const response = await this.client.messages.create({
 			model: this.model,
 			...this.anthropicParams(generatorTuning.productScraper),
-			system:
-				"You are a product analyst. You MUST respond with ONLY valid JSON. No markdown, no code blocks, no explanations.",
+			system: systemPromptScraper,
 			messages: [{ role: "user", content: userPrompt }],
 		});
 		this.lastUsage = {

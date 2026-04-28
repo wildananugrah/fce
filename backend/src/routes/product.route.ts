@@ -4,6 +4,8 @@ import type { IStorageProvider } from "../interfaces/providers/storage.provider.
 import type { IProductService } from "../interfaces/services/product.service.interface";
 import type { AiProviderFactory } from "../services/ai-provider-factory.service";
 import { logAiActivity } from "../utils/ai-activity-logger";
+import type { SkillRegistry } from "../config/skills/loader";
+import { buildSkillContext } from "../utils/skill-context-builder";
 
 type Variables = {
 	userId: string;
@@ -20,6 +22,7 @@ type ProductAIProvider = {
 		priceTier?: string;
 		summary?: string;
 		language?: string;
+		skillContext?: string;
 	}): Promise<{
 		usp?: string;
 		rtb?: string;
@@ -32,6 +35,7 @@ type ProductAIProvider = {
 		url?: string;
 		urls?: string[];
 		language?: string;
+		skillContext?: string;
 	}): Promise<{
 		name?: string;
 		type?: string;
@@ -52,6 +56,7 @@ export function createProductRoutes(
 	storageProvider?: IStorageProvider,
 	storageBucket?: string,
 	prisma?: PrismaClient,
+	skillRegistry?: SkillRegistry,
 ) {
 	const getAiGenerator = async (workspaceId: string): Promise<ProductAIProvider> =>
 		(await aiFactory.getBrandScraper(workspaceId)) as unknown as ProductAIProvider;
@@ -85,9 +90,16 @@ export function createProductRoutes(
 		const userId = c.get("userId");
 		const aiGenerator = await getAiGenerator(workspaceId);
 		const providerName = await getProviderName(workspaceId);
+		const skillResult = skillRegistry
+			? buildSkillContext(skillRegistry, "productBrain")
+			: { context: "", skillSlugs: [], skillNames: [], includedCount: 0, truncatedCount: 0 };
 		const startTime = Date.now();
 		try {
-			const result = await aiGenerator.scrapeProduct({ urls: urlList, language: brand.language });
+			const result = await aiGenerator.scrapeProduct({
+				urls: urlList,
+				language: brand.language,
+				skillContext: skillResult.context,
+			});
 			const durationMs = Date.now() - startTime;
 			if (prisma) {
 				const usage = (aiGenerator as any).lastUsage;
@@ -100,6 +112,8 @@ export function createProductRoutes(
 						userId,
 						systemPrompt: "",
 						userPrompt: `Scrape product URLs: ${urlList.join(", ")}`,
+						skillSlugs: skillResult.skillSlugs,
+						skillNames: skillResult.skillNames,
 					},
 					{
 						responseJson: result,
@@ -124,6 +138,8 @@ export function createProductRoutes(
 						userId,
 						systemPrompt: "",
 						userPrompt: `Scrape product URLs: ${urlList.join(", ")}`,
+						skillSlugs: skillResult.skillSlugs,
+						skillNames: skillResult.skillNames,
 					},
 					{
 						inputTokens: usage?.inputTokens,
@@ -159,6 +175,9 @@ export function createProductRoutes(
 		const userId = c.get("userId");
 		const aiGenerator = await getAiGenerator(workspaceId);
 		const providerName = await getProviderName(workspaceId);
+		const skillResult = skillRegistry
+			? buildSkillContext(skillRegistry, "productBrain")
+			: { context: "", skillSlugs: [], skillNames: [], includedCount: 0, truncatedCount: 0 };
 		const startTime = Date.now();
 		try {
 			const result = await aiGenerator.generateProductBrain({
@@ -168,6 +187,7 @@ export function createProductRoutes(
 				priceTier,
 				summary,
 				language: brand.language,
+				skillContext: skillResult.context,
 			});
 			const durationMs = Date.now() - startTime;
 			if (prisma) {
@@ -181,6 +201,8 @@ export function createProductRoutes(
 						userId,
 						systemPrompt: "",
 						userPrompt: `Generate product brain for: ${productName} (brand: ${brandName})`,
+						skillSlugs: skillResult.skillSlugs,
+						skillNames: skillResult.skillNames,
 					},
 					{
 						responseJson: result,
@@ -205,6 +227,8 @@ export function createProductRoutes(
 						userId,
 						systemPrompt: "",
 						userPrompt: `Generate product brain for: ${productName} (brand: ${brandName})`,
+						skillSlugs: skillResult.skillSlugs,
+						skillNames: skillResult.skillNames,
 					},
 					{
 						inputTokens: usage?.inputTokens,

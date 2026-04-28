@@ -740,7 +740,7 @@ async function main() {
 	workspaceScoped.route("/brands", createBrandRoutes(brandService, boss, aiProviderFactory));
 	workspaceScoped.route(
 		"/products",
-		createProductRoutes(productService, aiProviderFactory, storageProvider, env.minioBucket, prisma),
+		createProductRoutes(productService, aiProviderFactory, storageProvider, env.minioBucket, prisma, skillRegistry),
 	);
 	workspaceScoped.route("/generations", createGenerationRoutes(generationService));
 	workspaceScoped.route("/library", createLibraryRoutes(libraryService, prisma, sceneImageService));
