@@ -110,16 +110,11 @@ export const BRAND_PLATFORM_OPTIONS = [
   "Facebook",
 ];
 
-export const BRAND_LANGUAGE_OPTIONS = [
-  "English",
-  "Bahasa Indonesia",
-  "Malay",
-  "Chinese",
-  "Japanese",
-  "Korean",
-  "Spanish",
-  "French",
-];
+// Only the two languages the rest of the app actively supports — the
+// /brands/new toggle, the prompt-builder normalizeLanguage(), and the
+// Brand.language SSOT all assume one of these two values. Adding more
+// requires extending those code paths first.
+export const BRAND_LANGUAGE_OPTIONS = ["English", "Bahasa Indonesia"];
 
 export function generateBrandSlug(name: string): string {
   return name
