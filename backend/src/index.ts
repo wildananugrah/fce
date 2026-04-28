@@ -12,6 +12,8 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { Pool } from "pg";
 import { PgBoss } from "pg-boss";
+import { loadSkillRegistry } from "./config/skills/loader";
+import type { SkillRegistry } from "./config/skills/loader";
 import { ArchiveSweepJob } from "./jobs/archive-sweep.job";
 import { BrandScrapingJob } from "./jobs/brand-scraping.job";
 import { CampaignGenerationJob } from "./jobs/campaign-generation.job";
@@ -133,6 +135,9 @@ async function main() {
 	const adapter = new PrismaPg(pool);
 	const prisma = new PrismaClient({ adapter });
 	const logger = new WinstonLogger(env.serviceName, env.lokiUrl || undefined);
+
+	const skillRegistry: SkillRegistry = await loadSkillRegistry();
+	logger.info(`Loaded ${skillRegistry.size} skills`);
 
 	// Initialize PgBoss
 	const boss = new PgBoss({ connectionString: env.databaseUrl });
@@ -390,6 +395,7 @@ async function main() {
 		logger,
 		outputSectionRepository,
 		urlInspirationService,
+		skillRegistry,
 	);
 	const campaignGenerationJob = new CampaignGenerationJob(
 		prisma,
@@ -409,12 +415,14 @@ async function main() {
 		notificationService,
 		logger,
 		urlInspirationService,
+		skillRegistry,
 	);
 	const topicRegenerationJob = new TopicRegenerationJob(
 		prisma,
 		aiProviderFactory,
 		notificationService,
 		logger,
+		skillRegistry,
 	);
 	const brandScrapingJob = new BrandScrapingJob(
 		prisma,

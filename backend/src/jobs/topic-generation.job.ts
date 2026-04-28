@@ -1,4 +1,5 @@
 import type { PrismaClient } from "@prisma/client";
+import type { SkillRegistry } from "../config/skills/loader";
 import type { ILogger } from "../interfaces/providers/logger.provider.interface";
 import type { INotificationService } from "../interfaces/services/notification.service.interface";
 import type { IUrlInspirationService } from "../interfaces/services/url-inspiration.service.interface";
@@ -31,6 +32,7 @@ export class TopicGenerationJob {
 		private notificationService: INotificationService,
 		private logger: ILogger,
 		private urlInspirationService: IUrlInspirationService,
+		private skillRegistry: SkillRegistry,
 	) {}
 
 	async handle(data: TopicJobData): Promise<void> {
@@ -147,7 +149,7 @@ export class TopicGenerationJob {
 			// Fetch mapped AI skills for topic generator
 			// Uses character-limited helper that excludes reference files to
 			// prevent prompt bloat when many skills are mapped.
-			const skillResult = await buildSkillContext(this.prisma, workspaceId, "topic");
+			const skillResult = buildSkillContext(this.skillRegistry, "topic");
 			const skillContext = skillResult.context;
 			if (skillResult.truncatedCount > 0) {
 				this.logger.info("Some skills were truncated due to context limit", {
@@ -245,7 +247,7 @@ export class TopicGenerationJob {
 					brandId: brandId ?? undefined,
 					productId: productIds?.[0] ?? undefined,
 					platform: platform ?? undefined,
-					skillIds: skillResult.skillIds,
+					skillSlugs: skillResult.skillSlugs,
 					skillNames: skillResult.skillNames,
 				},
 				{
