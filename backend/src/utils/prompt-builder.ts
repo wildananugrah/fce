@@ -66,12 +66,21 @@ export function buildContentGenerationPrompt(input: ContentGenerationInput): Pro
 		CONTENT_TYPE_FORMAT_INSTRUCTIONS[formatCategory] ||
 		CONTENT_TYPE_FORMAT_INSTRUCTIONS.single_image;
 
-	const systemPrompt = `You are an expert content creator. You have the following brand context:
+	const humanLanguage = normalizeLanguage(input.language);
+
+	// The language directive sits at the very top of the system prompt — before
+	// the brand context — so the model receives it as the first instruction.
+	// Otherwise, when the brand brain fields are written in another language
+	// (common when a user flips the language toggle without re-translating the
+	// brain), the model defaults to the dominant language of the context.
+	const systemPrompt = `You are an expert content creator.
+
+OUTPUT LANGUAGE — NON-NEGOTIABLE: Every user-facing string in your output (contentTitle, hook, caption, CTA, hashtags, slide/scene text, on-screen text, voiceover) MUST be written in ${humanLanguage}. This rule applies regardless of the language used in the brand context below — the brand context is informational only and does not dictate output language. Do NOT switch languages mid-output.
+
+Brand context:
 ${contextBlock}
 
 ${JSON_ONLY_INSTRUCTION}`;
-
-	const humanLanguage = normalizeLanguage(input.language);
 
 	const pillars = input.pillars ?? [];
 	const pillarLine =
@@ -81,7 +90,7 @@ ${JSON_ONLY_INSTRUCTION}`;
 				? `\nThis content should reinforce the brand pillar: "${pillars[0]}".`
 				: `\nAlign this content with one of the brand's content pillars: ${pillars.map((p) => `"${p}"`).join(", ")}. Pick the one that best fits the requested platform, format, and objective.`;
 
-	const userPrompt = `CRITICAL LANGUAGE REQUIREMENT: Write ALL user-facing copy (hook, caption, CTA, hashtags, slide/scene text, on-screen text, voiceover) in ${humanLanguage}. This overrides any language signal in the brand context. Do NOT switch languages mid-output.
+	const userPrompt = `Write all output in ${humanLanguage} (per the system prompt's non-negotiable rule).
 
 Create ${input.contentType} content for ${input.platform} platform.
 Framework: ${input.framework}
@@ -125,7 +134,17 @@ export function buildTopicGenerationPrompt(input: TopicGenerationInput): PromptP
 		skillContext: input.skillContext,
 	});
 
-	const systemPrompt = `You are an expert content strategist. You have the following brand context:
+	const humanLanguage = normalizeLanguage(input.language);
+
+	// Same rationale as buildContentGenerationPrompt — language directive must
+	// precede the brand context so the model can't drift to the brand brain's
+	// dominant language when the user has flipped the toggle without
+	// re-translating the brain text fields.
+	const systemPrompt = `You are an expert content strategist.
+
+OUTPUT LANGUAGE — NON-NEGOTIABLE: Every topic's "title" and "description" MUST be written in ${humanLanguage}. This rule applies regardless of the language used in the brand context below — the brand context is informational only and does not dictate output language. Do NOT mix languages within a single topic.
+
+Brand context:
 ${contextBlock}
 
 ${JSON_ONLY_INSTRUCTION}`;
@@ -161,8 +180,7 @@ ${JSON_ONLY_INSTRUCTION}`;
 			? `Set "publishDate" as an ISO 8601 date (YYYY-MM-DD) between ${input.dateFrom} and ${input.dateTo}. Distribute the ${count} publishDate values EVENLY across this range.`
 			: `Set "publishDate" to an ISO 8601 date (YYYY-MM-DD) within the next 30 days.`;
 
-	const humanLanguage = normalizeLanguage(input.language);
-	const userPrompt = `CRITICAL LANGUAGE REQUIREMENT: Write every topic's "title" and "description" in ${humanLanguage}. This overrides any language signal in the brand context. Do NOT mix languages within a single topic.
+	const userPrompt = `Write every topic's "title" and "description" in ${humanLanguage} (per the system prompt's non-negotiable rule).
 
 Generate ${count} content topic ideas.
 ${multiProductLine}
