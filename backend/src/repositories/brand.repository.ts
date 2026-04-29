@@ -8,19 +8,11 @@ export class BrandRepository implements IBrandRepository {
 		workspaceId: string,
 		projectId?: string,
 	): Promise<(Brand & { brainVersions: BrandBrainVersion[] })[]> {
-		const where: any = { workspaceId, archivedAt: null };
-		if (projectId) {
-			// If the caller is asking for the Default project, also include
-			// brands with projectId = null (legacy rows that were created
-			// before the RBAC migration or slipped past its backfill — the
-			// schema comment says `null = "default project"` by convention).
-			const defaultId = await this.findDefaultProjectId(workspaceId);
-			if (defaultId === projectId) {
-				where.OR = [{ projectId }, { projectId: null }];
-			} else {
-				where.projectId = projectId;
-			}
-		}
+		const where: { workspaceId: string; archivedAt: null; projectId?: string } = {
+			workspaceId,
+			archivedAt: null,
+		};
+		if (projectId) where.projectId = projectId;
 		return this.prisma.brand.findMany({
 			where,
 			orderBy: { updatedAt: "desc" },
