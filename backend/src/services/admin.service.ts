@@ -31,7 +31,7 @@ export class AdminService implements IAdminService {
 	}
 
 	async createUser(
-		_actingUserId: string,
+		actingUserId: string,
 		input: {
 			email: string;
 			password: string;
@@ -47,7 +47,7 @@ export class AdminService implements IAdminService {
 		const existing = await this.prisma.user.findUnique({ where: { email } });
 		if (existing) throw new Error("Email already registered");
 		const passwordHash = await hashPassword(input.password);
-		return this.prisma.user.create({
+		const user = await this.prisma.user.create({
 			data: {
 				email,
 				passwordHash,
@@ -58,6 +58,19 @@ export class AdminService implements IAdminService {
 			},
 			select: { id: true, email: true, fullName: true, status: true, isSuperadmin: true, createdAt: true },
 		});
+		await this.audit.log({
+			workspaceId: null,
+			userId: actingUserId,
+			action: "user.create",
+			entityType: "user",
+			entityId: user.id,
+			metadata: {
+				email: user.email,
+				fullName: user.fullName,
+				isSuperadmin: user.isSuperadmin,
+			},
+		});
+		return user;
 	}
 
 	async updateUser(_actingUserId: string, userId: string, data: any) {
@@ -75,16 +88,40 @@ export class AdminService implements IAdminService {
 		});
 	}
 
-	async deleteUser(_actingUserId: string, userId: string) {
+	async deleteUser(actingUserId: string, userId: string) {
+		const target = await this.prisma.user.findUnique({
+			where: { id: userId },
+			select: { email: true, fullName: true },
+		});
 		await this.prisma.user.delete({ where: { id: userId } });
+		await this.audit.log({
+			workspaceId: null,
+			userId: actingUserId,
+			action: "user.delete",
+			entityType: "user",
+			entityId: userId,
+			metadata: target ? { email: target.email, fullName: target.fullName } : {},
+		});
 	}
 
-	async resetPassword(_actingUserId: string, userId: string, newPassword: string) {
+	async resetPassword(actingUserId: string, userId: string, newPassword: string) {
 		if (!newPassword || newPassword.length < 8) {
 			throw new Error("Password must be at least 8 characters");
 		}
+		const target = await this.prisma.user.findUnique({
+			where: { id: userId },
+			select: { email: true },
+		});
 		const passwordHash = await hashPassword(newPassword);
 		await this.prisma.user.update({ where: { id: userId }, data: { passwordHash } });
+		await this.audit.log({
+			workspaceId: null,
+			userId: actingUserId,
+			action: "user.password_reset",
+			entityType: "user",
+			entityId: userId,
+			metadata: { targetEmail: target?.email ?? null },
+		});
 	}
 
 	async listUserWorkspaces(userId: string) {
