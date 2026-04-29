@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Save } from "lucide-react";
 import { Button } from "../components/ui/Button";
@@ -26,12 +26,27 @@ export function NewBrandPage() {
   const [saving, setSaving] = useState(false);
   const [scrapingBanner, setScrapingBanner] = useState<ReactNode>(null);
 
+  // Redirect: this page requires a selected project. The Create Brand
+  // button on /brands is disabled when activeProject is null, but the
+  // user can still arrive here via direct URL or a stale browser tab.
+  useEffect(() => {
+    if (!activeProject) {
+      navigate("/brands", { replace: true });
+    }
+  }, [activeProject, navigate]);
+
   if (!activeWorkspace) {
     return (
       <div className="p-6">
         <p className="text-sm text-gray-500">Pick a workspace to create a brand.</p>
       </div>
     );
+  }
+
+  if (!activeProject) {
+    // The effect above will redirect on next tick. Render nothing in
+    // the meantime to avoid flashing the form with no project.
+    return null;
   }
 
   return (

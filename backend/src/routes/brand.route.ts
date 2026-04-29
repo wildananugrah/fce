@@ -33,6 +33,15 @@ export function createBrandRoutes(
 		if (!name || !slug) {
 			return c.json({ error: "Name and slug are required" }, 400);
 		}
+		if (!projectId || typeof projectId !== "string") {
+			return c.json(
+				{
+					error:
+						"projectId is required — pick or create a project before creating a brand",
+				},
+				400,
+			);
+		}
 		const brand = await brandService.create(workspaceId, {
 			name,
 			slug,

@@ -127,9 +127,7 @@ model WorkspaceInvitation {
 model Brand {
   id                   String    @id @default(uuid())
   workspaceId          String    @map("workspace_id")
-  // Nullable until the RBAC migration backfills every brand into the
-  // workspace's default project. Code paths treat `null` = "default project".
-  projectId            String?   @map("project_id")
+  projectId            String    @map("project_id")
   name                 String
   slug                 String
   category             String?
@@ -145,7 +143,7 @@ model Brand {
   updatedAt            DateTime  @updatedAt @map("updated_at")
 
   workspace          Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  project            Project?             @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  project            Project              @relation(fields: [projectId], references: [id], onDelete: Restrict)
   brainVersions      BrandBrainVersion[]
   products           Product[]
   contentTopics      ContentTopic[]

@@ -15,9 +15,21 @@ describe("BrandService", () => {
 			const workspaceId = crypto.randomUUID();
 			const otherWorkspaceId = crypto.randomUUID();
 
-			await brandService.create(workspaceId, { name: "Brand A", slug: "brand-a" });
-			await brandService.create(workspaceId, { name: "Brand B", slug: "brand-b" });
-			await brandService.create(otherWorkspaceId, { name: "Other Brand", slug: "other-brand" });
+			await brandService.create(workspaceId, {
+				name: "Brand A",
+				slug: "brand-a",
+				projectId: crypto.randomUUID(),
+			});
+			await brandService.create(workspaceId, {
+				name: "Brand B",
+				slug: "brand-b",
+				projectId: crypto.randomUUID(),
+			});
+			await brandService.create(otherWorkspaceId, {
+				name: "Other Brand",
+				slug: "other-brand",
+				projectId: crypto.randomUUID(),
+			});
 
 			const brands = await brandService.list(workspaceId);
 			expect(brands).toHaveLength(2);
@@ -35,6 +47,7 @@ describe("BrandService", () => {
 				slug: "my-brand",
 				category: "tech",
 				websiteUrl: "https://mybrand.com",
+				projectId: crypto.randomUUID(),
 			});
 
 			expect(brand.workspaceId).toBe(workspaceId);
@@ -52,6 +65,7 @@ describe("BrandService", () => {
 			const created = await brandService.create(workspaceId, {
 				name: "Brain Brand",
 				slug: "brain-brand",
+				projectId: crypto.randomUUID(),
 			});
 			await brandService.createBrainVersion(created.id, { personality: "Bold" });
 
@@ -73,6 +87,7 @@ describe("BrandService", () => {
 			const brand = await brandService.create(workspaceId, {
 				name: "Version Brand",
 				slug: "version-brand",
+				projectId: crypto.randomUUID(),
 			});
 
 			const v1 = await brandService.createBrainVersion(brand.id, {
@@ -92,6 +107,49 @@ describe("BrandService", () => {
 
 			const v3 = await brandService.createBrainVersion(brand.id, { personality: "Playful" });
 			expect(v3.version).toBe(3);
+		});
+	});
+
+	describe("create — projectId is required", () => {
+		it("throws when projectId is missing", async () => {
+			const workspaceId = crypto.randomUUID();
+			await expect(
+				brandService.create(workspaceId, { name: "No Project Brand", slug: "no-project" }),
+			).rejects.toThrow(
+				"projectId is required — pick or create a project before creating a brand",
+			);
+		});
+
+		it("throws even when input.projectId is an empty string", async () => {
+			const workspaceId = crypto.randomUUID();
+			await expect(
+				brandService.create(workspaceId, {
+					name: "Empty Project Brand",
+					slug: "empty-project",
+					projectId: "",
+				}),
+			).rejects.toThrow(
+				"projectId is required — pick or create a project before creating a brand",
+			);
+		});
+
+		it("throws the 1-per-project error when a brand already exists in the project", async () => {
+			const workspaceId = crypto.randomUUID();
+			const projectId = crypto.randomUUID();
+			await brandService.create(workspaceId, {
+				name: "First Brand",
+				slug: "first-brand",
+				projectId,
+			});
+			await expect(
+				brandService.create(workspaceId, {
+					name: "Second Brand",
+					slug: "second-brand",
+					projectId,
+				}),
+			).rejects.toThrow(
+				"This project already has a brand. Each project can contain only one brand — create a new project to add another.",
+			);
 		});
 	});
 });
