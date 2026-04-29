@@ -9,6 +9,7 @@ import {
   Calendar,
   X,
   Eye,
+  Search,
   Table as TableIcon,
   CalendarDays,
   CalendarRange,
@@ -304,6 +305,7 @@ export function TopicLibraryPage() {
   const navigate = useNavigate();
   const [topics, setTopics] = useState<Topic[]>([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
   const [platformFilter, setPlatformFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [brandFilter, setBrandFilter] = useState("");
@@ -567,12 +569,18 @@ export function TopicLibraryPage() {
   })();
 
   // Filter
+  const searchQuery = search.trim().toLowerCase();
   const filteredTopics = topics.filter((t) => {
     if (platformFilter && t.platform !== platformFilter) return false;
     if (statusFilter && t.status !== statusFilter) return false;
     if (brandFilter) {
       const brandId = t.brand?.id ?? t.brandId ?? "unknown";
       if (brandId !== brandFilter) return false;
+    }
+    if (searchQuery) {
+      const title = t.title?.toLowerCase() ?? "";
+      const description = t.description?.toLowerCase() ?? "";
+      if (!title.includes(searchQuery) && !description.includes(searchQuery)) return false;
     }
     return true;
   });
@@ -673,7 +681,27 @@ export function TopicLibraryPage() {
 
       {/* Filters + View Toggle */}
       <div className="flex items-center justify-between gap-3">
-        <div className="flex gap-3">
+        <div className="flex flex-1 gap-3 min-w-0">
+          <div className="relative flex-1 max-w-md">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search title or description..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-9 pr-8 py-2 text-sm bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-black focus:ring-1 focus:ring-black placeholder-gray-400"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch("")}
+                aria-label="Clear search"
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-700"
+              >
+                <X size={12} />
+              </button>
+            )}
+          </div>
           <select
             className="px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg text-gray-700 focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
             value={brandFilter}
@@ -740,7 +768,7 @@ export function TopicLibraryPage() {
       ) : filteredTopics.length === 0 ? (
         <div className="bg-white border border-gray-200 rounded-xl p-12 text-center">
           <p className="text-sm text-gray-400">
-            {platformFilter || statusFilter || brandFilter ? "No topics match the current filters." : "No topics yet. Generate some from the Topic Generator."}
+            {search || platformFilter || statusFilter || brandFilter ? "No topics match the current filters." : "No topics yet. Generate some from the Topic Generator."}
           </p>
         </div>
       ) : (
