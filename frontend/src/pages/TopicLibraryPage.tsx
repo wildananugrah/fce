@@ -4,6 +4,7 @@ import {
   Trash2,
   RefreshCw,
   ChevronDown,
+  ChevronUp,
   Sparkles,
   Calendar,
   X,
@@ -125,6 +126,106 @@ function formatDate(dateStr?: string | null) {
   return d.toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" });
 }
 
+function formatCreatedAt(dateStr: string): { date: string; time: string } {
+  const d = new Date(dateStr);
+  return {
+    date: d.toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" }),
+    time: d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", hour12: false }),
+  };
+}
+
+type TopicSortKey =
+  | "title"
+  | "pillar"
+  | "format"
+  | "publishDate"
+  | "platform"
+  | "products"
+  | "status"
+  | "createdAt";
+type SortDir = "asc" | "desc";
+
+// Editorial flow order for the topic library statuses.
+const TOPIC_STATUS_ORDER: Record<string, number> = {
+  draft: 0,
+  approved: 1,
+  scheduled: 2,
+  published: 3,
+  archived: 4,
+};
+
+function compareTopics(a: Topic, b: Topic, key: TopicSortKey): number {
+  const nullable = (s: string | null | undefined) => (s ?? "").toLowerCase();
+  switch (key) {
+    case "title":
+      return nullable(a.title).localeCompare(nullable(b.title));
+    case "pillar":
+      return nullable(a.pillar).localeCompare(nullable(b.pillar));
+    case "format":
+      return nullable(a.format).localeCompare(nullable(b.format));
+    case "platform":
+      return nullable(a.platform).localeCompare(nullable(b.platform));
+    case "products": {
+      const an = a.products?.[0]?.product.name ?? "";
+      const bn = b.products?.[0]?.product.name ?? "";
+      return an.toLowerCase().localeCompare(bn.toLowerCase());
+    }
+    case "status":
+      return (TOPIC_STATUS_ORDER[a.status] ?? 99) - (TOPIC_STATUS_ORDER[b.status] ?? 99);
+    case "publishDate": {
+      const at = a.publishDate ? new Date(a.publishDate).getTime() : Number.POSITIVE_INFINITY;
+      const bt = b.publishDate ? new Date(b.publishDate).getTime() : Number.POSITIVE_INFINITY;
+      return at - bt;
+    }
+    case "createdAt":
+      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+  }
+}
+
+interface TopicSortableHeaderProps {
+  label: string;
+  sortKeyValue: TopicSortKey;
+  active: TopicSortKey;
+  dir: SortDir;
+  onClick: (key: TopicSortKey) => void;
+  className?: string;
+}
+
+function TopicSortableHeader({
+  label,
+  sortKeyValue,
+  active,
+  dir,
+  onClick,
+  className,
+}: TopicSortableHeaderProps) {
+  const isActive = active === sortKeyValue;
+  return (
+    <th
+      scope="col"
+      aria-sort={isActive ? (dir === "asc" ? "ascending" : "descending") : "none"}
+      className={`text-left px-4 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-wide select-none ${className ?? ""}`}
+    >
+      <button
+        type="button"
+        onClick={() => onClick(sortKeyValue)}
+        className="inline-flex items-center gap-1 hover:text-gray-800 transition-colors"
+      >
+        <span>{label}</span>
+        {isActive ? (
+          dir === "asc" ? (
+            <ChevronUp size={12} />
+          ) : (
+            <ChevronDown size={12} />
+          )
+        ) : (
+          <ChevronUp size={12} className="opacity-25" />
+        )}
+      </button>
+    </th>
+  );
+}
+
 const BRAND_COLORS = [
   "bg-indigo-100 text-indigo-600",
   "bg-emerald-100 text-emerald-600",
@@ -215,6 +316,18 @@ export function TopicLibraryPage() {
   const [bulkActionRunning, setBulkActionRunning] = useState(false);
   const [viewingTopic, setViewingTopic] = useState<Topic | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("table");
+  const [sortKey, setSortKey] = useState<TopicSortKey>("createdAt");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+
+  function toggleSort(key: TopicSortKey) {
+    if (sortKey === key) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      // Dates default to newest-first; everything else defaults to A→Z.
+      setSortDir(key === "createdAt" || key === "publishDate" ? "desc" : "asc");
+    }
+  }
 
   const showToast = (message: string, type: "success" | "error" | "info") => {
     setToast({ message, type });
@@ -481,6 +594,12 @@ export function TopicLibraryPage() {
     if (topic.status === "approved") group.approvedCount++;
   }
 
+  // Sort each group's topics by the active sort key/direction.
+  const sign = sortDir === "asc" ? 1 : -1;
+  for (const group of brandGroups) {
+    group.topics.sort((a, b) => compareTopics(a, b, sortKey) * sign);
+  }
+
   // Stats
   const totalTopics = filteredTopics.length;
   const approvedCount = filteredTopics.filter((t) => t.status === "approved").length;
@@ -704,27 +823,63 @@ export function TopicLibraryPage() {
                               onClick={(e) => e.stopPropagation()}
                             />
                           </th>
-                          <th className="text-left px-5 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-wide">
-                            Title
-                          </th>
-                          <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-wide">
-                            Pillar
-                          </th>
-                          <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-wide">
-                            Format
-                          </th>
-                          <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-wide">
-                            Publish Date
-                          </th>
-                          <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-wide">
-                            Platform
-                          </th>
-                          <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-wide">
-                            Products
-                          </th>
-                          <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-wide">
-                            Status
-                          </th>
+                          <TopicSortableHeader
+                            label="Title"
+                            sortKeyValue="title"
+                            active={sortKey}
+                            dir={sortDir}
+                            onClick={toggleSort}
+                            className="px-5"
+                          />
+                          <TopicSortableHeader
+                            label="Pillar"
+                            sortKeyValue="pillar"
+                            active={sortKey}
+                            dir={sortDir}
+                            onClick={toggleSort}
+                          />
+                          <TopicSortableHeader
+                            label="Format"
+                            sortKeyValue="format"
+                            active={sortKey}
+                            dir={sortDir}
+                            onClick={toggleSort}
+                          />
+                          <TopicSortableHeader
+                            label="Publish Date"
+                            sortKeyValue="publishDate"
+                            active={sortKey}
+                            dir={sortDir}
+                            onClick={toggleSort}
+                          />
+                          <TopicSortableHeader
+                            label="Platform"
+                            sortKeyValue="platform"
+                            active={sortKey}
+                            dir={sortDir}
+                            onClick={toggleSort}
+                          />
+                          <TopicSortableHeader
+                            label="Products"
+                            sortKeyValue="products"
+                            active={sortKey}
+                            dir={sortDir}
+                            onClick={toggleSort}
+                          />
+                          <TopicSortableHeader
+                            label="Status"
+                            sortKeyValue="status"
+                            active={sortKey}
+                            dir={sortDir}
+                            onClick={toggleSort}
+                          />
+                          <TopicSortableHeader
+                            label="Created At"
+                            sortKeyValue="createdAt"
+                            active={sortKey}
+                            dir={sortDir}
+                            onClick={toggleSort}
+                          />
                           <th className="px-4 py-2.5" />
                         </tr>
                       </thead>
@@ -836,6 +991,16 @@ export function TopicLibraryPage() {
                                     {topic.status.replace(/_/g, " ")}
                                   </span>
                                 )}
+                              </td>
+
+                              {/* Created At */}
+                              <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
+                                <div className="flex flex-col leading-tight">
+                                  <span>{formatCreatedAt(topic.createdAt).date}</span>
+                                  <span className="text-xs text-gray-400">
+                                    {formatCreatedAt(topic.createdAt).time}
+                                  </span>
+                                </div>
                               </td>
 
                               {/* Actions */}
