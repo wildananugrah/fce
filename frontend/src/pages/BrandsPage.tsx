@@ -43,8 +43,29 @@ interface Brand {
   slug: string;
   category: string | null;
   websiteUrl: string | null;
+  language?: string;
   status: string;
   brainVersions?: BrainVersion[];
+}
+
+// Brand.language is the SSOT — the toggle on /brands/new stores short codes
+// ("indonesian" / "english"), but legacy rows may still carry the long label
+// ("Bahasa Indonesia" / "English"). Map both shapes to a display label, and
+// the inverse direction for save.
+function languageStorageToLabel(raw?: string | null): string {
+  if (!raw) return "English";
+  const v = raw.toLowerCase().trim();
+  if (v === "en" || v === "english") return "English";
+  if (v === "id" || v === "indonesian" || v === "bahasa indonesia") return "Bahasa Indonesia";
+  // Legacy rows may have stored the original label verbatim ("Malay", "Chinese", etc.).
+  return raw;
+}
+
+function languageLabelToStorage(label: string): string {
+  const v = label.trim().toLowerCase();
+  if (v === "english") return "english";
+  if (v === "bahasa indonesia") return "indonesian";
+  return label;
 }
 
 interface BrainVersion {
@@ -92,7 +113,7 @@ function brandToFormData(brand: Brand): BrandFormData {
     summary: vocab.summary ?? "",
     tone: brain?.tone ?? "",
     personality: brain?.personality ?? "",
-    contentLanguage: vocab.contentLanguage ?? "English",
+    contentLanguage: languageStorageToLabel(brand.language ?? vocab.contentLanguage),
     platforms: vocab.preferred ?? [],
     targetAudience: audienceText,
     brandValues: Array.isArray(brain?.values) ? brain.values : [],
@@ -236,6 +257,7 @@ export function BrandsPage() {
           name: draft.name.trim(),
           category: draft.industry.trim() || null,
           websiteUrl: draft.websiteUrl.trim() || null,
+          language: languageLabelToStorage(draft.contentLanguage),
         }),
       });
       await api(`/api/workspaces/${activeWorkspace.id}/brands/${brand.id}/brain-versions`, {
@@ -534,12 +556,16 @@ export function BrandsPage() {
             </>
           ) : (
             <ReadOnlySectionBody
-              empty={!brain?.personality && !brain?.tone && !vocab.contentLanguage && platforms.length === 0}
+              empty={!brain?.personality && !brain?.tone && !brand.language && !vocab.contentLanguage && platforms.length === 0}
               emptyLabel="No voice set"
             >
               <DefinitionRow label="Personality" value={brain?.personality} />
               <DefinitionRow label="Tone" value={brain?.tone} />
-              <DefinitionRow label="Language" value={vocab.contentLanguage} />
+              <DefinitionRow
+                label="Language"
+                value={languageStorageToLabel(brand.language ?? vocab.contentLanguage)}
+              />
+
               {platforms.length > 0 && (
                 <ChipList label="Platforms" items={platforms} />
               )}
