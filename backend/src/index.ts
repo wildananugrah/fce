@@ -764,7 +764,7 @@ async function main() {
 	);
 	workspaceScoped.route(
 		"/ai-settings",
-		createWorkspaceAiSettingsRoutes(workspaceSettingRepository, aiProviderFactory),
+		createWorkspaceAiSettingsRoutes(workspaceSettingRepository, aiProviderFactory, auditService),
 	);
 	workspaceScoped.route("/ai-logs", createAiLogRoutes(prisma));
 	workspaceScoped.route("/research", createResearchRoutes(researchService));
