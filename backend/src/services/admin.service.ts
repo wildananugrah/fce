@@ -184,7 +184,7 @@ export class AdminService implements IAdminService {
 	}
 
 	async setUserWorkspaceRole(
-		_actingUserId: string,
+		actingUserId: string,
 		userId: string,
 		workspaceId: string,
 		role: "admin" | "member",
@@ -192,23 +192,64 @@ export class AdminService implements IAdminService {
 		if (role !== WORKSPACE_ROLES.ADMIN && role !== WORKSPACE_ROLES.MEMBER) {
 			throw new Error(`Unknown role: ${role}`);
 		}
+		const before = await this.prisma.userWorkspaceRole.findUnique({
+			where: { userId_workspaceId: { userId, workspaceId } },
+		});
 		await this.prisma.userWorkspaceRole.upsert({
 			where: { userId_workspaceId: { userId, workspaceId } },
 			update: { role },
 			create: { userId, workspaceId, role },
 		});
+
+		if (before?.role === role) return; // no-op change, don't audit
+
+		const target = await this.prisma.user.findUnique({
+			where: { id: userId },
+			select: { email: true },
+		});
+
+		await this.audit.log({
+			workspaceId,
+			userId: actingUserId,
+			action: "workspace.member_role_change",
+			entityType: "workspace_member",
+			entityId: userId,
+			metadata: {
+				targetEmail: target?.email ?? null,
+				fromRole: before?.role ?? null,
+				toRole: role,
+			},
+		});
 	}
 
-	async removeUserFromWorkspace(_actingUserId: string, userId: string, workspaceId: string) {
+	async removeUserFromWorkspace(actingUserId: string, userId: string, workspaceId: string) {
+		const before = await this.prisma.userWorkspaceRole.findUnique({
+			where: { userId_workspaceId: { userId, workspaceId } },
+		});
 		await this.prisma.userWorkspaceRole
 			.delete({ where: { userId_workspaceId: { userId, workspaceId } } })
 			.catch(() => {
 				// Not a member — no-op
 			});
-		// Also remove any project memberships in that workspace so the user is
-		// fully detached.
 		await this.prisma.userProjectMembership.deleteMany({
 			where: { userId, project: { workspaceId } },
+		});
+
+		const target = await this.prisma.user.findUnique({
+			where: { id: userId },
+			select: { email: true },
+		});
+
+		await this.audit.log({
+			workspaceId,
+			userId: actingUserId,
+			action: "workspace.member_remove",
+			entityType: "workspace_member",
+			entityId: userId,
+			metadata: {
+				targetEmail: target?.email ?? null,
+				priorRole: before?.role ?? null,
+			},
 		});
 	}
 

@@ -294,4 +294,72 @@ describe("AdminService audit emits", () => {
 			metadata: { name: "Casual" },
 		});
 	});
+
+	it("emits workspace.member_role_change with from/to roles", async () => {
+		const { service: audit, spy } = createMockAudit();
+		const prisma = {
+			userWorkspaceRole: {
+				findUnique: async () => ({ role: "member" }),
+				upsert: async () => ({}),
+			},
+			user: { findUnique: async () => ({ email: "target@x.com" }) },
+		} as any;
+		const svc = new AdminService(prisma, audit, config);
+
+		await svc.setUserWorkspaceRole("admin-1", "target-user", "ws-1", "admin");
+
+		expect(spy.mock.calls[0][0]).toMatchObject({
+			workspaceId: "ws-1",
+			userId: "admin-1",
+			action: "workspace.member_role_change",
+			entityType: "workspace_member",
+			entityId: "target-user",
+			metadata: { targetEmail: "target@x.com", fromRole: "member", toRole: "admin" },
+		});
+	});
+
+	it("emits workspace.member_remove with priorRole when target was a member", async () => {
+		const { service: audit, spy } = createMockAudit();
+		const prisma = {
+			userWorkspaceRole: {
+				findUnique: async () => ({ role: "admin" }),
+				delete: async () => ({}),
+			},
+			userProjectMembership: { deleteMany: async () => ({ count: 0 }) },
+			user: { findUnique: async () => ({ email: "kicked@x.com" }) },
+		} as any;
+		const svc = new AdminService(prisma, audit, config);
+
+		await svc.removeUserFromWorkspace("admin-1", "target-user", "ws-1");
+
+		expect(spy.mock.calls[0][0]).toMatchObject({
+			workspaceId: "ws-1",
+			action: "workspace.member_remove",
+			entityType: "workspace_member",
+			entityId: "target-user",
+			metadata: { targetEmail: "kicked@x.com", priorRole: "admin" },
+		});
+	});
+
+	it("emits workspace.member_remove even if target had no prior role (priorRole: null)", async () => {
+		const { service: audit, spy } = createMockAudit();
+		const prisma = {
+			userWorkspaceRole: {
+				findUnique: async () => null,
+				delete: async () => {
+					throw new Error("not a member");
+				},
+			},
+			userProjectMembership: { deleteMany: async () => ({ count: 0 }) },
+			user: { findUnique: async () => ({ email: "kicked@x.com" }) },
+		} as any;
+		const svc = new AdminService(prisma, audit, config);
+
+		await svc.removeUserFromWorkspace("admin-1", "target-user", "ws-1");
+
+		expect(spy.mock.calls[0][0].metadata).toMatchObject({
+			targetEmail: "kicked@x.com",
+			priorRole: null,
+		});
+	});
 });
