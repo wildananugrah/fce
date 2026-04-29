@@ -316,16 +316,20 @@ export function BrandsPage() {
           </div>
           <div className="flex items-center justify-center gap-2 mb-2">
             <h1 className="text-2xl font-semibold text-gray-900">
-              Set up this project's brand
+              {activeProject ? "Set up this project's brand" : "Pick a project first"}
             </h1>
             <HelpButton pageKey="brands" />
           </div>
           <p className="text-sm text-gray-500 mb-6 max-w-md mx-auto">
-            Your brand brain powers every generated topic and post.{" "}
-            <span className="text-gray-700">{activeProject?.name ?? "This project"}</span>{" "}
-            doesn't have a brand yet — create one to get started.
+            {activeProject
+              ? <>Your brand brain powers every generated topic and post. <span className="text-gray-700">{activeProject.name}</span> doesn't have a brand yet — create one to get started.</>
+              : "Pick a project from the sidebar (or create a new one) to add a brand."}
           </p>
-          <Button onClick={() => navigate("/brands/new")}>
+          <Button
+            onClick={() => navigate("/brands/new")}
+            disabled={!activeProject}
+            title={!activeProject ? "Select or create a project from the sidebar first" : undefined}
+          >
             <Sparkles size={14} className="mr-1.5" />
             Create Brand
           </Button>
