@@ -222,23 +222,83 @@ export class AdminService implements IAdminService {
 	}
 
 	async createTaxonomyItem(
-		_actingUserId: string,
-		type: string,
+		actingUserId: string,
+		type: "framework" | "hookType" | "tonePreset" | "visualStyle",
 		data: { name: string; description?: string },
 	) {
 		const model = this.getModel(type);
-		return (model as any).create({ data });
+		const item = await (model as any).create({ data });
+		await this.audit.log({
+			workspaceId: null,
+			userId: actingUserId,
+			action: "taxonomy.create",
+			entityType: AdminService.TAXONOMY_ENTITY_TYPE[type],
+			entityId: item.id,
+			metadata: { name: data.name, description: data.description ?? null },
+		});
+		return item;
 	}
 
-	async updateTaxonomyItem(_actingUserId: string, type: string, id: string, data: any) {
+	async updateTaxonomyItem(
+		actingUserId: string,
+		type: "framework" | "hookType" | "tonePreset" | "visualStyle",
+		id: string,
+		data: { name?: string; description?: string },
+	) {
 		const model = this.getModel(type);
-		return (model as any).update({ where: { id }, data });
+		const before = await (model as any).findUnique({ where: { id } });
+		const item = await (model as any).update({ where: { id }, data });
+
+		const changes: Record<string, { from: unknown; to: unknown }> = {};
+		if (before) {
+			if (typeof data.name === "string" && data.name !== before.name) {
+				changes.name = { from: before.name, to: data.name };
+			}
+			if (typeof data.description === "string" && data.description !== before.description) {
+				changes.description = { from: before.description, to: data.description };
+			}
+		}
+
+		if (Object.keys(changes).length > 0) {
+			await this.audit.log({
+				workspaceId: null,
+				userId: actingUserId,
+				action: "taxonomy.update",
+				entityType: AdminService.TAXONOMY_ENTITY_TYPE[type],
+				entityId: id,
+				metadata: { name: before?.name ?? null, changes },
+			});
+		}
+		return item;
 	}
 
-	async deleteTaxonomyItem(_actingUserId: string, type: string, id: string) {
+	async deleteTaxonomyItem(
+		actingUserId: string,
+		type: "framework" | "hookType" | "tonePreset" | "visualStyle",
+		id: string,
+	) {
 		const model = this.getModel(type);
+		const before = await (model as any).findUnique({ where: { id } });
 		await (model as any).delete({ where: { id } });
+		await this.audit.log({
+			workspaceId: null,
+			userId: actingUserId,
+			action: "taxonomy.delete",
+			entityType: AdminService.TAXONOMY_ENTITY_TYPE[type],
+			entityId: id,
+			metadata: { name: before?.name ?? null },
+		});
 	}
+
+	// Maps the camelCase taxonomy keys used internally to the snake_case
+	// entityType strings stored in audit_logs (so the values are stable,
+	// log-readable strings).
+	private static readonly TAXONOMY_ENTITY_TYPE: Record<string, string> = {
+		framework: "framework",
+		hookType: "hook_type",
+		tonePreset: "tone_preset",
+		visualStyle: "visual_style",
+	};
 
 	private getModel(type: string) {
 		switch (type) {
