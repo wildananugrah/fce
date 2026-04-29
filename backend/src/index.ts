@@ -97,6 +97,7 @@ import {
 import { createWorkspaceRoutes } from "./routes/workspace.route";
 import { AdminService } from "./services/admin.service";
 import { AiProviderFactory } from "./services/ai-provider-factory.service";
+import { AuditService } from "./services/audit.service";
 import { AnalysisConfigService } from "./services/analysis-config.service";
 import { AuthService } from "./services/auth.service";
 import { ChatService } from "./services/chat.service";
@@ -238,11 +239,13 @@ async function main() {
 		logger.info("Email provider: noop (EMAIL_PROVIDER unset or 'noop')");
 		return new NoopEmailProvider(logger);
 	})();
+	const auditService = new AuditService(prisma, logger);
 	const workspaceService = new WorkspaceService(
 		workspaceRepository,
 		emailProvider,
 		userRepository,
 		{ appUrl: env.appUrl, tokenExpiry: env.invitationTokenExpiry },
+		auditService,
 	);
 	const authService = new AuthService(
 		userRepository,
@@ -293,7 +296,7 @@ async function main() {
 		boss,
 		env.minioBucket,
 	);
-	const adminService = new AdminService(prisma, {
+	const adminService = new AdminService(prisma, auditService, {
 		userDefaultMaxWorkspaces: env.userDefaultMaxWorkspaces,
 		userDefaultMaxProjects: env.userDefaultMaxProjects,
 	});
@@ -754,14 +757,14 @@ async function main() {
 	workspaceScoped.route("/dashboard", createDashboardRoutes(dashboardService));
 	workspaceScoped.route("/documents", createDocumentRoutes(documentService));
 	workspaceScoped.route("/recommendations", createRecommendationRoutes(recommendationService));
-	workspaceScoped.route("/projects", createProjectRoutes(prisma));
+	workspaceScoped.route("/projects", createProjectRoutes(prisma, auditService));
 	workspaceScoped.route(
 		"/onboarding-progress",
 		createOnboardingProgressRoutes(onboardingService),
 	);
 	workspaceScoped.route(
 		"/ai-settings",
-		createWorkspaceAiSettingsRoutes(workspaceSettingRepository, aiProviderFactory),
+		createWorkspaceAiSettingsRoutes(workspaceSettingRepository, aiProviderFactory, auditService),
 	);
 	workspaceScoped.route("/ai-logs", createAiLogRoutes(prisma));
 	workspaceScoped.route("/research", createResearchRoutes(researchService));
@@ -779,12 +782,14 @@ async function main() {
 	workspaceScoped.route(
 		"/trash",
 		createTrashRoutes(
+			prisma,
 			trashService,
 			brandService,
 			productService,
 			topicService,
 			libraryService,
 			generationService,
+			auditService,
 		),
 	);
 	app.route("/api/workspaces/:workspaceId", workspaceScoped);

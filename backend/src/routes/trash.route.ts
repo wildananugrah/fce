@@ -1,4 +1,6 @@
+import type { PrismaClient } from "@prisma/client";
 import { Hono } from "hono";
+import type { IAuditService } from "../interfaces/services/audit.service.interface";
 import type { IBrandService } from "../interfaces/services/brand.service.interface";
 import type { IGenerationService } from "../interfaces/services/generation.service.interface";
 import type { ILibraryService } from "../interfaces/services/library.service.interface";
@@ -25,12 +27,14 @@ type Variables = {
  * the whole trash UI with two generic endpoints.
  */
 export function createTrashRoutes(
+	prisma: PrismaClient,
 	trashService: TrashService,
 	brandService: IBrandService,
 	productService: IProductService,
 	topicService: ITopicService,
 	libraryService: ILibraryService,
 	generationService: IGenerationService,
+	auditService: IAuditService,
 ) {
 	const app = new Hono<{ Variables: Variables }>();
 
@@ -76,22 +80,68 @@ export function createTrashRoutes(
 		const type = c.req.param("type");
 		const id = c.req.param("id");
 		try {
+			// Capture identifying info BEFORE the row is gone, so the audit
+			// metadata reflects what was deleted.
+			let name: string | null = null;
+			const parentMeta: Record<string, unknown> = {};
+
 			switch (type) {
-				case "brand":
+				case "brand": {
+					const row = await prisma.brand.findUnique({
+						where: { id },
+						select: { name: true },
+					});
+					name = row?.name ?? null;
 					await brandService.permanentDelete(id);
 					break;
-				case "product":
+				}
+				case "product": {
+					const row = await prisma.product.findUnique({
+						where: { id },
+						select: { name: true, brandId: true },
+					});
+					name = row?.name ?? null;
+					if (row?.brandId) parentMeta.brandId = row.brandId;
 					await productService.permanentDelete(workspaceId, id);
 					break;
-				case "topic":
+				}
+				case "topic": {
+					const row = await prisma.contentTopic.findUnique({
+						where: { id },
+						select: { title: true, brandId: true },
+					});
+					name = row?.title ?? null;
+					if (row?.brandId) parentMeta.brandId = row.brandId;
 					await topicService.permanentDeleteMany(workspaceId, [id]);
 					break;
-				case "content":
+				}
+				case "content": {
+					// GenerationOutput has no direct topic FK — it lives on the
+					// parent GenerationRequest. Pull it via the relation so the
+					// audit row still records the lineage.
+					const row = await prisma.generationOutput.findUnique({
+						where: { id },
+						select: { request: { select: { contentTopicId: true } } },
+					});
+					// content rows don't have a user-facing name field
+					if (row?.request?.contentTopicId)
+						parentMeta.contentTopicId = row.request.contentTopicId;
 					await libraryService.permanentDeleteMany(workspaceId, [id]);
 					break;
+				}
 				default:
 					return c.json({ error: `Unknown trash type: ${type}` }, 400);
 			}
+
+			await auditService.log({
+				workspaceId,
+				userId: c.get("userId"),
+				action: "trash.permanent_delete",
+				entityType: type,
+				entityId: id,
+				metadata: { name, ...parentMeta },
+			});
+
 			return c.json({ data: { success: true } });
 		} catch (e) {
 			return c.json({ error: e instanceof Error ? e.message : "Delete failed" }, 400);

@@ -1,5 +1,6 @@
 import type { PrismaClient } from "@prisma/client";
 import type { IAdminService } from "../interfaces/services/admin.service.interface";
+import type { IAuditService } from "../interfaces/services/audit.service.interface";
 import { WORKSPACE_ROLES } from "../constants/roles";
 import { hashPassword } from "../utils/password";
 
@@ -11,6 +12,7 @@ interface AdminConfig {
 export class AdminService implements IAdminService {
 	constructor(
 		private prisma: PrismaClient,
+		private audit: IAuditService,
 		private config: AdminConfig,
 	) {}
 
@@ -28,12 +30,15 @@ export class AdminService implements IAdminService {
 		});
 	}
 
-	async createUser(input: {
-		email: string;
-		password: string;
-		fullName?: string;
-		isSuperadmin?: boolean;
-	}) {
+	async createUser(
+		actingUserId: string,
+		input: {
+			email: string;
+			password: string;
+			fullName?: string;
+			isSuperadmin?: boolean;
+		},
+	) {
 		const email = input.email.trim().toLowerCase();
 		if (!email) throw new Error("Email is required");
 		if (!input.password || input.password.length < 8) {
@@ -42,7 +47,7 @@ export class AdminService implements IAdminService {
 		const existing = await this.prisma.user.findUnique({ where: { email } });
 		if (existing) throw new Error("Email already registered");
 		const passwordHash = await hashPassword(input.password);
-		return this.prisma.user.create({
+		const user = await this.prisma.user.create({
 			data: {
 				email,
 				passwordHash,
@@ -53,9 +58,31 @@ export class AdminService implements IAdminService {
 			},
 			select: { id: true, email: true, fullName: true, status: true, isSuperadmin: true, createdAt: true },
 		});
+		await this.audit.log({
+			workspaceId: null,
+			userId: actingUserId,
+			action: "user.create",
+			entityType: "user",
+			entityId: user.id,
+			metadata: {
+				email: user.email,
+				fullName: user.fullName,
+				isSuperadmin: user.isSuperadmin,
+			},
+		});
+		return user;
 	}
 
-	async updateUser(userId: string, data: any) {
+	async updateUser(
+		actingUserId: string,
+		userId: string,
+		data: { fullName?: string | null; status?: string; isSuperadmin?: boolean; email?: string },
+	) {
+		const before = await this.prisma.user.findUnique({
+			where: { id: userId },
+			select: { email: true, status: true, isSuperadmin: true },
+		});
+
 		const patch: Record<string, unknown> = {};
 		if (typeof data.fullName === "string" || data.fullName === null) patch.fullName = data.fullName;
 		if (typeof data.status === "string") patch.status = data.status;
@@ -63,23 +90,83 @@ export class AdminService implements IAdminService {
 		if (typeof data.email === "string" && data.email.trim()) {
 			patch.email = data.email.trim().toLowerCase();
 		}
-		return this.prisma.user.update({
+
+		const updated = await this.prisma.user.update({
 			where: { id: userId },
 			data: patch,
 			select: { id: true, email: true, fullName: true, status: true, isSuperadmin: true },
 		});
+
+		if (before) {
+			// Build the audit-worthy diff. fullName changes are intentionally not audited.
+			const changes: Record<string, { from: unknown; to: unknown }> = {};
+			if (typeof patch.email === "string" && patch.email !== before.email) {
+				changes.email = { from: before.email, to: patch.email };
+			}
+			if (typeof patch.status === "string" && patch.status !== before.status) {
+				changes.status = { from: before.status, to: patch.status };
+			}
+
+			if (Object.keys(changes).length > 0) {
+				await this.audit.log({
+					workspaceId: null,
+					userId: actingUserId,
+					action: "user.update",
+					entityType: "user",
+					entityId: userId,
+					metadata: { targetEmail: before.email, changes },
+				});
+			}
+
+			if (typeof patch.isSuperadmin === "boolean" && patch.isSuperadmin !== before.isSuperadmin) {
+				await this.audit.log({
+					workspaceId: null,
+					userId: actingUserId,
+					action: patch.isSuperadmin ? "user.superadmin_grant" : "user.superadmin_revoke",
+					entityType: "user",
+					entityId: userId,
+					metadata: { targetEmail: before.email },
+				});
+			}
+		}
+
+		return updated;
 	}
 
-	async deleteUser(userId: string) {
+	async deleteUser(actingUserId: string, userId: string) {
+		const target = await this.prisma.user.findUnique({
+			where: { id: userId },
+			select: { email: true, fullName: true },
+		});
 		await this.prisma.user.delete({ where: { id: userId } });
+		await this.audit.log({
+			workspaceId: null,
+			userId: actingUserId,
+			action: "user.delete",
+			entityType: "user",
+			entityId: userId,
+			metadata: target ? { email: target.email, fullName: target.fullName } : {},
+		});
 	}
 
-	async resetPassword(userId: string, newPassword: string) {
+	async resetPassword(actingUserId: string, userId: string, newPassword: string) {
 		if (!newPassword || newPassword.length < 8) {
 			throw new Error("Password must be at least 8 characters");
 		}
+		const target = await this.prisma.user.findUnique({
+			where: { id: userId },
+			select: { email: true },
+		});
 		const passwordHash = await hashPassword(newPassword);
 		await this.prisma.user.update({ where: { id: userId }, data: { passwordHash } });
+		await this.audit.log({
+			workspaceId: null,
+			userId: actingUserId,
+			action: "user.password_reset",
+			entityType: "user",
+			entityId: userId,
+			metadata: { targetEmail: target?.email ?? null },
+		});
 	}
 
 	async listUserWorkspaces(userId: string) {
@@ -97,6 +184,7 @@ export class AdminService implements IAdminService {
 	}
 
 	async setUserWorkspaceRole(
+		actingUserId: string,
 		userId: string,
 		workspaceId: string,
 		role: "admin" | "member",
@@ -104,23 +192,64 @@ export class AdminService implements IAdminService {
 		if (role !== WORKSPACE_ROLES.ADMIN && role !== WORKSPACE_ROLES.MEMBER) {
 			throw new Error(`Unknown role: ${role}`);
 		}
+		const before = await this.prisma.userWorkspaceRole.findUnique({
+			where: { userId_workspaceId: { userId, workspaceId } },
+		});
 		await this.prisma.userWorkspaceRole.upsert({
 			where: { userId_workspaceId: { userId, workspaceId } },
 			update: { role },
 			create: { userId, workspaceId, role },
 		});
+
+		if (before?.role === role) return; // no-op change, don't audit
+
+		const target = await this.prisma.user.findUnique({
+			where: { id: userId },
+			select: { email: true },
+		});
+
+		await this.audit.log({
+			workspaceId,
+			userId: actingUserId,
+			action: "workspace.member_role_change",
+			entityType: "workspace_member",
+			entityId: userId,
+			metadata: {
+				targetEmail: target?.email ?? null,
+				fromRole: before?.role ?? null,
+				toRole: role,
+			},
+		});
 	}
 
-	async removeUserFromWorkspace(userId: string, workspaceId: string) {
+	async removeUserFromWorkspace(actingUserId: string, userId: string, workspaceId: string) {
+		const before = await this.prisma.userWorkspaceRole.findUnique({
+			where: { userId_workspaceId: { userId, workspaceId } },
+		});
 		await this.prisma.userWorkspaceRole
 			.delete({ where: { userId_workspaceId: { userId, workspaceId } } })
 			.catch(() => {
 				// Not a member — no-op
 			});
-		// Also remove any project memberships in that workspace so the user is
-		// fully detached.
 		await this.prisma.userProjectMembership.deleteMany({
 			where: { userId, project: { workspaceId } },
+		});
+
+		const target = await this.prisma.user.findUnique({
+			where: { id: userId },
+			select: { email: true },
+		});
+
+		await this.audit.log({
+			workspaceId,
+			userId: actingUserId,
+			action: "workspace.member_remove",
+			entityType: "workspace_member",
+			entityId: userId,
+			metadata: {
+				targetEmail: target?.email ?? null,
+				priorRole: before?.role ?? null,
+			},
 		});
 	}
 
@@ -133,20 +262,84 @@ export class AdminService implements IAdminService {
 		});
 	}
 
-	async createTaxonomyItem(type: string, data: { name: string; description?: string }) {
+	async createTaxonomyItem(
+		actingUserId: string,
+		type: "framework" | "hookType" | "tonePreset" | "visualStyle",
+		data: { name: string; description?: string },
+	) {
 		const model = this.getModel(type);
-		return (model as any).create({ data });
+		const item = await (model as any).create({ data });
+		await this.audit.log({
+			workspaceId: null,
+			userId: actingUserId,
+			action: "taxonomy.create",
+			entityType: AdminService.TAXONOMY_ENTITY_TYPE[type],
+			entityId: item.id,
+			metadata: { name: data.name, description: data.description ?? null },
+		});
+		return item;
 	}
 
-	async updateTaxonomyItem(type: string, id: string, data: any) {
+	async updateTaxonomyItem(
+		actingUserId: string,
+		type: "framework" | "hookType" | "tonePreset" | "visualStyle",
+		id: string,
+		data: { name?: string; description?: string },
+	) {
 		const model = this.getModel(type);
-		return (model as any).update({ where: { id }, data });
+		const before = await (model as any).findUnique({ where: { id } });
+		const item = await (model as any).update({ where: { id }, data });
+
+		const changes: Record<string, { from: unknown; to: unknown }> = {};
+		if (before) {
+			if (typeof data.name === "string" && data.name !== before.name) {
+				changes.name = { from: before.name, to: data.name };
+			}
+			if (typeof data.description === "string" && data.description !== before.description) {
+				changes.description = { from: before.description, to: data.description };
+			}
+		}
+
+		if (Object.keys(changes).length > 0) {
+			await this.audit.log({
+				workspaceId: null,
+				userId: actingUserId,
+				action: "taxonomy.update",
+				entityType: AdminService.TAXONOMY_ENTITY_TYPE[type],
+				entityId: id,
+				metadata: { name: before?.name ?? null, changes },
+			});
+		}
+		return item;
 	}
 
-	async deleteTaxonomyItem(type: string, id: string) {
+	async deleteTaxonomyItem(
+		actingUserId: string,
+		type: "framework" | "hookType" | "tonePreset" | "visualStyle",
+		id: string,
+	) {
 		const model = this.getModel(type);
+		const before = await (model as any).findUnique({ where: { id } });
 		await (model as any).delete({ where: { id } });
+		await this.audit.log({
+			workspaceId: null,
+			userId: actingUserId,
+			action: "taxonomy.delete",
+			entityType: AdminService.TAXONOMY_ENTITY_TYPE[type],
+			entityId: id,
+			metadata: { name: before?.name ?? null },
+		});
 	}
+
+	// Maps the camelCase taxonomy keys used internally to the snake_case
+	// entityType strings stored in audit_logs (so the values are stable,
+	// log-readable strings).
+	private static readonly TAXONOMY_ENTITY_TYPE: Record<string, string> = {
+		framework: "framework",
+		hookType: "hook_type",
+		tonePreset: "tone_preset",
+		visualStyle: "visual_style",
+	};
 
 	private getModel(type: string) {
 		switch (type) {

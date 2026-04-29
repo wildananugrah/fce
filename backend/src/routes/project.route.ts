@@ -9,6 +9,7 @@ import {
 	type MenuKey,
 } from "../constants/roles";
 import { QuotaExceededError } from "../errors/quota-exceeded-error";
+import type { IAuditService } from "../interfaces/services/audit.service.interface";
 import { requireWorkspaceAdmin } from "../middlewares/rbac.middleware";
 
 type Variables = {
@@ -33,7 +34,7 @@ function slugify(name: string): string {
 		.slice(0, 60);
 }
 
-export function createProjectRoutes(prisma: PrismaClient) {
+export function createProjectRoutes(prisma: PrismaClient, auditService: IAuditService) {
 	const app = new Hono<{ Variables: Variables }>();
 
 	// GET / — list projects. Members see the projects they belong to; workspace
@@ -140,6 +141,14 @@ export function createProjectRoutes(prisma: PrismaClient) {
 		const project = await prisma.project.create({
 			data: { workspaceId, name, slug, description, createdById: userId },
 		});
+		await auditService.log({
+			workspaceId,
+			userId,
+			action: "project.create",
+			entityType: "project",
+			entityId: project.id,
+			metadata: { name: project.name, slug: project.slug },
+		});
 		return c.json({ data: project }, 201);
 	});
 
@@ -169,10 +178,11 @@ export function createProjectRoutes(prisma: PrismaClient) {
 	// PATCH /:projectId — rename or describe (admin only).
 	app.patch("/:projectId", requireWorkspaceAdmin(), async (c) => {
 		const workspaceId = c.get("workspaceId");
+		const userId = c.get("userId");
 		const projectId = c.req.param("projectId");
 		const existing = await prisma.project.findUnique({
 			where: { id: projectId },
-			select: { workspaceId: true },
+			select: { workspaceId: true, name: true, description: true },
 		});
 		if (!existing || existing.workspaceId !== workspaceId) {
 			return c.json({ error: "Project not found" }, 404);
@@ -187,16 +197,36 @@ export function createProjectRoutes(prisma: PrismaClient) {
 		if (Object.keys(data).length === 0) return c.json({ error: "No valid fields to update" }, 400);
 
 		const project = await prisma.project.update({ where: { id: projectId }, data });
+
+		const changes: Record<string, { from: unknown; to: unknown }> = {};
+		if (typeof data.name === "string" && data.name !== existing.name) {
+			changes.name = { from: existing.name, to: data.name };
+		}
+		if ("description" in data && data.description !== existing.description) {
+			changes.description = { from: existing.description, to: data.description };
+		}
+
+		if (Object.keys(changes).length > 0) {
+			await auditService.log({
+				workspaceId,
+				userId,
+				action: "project.update",
+				entityType: "project",
+				entityId: projectId,
+				metadata: { name: existing.name, changes },
+			});
+		}
 		return c.json({ data: project });
 	});
 
 	// DELETE /:projectId — archive (soft delete) to preserve historical brand links.
 	app.delete("/:projectId", requireWorkspaceAdmin(), async (c) => {
 		const workspaceId = c.get("workspaceId");
+		const userId = c.get("userId");
 		const projectId = c.req.param("projectId");
 		const existing = await prisma.project.findUnique({
 			where: { id: projectId },
-			select: { workspaceId: true, slug: true },
+			select: { workspaceId: true, slug: true, name: true },
 		});
 		if (!existing || existing.workspaceId !== workspaceId) {
 			return c.json({ error: "Project not found" }, 404);
@@ -207,6 +237,14 @@ export function createProjectRoutes(prisma: PrismaClient) {
 		await prisma.project.update({
 			where: { id: projectId },
 			data: { archivedAt: new Date() },
+		});
+		await auditService.log({
+			workspaceId,
+			userId,
+			action: "project.archive",
+			entityType: "project",
+			entityId: projectId,
+			metadata: { name: existing.name },
 		});
 		return c.body(null, 204);
 	});
@@ -248,10 +286,11 @@ export function createProjectRoutes(prisma: PrismaClient) {
 	// Body: { userId: string, isApprover?: boolean, menuAccess?: MenuKey[] }
 	app.post("/:projectId/members", requireWorkspaceAdmin(), async (c) => {
 		const workspaceId = c.get("workspaceId");
+		const actorUserId = c.get("userId");
 		const projectId = c.req.param("projectId");
 		const project = await prisma.project.findUnique({
 			where: { id: projectId },
-			select: { workspaceId: true },
+			select: { workspaceId: true, name: true },
 		});
 		if (!project || project.workspaceId !== workspaceId) {
 			return c.json({ error: "Project not found" }, 404);
@@ -267,7 +306,10 @@ export function createProjectRoutes(prisma: PrismaClient) {
 
 		// User must already exist AND be a member of this workspace somehow
 		// (either UserWorkspaceRole row or another project membership).
-		const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+		const user = await prisma.user.findUnique({
+			where: { id: userId },
+			select: { id: true, email: true },
+		});
 		if (!user) return c.json({ error: "User not found" }, 404);
 
 		const workspaceRow = await prisma.userWorkspaceRole.findUnique({
@@ -298,17 +340,33 @@ export function createProjectRoutes(prisma: PrismaClient) {
 			},
 		});
 
+		await auditService.log({
+			workspaceId,
+			userId: actorUserId,
+			action: "project.member_add",
+			entityType: "project_member",
+			entityId: userId,
+			metadata: {
+				projectId,
+				projectName: project.name,
+				targetEmail: user.email,
+				isApprover: membership.isApprover,
+				menuAccess,
+			},
+		});
+
 		return c.json({ data: { ...membership, menuAccess } }, 201);
 	});
 
 	// PATCH /:projectId/members/:userId — update isApprover and/or menuAccess.
 	app.patch("/:projectId/members/:userId", requireWorkspaceAdmin(), async (c) => {
 		const workspaceId = c.get("workspaceId");
+		const actorUserId = c.get("userId");
 		const projectId = c.req.param("projectId");
 		const userId = c.req.param("userId");
 		const project = await prisma.project.findUnique({
 			where: { id: projectId },
-			select: { workspaceId: true },
+			select: { workspaceId: true, name: true },
 		});
 		if (!project || project.workspaceId !== workspaceId) {
 			return c.json({ error: "Project not found" }, 404);
@@ -324,13 +382,57 @@ export function createProjectRoutes(prisma: PrismaClient) {
 			return c.json({ error: "No valid fields to update" }, 400);
 		}
 
+		const before = await prisma.userProjectMembership.findUnique({
+			where: { userId_projectId: { userId, projectId } },
+			select: { isApprover: true, menuAccess: true },
+		});
+
 		try {
 			const membership = await prisma.userProjectMembership.update({
 				where: { userId_projectId: { userId, projectId } },
 				data: patch,
 			});
+
+			const beforeMenuAccess = before ? sanitizeMenuAccess(before.menuAccess) : [];
+			const afterMenuAccess = sanitizeMenuAccess(membership.menuAccess);
+			const changes: Record<string, { from: unknown; to: unknown }> = {};
+			if (
+				before &&
+				typeof patch.isApprover === "boolean" &&
+				patch.isApprover !== before.isApprover
+			) {
+				changes.isApprover = { from: before.isApprover, to: patch.isApprover };
+			}
+			if (
+				before &&
+				patch.menuAccess !== undefined &&
+				JSON.stringify(afterMenuAccess) !== JSON.stringify(beforeMenuAccess)
+			) {
+				changes.menuAccess = { from: beforeMenuAccess, to: afterMenuAccess };
+			}
+
+			if (Object.keys(changes).length > 0) {
+				const target = await prisma.user.findUnique({
+					where: { id: userId },
+					select: { email: true },
+				});
+				await auditService.log({
+					workspaceId,
+					userId: actorUserId,
+					action: "project.member_update",
+					entityType: "project_member",
+					entityId: userId,
+					metadata: {
+						projectId,
+						projectName: project.name,
+						targetEmail: target?.email ?? null,
+						changes,
+					},
+				});
+			}
+
 			return c.json({
-				data: { ...membership, menuAccess: sanitizeMenuAccess(membership.menuAccess) },
+				data: { ...membership, menuAccess: afterMenuAccess },
 			});
 		} catch {
 			return c.json({ error: "Membership not found" }, 404);
@@ -340,18 +442,35 @@ export function createProjectRoutes(prisma: PrismaClient) {
 	// DELETE /:projectId/members/:userId — remove a member.
 	app.delete("/:projectId/members/:userId", requireWorkspaceAdmin(), async (c) => {
 		const workspaceId = c.get("workspaceId");
+		const actorUserId = c.get("userId");
 		const projectId = c.req.param("projectId");
 		const userId = c.req.param("userId");
 		const project = await prisma.project.findUnique({
 			where: { id: projectId },
-			select: { workspaceId: true },
+			select: { workspaceId: true, name: true },
 		});
 		if (!project || project.workspaceId !== workspaceId) {
 			return c.json({ error: "Project not found" }, 404);
 		}
+		const target = await prisma.user.findUnique({
+			where: { id: userId },
+			select: { email: true },
+		});
 		try {
 			await prisma.userProjectMembership.delete({
 				where: { userId_projectId: { userId, projectId } },
+			});
+			await auditService.log({
+				workspaceId,
+				userId: actorUserId,
+				action: "project.member_remove",
+				entityType: "project_member",
+				entityId: userId,
+				metadata: {
+					projectId,
+					projectName: project.name,
+					targetEmail: target?.email ?? null,
+				},
 			});
 			return c.body(null, 204);
 		} catch {

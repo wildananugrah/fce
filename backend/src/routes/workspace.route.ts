@@ -119,7 +119,11 @@ export function createWorkspaceRoutes(workspaceService: IWorkspaceService) {
 			await workspaceService.acceptInvitation(c.req.param("invId"), userId, userEmail);
 			return c.json({ data: { status: "accepted" } });
 		}
-		const invitation = await workspaceService.updateInvitation(c.req.param("invId"), body);
+		const invitation = await workspaceService.updateInvitation(
+			c.get("userId"),
+			c.req.param("invId"),
+			body,
+		);
 		return c.json({ data: invitation });
 	});
 
@@ -140,7 +144,7 @@ export function createWorkspaceRoutes(workspaceService: IWorkspaceService) {
 		if (role !== "admin") {
 			return c.json({ error: "Admin access required" }, 403);
 		}
-		await workspaceService.removeMember(workspaceId, c.req.param("memberId"));
+		await workspaceService.removeMember(c.get("userId"), workspaceId, c.req.param("memberId"));
 		return c.json({ data: { success: true } });
 	});
 

@@ -23,8 +23,12 @@ export interface IWorkspaceService {
 		input: InviteMemberInput,
 	): Promise<WorkspaceInvitation>;
 	acceptInvitation(invitationId: string, userId: string, userEmail: string): Promise<void>;
-	updateInvitation(invitationId: string, data: { status: string }): Promise<WorkspaceInvitation>;
-	removeMember(workspaceId: string, userId: string): Promise<void>;
+	updateInvitation(
+		actingUserId: string,
+		invitationId: string,
+		data: { status: string },
+	): Promise<WorkspaceInvitation>;
+	removeMember(actingUserId: string, workspaceId: string, userId: string): Promise<void>;
 
 	listInvitations(workspaceId: string): Promise<WorkspaceInvitation[]>;
 	getInvitationByToken(token: string): Promise<{

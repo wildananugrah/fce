@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import type { IAuditService } from "../interfaces/services/audit.service.interface";
 import type { AiProviderFactory } from "../services/ai-provider-factory.service";
 import type { AiSettingsPatch, WorkspaceSettingRepository } from "../repositories/workspace-setting.repository";
 
@@ -40,6 +41,7 @@ function sanitizeString(value: unknown): string | null | undefined {
 export function createWorkspaceAiSettingsRoutes(
 	settingRepo: WorkspaceSettingRepository,
 	aiFactory: AiProviderFactory,
+	auditService: IAuditService,
 ) {
 	const app = new Hono<{ Variables: Variables }>();
 
@@ -115,6 +117,17 @@ export function createWorkspaceAiSettingsRoutes(
 		// Evict cache so the next provider request sees the new values without
 		// requiring a backend restart.
 		aiFactory.invalidate(workspaceId);
+
+		// Audit: record only the field NAMES that changed. API keys and other
+		// secret values must never enter audit metadata.
+		await auditService.log({
+			workspaceId,
+			userId: c.get("userId"),
+			action: "workspace.ai_settings_update",
+			entityType: "workspace_ai_settings",
+			entityId: workspaceId,
+			metadata: { changedFields: Object.keys(patch) },
+		});
 
 		return c.json({ data: { updated: true } });
 	});

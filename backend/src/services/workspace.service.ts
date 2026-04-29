@@ -3,6 +3,7 @@ import { QuotaExceededError } from "../errors/quota-exceeded-error";
 import type { IEmailProvider } from "../interfaces/providers/email.provider.interface";
 import type { IUserRepository } from "../interfaces/repositories/user.repository.interface";
 import type { IWorkspaceRepository } from "../interfaces/repositories/workspace.repository.interface";
+import type { IAuditService } from "../interfaces/services/audit.service.interface";
 import type { IWorkspaceService } from "../interfaces/services/workspace.service.interface";
 import type {
 	CreateWorkspaceInput,
@@ -23,6 +24,7 @@ export class WorkspaceService implements IWorkspaceService {
 		private emailProvider: IEmailProvider,
 		private userRepository: IUserRepository,
 		private invitationConfig: InvitationConfig,
+		private audit: IAuditService,
 	) {}
 
 	async listByUser(userId: string): Promise<WorkspaceSummary[]> {
@@ -172,6 +174,22 @@ export class WorkspaceService implements IWorkspaceService {
 			// Email failure doesn't roll back — admin can resend via the UI.
 		}
 
+		const ttlMs = parseDuration(this.invitationConfig.tokenExpiry);
+		const expiresAt = new Date(invitation.createdAt.getTime() + ttlMs).toISOString();
+
+		await this.audit.log({
+			workspaceId,
+			userId: invitedBy,
+			action: "workspace.invitation_create",
+			entityType: "invitation",
+			entityId: invitation.id,
+			metadata: {
+				invitedEmail: invitation.email,
+				role: invitation.role,
+				expiresAt,
+			},
+		});
+
 		return invitation;
 	}
 
@@ -193,17 +211,44 @@ export class WorkspaceService implements IWorkspaceService {
 
 		await this.workspaceRepository.updateInvitation(invitationId, { status: "accepted" });
 		await this.workspaceRepository.addMember(invitation.workspaceId, userId, invitation.role);
+
+		await this.audit.log({
+			workspaceId: invitation.workspaceId,
+			userId,
+			action: "workspace.invitation_accept",
+			entityType: "workspace_member",
+			entityId: userId,
+			metadata: { invitationId, role: invitation.role },
+		});
 	}
 
 	async updateInvitation(
+		actingUserId: string,
 		invitationId: string,
 		data: { status: string },
 	): Promise<WorkspaceInvitation> {
-		return this.workspaceRepository.updateInvitation(invitationId, data);
+		const before = await this.workspaceRepository.findInvitationById(invitationId);
+		const updated = await this.workspaceRepository.updateInvitation(invitationId, data);
+
+		// Only audit human revocations. "expired" is set by acceptInvitation when the
+		// TTL has lapsed — that's policy, not a user decision.
+		if (data.status === "cancelled" && before) {
+			await this.audit.log({
+				workspaceId: before.workspaceId,
+				userId: actingUserId,
+				action: "workspace.invitation_revoke",
+				entityType: "invitation",
+				entityId: invitationId,
+				metadata: { invitedEmail: before.email },
+			});
+		}
+
+		return updated;
 	}
 
-	async removeMember(workspaceId: string, userId: string): Promise<void> {
+	async removeMember(actingUserId: string, workspaceId: string, userId: string): Promise<void> {
 		const members = await this.workspaceRepository.findMembers(workspaceId);
+		const target = members.find((m) => m.userId === userId);
 		const admins = members.filter((m) => m.role === "admin");
 		const isTargetAdmin = admins.some((m) => m.userId === userId);
 
@@ -212,6 +257,18 @@ export class WorkspaceService implements IWorkspaceService {
 		}
 
 		await this.workspaceRepository.removeMember(workspaceId, userId);
+
+		await this.audit.log({
+			workspaceId,
+			userId: actingUserId,
+			action: "workspace.member_remove",
+			entityType: "workspace_member",
+			entityId: userId,
+			metadata: {
+				targetEmail: target?.user.email ?? null,
+				priorRole: target?.role ?? null,
+			},
+		});
 	}
 
 	async listInvitations(workspaceId: string): Promise<WorkspaceInvitation[]> {
