@@ -35,7 +35,19 @@ export function normalizeUrl(url: string): string {
 	try {
 		const parsed = new URL(trimmed);
 		parsed.hostname = parsed.hostname.toLowerCase();
-		for (const param of ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term", "fbclid", "igshid"]) {
+		// Tracking / sharing params worth stripping. `igsh` is Instagram's
+		// newer share-link param (the older one is `igshid`); both are pure
+		// telemetry and confuse some Apify scrapers when they're left on.
+		for (const param of [
+			"utm_source",
+			"utm_medium",
+			"utm_campaign",
+			"utm_content",
+			"utm_term",
+			"fbclid",
+			"igshid",
+			"igsh",
+		]) {
 			parsed.searchParams.delete(param);
 		}
 		let out = parsed.toString();

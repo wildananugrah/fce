@@ -21,7 +21,12 @@ import { buildActorInput } from "../utils/apify-actor-inputs";
 import { detectUrlKind, hashUrl, isDirectGeminiVideoUri, normalizeUrl } from "../utils/url-router";
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
-const APIFY_WAIT_SECONDS = 90;
+// Apify Free-tier cold-starts for Instagram / TikTok scrapers regularly
+// exceed 90s — the actor sits in READY for tens of seconds before it even
+// begins scraping. 90s was producing false "timeout" fallbacks on otherwise
+// healthy runs. 180s is generous enough to let a cold actor finish without
+// being so long that a genuinely stuck job blocks the user forever.
+const APIFY_WAIT_SECONDS = 180;
 const APIFY_POLL_INTERVAL_MS = 2000;
 const MAX_URLS_PER_PROMPT = 5;
 const URL_REGEX = /https?:\/\/[^\s<>"]+/g;
@@ -88,14 +93,22 @@ export class UrlInspirationService implements IUrlInspirationService {
 			// Run Apify actor
 			const { actorId, input } = buildActorInput(kind);
 			let rawData: unknown = null;
+			let lastStatus: string | null = null;
+			let runId: string | null = null;
 			try {
-				const { runId } = await this.apifyProvider.runActor(actorId, input, apiKey);
+				const startResult = await this.apifyProvider.runActor(actorId, input, apiKey);
+				runId = startResult.runId;
 				const deadline = Date.now() + APIFY_WAIT_SECONDS * 1000;
 				while (Date.now() < deadline) {
 					const status = await this.apifyProvider.getRunStatus(runId, apiKey);
+					lastStatus = status.status;
 					if (status.status === "SUCCEEDED") {
 						const results = await this.apifyProvider.getRunResults(runId, apiKey);
 						rawData = results[0] ?? null;
+						if (!rawData) {
+							// Distinguish "succeeded with no data" from "still running".
+							throw new Error("Apify run SUCCEEDED but dataset was empty");
+						}
 						break;
 					}
 					if (["FAILED", "ABORTED", "TIMED-OUT"].includes(status.status)) {
@@ -103,10 +116,17 @@ export class UrlInspirationService implements IUrlInspirationService {
 					}
 					await new Promise((resolve) => setTimeout(resolve, APIFY_POLL_INTERVAL_MS));
 				}
-				if (!rawData) throw new Error("Apify run timeout");
+				if (!rawData) {
+					throw new Error(
+						`Apify wait deadline (${APIFY_WAIT_SECONDS}s) reached, last status=${lastStatus ?? "unknown"}`,
+					);
+				}
 			} catch (err) {
 				this.logger.warn("Apify scrape failed, using fallback", {
 					url,
+					actorId,
+					runId,
+					lastStatus,
 					error: err instanceof Error ? err.message : String(err),
 				});
 				return this.fallbackFetch(workspaceId, url, kind.type, urlHash, userId);
