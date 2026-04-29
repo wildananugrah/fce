@@ -17,8 +17,8 @@ export class AuditService implements IAuditService {
 					action: input.action,
 					entityType: input.entityType,
 					entityId: input.entityId,
-					metadata: input.metadata ?? null,
-				} as any,
+					metadata: (input.metadata ?? null) as any,
+				},
 			});
 		} catch (err) {
 			this.logger.error("audit.log failed", {
