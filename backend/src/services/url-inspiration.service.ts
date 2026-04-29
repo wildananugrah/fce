@@ -20,8 +20,19 @@ import { logAiActivity } from "../utils/ai-activity-logger";
 import { buildActorInput } from "../utils/apify-actor-inputs";
 import { detectUrlKind, hashUrl, isDirectGeminiVideoUri, normalizeUrl } from "../utils/url-router";
 
-const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
-const APIFY_WAIT_SECONDS = 90;
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours for successful Apify scrapes
+// Fallback (plain HTTP) scrapes are cached briefly so repeated immediate
+// retries don't hammer the source, but they expire fast so the user isn't
+// stuck with a degraded result after configuring Apify or after a transient
+// failure. We also bypass fallback cache entries entirely when the workspace
+// has Apify configured — see the cache-lookup logic in getInspiration.
+const FALLBACK_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+// Apify Free-tier cold-starts for Instagram / TikTok scrapers regularly
+// exceed 90s — the actor sits in READY for tens of seconds before it even
+// begins scraping. 90s was producing false "timeout" fallbacks on otherwise
+// healthy runs. 180s is generous enough to let a cold actor finish without
+// being so long that a genuinely stuck job blocks the user forever.
+const APIFY_WAIT_SECONDS = 180;
 const APIFY_POLL_INTERVAL_MS = 2000;
 const MAX_URLS_PER_PROMPT = 5;
 const URL_REGEX = /https?:\/\/[^\s<>"]+/g;
@@ -59,20 +70,35 @@ export class UrlInspirationService implements IUrlInspirationService {
 			const kind = detectUrlKind(url);
 			const urlHash = await hashUrl(url);
 
-			// Cache lookup
+			// Check Apify key availability up front so we can decide whether a
+			// cached fallback entry is still acceptable.
+			const settings = await this.researchService.getSettings(workspaceId);
+			const hasApifyNow = settings?.hasApifyKey === true;
+
+			// Cache lookup. If the cached entry is a fallback (rawData.fallback
+			// === true) and Apify is now configured, treat it as stale so we
+			// re-scrape via Apify. Otherwise honour the cache.
 			const cached = await this.cacheRepository.findByHash(urlHash);
 			if (cached?.summary) {
-				return {
-					url: cached.url,
-					kind: cached.kind,
-					summary: JSON.parse(cached.summary) as InspirationSummary,
-					status: "cached",
-				};
+				const isFallbackEntry =
+					typeof cached.rawData === "object" &&
+					cached.rawData !== null &&
+					(cached.rawData as { fallback?: unknown }).fallback === true;
+				if (!(isFallbackEntry && hasApifyNow)) {
+					return {
+						url: cached.url,
+						kind: cached.kind,
+						summary: JSON.parse(cached.summary) as InspirationSummary,
+						status: "cached",
+					};
+				}
+				this.logger.info("Stale fallback cache entry — re-scraping via Apify", {
+					url,
+					urlHash,
+				});
 			}
 
-			// Check Apify key availability
-			const settings = await this.researchService.getSettings(workspaceId);
-			if (!settings?.hasApifyKey) {
+			if (!hasApifyNow) {
 				this.logger.warn("No Apify key for URL inspiration, using fallback", {
 					workspaceId,
 					url,
@@ -88,14 +114,22 @@ export class UrlInspirationService implements IUrlInspirationService {
 			// Run Apify actor
 			const { actorId, input } = buildActorInput(kind);
 			let rawData: unknown = null;
+			let lastStatus: string | null = null;
+			let runId: string | null = null;
 			try {
-				const { runId } = await this.apifyProvider.runActor(actorId, input, apiKey);
+				const startResult = await this.apifyProvider.runActor(actorId, input, apiKey);
+				runId = startResult.runId;
 				const deadline = Date.now() + APIFY_WAIT_SECONDS * 1000;
 				while (Date.now() < deadline) {
 					const status = await this.apifyProvider.getRunStatus(runId, apiKey);
+					lastStatus = status.status;
 					if (status.status === "SUCCEEDED") {
 						const results = await this.apifyProvider.getRunResults(runId, apiKey);
 						rawData = results[0] ?? null;
+						if (!rawData) {
+							// Distinguish "succeeded with no data" from "still running".
+							throw new Error("Apify run SUCCEEDED but dataset was empty");
+						}
 						break;
 					}
 					if (["FAILED", "ABORTED", "TIMED-OUT"].includes(status.status)) {
@@ -103,10 +137,17 @@ export class UrlInspirationService implements IUrlInspirationService {
 					}
 					await new Promise((resolve) => setTimeout(resolve, APIFY_POLL_INTERVAL_MS));
 				}
-				if (!rawData) throw new Error("Apify run timeout");
+				if (!rawData) {
+					throw new Error(
+						`Apify wait deadline (${APIFY_WAIT_SECONDS}s) reached, last status=${lastStatus ?? "unknown"}`,
+					);
+				}
 			} catch (err) {
 				this.logger.warn("Apify scrape failed, using fallback", {
 					url,
+					actorId,
+					runId,
+					lastStatus,
 					error: err instanceof Error ? err.message : String(err),
 				});
 				return this.fallbackFetch(workspaceId, url, kind.type, urlHash, userId);
@@ -456,7 +497,8 @@ export class UrlInspirationService implements IUrlInspirationService {
 				kind: kindType,
 				rawData: { url, text, fallback: true },
 				summary: JSON.stringify(summary),
-				expiresAt: new Date(Date.now() + CACHE_TTL_MS),
+				// Short TTL — see FALLBACK_CACHE_TTL_MS comment.
+				expiresAt: new Date(Date.now() + FALLBACK_CACHE_TTL_MS),
 			});
 
 			return { url, kind: kindType, summary, status: "fallback" };
