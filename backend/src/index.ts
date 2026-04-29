@@ -782,12 +782,14 @@ async function main() {
 	workspaceScoped.route(
 		"/trash",
 		createTrashRoutes(
+			prisma,
 			trashService,
 			brandService,
 			productService,
 			topicService,
 			libraryService,
 			generationService,
+			auditService,
 		),
 	);
 	app.route("/api/workspaces/:workspaceId", workspaceScoped);
