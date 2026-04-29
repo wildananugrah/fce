@@ -69,7 +69,7 @@ export class BrandRepository implements IBrandRepository {
 
 	async create(data: {
 		workspaceId: string;
-		projectId?: string | null;
+		projectId: string;
 		name: string;
 		slug: string;
 		category?: string;

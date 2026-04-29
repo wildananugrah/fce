@@ -5,7 +5,7 @@ export interface IBrandRepository {
 	findById(id: string): Promise<(Brand & { brainVersions: BrandBrainVersion[] }) | null>;
 	create(data: {
 		workspaceId: string;
-		projectId?: string | null;
+		projectId: string;
 		name: string;
 		slug: string;
 		category?: string;

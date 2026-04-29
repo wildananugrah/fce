@@ -37,7 +37,7 @@ export class MockBrandRepository implements IBrandRepository {
 
 	async create(data: {
 		workspaceId: string;
-		projectId?: string | null;
+		projectId: string;
 		name: string;
 		slug: string;
 		category?: string;
@@ -47,7 +47,7 @@ export class MockBrandRepository implements IBrandRepository {
 		const brand: Brand = {
 			id: crypto.randomUUID(),
 			workspaceId: data.workspaceId,
-			projectId: data.projectId ?? null,
+			projectId: data.projectId,
 			name: data.name,
 			slug: data.slug,
 			category: data.category ?? null,
