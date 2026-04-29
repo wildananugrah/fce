@@ -660,7 +660,7 @@ model SavedTemplate {
 
 model AuditLog {
   id          String   @id @default(uuid())
-  workspaceId String   @map("workspace_id")
+  workspaceId String?  @map("workspace_id")
   userId      String   @map("user_id")
   action      String
   entityType  String   @map("entity_type")
@@ -668,8 +668,8 @@ model AuditLog {
   metadata    Json?
   createdAt   DateTime @default(now()) @map("created_at")
 
-  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  user      User      @relation(fields: [userId], references: [id])
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User       @relation(fields: [userId], references: [id])
 
   @@index([workspaceId])
   @@index([userId])
