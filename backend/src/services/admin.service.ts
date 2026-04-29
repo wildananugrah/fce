@@ -73,7 +73,16 @@ export class AdminService implements IAdminService {
 		return user;
 	}
 
-	async updateUser(_actingUserId: string, userId: string, data: any) {
+	async updateUser(
+		actingUserId: string,
+		userId: string,
+		data: { fullName?: string | null; status?: string; isSuperadmin?: boolean; email?: string },
+	) {
+		const before = await this.prisma.user.findUnique({
+			where: { id: userId },
+			select: { email: true, status: true, isSuperadmin: true },
+		});
+
 		const patch: Record<string, unknown> = {};
 		if (typeof data.fullName === "string" || data.fullName === null) patch.fullName = data.fullName;
 		if (typeof data.status === "string") patch.status = data.status;
@@ -81,11 +90,47 @@ export class AdminService implements IAdminService {
 		if (typeof data.email === "string" && data.email.trim()) {
 			patch.email = data.email.trim().toLowerCase();
 		}
-		return this.prisma.user.update({
+
+		const updated = await this.prisma.user.update({
 			where: { id: userId },
 			data: patch,
 			select: { id: true, email: true, fullName: true, status: true, isSuperadmin: true },
 		});
+
+		if (before) {
+			// Build the audit-worthy diff. fullName changes are intentionally not audited.
+			const changes: Record<string, { from: unknown; to: unknown }> = {};
+			if (typeof patch.email === "string" && patch.email !== before.email) {
+				changes.email = { from: before.email, to: patch.email };
+			}
+			if (typeof patch.status === "string" && patch.status !== before.status) {
+				changes.status = { from: before.status, to: patch.status };
+			}
+
+			if (Object.keys(changes).length > 0) {
+				await this.audit.log({
+					workspaceId: null,
+					userId: actingUserId,
+					action: "user.update",
+					entityType: "user",
+					entityId: userId,
+					metadata: { targetEmail: before.email, changes },
+				});
+			}
+
+			if (typeof patch.isSuperadmin === "boolean" && patch.isSuperadmin !== before.isSuperadmin) {
+				await this.audit.log({
+					workspaceId: null,
+					userId: actingUserId,
+					action: patch.isSuperadmin ? "user.superadmin_grant" : "user.superadmin_revoke",
+					entityType: "user",
+					entityId: userId,
+					metadata: { targetEmail: before.email },
+				});
+			}
+		}
+
+		return updated;
 	}
 
 	async deleteUser(actingUserId: string, userId: string) {
