@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Plus, Archive } from "lucide-react";
 import { api } from "../../services/api";
+import { useProject } from "../../hooks/useProject";
 import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
 import { Modal } from "../ui/Modal";
@@ -22,6 +23,7 @@ interface ProjectsTabProps {
 }
 
 export function ProjectsTab({ workspaceId, onToast }: ProjectsTabProps) {
+  const { refresh: refreshSidebar } = useProject();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
@@ -50,7 +52,7 @@ export function ProjectsTab({ workspaceId, onToast }: ProjectsTabProps) {
     try {
       await api(`/api/workspaces/${workspaceId}/projects/${project.id}`, { method: "DELETE" });
       onToast("Project archived", "success");
-      await load();
+      await Promise.all([load(), refreshSidebar()]);
     } catch (e) {
       onToast(e instanceof Error ? e.message : "Failed to archive", "error");
     }
@@ -141,7 +143,7 @@ export function ProjectsTab({ workspaceId, onToast }: ProjectsTabProps) {
           onClose={() => setCreateOpen(false)}
           onCreated={async () => {
             setCreateOpen(false);
-            await load();
+            await Promise.all([load(), refreshSidebar()]);
           }}
           onToast={onToast}
         />
