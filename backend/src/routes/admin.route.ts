@@ -26,7 +26,7 @@ export function createAdminRoutes(adminService: IAdminService) {
 			return c.json({ error: "email and password are required" }, 400);
 		}
 		try {
-			const user = await adminService.createUser({
+			const user = await adminService.createUser(c.get("userId"), {
 				email: body.email,
 				password: body.password,
 				fullName: typeof body.fullName === "string" ? body.fullName : undefined,
@@ -41,7 +41,7 @@ export function createAdminRoutes(adminService: IAdminService) {
 	app.patch("/users/:id", async (c) => {
 		const userId = c.req.param("id");
 		const body = await c.req.json();
-		const user = await adminService.updateUser(userId, body);
+		const user = await adminService.updateUser(c.get("userId"), userId, body);
 		return c.json({ data: user });
 	});
 
@@ -52,7 +52,7 @@ export function createAdminRoutes(adminService: IAdminService) {
 		if (actingUserId === userId) {
 			return c.json({ error: "You cannot delete your own account from this page" }, 400);
 		}
-		await adminService.deleteUser(userId);
+		await adminService.deleteUser(c.get("userId"), userId);
 		return c.body(null, 204);
 	});
 
@@ -63,7 +63,7 @@ export function createAdminRoutes(adminService: IAdminService) {
 			return c.json({ error: "password is required" }, 400);
 		}
 		try {
-			await adminService.resetPassword(userId, body.password);
+			await adminService.resetPassword(c.get("userId"), userId, body.password);
 			return c.json({ data: { ok: true } });
 		} catch (e) {
 			return c.json({ error: e instanceof Error ? e.message : "Failed to reset password" }, 400);
@@ -84,14 +84,14 @@ export function createAdminRoutes(adminService: IAdminService) {
 		if (!role) {
 			return c.json({ error: "role must be 'admin' or 'member'" }, 400);
 		}
-		await adminService.setUserWorkspaceRole(userId, workspaceId, role);
+		await adminService.setUserWorkspaceRole(c.get("userId"), userId, workspaceId, role);
 		return c.json({ data: { ok: true } });
 	});
 
 	app.delete("/users/:id/workspaces/:workspaceId", async (c) => {
 		const userId = c.req.param("id");
 		const workspaceId = c.req.param("workspaceId");
-		await adminService.removeUserFromWorkspace(userId, workspaceId);
+		await adminService.removeUserFromWorkspace(c.get("userId"), userId, workspaceId);
 		return c.body(null, 204);
 	});
 
@@ -115,20 +115,20 @@ export function createAdminRoutes(adminService: IAdminService) {
 
 		app.post(`/taxonomy/${route}`, async (c) => {
 			const body = await c.req.json();
-			const item = await adminService.createTaxonomyItem(type as any, body);
+			const item = await adminService.createTaxonomyItem(c.get("userId"), type as any, body);
 			return c.json({ data: item }, 201);
 		});
 
 		app.patch(`/taxonomy/${route}/:id`, async (c) => {
 			const id = c.req.param("id");
 			const body = await c.req.json();
-			const item = await adminService.updateTaxonomyItem(type as any, id, body);
+			const item = await adminService.updateTaxonomyItem(c.get("userId"), type as any, id, body);
 			return c.json({ data: item });
 		});
 
 		app.delete(`/taxonomy/${route}/:id`, async (c) => {
 			const id = c.req.param("id");
-			await adminService.deleteTaxonomyItem(type as any, id);
+			await adminService.deleteTaxonomyItem(c.get("userId"), type as any, id);
 			return c.json({ data: { success: true } });
 		});
 	}

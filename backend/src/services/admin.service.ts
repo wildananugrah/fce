@@ -1,5 +1,6 @@
 import type { PrismaClient } from "@prisma/client";
 import type { IAdminService } from "../interfaces/services/admin.service.interface";
+import type { IAuditService } from "../interfaces/services/audit.service.interface";
 import { WORKSPACE_ROLES } from "../constants/roles";
 import { hashPassword } from "../utils/password";
 
@@ -11,6 +12,7 @@ interface AdminConfig {
 export class AdminService implements IAdminService {
 	constructor(
 		private prisma: PrismaClient,
+		private audit: IAuditService,
 		private config: AdminConfig,
 	) {}
 
@@ -28,12 +30,15 @@ export class AdminService implements IAdminService {
 		});
 	}
 
-	async createUser(input: {
-		email: string;
-		password: string;
-		fullName?: string;
-		isSuperadmin?: boolean;
-	}) {
+	async createUser(
+		_actingUserId: string,
+		input: {
+			email: string;
+			password: string;
+			fullName?: string;
+			isSuperadmin?: boolean;
+		},
+	) {
 		const email = input.email.trim().toLowerCase();
 		if (!email) throw new Error("Email is required");
 		if (!input.password || input.password.length < 8) {
@@ -55,7 +60,7 @@ export class AdminService implements IAdminService {
 		});
 	}
 
-	async updateUser(userId: string, data: any) {
+	async updateUser(_actingUserId: string, userId: string, data: any) {
 		const patch: Record<string, unknown> = {};
 		if (typeof data.fullName === "string" || data.fullName === null) patch.fullName = data.fullName;
 		if (typeof data.status === "string") patch.status = data.status;
@@ -70,11 +75,11 @@ export class AdminService implements IAdminService {
 		});
 	}
 
-	async deleteUser(userId: string) {
+	async deleteUser(_actingUserId: string, userId: string) {
 		await this.prisma.user.delete({ where: { id: userId } });
 	}
 
-	async resetPassword(userId: string, newPassword: string) {
+	async resetPassword(_actingUserId: string, userId: string, newPassword: string) {
 		if (!newPassword || newPassword.length < 8) {
 			throw new Error("Password must be at least 8 characters");
 		}
@@ -97,6 +102,7 @@ export class AdminService implements IAdminService {
 	}
 
 	async setUserWorkspaceRole(
+		_actingUserId: string,
 		userId: string,
 		workspaceId: string,
 		role: "admin" | "member",
@@ -111,7 +117,7 @@ export class AdminService implements IAdminService {
 		});
 	}
 
-	async removeUserFromWorkspace(userId: string, workspaceId: string) {
+	async removeUserFromWorkspace(_actingUserId: string, userId: string, workspaceId: string) {
 		await this.prisma.userWorkspaceRole
 			.delete({ where: { userId_workspaceId: { userId, workspaceId } } })
 			.catch(() => {
@@ -133,17 +139,21 @@ export class AdminService implements IAdminService {
 		});
 	}
 
-	async createTaxonomyItem(type: string, data: { name: string; description?: string }) {
+	async createTaxonomyItem(
+		_actingUserId: string,
+		type: string,
+		data: { name: string; description?: string },
+	) {
 		const model = this.getModel(type);
 		return (model as any).create({ data });
 	}
 
-	async updateTaxonomyItem(type: string, id: string, data: any) {
+	async updateTaxonomyItem(_actingUserId: string, type: string, id: string, data: any) {
 		const model = this.getModel(type);
 		return (model as any).update({ where: { id }, data });
 	}
 
-	async deleteTaxonomyItem(type: string, id: string) {
+	async deleteTaxonomyItem(_actingUserId: string, type: string, id: string) {
 		const model = this.getModel(type);
 		await (model as any).delete({ where: { id } });
 	}

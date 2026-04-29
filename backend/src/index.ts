@@ -295,7 +295,7 @@ async function main() {
 		env.minioBucket,
 	);
 	const auditService = new AuditService(prisma, logger);
-	const adminService = new AdminService(prisma, {
+	const adminService = new AdminService(prisma, auditService, {
 		userDefaultMaxWorkspaces: env.userDefaultMaxWorkspaces,
 		userDefaultMaxProjects: env.userDefaultMaxProjects,
 	});
