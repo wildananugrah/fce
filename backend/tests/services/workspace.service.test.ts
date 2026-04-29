@@ -12,10 +12,14 @@ describe("WorkspaceService", () => {
 			emailCalls.push(input);
 		},
 	};
-	const workspaceService = new WorkspaceService(workspaceRepo, emailProvider as any, userRepo, {
-		appUrl: "http://localhost:5173",
-		tokenExpiry: "7d",
-	});
+	const auditService = { log: async () => {} };
+	const workspaceService = new WorkspaceService(
+		workspaceRepo,
+		emailProvider as any,
+		userRepo,
+		{ appUrl: "http://localhost:5173", tokenExpiry: "7d" },
+		auditService,
+	);
 
 	// Seed a user with generous quotas — these tests predate the per-user quota
 	// system and don't care about it.
@@ -179,7 +183,7 @@ describe("WorkspaceService", () => {
 			});
 			await workspaceRepo.addMember(workspace.id, memberId, "editor");
 
-			await workspaceService.removeMember(workspace.id, memberId);
+			await workspaceService.removeMember(adminId, workspace.id, memberId);
 
 			const members = await workspaceRepo.findMembers(workspace.id);
 			expect(members.find((m) => m.userId === memberId)).toBeUndefined();
@@ -192,9 +196,9 @@ describe("WorkspaceService", () => {
 				slug: "lastadmin-ws",
 			});
 
-			await expect(workspaceService.removeMember(workspace.id, adminId)).rejects.toThrow(
-				"Cannot remove the last admin from the workspace",
-			);
+			await expect(
+				workspaceService.removeMember(adminId, workspace.id, adminId),
+			).rejects.toThrow("Cannot remove the last admin from the workspace");
 		});
 	});
 

@@ -3,6 +3,7 @@ import { QuotaExceededError } from "../errors/quota-exceeded-error";
 import type { IEmailProvider } from "../interfaces/providers/email.provider.interface";
 import type { IUserRepository } from "../interfaces/repositories/user.repository.interface";
 import type { IWorkspaceRepository } from "../interfaces/repositories/workspace.repository.interface";
+import type { IAuditService } from "../interfaces/services/audit.service.interface";
 import type { IWorkspaceService } from "../interfaces/services/workspace.service.interface";
 import type {
 	CreateWorkspaceInput,
@@ -23,6 +24,7 @@ export class WorkspaceService implements IWorkspaceService {
 		private emailProvider: IEmailProvider,
 		private userRepository: IUserRepository,
 		private invitationConfig: InvitationConfig,
+		private audit: IAuditService,
 	) {}
 
 	async listByUser(userId: string): Promise<WorkspaceSummary[]> {
@@ -196,13 +198,14 @@ export class WorkspaceService implements IWorkspaceService {
 	}
 
 	async updateInvitation(
+		_actingUserId: string,
 		invitationId: string,
 		data: { status: string },
 	): Promise<WorkspaceInvitation> {
 		return this.workspaceRepository.updateInvitation(invitationId, data);
 	}
 
-	async removeMember(workspaceId: string, userId: string): Promise<void> {
+	async removeMember(_actingUserId: string, workspaceId: string, userId: string): Promise<void> {
 		const members = await this.workspaceRepository.findMembers(workspaceId);
 		const admins = members.filter((m) => m.role === "admin");
 		const isTargetAdmin = admins.some((m) => m.userId === userId);

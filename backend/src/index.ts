@@ -239,11 +239,13 @@ async function main() {
 		logger.info("Email provider: noop (EMAIL_PROVIDER unset or 'noop')");
 		return new NoopEmailProvider(logger);
 	})();
+	const auditService = new AuditService(prisma, logger);
 	const workspaceService = new WorkspaceService(
 		workspaceRepository,
 		emailProvider,
 		userRepository,
 		{ appUrl: env.appUrl, tokenExpiry: env.invitationTokenExpiry },
+		auditService,
 	);
 	const authService = new AuthService(
 		userRepository,
@@ -294,7 +296,6 @@ async function main() {
 		boss,
 		env.minioBucket,
 	);
-	const auditService = new AuditService(prisma, logger);
 	const adminService = new AdminService(prisma, auditService, {
 		userDefaultMaxWorkspaces: env.userDefaultMaxWorkspaces,
 		userDefaultMaxProjects: env.userDefaultMaxProjects,
