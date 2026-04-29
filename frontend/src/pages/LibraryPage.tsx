@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
-import { Search, Eye, Trash2, X } from "lucide-react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { Search, Eye, Trash2, X, ChevronUp, ChevronDown } from "lucide-react";
 import { useProject } from "../hooks/useProject";
 import { useWorkspace } from "../hooks/useWorkspace";
 import { api } from "../services/api";
@@ -91,6 +91,69 @@ function formatRelativeDate(dateStr: string): string {
   return date.toLocaleDateString();
 }
 
+function formatCreatedAt(dateStr: string): { date: string; time: string } {
+  const d = new Date(dateStr);
+  return {
+    date: d.toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" }),
+    time: d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", hour12: false }),
+  };
+}
+
+type SortKey = "title" | "brand" | "platform" | "status" | "createdAt";
+type SortDir = "asc" | "desc";
+
+// Status sort order matches the editorial flow so sorting feels natural.
+const STATUS_ORDER: Record<string, number> = {
+  draft: 0,
+  in_review: 1,
+  approved: 2,
+  rejected: 3,
+};
+
+interface SortableHeaderProps {
+  label: string;
+  sortKeyValue: SortKey;
+  active: SortKey;
+  dir: SortDir;
+  onClick: (key: SortKey) => void;
+  className?: string;
+}
+
+function SortableHeader({
+  label,
+  sortKeyValue,
+  active,
+  dir,
+  onClick,
+  className,
+}: SortableHeaderProps) {
+  const isActive = active === sortKeyValue;
+  return (
+    <th
+      scope="col"
+      aria-sort={isActive ? (dir === "asc" ? "ascending" : "descending") : "none"}
+      className={`text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide select-none ${className ?? ""}`}
+    >
+      <button
+        type="button"
+        onClick={() => onClick(sortKeyValue)}
+        className="inline-flex items-center gap-1 hover:text-gray-800 transition-colors"
+      >
+        <span>{label}</span>
+        {isActive ? (
+          dir === "asc" ? (
+            <ChevronUp size={12} />
+          ) : (
+            <ChevronDown size={12} />
+          )
+        ) : (
+          <ChevronUp size={12} className="opacity-25" />
+        )}
+      </button>
+    </th>
+  );
+}
+
 const PLATFORM_FILTER_OPTIONS = [
   { value: "", label: "All Platforms" },
   { value: "instagram", label: "Instagram" },
@@ -132,6 +195,18 @@ export function LibraryPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   const [bulkActionRunning, setBulkActionRunning] = useState(false);
+  const [sortKey, setSortKey] = useState<SortKey>("createdAt");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+
+  function toggleSort(key: SortKey) {
+    if (sortKey === key) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      // Date defaults to newest-first; everything else defaults to A→Z.
+      setSortDir(key === "createdAt" ? "desc" : "asc");
+    }
+  }
 
   const showToast = (message: string, type: "success" | "error" | "info") => {
     setToast({ message, type });
@@ -235,6 +310,55 @@ export function LibraryPage() {
     }
   };
 
+  // Filter + sort (computed before the early return so the hook order is stable)
+  const filtered = useMemo(() => {
+    const passesFilter = (item: LibraryItem) => {
+      if (platformFilter && item.request.platform !== platformFilter) return false;
+      if (statusFilter && item.status !== statusFilter) return false;
+      if (search) {
+        const q = search.toLowerCase();
+        const title = (item.contentTitle ?? "").toLowerCase();
+        const brand = (item.request.brand?.name ?? "").toLowerCase();
+        const product = (item.request.product?.name ?? "").toLowerCase();
+        if (!title.includes(q) && !brand.includes(q) && !product.includes(q)) return false;
+      }
+      return true;
+    };
+
+    const sign = sortDir === "asc" ? 1 : -1;
+    const out = items.filter(passesFilter);
+    out.sort((a, b) => {
+      let av: string | number = "";
+      let bv: string | number = "";
+      switch (sortKey) {
+        case "title":
+          av = (a.contentTitle ?? "").toLowerCase();
+          bv = (b.contentTitle ?? "").toLowerCase();
+          break;
+        case "brand":
+          av = (a.request.brand?.name ?? "").toLowerCase();
+          bv = (b.request.brand?.name ?? "").toLowerCase();
+          break;
+        case "platform":
+          av = a.request.platform.toLowerCase();
+          bv = b.request.platform.toLowerCase();
+          break;
+        case "status":
+          av = STATUS_ORDER[a.status] ?? 99;
+          bv = STATUS_ORDER[b.status] ?? 99;
+          break;
+        case "createdAt":
+          av = new Date(a.createdAt).getTime();
+          bv = new Date(b.createdAt).getTime();
+          break;
+      }
+      if (av < bv) return -1 * sign;
+      if (av > bv) return 1 * sign;
+      return 0;
+    });
+    return out;
+  }, [items, platformFilter, statusFilter, search, sortKey, sortDir]);
+
   if (!activeWorkspace) {
     return (
       <div className="p-6">
@@ -242,20 +366,6 @@ export function LibraryPage() {
       </div>
     );
   }
-
-  // Filter
-  const filtered = items.filter((item) => {
-    if (platformFilter && item.request.platform !== platformFilter) return false;
-    if (statusFilter && item.status !== statusFilter) return false;
-    if (search) {
-      const q = search.toLowerCase();
-      const title = (item.contentTitle ?? "").toLowerCase();
-      const brand = (item.request.brand?.name ?? "").toLowerCase();
-      const product = (item.request.product?.name ?? "").toLowerCase();
-      if (!title.includes(q) && !brand.includes(q) && !product.includes(q)) return false;
-    }
-    return true;
-  });
 
   return (
     <div className="p-6 space-y-6">
@@ -348,21 +458,42 @@ export function LibraryPage() {
                     }
                   />
                 </th>
-                <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide">
-                  Content Title
-                </th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide">
-                  Brand
-                </th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide">
-                  Platform
-                </th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide">
-                  Status
-                </th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide">
-                  Generated
-                </th>
+                <SortableHeader
+                  label="Content Title"
+                  sortKeyValue="title"
+                  active={sortKey}
+                  dir={sortDir}
+                  onClick={toggleSort}
+                  className="px-5"
+                />
+                <SortableHeader
+                  label="Brand"
+                  sortKeyValue="brand"
+                  active={sortKey}
+                  dir={sortDir}
+                  onClick={toggleSort}
+                />
+                <SortableHeader
+                  label="Platform"
+                  sortKeyValue="platform"
+                  active={sortKey}
+                  dir={sortDir}
+                  onClick={toggleSort}
+                />
+                <SortableHeader
+                  label="Status"
+                  sortKeyValue="status"
+                  active={sortKey}
+                  dir={sortDir}
+                  onClick={toggleSort}
+                />
+                <SortableHeader
+                  label="Created At"
+                  sortKeyValue="createdAt"
+                  active={sortKey}
+                  dir={sortDir}
+                  onClick={toggleSort}
+                />
                 <th className="px-4 py-3" />
               </tr>
             </thead>
@@ -421,9 +552,17 @@ export function LibraryPage() {
                       </span>
                     </td>
 
-                    {/* Date */}
-                    <td className="px-4 py-3 text-sm text-gray-500">
-                      {formatRelativeDate(item.createdAt)}
+                    {/* Created At */}
+                    <td
+                      className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap"
+                      title={formatRelativeDate(item.createdAt)}
+                    >
+                      <div className="flex flex-col leading-tight">
+                        <span>{formatCreatedAt(item.createdAt).date}</span>
+                        <span className="text-xs text-gray-400">
+                          {formatCreatedAt(item.createdAt).time}
+                        </span>
+                      </div>
                     </td>
 
                     {/* View */}
