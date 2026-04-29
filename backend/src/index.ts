@@ -97,6 +97,7 @@ import {
 import { createWorkspaceRoutes } from "./routes/workspace.route";
 import { AdminService } from "./services/admin.service";
 import { AiProviderFactory } from "./services/ai-provider-factory.service";
+import { AuditService } from "./services/audit.service";
 import { AnalysisConfigService } from "./services/analysis-config.service";
 import { AuthService } from "./services/auth.service";
 import { ChatService } from "./services/chat.service";
@@ -293,6 +294,7 @@ async function main() {
 		boss,
 		env.minioBucket,
 	);
+	const auditService = new AuditService(prisma, logger);
 	const adminService = new AdminService(prisma, {
 		userDefaultMaxWorkspaces: env.userDefaultMaxWorkspaces,
 		userDefaultMaxProjects: env.userDefaultMaxProjects,
