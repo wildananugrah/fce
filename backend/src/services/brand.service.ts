@@ -24,16 +24,15 @@ export class BrandService implements IBrandService {
 	}
 
 	async create(workspaceId: string, input: CreateBrandInput): Promise<Brand> {
-		// Assign a project. If the caller provided one, use it. Otherwise fall
-		// back to the workspace's Default project so new brands don't end up
-		// invisible to every project view.
-		const projectId =
-			input.projectId ?? (await this.brandRepository.findDefaultProjectId(workspaceId)) ?? undefined;
+		if (!input.projectId) {
+			throw new Error(
+				"projectId is required — pick or create a project before creating a brand",
+			);
+		}
 
-		// Enforce the 1:1 rule: a project can hold at most one brand. The DB
-		// has a unique constraint too, but we pre-check here so the error
-		// message is user-facing and clearer than Prisma's P2002.
-		if (projectId && (await this.brandRepository.projectHasBrand(projectId))) {
+		// Pre-check kept for the friendly error message; DB partial unique
+		// catches the same condition under race.
+		if (await this.brandRepository.projectHasBrand(input.projectId)) {
 			throw new Error(
 				"This project already has a brand. Each project can contain only one brand — create a new project to add another.",
 			);
@@ -42,7 +41,7 @@ export class BrandService implements IBrandService {
 		try {
 			return await this.brandRepository.create({
 				workspaceId,
-				projectId,
+				projectId: input.projectId,
 				name: input.name,
 				slug: input.slug,
 				category: input.category,
