@@ -182,7 +182,7 @@ export function createProjectRoutes(prisma: PrismaClient, auditService: IAuditSe
 		const projectId = c.req.param("projectId");
 		const existing = await prisma.project.findUnique({
 			where: { id: projectId },
-			select: { workspaceId: true, name: true },
+			select: { workspaceId: true, name: true, description: true },
 		});
 		if (!existing || existing.workspaceId !== workspaceId) {
 			return c.json({ error: "Project not found" }, 404);
@@ -201,6 +201,9 @@ export function createProjectRoutes(prisma: PrismaClient, auditService: IAuditSe
 		const changes: Record<string, { from: unknown; to: unknown }> = {};
 		if (typeof data.name === "string" && data.name !== existing.name) {
 			changes.name = { from: existing.name, to: data.name };
+		}
+		if ("description" in data && data.description !== existing.description) {
+			changes.description = { from: existing.description, to: data.description };
 		}
 
 		if (Object.keys(changes).length > 0) {
