@@ -174,6 +174,22 @@ export class WorkspaceService implements IWorkspaceService {
 			// Email failure doesn't roll back — admin can resend via the UI.
 		}
 
+		const ttlMs = parseDuration(this.invitationConfig.tokenExpiry);
+		const expiresAt = new Date(invitation.createdAt.getTime() + ttlMs).toISOString();
+
+		await this.audit.log({
+			workspaceId,
+			userId: invitedBy,
+			action: "workspace.invitation_create",
+			entityType: "invitation",
+			entityId: invitation.id,
+			metadata: {
+				invitedEmail: invitation.email,
+				role: invitation.role,
+				expiresAt,
+			},
+		});
+
 		return invitation;
 	}
 
@@ -205,8 +221,9 @@ export class WorkspaceService implements IWorkspaceService {
 		return this.workspaceRepository.updateInvitation(invitationId, data);
 	}
 
-	async removeMember(_actingUserId: string, workspaceId: string, userId: string): Promise<void> {
+	async removeMember(actingUserId: string, workspaceId: string, userId: string): Promise<void> {
 		const members = await this.workspaceRepository.findMembers(workspaceId);
+		const target = members.find((m) => m.userId === userId);
 		const admins = members.filter((m) => m.role === "admin");
 		const isTargetAdmin = admins.some((m) => m.userId === userId);
 
@@ -215,6 +232,18 @@ export class WorkspaceService implements IWorkspaceService {
 		}
 
 		await this.workspaceRepository.removeMember(workspaceId, userId);
+
+		await this.audit.log({
+			workspaceId,
+			userId: actingUserId,
+			action: "workspace.member_remove",
+			entityType: "workspace_member",
+			entityId: userId,
+			metadata: {
+				targetEmail: target?.user.email ?? null,
+				priorRole: target?.role ?? null,
+			},
+		});
 	}
 
 	async listInvitations(workspaceId: string): Promise<WorkspaceInvitation[]> {
