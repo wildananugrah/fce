@@ -211,14 +211,39 @@ export class WorkspaceService implements IWorkspaceService {
 
 		await this.workspaceRepository.updateInvitation(invitationId, { status: "accepted" });
 		await this.workspaceRepository.addMember(invitation.workspaceId, userId, invitation.role);
+
+		await this.audit.log({
+			workspaceId: invitation.workspaceId,
+			userId,
+			action: "workspace.invitation_accept",
+			entityType: "workspace_member",
+			entityId: userId,
+			metadata: { invitationId, role: invitation.role },
+		});
 	}
 
 	async updateInvitation(
-		_actingUserId: string,
+		actingUserId: string,
 		invitationId: string,
 		data: { status: string },
 	): Promise<WorkspaceInvitation> {
-		return this.workspaceRepository.updateInvitation(invitationId, data);
+		const before = await this.workspaceRepository.findInvitationById(invitationId);
+		const updated = await this.workspaceRepository.updateInvitation(invitationId, data);
+
+		// Only audit human revocations. "expired" is set by acceptInvitation when the
+		// TTL has lapsed — that's policy, not a user decision.
+		if (data.status === "cancelled" && before) {
+			await this.audit.log({
+				workspaceId: before.workspaceId,
+				userId: actingUserId,
+				action: "workspace.invitation_revoke",
+				entityType: "invitation",
+				entityId: invitationId,
+				metadata: { invitedEmail: before.email },
+			});
+		}
+
+		return updated;
 	}
 
 	async removeMember(actingUserId: string, workspaceId: string, userId: string): Promise<void> {
