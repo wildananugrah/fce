@@ -757,7 +757,7 @@ async function main() {
 	workspaceScoped.route("/dashboard", createDashboardRoutes(dashboardService));
 	workspaceScoped.route("/documents", createDocumentRoutes(documentService));
 	workspaceScoped.route("/recommendations", createRecommendationRoutes(recommendationService));
-	workspaceScoped.route("/projects", createProjectRoutes(prisma));
+	workspaceScoped.route("/projects", createProjectRoutes(prisma, auditService));
 	workspaceScoped.route(
 		"/onboarding-progress",
 		createOnboardingProgressRoutes(onboardingService),
