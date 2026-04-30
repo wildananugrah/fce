@@ -13,10 +13,13 @@ import { Toast } from "../components/ui/Toast";
 import { ReferenceImageUpload, type ImageRef } from "../components/ui/ReferenceImageUpload";
 import { UrlInspirationChips } from "../components/url-inspiration/UrlInspirationChips";
 import { SkillsAppliedStrip } from "../components/skills/SkillsAppliedStrip";
+import { ScrapeLanguageToggle } from "../components/ui/ScrapeLanguageToggle";
+import type { ScrapeLanguage } from "../types";
 
 interface Brand {
 	id: string;
 	name: string;
+	language?: string;
 }
 
 interface Product {
@@ -129,6 +132,7 @@ export function TopicsPage() {
 
 	// Form state
 	const [brandId, setBrandId] = useState("");
+	const [language, setLanguage] = useState<ScrapeLanguage>("indonesian");
 	const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
 	const [selectedFormats, setSelectedFormats] = useState<string[]>([]);
 	const [topicPrompt, setTopicPrompt] = useState("");
@@ -195,6 +199,13 @@ export function TopicsPage() {
 			setBrandId(brands[0].id);
 		}
 	}, [brands, brandId]);
+
+	// Reset to the active brand's language when the user picks a different brand.
+	useEffect(() => {
+		const brand = brands.find((b) => b.id === brandId);
+		const lang = brand?.language as ScrapeLanguage | undefined;
+		if (lang) setLanguage(lang);
+	}, [brandId, brands]);
 
 	// Fetch content pillars when brand/product changes
 	useEffect(() => {
@@ -308,6 +319,7 @@ export function TopicsPage() {
 						referenceImages: referenceImages.filter((i) => !i.uploading).map((i) => i.url).length > 0
 							? referenceImages.filter((i) => !i.uploading).map((i) => i.url)
 							: undefined,
+						language,
 					}),
 				}
 			);
@@ -487,6 +499,19 @@ export function TopicsPage() {
 										setSelectedProductIds([]);
 									}}
 								/>
+							)}
+
+							{brandId && (
+								<div className="flex items-center gap-2">
+									<span className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+										Language
+									</span>
+									<ScrapeLanguageToggle
+										value={language}
+										onChange={setLanguage}
+										disabled={generating}
+									/>
+								</div>
 							)}
 
 							{brandId && filteredProducts.length > 0 && (
