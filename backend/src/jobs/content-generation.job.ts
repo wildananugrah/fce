@@ -6,6 +6,7 @@ import type { INotificationService } from "../interfaces/services/notification.s
 import type { IUrlInspirationService } from "../interfaces/services/url-inspiration.service.interface";
 import type { AiProviderFactory } from "../services/ai-provider-factory.service";
 import { logAiActivity } from "../utils/ai-activity-logger";
+import { isGenerationCancelled } from "../utils/generation-cancellation";
 import { buildContentGenerationPrompt } from "../utils/prompt-builder";
 import { buildSkillContext } from "../utils/skill-context-builder";
 
@@ -33,6 +34,14 @@ export class ContentGenerationJob {
 		const { requestId, productIds, userId, referenceImages, researchContext, pillars } = data;
 
 		try {
+			// Cancellation checkpoint #1 — user may have cancelled before the
+			// worker picked the job up. Check before we flip to "processing"
+			// (which would otherwise overwrite the "cancelled" status).
+			if (await isGenerationCancelled(this.prisma, requestId)) {
+				this.logger.info("content-generation: cancelled by user", { requestId });
+				return;
+			}
+
 			// Update status to processing
 			const request = await this.prisma.generationRequest.update({
 				where: { id: requestId },
@@ -248,12 +257,27 @@ export class ContentGenerationJob {
 			// Get prompts for logging
 			const { systemPrompt, userPrompt } = buildContentGenerationPrompt(generationInput);
 
+			// Cancellation checkpoint #2 — last chance before the (expensive,
+			// uncancellable) AI provider call.
+			if (await isGenerationCancelled(this.prisma, requestId)) {
+				this.logger.info("content-generation: cancelled by user", { requestId });
+				return;
+			}
+
 			// Generate content with timing
 			const contentGenerator = await this.aiFactory.getContentGenerator(request.workspaceId);
 			const startTime = Date.now();
 			const output = await contentGenerator.generate(generationInput);
 			const durationMs = Date.now() - startTime;
 			const usage = (contentGenerator as any).lastUsage;
+
+			// Cancellation checkpoint #3 — AI call returned but user cancelled
+			// while it was running. Skip writing GenerationOutput / sections /
+			// notifications so the user's cancel intent is honored.
+			if (await isGenerationCancelled(this.prisma, requestId)) {
+				this.logger.info("content-generation: cancelled by user", { requestId });
+				return;
+			}
 
 			// Log AI activity
 			await logAiActivity(
