@@ -219,7 +219,10 @@ export function createProjectRoutes(prisma: PrismaClient, auditService: IAuditSe
 		return c.json({ data: project });
 	});
 
-	// DELETE /:projectId — archive (soft delete) to preserve historical brand links.
+	// DELETE /:projectId — soft delete (move to Trash). Cascades the
+	// archive to the project's brand so the whole tree disappears
+	// together. Restoring (or permanent-deleting) the project is done
+	// from the Trash UI.
 	app.delete("/:projectId", requireWorkspaceAdmin(), async (c) => {
 		const workspaceId = c.get("workspaceId");
 		const userId = c.get("userId");
@@ -234,10 +237,14 @@ export function createProjectRoutes(prisma: PrismaClient, auditService: IAuditSe
 		if (existing.slug === "default") {
 			return c.json({ error: "The Default project cannot be archived" }, 400);
 		}
-		await prisma.project.update({
-			where: { id: projectId },
-			data: { archivedAt: new Date() },
-		});
+		const now = new Date();
+		await prisma.$transaction([
+			prisma.project.update({ where: { id: projectId }, data: { archivedAt: now } }),
+			prisma.brand.updateMany({
+				where: { projectId, archivedAt: null },
+				data: { archivedAt: now },
+			}),
+		]);
 		await auditService.log({
 			workspaceId,
 			userId,

@@ -8,17 +8,8 @@ export class ProductRepository implements IProductRepository {
 		// A product is visible if neither it nor its brand is archived.
 		// Hiding descendants of an archived brand is what lets us "collapse"
 		// the brand in the trash view and keep the main list clean.
-		const brandFilter: any = { archivedAt: null };
-		if (projectId) {
-			// If asking for the Default project, also include brands without
-			// a projectId (legacy rows). See BrandRepository.findByWorkspace.
-			const defaultId = await this.findDefaultProjectId(workspaceId);
-			if (defaultId === projectId) {
-				brandFilter.OR = [{ projectId }, { projectId: null }];
-			} else {
-				brandFilter.projectId = projectId;
-			}
-		}
+		const brandFilter: { archivedAt: null; projectId?: string } = { archivedAt: null };
+		if (projectId) brandFilter.projectId = projectId;
 		return this.prisma.product.findMany({
 			where: {
 				workspaceId,

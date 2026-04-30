@@ -13,18 +13,8 @@ export class TopicRepository implements ITopicRepository {
 		// projectId filter is on, we ALSO require the topic's brand to be in
 		// that project; brand-less topics remain visible regardless (they
 		// belong to a campaign which isn't project-scoped yet).
-		const brandArchiveFilter: any = { archivedAt: null };
-		if (filters?.projectId) {
-			const defaultId = await this.findDefaultProjectId(workspaceId);
-			if (defaultId === filters.projectId) {
-				brandArchiveFilter.OR = [
-					{ projectId: filters.projectId },
-					{ projectId: null },
-				];
-			} else {
-				brandArchiveFilter.projectId = filters.projectId;
-			}
-		}
+		const brandArchiveFilter: { archivedAt: null; projectId?: string } = { archivedAt: null };
+		if (filters?.projectId) brandArchiveFilter.projectId = filters.projectId;
 		return this.prisma.contentTopic.findMany({
 			where: {
 				workspaceId,

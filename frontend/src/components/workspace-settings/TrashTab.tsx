@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { RotateCcw, Trash2 } from "lucide-react";
 import { api } from "../../services/api";
+import { useProject } from "../../hooks/useProject";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
 import { Spinner } from "../ui/Spinner";
 
-type TrashType = "brand" | "product" | "topic" | "content";
+type TrashType = "brand" | "product" | "topic" | "content" | "project";
 
 interface TrashItem {
   id: string;
@@ -26,6 +27,7 @@ const TYPE_LABEL: Record<TrashType, string> = {
   product: "Product",
   topic: "Topic",
   content: "Content",
+  project: "Project",
 };
 
 const TYPE_VARIANT: Record<TrashType, "info" | "warning" | "default" | "success"> = {
@@ -33,6 +35,7 @@ const TYPE_VARIANT: Record<TrashType, "info" | "warning" | "default" | "success"
   product: "success",
   topic: "warning",
   content: "default",
+  project: "info",
 };
 
 function formatRelative(date: string): string {
@@ -56,6 +59,7 @@ function formatExpiresIn(date: string): string {
 }
 
 export function TrashTab({ workspaceId, onToast }: TrashTabProps) {
+  const { refresh: refreshSidebar } = useProject();
   const [items, setItems] = useState<TrashItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
@@ -85,6 +89,9 @@ export function TrashTab({ workspaceId, onToast }: TrashTabProps) {
       });
       onToast(`${TYPE_LABEL[item.type]} restored`, "success");
       setItems((prev) => prev.filter((i) => i.id !== item.id));
+      // Sidebar reflects projects; only meaningful for project type but
+      // calling unconditionally keeps the handler simple.
+      await refreshSidebar();
     } catch (e) {
       onToast(e instanceof Error ? e.message : "Failed to restore", "error");
     } finally {
@@ -107,6 +114,7 @@ export function TrashTab({ workspaceId, onToast }: TrashTabProps) {
       });
       onToast(`${TYPE_LABEL[item.type]} deleted permanently`, "success");
       setItems((prev) => prev.filter((i) => i.id !== item.id));
+      await refreshSidebar();
     } catch (e) {
       onToast(e instanceof Error ? e.message : "Failed to delete", "error");
     } finally {
@@ -129,14 +137,14 @@ export function TrashTab({ workspaceId, onToast }: TrashTabProps) {
       <div>
         <h2 className="text-sm font-semibold text-gray-900 mb-1">Trash</h2>
         <p className="text-xs text-gray-500">
-          Soft-deleted brands, products, topics, and content. Items auto-delete after the expiry
+          Soft-deleted projects, brands, products, topics, and content. Items auto-delete after the expiry
           window (see <code className="font-mono text-[11px]">ARCHIVE_TTL_DAYS</code>). Restoring a
-          brand also brings back everything under it.
+          project or brand also brings back everything under it.
         </p>
       </div>
 
       <div className="flex gap-2 text-xs">
-        {(["all", "brand", "product", "topic", "content"] as const).map((f) => (
+        {(["all", "project", "brand", "product", "topic", "content"] as const).map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f)}
