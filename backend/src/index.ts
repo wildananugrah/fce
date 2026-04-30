@@ -742,7 +742,7 @@ async function main() {
 	app.route("/api/workspaces", createWorkspaceRoutes(workspaceService));
 
 	// Taxonomy routes (auth protected, no workspace scoping)
-	app.route("/api/taxonomy", createTaxonomyRoutes(taxonomyService));
+	app.route("/api/taxonomy", createTaxonomyRoutes());
 
 	// Skills routes (auth protected, no workspace scoping)
 	app.route("/api/skills", createSkillListRoutes(skillRegistry));
