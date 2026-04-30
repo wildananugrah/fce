@@ -5,10 +5,12 @@ import type { INotificationService } from "../interfaces/services/notification.s
 import type { IUrlInspirationService } from "../interfaces/services/url-inspiration.service.interface";
 import type { AiProviderFactory } from "../services/ai-provider-factory.service";
 import { logAiActivity } from "../utils/ai-activity-logger";
+import { isTopicRunCancelled } from "../utils/generation-cancellation";
 import { buildTopicGenerationPrompt } from "../utils/prompt-builder";
 import { buildSkillContext } from "../utils/skill-context-builder";
 
 interface TopicJobData {
+	runId: string;
 	workspaceId: string;
 	brandId?: string;
 	productIds?: string[];
@@ -37,6 +39,7 @@ export class TopicGenerationJob {
 
 	async handle(data: TopicJobData): Promise<void> {
 		const {
+			runId,
 			workspaceId,
 			brandId,
 			productIds,
@@ -54,6 +57,11 @@ export class TopicGenerationJob {
 		} = data;
 
 		try {
+			if (await isTopicRunCancelled(this.prisma, runId)) {
+				this.logger.info("topic-generation: cancelled by user", { runId, userId });
+				return;
+			}
+
 			// Build brand context — split queries to avoid Prisma 7 WASM
 			// "Out of bounds memory access" bug with nested includes
 			let brandContext = "{}";
@@ -229,6 +237,10 @@ export class TopicGenerationJob {
 
 			// Generate topics with timing
 			const topicGenerator = await this.aiFactory.getTopicGenerator(workspaceId);
+			if (await isTopicRunCancelled(this.prisma, runId)) {
+				this.logger.info("topic-generation: cancelled by user", { runId, userId });
+				return;
+			}
 			const startTime = Date.now();
 			const output = await topicGenerator.generate(generationInput);
 			const durationMs = Date.now() - startTime;
@@ -258,6 +270,11 @@ export class TopicGenerationJob {
 					outputTokens: usage?.outputTokens,
 				},
 			);
+
+			if (await isTopicRunCancelled(this.prisma, runId)) {
+				this.logger.info("topic-generation: cancelled by user", { runId, userId });
+				return;
+			}
 
 			// Create ContentTopic records for each generated topic
 			await Promise.all(
@@ -290,6 +307,11 @@ export class TopicGenerationJob {
 			});
 
 			this.logger.info("Topic generation completed", { workspaceId, count: output.topics.length });
+
+			await this.prisma.topicGenerationRun.update({
+				where: { id: runId },
+				data: { status: "completed", completedAt: new Date() },
+			});
 		} catch (err) {
 			const message = err instanceof Error ? err.message : String(err);
 			this.logger.error("Topic generation failed", { workspaceId, error: message });
@@ -297,6 +319,14 @@ export class TopicGenerationJob {
 			this.notificationService.notify(userId, {
 				type: "topic_generation_failed",
 				data: { workspaceId, status: "failed", error: message },
+			});
+
+			await this.prisma.topicGenerationRun.update({
+				where: { id: runId },
+				data: { status: "failed", completedAt: new Date() },
+			}).catch(() => {
+				// Tolerate the secondary update failing — the original error is
+				// already logged + the user already got the SSE failure notification.
 			});
 		}
 	}
