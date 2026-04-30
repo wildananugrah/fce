@@ -1,5 +1,6 @@
-import { Play, Heart, MessageCircle, Repeat2, Share, BarChart3 } from "lucide-react";
+import { Heart, MessageCircle, Repeat2, Share, BarChart3 } from "lucide-react";
 import type { PreviewProps } from "./PreviewRegistry";
+import { VideoSlideshowFrame } from "./VideoSlideshowFrame";
 import { VisualScriptScenes, extractScenes } from "./VisualScriptScenes";
 
 function getSectionText(sections: PreviewProps["sections"], type: string): string {
@@ -44,16 +45,16 @@ export function TwitterVideoTweet({ content, sections, brandName }: PreviewProps
       {hashtags && <p className="text-[15px] text-blue-500">{hashtags}</p>}
 
       {/* Video thumbnail */}
-      <div className="relative bg-gray-900 rounded-xl overflow-hidden" style={{ aspectRatio: "16/9" }}>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="w-14 h-14 rounded-full bg-blue-500/80 flex items-center justify-center">
-            <Play size={28} className="text-white ml-1" />
-          </div>
-        </div>
+      <VideoSlideshowFrame
+        scenes={scenes}
+        aspectRatio="16/9"
+        accentBg="bg-sky-500"
+        rounded="rounded-xl"
+      >
         <div className="absolute bottom-2 right-2 px-1.5 py-0.5 bg-black/70 rounded text-white text-[10px]">
           0:30
         </div>
-      </div>
+      </VideoSlideshowFrame>
 
       {/* Actions */}
       <div className="flex items-center justify-between pt-1">

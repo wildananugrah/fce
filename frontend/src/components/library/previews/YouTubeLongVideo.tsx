@@ -1,5 +1,6 @@
-import { Play, ThumbsUp, ThumbsDown, Share2, Download } from "lucide-react";
+import { ThumbsUp, ThumbsDown, Share2, Download } from "lucide-react";
 import type { PreviewProps } from "./PreviewRegistry";
+import { VideoSlideshowFrame } from "./VideoSlideshowFrame";
 import { VisualScriptScenes, extractScenes } from "./VisualScriptScenes";
 
 function getSectionText(sections: PreviewProps["sections"], type: string): string {
@@ -21,17 +22,13 @@ export function YouTubeLongVideo({ content, sections, brandName, contentTitle }:
   return (
     <div className="space-y-4">
       {/* YouTube player mockup (16:9) */}
-      <div className="relative bg-black rounded-xl overflow-hidden" style={{ aspectRatio: "16/9" }}>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="w-16 h-16 rounded-2xl bg-red-600 flex items-center justify-center">
-            <Play size={32} className="text-white ml-1" />
-          </div>
-        </div>
-        {/* Progress bar */}
-        <div className="absolute bottom-0 left-0 right-0 h-1 bg-gray-700">
-          <div className="h-full w-0 bg-red-600 rounded-full" />
-        </div>
-      </div>
+      <VideoSlideshowFrame
+        scenes={scenes}
+        aspectRatio="16/9"
+        accentBg="bg-red-600"
+        rounded="rounded-xl"
+        maxWidth={640}
+      />
 
       {/* Title + Channel */}
       <div>

@@ -1,5 +1,6 @@
 import { ThumbsUp, MessageCircle, Repeat2, Send, Globe } from "lucide-react";
 import type { PreviewProps } from "./PreviewRegistry";
+import { VideoSlideshowFrame } from "./VideoSlideshowFrame";
 import { VisualScriptScenes, extractScenes, extractSlides, extractPostImage } from "./VisualScriptScenes";
 
 function getSectionText(sections: PreviewProps["sections"], type: string): string {
@@ -134,13 +135,12 @@ export function LinkedInVideo({ content, sections, brandName }: PreviewProps) {
           </p>
         )}
         {/* Video placeholder */}
-        <div className="relative bg-gray-900 mx-0" style={{ aspectRatio: "16/9" }}>
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center">
-              <Send size={24} className="text-white ml-1 rotate-[-30deg]" />
-            </div>
-          </div>
-        </div>
+        <VideoSlideshowFrame
+          scenes={scenes}
+          aspectRatio="16/9"
+          accentBg="bg-indigo-700"
+          rounded="rounded-xl"
+        />
         {hashtags && <p className="px-4 py-2 text-sm text-blue-600">{hashtags}</p>}
       </LinkedInWrapper>
       <VisualScriptScenes scenes={scenes} accentClass="text-blue-600" />
