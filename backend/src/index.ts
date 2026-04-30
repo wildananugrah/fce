@@ -61,7 +61,6 @@ import { ProductRepository } from "./repositories/product.repository";
 import { RecommendationRepository } from "./repositories/recommendation.repository";
 import { ResearchRepository } from "./repositories/research.repository";
 import { UrlScrapeCacheRepository } from "./repositories/url-scrape-cache.repository";
-import { TaxonomyRepository } from "./repositories/taxonomy.repository";
 import { TopicRepository } from "./repositories/topic.repository";
 import { UserRepository } from "./repositories/user.repository";
 import { WorkspaceRepository } from "./repositories/workspace.repository";
@@ -118,7 +117,6 @@ import { RecommendationService } from "./services/recommendation.service";
 import { ResearchService } from "./services/research.service";
 import { SceneImageService } from "./services/scene-image.service";
 import { UrlInspirationService } from "./services/url-inspiration.service";
-import { TaxonomyService } from "./services/taxonomy.service";
 import { TopicService } from "./services/topic.service";
 import { TrashService } from "./services/trash.service";
 import { WorkspaceService } from "./services/workspace.service";
@@ -161,7 +159,6 @@ async function main() {
 	const workspaceRepository = new WorkspaceRepository(prisma);
 	const brandRepository = new BrandRepository(prisma);
 	const productRepository = new ProductRepository(prisma);
-	const taxonomyRepository = new TaxonomyRepository(prisma);
 	const generationRepository = new GenerationRepository(prisma);
 	const outputSectionRepository = new OutputSectionRepository(prisma);
 	const campaignRepository = new CampaignRepository(prisma);
@@ -267,7 +264,6 @@ async function main() {
 	);
 	const brandService = new BrandService(brandRepository);
 	const productService = new ProductService(productRepository);
-	const taxonomyService = new TaxonomyService(taxonomyRepository);
 	const generationService = new GenerationService(generationRepository, boss, prisma);
 	const libraryService = new LibraryService(generationRepository, outputSectionRepository, boss);
 	// Scene image generator (Imagen via @google/genai). Always constructed —
