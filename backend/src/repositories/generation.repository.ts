@@ -130,15 +130,8 @@ export class GenerationRepository implements IGenerationRepository {
 		// with deeply nested includes + relation filters. The first query
 		// already narrows to live (non-archived) requests whose brand is also
 		// live, so archived brands/products don't leak into the library.
-		const brandFilter: any = { archivedAt: null };
-		if (projectId) {
-			const defaultId = await this.findDefaultProjectId(workspaceId);
-			if (defaultId === projectId) {
-				brandFilter.OR = [{ projectId }, { projectId: null }];
-			} else {
-				brandFilter.projectId = projectId;
-			}
-		}
+		const brandFilter: { archivedAt: null; projectId?: string } = { archivedAt: null };
+		if (projectId) brandFilter.projectId = projectId;
 		const requestIds = await this.prisma.generationRequest.findMany({
 			where: {
 				workspaceId,
