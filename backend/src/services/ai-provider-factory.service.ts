@@ -1,4 +1,5 @@
 import type { WorkspaceSetting } from "@prisma/client";
+import { MissingApiKeyError } from "../errors/ai-key-missing-error";
 import { AnthropicProvider } from "../providers/anthropic.provider";
 import { GeminiProvider } from "../providers/gemini.provider";
 import { AnthropicChatProvider } from "../providers/anthropic-chat.provider";
@@ -212,9 +213,6 @@ export class AiProviderFactory {
 
 	private requireKey(provider: ProviderName, apiKey: string): void {
 		if (apiKey && apiKey.length > 0) return;
-		const label = provider === "anthropic" ? "Anthropic" : "Gemini";
-		throw new Error(
-			`No ${label} API key configured for this workspace. Set one in Workspace Settings → Integrations → AI Providers.`,
-		);
+		throw new MissingApiKeyError(provider === "anthropic" ? "Anthropic" : "Gemini");
 	}
 }

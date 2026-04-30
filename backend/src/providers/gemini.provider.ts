@@ -39,6 +39,7 @@ import {
 	buildContentGenerationPrompt,
 	buildTopicGenerationPrompt,
 } from "../utils/prompt-builder";
+import { UrlFetchError } from "../errors/url-fetch-error";
 import { extractOgImage, fetchMultipleUrls, fetchUrlContent } from "../utils/url-fetcher";
 
 // Map a language code from the UI to a directive sentence appended to AI
@@ -316,9 +317,7 @@ Return JSON with these fields:
 		]);
 		const anySuccess = results.some((r) => r.source !== "failed" && r.content);
 		if (!anySuccess) {
-			throw new Error(
-				`GeminiProvider: Could not fetch content from any of: ${sourceUrls.join(", ")}`,
-			);
+			throw new UrlFetchError(sourceUrls);
 		}
 
 		const baseSystemPromptScraper =
@@ -376,9 +375,7 @@ ${combined}`;
 		// guess based on training knowledge of the brand name.
 		const fetched = await fetchUrlContent(input.url);
 		if (fetched.source === "failed" || !fetched.content) {
-			throw new Error(
-				`GeminiProvider: Could not fetch content from ${input.url}: ${fetched.error ?? "unknown error"}`,
-			);
+			throw new UrlFetchError([input.url], fetched.error ?? "unknown error");
 		}
 
 		const baseSystemPrompt =

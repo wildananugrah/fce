@@ -29,6 +29,8 @@ import { TopicGenerationJob } from "./jobs/topic-generation.job";
 import { TopicRegenerationJob } from "./jobs/topic-regeneration.job";
 import { createAdminMiddleware } from "./middlewares/admin.middleware";
 import { createAuthMiddleware } from "./middlewares/auth.middleware";
+import { MissingApiKeyError } from "./errors/ai-key-missing-error";
+import { UrlFetchError } from "./errors/url-fetch-error";
 import { createErrorHandlerMiddleware } from "./middlewares/error-handler.middleware";
 import { createRequestLoggerMiddleware } from "./middlewares/request-logger.middleware";
 import { createWorkspaceMiddleware } from "./middlewares/workspace.middleware";
@@ -684,6 +686,12 @@ async function main() {
 			method: c.req.method,
 			path: c.req.path,
 		});
+
+		// Typed user-actionable errors — surface their messages as 400s so
+		// the user gets a clear pointer instead of "Internal server error".
+		if (err instanceof MissingApiKeyError || err instanceof UrlFetchError) {
+			return c.json({ error: message }, 400);
+		}
 
 		if (knownErrors.includes(message)) {
 			return c.json({ error: message }, 400);
