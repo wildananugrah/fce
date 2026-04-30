@@ -9,6 +9,7 @@ import { Package, FileText } from "lucide-react";
 interface Brand {
   id: string;
   name: string;
+  language?: string;
 }
 
 interface ProductDrawerProps {

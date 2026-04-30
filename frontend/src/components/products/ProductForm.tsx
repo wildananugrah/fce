@@ -6,10 +6,13 @@ import { Button } from "../ui/Button";
 import { api, apiUpload } from "../../services/api";
 import { SkillsAppliedStrip } from "../skills/SkillsAppliedStrip";
 import { useUnsavedAsync } from "../../hooks/useUnsavedAsync";
+import { ScrapeLanguageToggle } from "../ui/ScrapeLanguageToggle";
+import type { ScrapeLanguage } from "../../types";
 
 interface Brand {
   id: string;
   name: string;
+  language?: string;
 }
 
 interface ProductFormProps {
@@ -63,6 +66,19 @@ export function ProductForm({ brands, workspaceId, onSubmit, onCancel, initial, 
   const [targetAudience, setTargetAudience] = useState(initial?.targetAudience ?? "");
 
   const [productUrl, setProductUrl] = useState("");
+  const initialLanguage: ScrapeLanguage =
+    (brands.find((b) => b.id === brandId)?.language as ScrapeLanguage | undefined) ??
+    "indonesian";
+  const [language, setLanguage] = useState<ScrapeLanguage>(initialLanguage);
+
+  // Reset to the new brand's language whenever the user picks a different brand.
+  useEffect(() => {
+    const next = brands.find((b) => b.id === brandId)?.language as
+      | ScrapeLanguage
+      | undefined;
+    if (next) setLanguage(next);
+  }, [brandId, brands]);
+
   const [scraping, setScraping] = useState(false);
   const [imageUrl, setImageUrl] = useState(initial?.imageUrl ?? "");
   const [uploading, setUploading] = useState(false);
@@ -138,7 +154,7 @@ export function ProductForm({ brands, workspaceId, onSubmit, onCancel, initial, 
         imageUrl?: string;
       }>(`/api/workspaces/${workspaceId}/products/scrape-preview`, {
         method: "POST",
-        body: JSON.stringify({ url: productUrl.trim(), brandId }),
+        body: JSON.stringify({ url: productUrl.trim(), brandId, language }),
         signal: controller.signal,
       });
       if (result.name) {
@@ -221,6 +237,7 @@ export function ProductForm({ brands, workspaceId, onSubmit, onCancel, initial, 
           productType: type.trim() || undefined,
           priceTier: priceTier.trim() || undefined,
           summary: summary.trim() || undefined,
+          language,
         }),
         signal: controller.signal,
       });
@@ -331,6 +348,11 @@ export function ProductForm({ brands, workspaceId, onSubmit, onCancel, initial, 
               onChange={(e) => setProductUrl(e.target.value)}
               placeholder="https://example.com/product"
               className="flex-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-black placeholder-gray-400 focus:border-black focus:ring-1 focus:ring-black focus:outline-none"
+            />
+            <ScrapeLanguageToggle
+              value={language}
+              onChange={setLanguage}
+              disabled={scraping || generating}
             />
             <button
               type="button"

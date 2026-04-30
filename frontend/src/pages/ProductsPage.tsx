@@ -15,6 +15,7 @@ import { Trash2, ImageOff, Brain } from "lucide-react";
 interface Brand {
   id: string;
   name: string;
+  language?: string;
 }
 
 interface ProductBrainVersion {
