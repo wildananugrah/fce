@@ -84,8 +84,42 @@ export function ProductForm({ brands, workspaceId, onSubmit, onCancel, initial, 
     onBusyChange?.(scraping || generating);
   }, [scraping, generating, onBusyChange]);
 
+  // Unified entry point — picks the right backend path based on what
+  // the user has filled in. URL takes precedence and overwrites manual
+  // edits (with a confirm); empty URL falls back to brain-only generation.
   const handleAutoFill = async () => {
-    if (!productUrl.trim()) return;
+    const hasUrl = productUrl.trim().length > 0;
+    const hasNameAndBrand = name.trim().length > 0 && brandId.length > 0;
+
+    if (!hasUrl && !hasNameAndBrand) {
+      setError("Provide a product URL, or enter a product name and pick a brand.");
+      return;
+    }
+
+    // If the URL is filled but the user has also typed manual data,
+    // confirm before overwriting. The URL path always wins on success.
+    if (hasUrl) {
+      const hasManualEdits =
+        name.trim().length > 0 ||
+        type.trim().length > 0 ||
+        summary.trim().length > 0 ||
+        usp.trim().length > 0 ||
+        rtb.trim().length > 0 ||
+        functionalBenefits.trim().length > 0 ||
+        emotionalBenefits.trim().length > 0 ||
+        targetAudience.trim().length > 0;
+      if (hasManualEdits) {
+        if (!window.confirm("This will overwrite the current fields with AI output. Continue?")) {
+          return;
+        }
+      }
+      await runScrapePreview();
+    } else {
+      await runGenerateBrain();
+    }
+  };
+
+  const runScrapePreview = async () => {
     setScraping(true);
     setError(null);
     const controller = new AbortController();
@@ -107,7 +141,7 @@ export function ProductForm({ brands, workspaceId, onSubmit, onCancel, initial, 
         body: JSON.stringify({ url: productUrl.trim(), brandId }),
         signal: controller.signal,
       });
-      if (result.name && !name.trim()) {
+      if (result.name) {
         setName(result.name);
         setSlug(generateSlug(result.name));
       }
@@ -160,11 +194,7 @@ export function ProductForm({ brands, workspaceId, onSubmit, onCancel, initial, 
     }
   };
 
-  const handleGenerateBrain = async () => {
-    if (!name.trim()) {
-      setError("Enter a product name first");
-      return;
-    }
+  const runGenerateBrain = async () => {
     const brand = brands.find((b) => b.id === brandId);
     if (!brand) {
       setError("Select a brand first");
@@ -291,7 +321,9 @@ export function ProductForm({ brands, workspaceId, onSubmit, onCancel, initial, 
             <h3 className="text-sm font-semibold text-black">Product URL</h3>
           </div>
           <p className="text-xs text-gray-500 mb-2">
-            Enter a product page URL to auto-fill all fields using AI.
+            Paste a product page URL to fill the whole form, or leave it blank
+            and click Auto-fill once you've named the product and picked a
+            brand to generate just the Product Brain.
           </p>
           <div className="flex gap-2 items-stretch">
             <input
@@ -303,17 +335,32 @@ export function ProductForm({ brands, workspaceId, onSubmit, onCancel, initial, 
             <button
               type="button"
               onClick={handleAutoFill}
-              disabled={scraping || !productUrl.trim()}
+              disabled={
+                scraping ||
+                generating ||
+                (!productUrl.trim() && (!name.trim() || !brandId))
+              }
+              title={
+                !productUrl.trim() && (!name.trim() || !brandId)
+                  ? "Enter a URL, or pick a brand and type a product name"
+                  : productUrl.trim()
+                    ? "Scrape the URL and fill the whole form"
+                    : "Generate the Product Brain from the name and brand"
+              }
               className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium border border-gray-300 rounded-md hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
             >
-              {scraping ? (
+              {scraping || generating ? (
                 <Loader2 size={14} className="animate-spin" />
               ) : (
                 <Sparkles size={14} />
               )}
-              {scraping ? "Analyzing..." : "Auto-fill from URL"}
+              {scraping
+                ? "Analyzing..."
+                : generating
+                  ? "Generating..."
+                  : "Auto-fill with AI"}
             </button>
-            {scraping && (
+            {(scraping || generating) && (
               <Button
                 variant="secondary"
                 size="sm"
@@ -476,30 +523,6 @@ export function ProductForm({ brands, workspaceId, onSubmit, onCancel, initial, 
           <div className="flex items-center gap-2">
             <Brain size={16} className="text-gray-500" />
             <h3 className="text-sm font-semibold text-black">Product Brain</h3>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleGenerateBrain}
-              disabled={generating || !name.trim()}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 rounded-md hover:bg-indigo-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {generating ? (
-                <Loader2 size={12} className="animate-spin" />
-              ) : (
-                <Sparkles size={12} />
-              )}
-              {generating ? "Generating..." : "Generate with AI"}
-            </button>
-            {(scraping || generating) && (
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => abortRef.current?.abort()}
-              >
-                Cancel
-              </Button>
-            )}
           </div>
         </div>
 
