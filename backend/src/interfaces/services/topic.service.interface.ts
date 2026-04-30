@@ -18,7 +18,7 @@ export interface ITopicService {
 		workspaceId: string,
 		userId: string,
 		input: GenerateTopicsInput,
-	): Promise<{ jobId: string }>;
+	): Promise<{ runId: string; jobId: string }>;
 	regenerate(
 		workspaceId: string,
 		userId: string,

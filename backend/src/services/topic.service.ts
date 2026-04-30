@@ -55,7 +55,7 @@ export class TopicService implements ITopicService {
 		workspaceId: string,
 		userId: string,
 		input: GenerateTopicsInput,
-	): Promise<{ jobId: string }> {
+	): Promise<{ runId: string; jobId: string }> {
 		const brand = await this.prisma.brand.findUnique({
 			where: { id: input.brandId },
 			select: { language: true },
@@ -63,7 +63,14 @@ export class TopicService implements ITopicService {
 		if (!brand) throw new Error("Brand not found");
 		const language = brand.language;
 
+		// Create the run row BEFORE enqueueing so the worker has something
+		// to look up and the user can cancel between submit and pickup.
+		const run = await this.prisma.topicGenerationRun.create({
+			data: { workspaceId, userId, status: "pending" },
+		});
+
 		const jobId = await this.boss.send("topic-generation", {
+			runId: run.id,
 			workspaceId,
 			brandId: input.brandId,
 			productIds: input.productIds,
@@ -80,7 +87,7 @@ export class TopicService implements ITopicService {
 			referenceImages: input.referenceImages,
 		});
 
-		return { jobId: jobId ?? "queued" };
+		return { runId: run.id, jobId: jobId ?? "queued" };
 	}
 
 	async regenerate(
