@@ -282,6 +282,7 @@ async function main() {
 	const campaignService = new CampaignService(campaignRepository, boss);
 	const topicService = new TopicService(topicRepository, boss, prisma);
 	const trashService = new TrashService(
+		prisma,
 		brandRepository,
 		productRepository,
 		topicRepository,
