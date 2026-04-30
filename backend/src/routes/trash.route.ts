@@ -65,6 +65,18 @@ export function createTrashRoutes(
 				case "content":
 					await libraryService.restoreMany(workspaceId, [id]);
 					break;
+				case "project":
+					await prisma.$transaction([
+						prisma.project.update({
+							where: { id },
+							data: { archivedAt: null },
+						}),
+						prisma.brand.updateMany({
+							where: { projectId: id, archivedAt: { not: null } },
+							data: { archivedAt: null },
+						}),
+					]);
+					break;
 				default:
 					return c.json({ error: `Unknown trash type: ${type}` }, 400);
 			}
@@ -127,6 +139,19 @@ export function createTrashRoutes(
 					if (row?.request?.contentTopicId)
 						parentMeta.contentTopicId = row.request.contentTopicId;
 					await libraryService.permanentDeleteMany(workspaceId, [id]);
+					break;
+				}
+				case "project": {
+					const row = await prisma.project.findUnique({
+						where: { id },
+						select: { name: true },
+					});
+					name = row?.name ?? null;
+					// FK cascade does the rest: brand, brand brain versions,
+					// products, products brain versions, topics, generation
+					// requests/outputs, memberships, analysis configs,
+					// competitor pipeline runs, creators.
+					await prisma.project.delete({ where: { id } });
 					break;
 				}
 				default:
