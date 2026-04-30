@@ -38,10 +38,19 @@ export class ArchiveSweepJob {
 		const productResult = await this.prisma.product.deleteMany({
 			where: { archivedAt: { lt: cutoff } },
 		});
-		// Brands last so their cascade doesn't race against the individual
-		// deleteManys above (which may have already cleaned some children).
+		// Brands before projects so brand-cascade doesn't race with the
+		// project-cascade (both would touch the same products/topics tree).
 		const brandResult = await this.prisma.brand.deleteMany({
 			where: { archivedAt: { lt: cutoff } },
+		});
+		// Projects last. The slug guard is belt-and-suspenders — the
+		// archive endpoint already refuses to archive Default, so this
+		// branch is unreachable in practice.
+		const projectResult = await this.prisma.project.deleteMany({
+			where: {
+				archivedAt: { lt: cutoff },
+				slug: { not: "default" },
+			},
 		});
 
 		this.logger.info("archive-sweep: done", {
@@ -50,6 +59,7 @@ export class ArchiveSweepJob {
 			deletedTopics: topicResult.count,
 			deletedProducts: productResult.count,
 			deletedBrands: brandResult.count,
+			deletedProjects: projectResult.count,
 		});
 	}
 }
