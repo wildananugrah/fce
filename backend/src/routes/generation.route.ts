@@ -1,3 +1,4 @@
+import type { PrismaClient } from "@prisma/client";
 import { Hono } from "hono";
 import type { IGenerationService } from "../interfaces/services/generation.service.interface";
 
@@ -8,7 +9,10 @@ type Variables = {
 	workspaceRole: string;
 };
 
-export function createGenerationRoutes(generationService: IGenerationService) {
+export function createGenerationRoutes(
+	generationService: IGenerationService,
+	prisma: PrismaClient,
+) {
 	const app = new Hono<{ Variables: Variables }>();
 
 	// POST / — create generation request (enqueues job)
@@ -37,6 +41,32 @@ export function createGenerationRoutes(generationService: IGenerationService) {
 		});
 
 		return c.json({ data: request }, 201);
+	});
+
+	// POST /:id/cancel — best-effort cancellation. Flips status to
+	// "cancelled" if currently "pending"; workers check this between
+	// phases (the in-flight AI call still completes and is billed).
+	app.post("/:id/cancel", async (c) => {
+		const workspaceId = c.get("workspaceId");
+		const id = c.req.param("id");
+		const before = await prisma.generationRequest.findUnique({
+			where: { id },
+			select: { workspaceId: true, status: true },
+		});
+		if (!before || before.workspaceId !== workspaceId) {
+			return c.json({ error: "Request not found" }, 404);
+		}
+		if (before.status !== "pending") {
+			return c.json(
+				{ error: `Cannot cancel — current status is "${before.status}"` },
+				400,
+			);
+		}
+		await prisma.generationRequest.update({
+			where: { id },
+			data: { status: "cancelled" },
+		});
+		return c.json({ data: { ok: true } });
 	});
 
 	// DELETE /bulk — bulk delete generation requests (cascades to outputs, sections)
