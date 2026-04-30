@@ -84,6 +84,33 @@ export function createTopicRoutes(topicService: ITopicService, prisma: PrismaCli
 		return c.json({ data: result }, 202);
 	});
 
+	// POST /runs/:id/cancel — best-effort cancellation of a topic-generation
+	// run. Flips status to "cancelled" if currently "pending"; the worker
+	// checks this between phases (the in-flight AI call still completes
+	// and is billed).
+	app.post("/runs/:id/cancel", async (c) => {
+		const workspaceId = c.get("workspaceId");
+		const id = c.req.param("id");
+		const before = await prisma.topicGenerationRun.findUnique({
+			where: { id },
+			select: { workspaceId: true, status: true },
+		});
+		if (!before || before.workspaceId !== workspaceId) {
+			return c.json({ error: "Run not found" }, 404);
+		}
+		if (before.status !== "pending") {
+			return c.json(
+				{ error: `Cannot cancel — current status is "${before.status}"` },
+				400,
+			);
+		}
+		await prisma.topicGenerationRun.update({
+			where: { id },
+			data: { status: "cancelled" },
+		});
+		return c.json({ data: { ok: true } });
+	});
+
 	// POST /regenerate-preview — regenerate a single topic in preview (before save)
 	app.post("/regenerate-preview", async (c) => {
 		const workspaceId = c.get("workspaceId");

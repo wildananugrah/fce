@@ -82,6 +82,14 @@ function makeMockPrisma(brandLanguage: string | null = "en") {
 		brand: {
 			findUnique: async (_args: unknown) => ({ language: brandLanguage }),
 		},
+		topicGenerationRun: {
+			create: async ({ data }: { data: any }) => ({
+				id: crypto.randomUUID(),
+				...data,
+				createdAt: new Date(),
+				completedAt: null,
+			}),
+		},
 	} as any;
 }
 

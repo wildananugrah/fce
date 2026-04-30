@@ -5,9 +5,11 @@ import { useWorkspace } from "../hooks/useWorkspace";
 import { useProject } from "../hooks/useProject";
 import { useSSE } from "../hooks/useSSE";
 import { useOnboarding } from "../hooks/useOnboarding";
+import { useUnsavedAsync } from "../hooks/useUnsavedAsync";
 import { api } from "../services/api";
 import { CoachMark } from "../components/onboarding/CoachMark";
 import { HelpButton } from "../components/onboarding/HelpButton";
+import { Button } from "../components/ui/Button";
 import { Select } from "../components/ui/Select";
 import { SearchableSelect } from "../components/ui/SearchableSelect";
 import { Spinner } from "../components/ui/Spinner";
@@ -428,10 +430,16 @@ export function GeneratePage() {
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [pendingRequestId, setPendingRequestId] = useState<string | null>(null);
   const [toast, setToast] = useState<ToastState>(null);
   const [advancedMode, setAdvancedMode] = useState(false);
   const [selectedGenIds, setSelectedGenIds] = useState<Set<string>>(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
+
+  useUnsavedAsync(
+    pendingRequestId !== null,
+    "AI is generating content — leave anyway? You can come back, but you'll lose the option to cancel.",
+  );
 
   const handleViewGeneration = async (gen: Generation) => {
     if (!activeWorkspace) return;
@@ -620,6 +628,7 @@ export function GeneratePage() {
 
   useSSE((event) => {
     if (event.type === "generation_complete" || event.type === "generation_failed") {
+      setPendingRequestId(null);
       loadGenerations();
     }
   });
@@ -646,32 +655,37 @@ export function GeneratePage() {
           ? selectedPillars
           : brandContentPillars;
 
-      await api(`/api/workspaces/${activeWorkspace!.id}/generations`, {
-        method: "POST",
-        body: JSON.stringify({
-          brandId,
-          productIds: selectedProductIds.length > 0 ? selectedProductIds : undefined,
-          contentTopicId: contentTopicId || undefined,
-          platform,
-          contentType,
-          framework: frameworkId || "PAS",
-          hookType: hookTypeId || "curiosity",
-          customPrompt: customPrompt.trim() || undefined,
-          referenceImages: referenceImages.filter((i) => !i.uploading).map((i) => i.url).length > 0
-            ? referenceImages.filter((i) => !i.uploading).map((i) => i.url)
-            : undefined,
-          tonePresetId: tonePresetId || undefined,
-          visualStyleId: visualStyleId || undefined,
-          objective: objective || undefined,
-          outputLength: outputLength || undefined,
-          researchContext: researchContext || undefined,
-          pillars: resolvedPillars.length > 0 ? resolvedPillars : undefined,
-        }),
-      });
+      const response = await api<{ id: string }>(
+        `/api/workspaces/${activeWorkspace!.id}/generations`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            brandId,
+            productIds: selectedProductIds.length > 0 ? selectedProductIds : undefined,
+            contentTopicId: contentTopicId || undefined,
+            platform,
+            contentType,
+            framework: frameworkId || "PAS",
+            hookType: hookTypeId || "curiosity",
+            customPrompt: customPrompt.trim() || undefined,
+            referenceImages: referenceImages.filter((i) => !i.uploading).map((i) => i.url).length > 0
+              ? referenceImages.filter((i) => !i.uploading).map((i) => i.url)
+              : undefined,
+            tonePresetId: tonePresetId || undefined,
+            visualStyleId: visualStyleId || undefined,
+            objective: objective || undefined,
+            outputLength: outputLength || undefined,
+            researchContext: researchContext || undefined,
+            pillars: resolvedPillars.length > 0 ? resolvedPillars : undefined,
+          }),
+        },
+      );
+      setPendingRequestId(response?.id ?? null);
       showToast("Generation submitted", "success");
       refreshProgress();
       await loadGenerations();
     } catch (e) {
+      setPendingRequestId(null);
       showToast(e instanceof Error ? e.message : "Failed to submit generation", "error");
     } finally {
       setSubmitting(false);
@@ -1105,6 +1119,30 @@ const frameworkOptions = [{ value: "", label: "PAS (recommended)" }, ...framewor
               )}
               Generate Content
             </button>
+            {pendingRequestId && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={async () => {
+                  try {
+                    await api(
+                      `/api/workspaces/${activeWorkspace!.id}/generations/${pendingRequestId}/cancel`,
+                      { method: "POST" },
+                    );
+                    setPendingRequestId(null);
+                  } catch (e) {
+                    // Race: worker finished after the user clicked. Show toast,
+                    // clear in-flight state anyway since the page state is stale.
+                    showToast(e instanceof Error ? e.message : "Could not cancel", "info");
+                    setPendingRequestId(null);
+                  }
+                }}
+                title="Cancel stops the next step. The current AI call will finish and may incur usage cost."
+                className="w-full mt-2"
+              >
+                Cancel
+              </Button>
+            )}
 
             {!canGenerate && (
               <p className="text-xs text-gray-400 text-center -mt-2">
