@@ -38,7 +38,7 @@ export class ContentGenerationJob {
 			// worker picked the job up. Check before we flip to "processing"
 			// (which would otherwise overwrite the "cancelled" status).
 			if (await isGenerationCancelled(this.prisma, requestId)) {
-				this.logger.info("content-generation: cancelled by user", { requestId });
+				this.logger.info("content-generation: cancelled by user", { requestId, userId });
 				return;
 			}
 
@@ -260,7 +260,7 @@ export class ContentGenerationJob {
 			// Cancellation checkpoint #2 — last chance before the (expensive,
 			// uncancellable) AI provider call.
 			if (await isGenerationCancelled(this.prisma, requestId)) {
-				this.logger.info("content-generation: cancelled by user", { requestId });
+				this.logger.info("content-generation: cancelled by user", { requestId, userId });
 				return;
 			}
 
@@ -275,7 +275,7 @@ export class ContentGenerationJob {
 			// while it was running. Skip writing GenerationOutput / sections /
 			// notifications so the user's cancel intent is honored.
 			if (await isGenerationCancelled(this.prisma, requestId)) {
-				this.logger.info("content-generation: cancelled by user", { requestId });
+				this.logger.info("content-generation: cancelled by user", { requestId, userId });
 				return;
 			}
 
