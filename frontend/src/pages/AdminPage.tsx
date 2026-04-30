@@ -1,13 +1,11 @@
 import { useEffect, useState } from "react";
-import { ShieldOff, Plus, Trash2, UserPlus } from "lucide-react";
+import { ShieldOff, UserPlus } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { api } from "../services/api";
 import { Tabs } from "../components/ui/Tabs";
 import { Table } from "../components/ui/Table";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
-import { Modal } from "../components/ui/Modal";
-import { Input } from "../components/ui/Input";
 import { Spinner } from "../components/ui/Spinner";
 import { Toast } from "../components/ui/Toast";
 import { AdminNewUserModal } from "../components/admin/AdminNewUserModal";
@@ -25,13 +23,6 @@ interface AdminUser {
   [key: string]: unknown;
 }
 
-interface TaxonomyItem {
-  id: string;
-  name: string;
-  description: string | null;
-  [key: string]: unknown;
-}
-
 interface AuditLogEntry {
   id: string;
   action: string;
@@ -44,25 +35,15 @@ interface AuditLogEntry {
 
 const TABS = [
   { key: "users", label: "Users" },
-  { key: "frameworks", label: "Frameworks" },
-  { key: "hook-types", label: "Hook Types" },
-  { key: "tone-presets", label: "Tone Presets" },
-  { key: "visual-styles", label: "Visual Styles" },
   { key: "audit-logs", label: "Audit Logs" },
 ];
-
-const TAXONOMY_TABS = ["frameworks", "hook-types", "tone-presets", "visual-styles"];
 
 export function AdminPage() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("users");
   const [users, setUsers] = useState<AdminUser[]>([]);
-  const [taxonomyItems, setTaxonomyItems] = useState<TaxonomyItem[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
   const [loading, setLoading] = useState(false);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [newName, setNewName] = useState("");
-  const [newDescription, setNewDescription] = useState("");
 
   // Users tab — new / manage modals + toast
   const [newUserOpen, setNewUserOpen] = useState(false);
@@ -95,9 +76,6 @@ export function AdminPage() {
       } else if (tab === "audit-logs") {
         const data = await api<AuditLogEntry[]>("/api/admin/audit-logs");
         setAuditLogs(data);
-      } else if (TAXONOMY_TABS.includes(tab)) {
-        const data = await api<TaxonomyItem[]>(`/api/taxonomy/${tab}`);
-        setTaxonomyItems(data);
       }
     } catch {
       // Silent fail - empty state will show
@@ -109,31 +87,6 @@ export function AdminPage() {
   useEffect(() => {
     fetchData(activeTab);
   }, [activeTab]);
-
-  const handleAddTaxonomy = async () => {
-    if (!newName.trim()) return;
-    try {
-      await api(`/api/admin/taxonomy/${activeTab}`, {
-        method: "POST",
-        body: JSON.stringify({ name: newName, description: newDescription || null }),
-      });
-      setShowAddModal(false);
-      setNewName("");
-      setNewDescription("");
-      fetchData(activeTab);
-    } catch {
-      // Error handled silently
-    }
-  };
-
-  const handleDeleteTaxonomy = async (id: string) => {
-    try {
-      await api(`/api/admin/taxonomy/${activeTab}/${id}`, { method: "DELETE" });
-      fetchData(activeTab);
-    } catch {
-      // Error handled silently
-    }
-  };
 
   const renderContent = () => {
     if (loading) {
@@ -233,42 +186,6 @@ export function AdminPage() {
       );
     }
 
-    if (TAXONOMY_TABS.includes(activeTab)) {
-      return (
-        <div className="space-y-3">
-          <div className="flex justify-end">
-            <Button size="sm" onClick={() => setShowAddModal(true)}>
-              <Plus className="w-3.5 h-3.5 mr-1" />
-              Add New
-            </Button>
-          </div>
-          <Table<TaxonomyItem>
-            columns={[
-              { key: "name", header: "Name" },
-              { key: "description", header: "Description", render: (i) => i.description || "-" },
-              {
-                key: "actions",
-                header: "",
-                render: (i) => (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteTaxonomy(i.id);
-                    }}
-                    className="text-gray-400 hover:text-red-600 transition-colors"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                ),
-              },
-            ]}
-            data={taxonomyItems}
-            emptyMessage="No items found"
-          />
-        </div>
-      );
-    }
-
     return null;
   };
 
@@ -278,7 +195,7 @@ export function AdminPage() {
         <div>
           <h1 className="text-lg font-semibold text-black">Admin Panel</h1>
           <p className="text-sm text-gray-500 mt-0.5">
-            Manage users, taxonomy data, and view audit logs.
+            Manage users and view audit logs.
           </p>
         </div>
         <HelpButton pageKey="admin" />
@@ -309,31 +226,6 @@ export function AdminPage() {
       )}
 
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
-
-      <Modal isOpen={showAddModal} onClose={() => setShowAddModal(false)} title="Add New Item">
-        <div className="space-y-4">
-          <Input
-            label="Name"
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            placeholder="Enter name"
-          />
-          <Input
-            label="Description"
-            value={newDescription}
-            onChange={(e) => setNewDescription(e.target.value)}
-            placeholder="Enter description (optional)"
-          />
-          <div className="flex justify-end gap-2">
-            <Button variant="secondary" size="sm" onClick={() => setShowAddModal(false)}>
-              Cancel
-            </Button>
-            <Button size="sm" onClick={handleAddTaxonomy}>
-              Create
-            </Button>
-          </div>
-        </div>
-      </Modal>
     </div>
   );
 }

@@ -26,20 +26,4 @@ export interface IAdminService {
 		workspaceId: string,
 	): Promise<void>;
 	listAuditLogs(workspaceId?: string, limit?: number): Promise<any[]>;
-	createTaxonomyItem(
-		actingUserId: string,
-		type: "framework" | "hookType" | "tonePreset" | "visualStyle",
-		data: { name: string; description?: string },
-	): Promise<any>;
-	updateTaxonomyItem(
-		actingUserId: string,
-		type: "framework" | "hookType" | "tonePreset" | "visualStyle",
-		id: string,
-		data: { name?: string; description?: string },
-	): Promise<any>;
-	deleteTaxonomyItem(
-		actingUserId: string,
-		type: "framework" | "hookType" | "tonePreset" | "visualStyle",
-		id: string,
-	): Promise<void>;
 }

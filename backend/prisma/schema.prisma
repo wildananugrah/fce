@@ -335,44 +335,6 @@ model OutputSection {
   @@map("output_sections")
 }
 
-// ─── Taxonomy ───────────────────────────────────────────────────
-
-model Framework {
-  id          String  @id @default(uuid())
-  name        String  @unique
-  description String?
-  isGlobal    Boolean @default(true) @map("is_global")
-
-  @@map("frameworks")
-}
-
-model HookType {
-  id          String  @id @default(uuid())
-  name        String  @unique
-  description String?
-  isGlobal    Boolean @default(true) @map("is_global")
-
-  @@map("hook_types")
-}
-
-model TonePreset {
-  id          String  @id @default(uuid())
-  name        String  @unique
-  description String?
-  isGlobal    Boolean @default(true) @map("is_global")
-
-  @@map("tone_presets")
-}
-
-model VisualStyle {
-  id          String  @id @default(uuid())
-  name        String  @unique
-  description String?
-  isGlobal    Boolean @default(true) @map("is_global")
-
-  @@map("visual_styles")
-}
-
 // ─── Campaign System ────────────────────────────────────────────
 
 model Campaign {

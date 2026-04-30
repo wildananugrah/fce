@@ -315,9 +315,9 @@ function normalizeObjective(raw?: string | null): string {
 
 const OUTPUT_LENGTH_OPTIONS = [
   { value: "", label: "Select Output Length" },
-  { value: "short", label: "Short" },
-  { value: "medium", label: "Medium" },
-  { value: "long", label: "Long" },
+  { value: "short", label: "Short (caption)" },
+  { value: "medium", label: "Medium (Post)" },
+  { value: "long", label: "Long (Thread/Script)" },
 ];
 
 // Pastel chip colors for brand-pillar multi-select. Declared locally rather
@@ -676,14 +676,14 @@ export function GeneratePage() {
             contentTopicId: contentTopicId || undefined,
             platform,
             contentType,
-            framework: frameworkId || "PAS",
-            hookType: hookTypeId || "curiosity",
+            framework: frameworkId || "aida",
+            hookType: hookTypeId || "curiosity-hook",
             customPrompt: customPrompt.trim() || undefined,
             referenceImages: referenceImages.filter((i) => !i.uploading).map((i) => i.url).length > 0
               ? referenceImages.filter((i) => !i.uploading).map((i) => i.url)
               : undefined,
-            tonePresetId: tonePresetId || undefined,
-            visualStyleId: visualStyleId || undefined,
+            tonePreset: tonePresetId || undefined,
+            visualStyle: visualStyleId || undefined,
             objective: objective || undefined,
             outputLength: outputLength || undefined,
             researchContext: researchContext || undefined,
@@ -716,9 +716,9 @@ export function GeneratePage() {
     { value: "", label: "Select brand" },
     ...brands.map((b) => ({ value: b.id, label: b.name })),
   ];
-const frameworkOptions = [{ value: "", label: "PAS (recommended)" }, ...frameworks.map((f) => ({ value: f.id, label: f.name }))];
-  const hookTypeOptions = [{ value: "", label: "Curiosity (recommended)" }, ...hookTypes.map((h) => ({ value: h.id, label: h.name }))];
-  const tonePresetOptions = [{ value: "", label: "Select Tone Variation" }, ...tonePresets.map((t) => ({ value: t.id, label: t.name }))];
+const frameworkOptions = [{ value: "", label: "Default (AIDA)" }, ...frameworks.map((f) => ({ value: f.id, label: f.name }))];
+  const hookTypeOptions = [{ value: "", label: "Default (Curiosity)" }, ...hookTypes.map((h) => ({ value: h.id, label: h.name }))];
+  const tonePresetOptions = [{ value: "", label: "Default Brand Tone" }, ...tonePresets.map((t) => ({ value: t.id, label: t.name }))];
   const visualStyleOptions = [{ value: "", label: "Select Visual Style" }, ...visualStyles.map((v) => ({ value: v.id, label: v.name }))];
 
   return (

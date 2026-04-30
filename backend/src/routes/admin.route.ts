@@ -102,36 +102,5 @@ export function createAdminRoutes(adminService: IAdminService) {
 		return c.json({ data: logs });
 	});
 
-	const taxonomyTypes = ["frameworks", "hook-types", "tone-presets", "visual-styles"];
-	const typeMap: Record<string, string> = {
-		frameworks: "framework",
-		"hook-types": "hookType",
-		"tone-presets": "tonePreset",
-		"visual-styles": "visualStyle",
-	};
-
-	for (const route of taxonomyTypes) {
-		const type = typeMap[route];
-
-		app.post(`/taxonomy/${route}`, async (c) => {
-			const body = await c.req.json();
-			const item = await adminService.createTaxonomyItem(c.get("userId"), type as any, body);
-			return c.json({ data: item }, 201);
-		});
-
-		app.patch(`/taxonomy/${route}/:id`, async (c) => {
-			const id = c.req.param("id");
-			const body = await c.req.json();
-			const item = await adminService.updateTaxonomyItem(c.get("userId"), type as any, id, body);
-			return c.json({ data: item });
-		});
-
-		app.delete(`/taxonomy/${route}/:id`, async (c) => {
-			const id = c.req.param("id");
-			await adminService.deleteTaxonomyItem(c.get("userId"), type as any, id);
-			return c.json({ data: { success: true } });
-		});
-	}
-
 	return app;
 }
