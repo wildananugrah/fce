@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useWorkspace } from "../hooks/useWorkspace";
 import { useProject } from "../hooks/useProject";
 import { useSSE } from "../hooks/useSSE";
+import { useUnsavedAsync } from "../hooks/useUnsavedAsync";
 import { api } from "../services/api";
 import { Button } from "../components/ui/Button";
 import { CoachMark } from "../components/onboarding/CoachMark";
@@ -116,9 +117,15 @@ export function TopicsPage() {
 	const [products, setProducts] = useState<Product[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [generating, setGenerating] = useState(false);
+	const [pendingRunId, setPendingRunId] = useState<string | null>(null);
 	const [saving, setSaving] = useState(false);
 	const [toast, setToast] = useState<ToastState>(null);
 	const [contentPillars, setContentPillars] = useState<string[]>([]);
+
+	useUnsavedAsync(
+		generating,
+		"AI is generating topics — leave anyway? You can come back, but you'll lose the option to cancel.",
+	);
 
 	// Form state
 	const [brandId, setBrandId] = useState("");
@@ -232,6 +239,7 @@ export function TopicsPage() {
 			event.type === "topics_generated"
 		) {
 			setGenerating(false);
+			setPendingRunId(null);
 			// Fetch the generated topics
 			if (activeWorkspace) {
 				api<{ data: GeneratedTopic[] }>(
@@ -250,6 +258,7 @@ export function TopicsPage() {
 		}
 		if (event.type === "topic_generation_failed") {
 			setGenerating(false);
+			setPendingRunId(null);
 			showToast("Topic generation failed. Please try again.", "error");
 		}
 		if (event.type === "topic_preview_regenerated") {
@@ -281,7 +290,7 @@ export function TopicsPage() {
 		setGeneratedTopics([]);
 		setTopicsSaved(false);
 		try {
-			await api(
+			const response = await api<{ runId: string; jobId: string }>(
 				`/api/workspaces/${activeWorkspace!.id}/topics/generate`,
 				{
 					method: "POST",
@@ -302,6 +311,7 @@ export function TopicsPage() {
 					}),
 				}
 			);
+			setPendingRunId(response?.runId ?? null);
 			showToast("Generating topics...", "info");
 		} catch (e) {
 			showToast(
@@ -309,6 +319,7 @@ export function TopicsPage() {
 				"error"
 			);
 			setGenerating(false);
+			setPendingRunId(null);
 		}
 	};
 
@@ -825,6 +836,35 @@ export function TopicsPage() {
 							</svg>
 							Generate {count} Topics
 						</Button>
+						{generating && pendingRunId && (
+							<Button
+								variant="secondary"
+								size="sm"
+								onClick={async () => {
+									try {
+										await api(
+											`/api/workspaces/${activeWorkspace!.id}/topics/runs/${pendingRunId}/cancel`,
+											{ method: "POST" },
+										);
+										setGenerating(false);
+										setPendingRunId(null);
+									} catch (e) {
+										// Race: worker finished after the user clicked. Show toast,
+										// clear spinner anyway since the page state is stale.
+										showToast(
+											e instanceof Error ? e.message : "Could not cancel",
+											"info",
+										);
+										setGenerating(false);
+										setPendingRunId(null);
+									}
+								}}
+								title="Cancel stops the next step. The current AI call will finish and may incur usage cost."
+								className="w-full mt-2"
+							>
+								Cancel
+							</Button>
+						)}
 					</div>
 
 					{/* Right Panel — Results */}
