@@ -2,6 +2,7 @@ import {
   forwardRef,
   useEffect,
   useImperativeHandle,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -25,6 +26,7 @@ import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
 import { ScrapeLanguageToggle } from "../ui/ScrapeLanguageToggle";
 import { useScrapeLanguage } from "../../hooks/useScrapeLanguage";
+import { useUnsavedAsync } from "../../hooks/useUnsavedAsync";
 import { api, ApiError } from "../../services/api";
 import { useOnboarding } from "../../hooks/useOnboarding";
 import { ProductReferences } from "../products/ProductReferences";
@@ -342,6 +344,12 @@ export const BrandBrainForm = forwardRef<BrandBrainFormHandle, BrandBrainFormPro
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const [scrapeLanguage, setScrapeLanguage] = useScrapeLanguage();
+    const abortRef = useRef<AbortController | null>(null);
+
+    useUnsavedAsync(
+      scraping,
+      "AI is auto-filling your brand brain — leave anyway? Your progress will be lost.",
+    );
 
     // On edit, pre-select the toggle from the brand's persisted language.
     useEffect(() => {
@@ -430,6 +438,8 @@ export const BrandBrainForm = forwardRef<BrandBrainFormHandle, BrandBrainFormPro
       if (!form.websiteUrl.trim()) return;
       setScraping(true);
       setError("");
+      const controller = new AbortController();
+      abortRef.current = controller;
       try {
         const result = await api<{
           name: string;
@@ -448,6 +458,7 @@ export const BrandBrainForm = forwardRef<BrandBrainFormHandle, BrandBrainFormPro
         }>(`/api/workspaces/${workspaceId}/brands/scrape-preview`, {
           method: "POST",
           body: JSON.stringify({ url: form.websiteUrl.trim(), language: scrapeLanguage }),
+          signal: controller.signal,
         });
         setForm((prev) => ({
           ...prev,
@@ -468,8 +479,10 @@ export const BrandBrainForm = forwardRef<BrandBrainFormHandle, BrandBrainFormPro
           donts: result.donts?.length ? result.donts : prev.donts,
         }));
       } catch (e) {
+        if (e instanceof DOMException && e.name === "AbortError") return;
         setError(e instanceof Error ? e.message : "Auto-fill failed");
       } finally {
+        abortRef.current = null;
         setScraping(false);
       }
     };
@@ -640,6 +653,15 @@ export const BrandBrainForm = forwardRef<BrandBrainFormHandle, BrandBrainFormPro
                           <Sparkles size={14} className="mr-1.5" />
                           Auto-fill from Website
                         </Button>
+                        {scraping && (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => abortRef.current?.abort()}
+                          >
+                            Cancel
+                          </Button>
+                        )}
                       </div>
                       <SkillsAppliedStrip generator="brand-brain" className="mt-2" />
                     </div>
