@@ -46,13 +46,28 @@ export function ProductDrawer({
   onSubmit,
 }: ProductDrawerProps) {
   const [activeTab, setActiveTab] = useState<TabKey>("details");
+  const [busy, setBusy] = useState(false);
 
   const isCreating = mode !== "edit";
+
+  // Wrap onClose so the X button, backdrop click, and any other
+  // close path checks for an in-flight AI call first.
+  const guardedClose = () => {
+    if (
+      busy &&
+      !window.confirm(
+        "AI is generating product details — close anyway? Your progress will be lost.",
+      )
+    ) {
+      return;
+    }
+    onClose();
+  };
 
   return (
     <Drawer
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={guardedClose}
       title={title}
       subtitle={subtitle}
       headerActions={isCreating ? <HelpButton pageKey="product-new" /> : undefined}
@@ -97,7 +112,8 @@ export function ProductDrawer({
               mode={mode}
               initial={initial}
               onSubmit={onSubmit}
-              onCancel={onClose}
+              onCancel={guardedClose}
+              onBusyChange={setBusy}
             />
           )}
           {activeTab === "references" && productId && brandId && (

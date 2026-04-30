@@ -19,6 +19,9 @@ interface ProductFormProps {
   onCancel: () => void;
   initial?: Partial<ProductFormData>;
   mode?: "create" | "edit";
+  /** Notifies the parent when the form is mid-AI-call so the parent can
+   *  intercept drawer-close attempts (X / backdrop / Escape). */
+  onBusyChange?: (busy: boolean) => void;
 }
 
 export interface ProductFormData {
@@ -45,7 +48,7 @@ function generateSlug(name: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
-export function ProductForm({ brands, workspaceId, onSubmit, onCancel, initial, mode = "create" }: ProductFormProps) {
+export function ProductForm({ brands, workspaceId, onSubmit, onCancel, initial, mode = "create", onBusyChange }: ProductFormProps) {
   const [brandId, setBrandId] = useState(initial?.brandId ?? brands[0]?.id ?? "");
   const [name, setName] = useState(initial?.name ?? "");
   const [slug, setSlug] = useState(initial?.slug ?? "");
@@ -76,6 +79,10 @@ export function ProductForm({ brands, workspaceId, onSubmit, onCancel, initial, 
     scraping || generating,
     "AI is generating product details — leave anyway? Your progress will be lost.",
   );
+
+  useEffect(() => {
+    onBusyChange?.(scraping || generating);
+  }, [scraping, generating, onBusyChange]);
 
   const handleAutoFill = async () => {
     if (!productUrl.trim()) return;
@@ -306,6 +313,15 @@ export function ProductForm({ brands, workspaceId, onSubmit, onCancel, initial, 
               )}
               {scraping ? "Analyzing..." : "Auto-fill from URL"}
             </button>
+            {scraping && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => abortRef.current?.abort()}
+              >
+                Cancel
+              </Button>
+            )}
           </div>
           <SkillsAppliedStrip generator="product-brain" className="mt-2" />
         </div>
