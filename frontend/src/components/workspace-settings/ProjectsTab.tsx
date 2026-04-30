@@ -48,7 +48,7 @@ export function ProjectsTab({ workspaceId, onToast }: ProjectsTabProps) {
       onToast("The Default project cannot be archived", "info");
       return;
     }
-    if (!confirm(`Archive project "${project.name}"? Members will lose access to it.`)) return;
+    if (!confirm(`Move project "${project.name}" to Trash? Its brand and everything inside (products, topics, content) will move with it. You can restore from Workspace Settings → Trash within 30 days.`)) return;
     try {
       await api(`/api/workspaces/${workspaceId}/projects/${project.id}`, { method: "DELETE" });
       onToast("Project archived", "success");
