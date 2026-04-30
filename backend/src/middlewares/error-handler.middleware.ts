@@ -1,4 +1,6 @@
 import { createMiddleware } from "hono/factory";
+import { MissingApiKeyError } from "../errors/ai-key-missing-error";
+import { UrlFetchError } from "../errors/url-fetch-error";
 import type { ILogger } from "../interfaces/providers/logger.provider.interface";
 
 export function createErrorHandlerMiddleware(logger: ILogger) {
@@ -15,6 +17,11 @@ export function createErrorHandlerMiddleware(logger: ILogger) {
 				method: c.req.method,
 				path: c.req.path,
 			});
+
+			// Typed user-actionable errors — surface their messages as 400s.
+			if (err instanceof MissingApiKeyError || err instanceof UrlFetchError) {
+				return c.json({ error: message }, 400);
+			}
 
 			const knownErrors = [
 				"Email already registered",
