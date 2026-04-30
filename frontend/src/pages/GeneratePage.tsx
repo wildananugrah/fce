@@ -19,10 +19,13 @@ import { GenerationResultRow } from "../components/generation/GenerationResultRo
 import { ReferenceImageUpload, type ImageRef } from "../components/ui/ReferenceImageUpload";
 import { UrlInspirationChips } from "../components/url-inspiration/UrlInspirationChips";
 import { SkillsAppliedStrip } from "../components/skills/SkillsAppliedStrip";
+import { ScrapeLanguageToggle } from "../components/ui/ScrapeLanguageToggle";
+import type { ScrapeLanguage } from "../types";
 
 interface Brand {
   id: string;
   name: string;
+  language?: string;
   brainVersions?: BrandBrainVersion[];
 }
 
@@ -382,6 +385,7 @@ export function GeneratePage() {
   const initialObjective = normalizeObjective(searchParams.get("objective"));
 
   const [brandId, setBrandId] = useState(searchParams.get("brandId") ?? "");
+  const [language, setLanguage] = useState<ScrapeLanguage>("indonesian");
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>(() => {
     const ids = searchParams.getAll("productId");
     return ids.length > 0 ? ids : [];
@@ -583,6 +587,13 @@ export function GeneratePage() {
     }
   }, [brands, brandId]);
 
+  // Reset to the active brand's language when the user picks a different brand.
+  useEffect(() => {
+    const brand = brands.find((b) => b.id === brandId);
+    const lang = brand?.language as ScrapeLanguage | undefined;
+    if (lang) setLanguage(lang);
+  }, [brandId, brands]);
+
   // Fetch brain context when brand/product changes
   useEffect(() => {
     if (!activeWorkspace || !brandId) {
@@ -677,6 +688,7 @@ export function GeneratePage() {
             outputLength: outputLength || undefined,
             researchContext: researchContext || undefined,
             pillars: resolvedPillars.length > 0 ? resolvedPillars : undefined,
+            language,
           }),
         },
       );
@@ -797,6 +809,17 @@ const frameworkOptions = [{ value: "", label: "PAS (recommended)" }, ...framewor
 
               {brandId && (
                 <>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Language
+                    </span>
+                    <ScrapeLanguageToggle
+                      value={language}
+                      onChange={setLanguage}
+                      disabled={pendingRequestId !== null}
+                    />
+                  </div>
+
                   <div>
                     <label className="block text-xs font-medium text-gray-600 uppercase tracking-wide mb-1">
                       Products
