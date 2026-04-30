@@ -28,8 +28,6 @@ async function deleteAllData() {
 		products: await prisma.product.deleteMany(),
 		brandBrainVersions: await prisma.brandBrainVersion.deleteMany(),
 		brands: await prisma.brand.deleteMany(),
-		hookTypes: await prisma.hookType.deleteMany(),
-		frameworks: await prisma.framework.deleteMany(),
 		auditLogs: await prisma.auditLog.deleteMany(),
 		workspaceInvitations: await prisma.workspaceInvitation.deleteMany(),
 		userWorkspaceRoles: await prisma.userWorkspaceRole.deleteMany(),
