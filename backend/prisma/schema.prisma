@@ -49,6 +49,7 @@ model User {
   createdCreators    Creator[]               @relation("CreatorCreator")
   competitorPipelineRuns CompetitorPipelineRun[]
   createdProjects    Project[]               @relation("ProjectCreator")
+  topicGenerationRuns TopicGenerationRun[]
 
   @@map("users")
 }
@@ -87,6 +88,7 @@ model Workspace {
   creators               Creator[]
   analysisConfigs        AnalysisConfig[]
   competitorPipelineRuns CompetitorPipelineRun[]
+  topicGenerationRuns    TopicGenerationRun[]
 
   @@map("workspaces")
 }
@@ -1035,4 +1037,20 @@ model PipelineScript {
 
   @@index([runId])
   @@map("pipeline_scripts")
+}
+
+model TopicGenerationRun {
+  id          String    @id @default(uuid())
+  workspaceId String    @map("workspace_id")
+  userId      String    @map("user_id")
+  status      String    @default("pending")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  completedAt DateTime? @map("completed_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id])
+
+  @@index([workspaceId])
+  @@index([userId])
+  @@map("topic_generation_runs")
 }
