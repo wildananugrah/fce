@@ -67,10 +67,11 @@ export function createProductRoutes(
 	// POST /scrape-preview — scrape product URL and return all fields
 	app.post("/scrape-preview", async (c) => {
 		const body = await c.req.json();
-		const { url, urls, brandId } = body as {
+		const { url, urls, brandId, language: bodyLanguage } = body as {
 			url?: string;
 			urls?: string[];
 			brandId?: string;
+			language?: string;
 		};
 		if (!brandId) {
 			return c.json({ error: "brandId is required" }, 400);
@@ -97,7 +98,7 @@ export function createProductRoutes(
 		try {
 			const result = await aiGenerator.scrapeProduct({
 				urls: urlList,
-				language: brand.language,
+				language: bodyLanguage ?? brand.language,
 				skillContext: skillResult.context,
 			});
 			const durationMs = Date.now() - startTime;
@@ -157,7 +158,15 @@ export function createProductRoutes(
 	// POST /generate-brain — AI-generate product brain fields
 	app.post("/generate-brain", async (c) => {
 		const body = await c.req.json();
-		const { productName, brandName, brandId, productType, priceTier, summary } = body;
+		const {
+			productName,
+			brandName,
+			brandId,
+			productType,
+			priceTier,
+			summary,
+			language: bodyLanguage,
+		} = body;
 		if (!productName || !brandName) {
 			return c.json({ error: "productName and brandName are required" }, 400);
 		}
@@ -186,7 +195,7 @@ export function createProductRoutes(
 				productType,
 				priceTier,
 				summary,
-				language: brand.language,
+				language: bodyLanguage ?? brand.language,
 				skillContext: skillResult.context,
 			});
 			const durationMs = Date.now() - startTime;

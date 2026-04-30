@@ -61,7 +61,7 @@ export class TopicService implements ITopicService {
 			select: { language: true },
 		});
 		if (!brand) throw new Error("Brand not found");
-		const language = brand.language;
+		const language = input.language ?? brand.language;
 
 		// Create the run row BEFORE enqueueing so the worker has something
 		// to look up and the user can cancel between submit and pickup.

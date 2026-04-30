@@ -7,7 +7,7 @@ export interface CreateGenerationInput {
 	contentType: string;
 	framework: string;
 	hookType: string;
-	/** @internal — sourced from brand.language inside the service, NOT from request body. */
+	/** Per-request language override. When omitted, the service falls back to brand.language. */
 	language?: string;
 	prompt?: string;
 	objective?: string;

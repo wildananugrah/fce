@@ -59,7 +59,7 @@ export class GenerationService implements IGenerationService {
 			contentType: input.contentType,
 			framework: input.framework,
 			hookType: input.hookType,
-			language: brand.language,
+			language: input.language ?? brand.language,
 			prompt: input.prompt || null,
 			objective: input.objective || null,
 			tonePreset: input.tonePreset || null,

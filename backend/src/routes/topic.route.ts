@@ -67,6 +67,7 @@ export function createTopicRoutes(topicService: ITopicService, prisma: PrismaCli
 			count,
 			prompt,
 			referenceImages,
+			language,
 		} = body;
 		const result = await topicService.generate(workspaceId, userId, {
 			brandId,
@@ -80,6 +81,7 @@ export function createTopicRoutes(topicService: ITopicService, prisma: PrismaCli
 			count,
 			prompt,
 			referenceImages,
+			language,
 		});
 		return c.json({ data: result }, 202);
 	});

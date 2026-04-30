@@ -38,6 +38,7 @@ export function createGenerationRoutes(
 			referenceImages: body.referenceImages,
 			researchContext: body.researchContext,
 			pillars: body.pillars,
+			language: body.language,
 		});
 
 		return c.json({ data: request }, 201);

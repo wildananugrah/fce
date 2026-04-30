@@ -149,6 +149,45 @@ describe("TopicService", () => {
 			expect(jobData.count).toBe(5);
 			expect(jobData.language).toBe("en");
 		});
+
+		it("uses input.language when provided", async () => {
+			const workspaceId = crypto.randomUUID();
+			const userId = crypto.randomUUID();
+			const sent: any[] = [];
+			const fakeBoss = {
+				send: async (_q: string, data: any) => {
+					sent.push(data);
+					return "job-id";
+				},
+			} as any;
+			const service = new TopicService(repo as any, fakeBoss, makeMockPrisma("indonesian"));
+			await service.generate(workspaceId, userId, {
+				brandId: "b1",
+				count: 5,
+				language: "english",
+			});
+			expect(sent).toHaveLength(1);
+			expect(sent[0].language).toBe("english");
+		});
+
+		it("falls back to brand.language when input.language is missing", async () => {
+			const workspaceId = crypto.randomUUID();
+			const userId = crypto.randomUUID();
+			const sent: any[] = [];
+			const fakeBoss = {
+				send: async (_q: string, data: any) => {
+					sent.push(data);
+					return "job-id";
+				},
+			} as any;
+			const service = new TopicService(repo as any, fakeBoss, makeMockPrisma("indonesian"));
+			await service.generate(workspaceId, userId, {
+				brandId: "b1",
+				count: 5,
+			});
+			expect(sent).toHaveLength(1);
+			expect(sent[0].language).toBe("indonesian");
+		});
 	});
 
 	describe("create", () => {
