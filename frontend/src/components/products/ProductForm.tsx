@@ -5,6 +5,7 @@ import { Select } from "../ui/Select";
 import { Button } from "../ui/Button";
 import { api, apiUpload } from "../../services/api";
 import { SkillsAppliedStrip } from "../skills/SkillsAppliedStrip";
+import { useUnsavedAsync } from "../../hooks/useUnsavedAsync";
 
 interface Brand {
   id: string;
@@ -69,10 +70,19 @@ export function ProductForm({ brands, workspaceId, onSubmit, onCancel, initial, 
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const abortRef = useRef<AbortController | null>(null);
+
+  useUnsavedAsync(
+    scraping || generating,
+    "AI is generating product details — leave anyway? Your progress will be lost.",
+  );
+
   const handleAutoFill = async () => {
     if (!productUrl.trim()) return;
     setScraping(true);
     setError(null);
+    const controller = new AbortController();
+    abortRef.current = controller;
     try {
       const result = await api<{
         name?: string;
@@ -88,6 +98,7 @@ export function ProductForm({ brands, workspaceId, onSubmit, onCancel, initial, 
       }>(`/api/workspaces/${workspaceId}/products/scrape-preview`, {
         method: "POST",
         body: JSON.stringify({ url: productUrl.trim(), brandId }),
+        signal: controller.signal,
       });
       if (result.name && !name.trim()) {
         setName(result.name);
@@ -111,8 +122,10 @@ export function ProductForm({ brands, workspaceId, onSubmit, onCancel, initial, 
       // the user hasn't already set or uploaded one.
       if (result.imageUrl && !imageUrl) setImageUrl(result.imageUrl);
     } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") return;
       setError(e instanceof Error ? e.message : "Auto-fill failed");
     } finally {
+      abortRef.current = null;
       setScraping(false);
     }
   };
@@ -152,6 +165,8 @@ export function ProductForm({ brands, workspaceId, onSubmit, onCancel, initial, 
     }
     setGenerating(true);
     setError(null);
+    const controller = new AbortController();
+    abortRef.current = controller;
     try {
       const result = await api<{
         usp?: string;
@@ -170,6 +185,7 @@ export function ProductForm({ brands, workspaceId, onSubmit, onCancel, initial, 
           priceTier: priceTier.trim() || undefined,
           summary: summary.trim() || undefined,
         }),
+        signal: controller.signal,
       });
       if (result.summary && !summary.trim()) setSummary(result.summary);
       if (result.usp) setUsp(result.usp);
@@ -184,8 +200,10 @@ export function ProductForm({ brands, workspaceId, onSubmit, onCancel, initial, 
       }
       if (result.targetAudience) setTargetAudience(result.targetAudience);
     } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") return;
       setError(e instanceof Error ? e.message : "AI generation failed");
     } finally {
+      abortRef.current = null;
       setGenerating(false);
     }
   };
@@ -443,19 +461,30 @@ export function ProductForm({ brands, workspaceId, onSubmit, onCancel, initial, 
             <Brain size={16} className="text-gray-500" />
             <h3 className="text-sm font-semibold text-black">Product Brain</h3>
           </div>
-          <button
-            type="button"
-            onClick={handleGenerateBrain}
-            disabled={generating || !name.trim()}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 rounded-md hover:bg-indigo-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {generating ? (
-              <Loader2 size={12} className="animate-spin" />
-            ) : (
-              <Sparkles size={12} />
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleGenerateBrain}
+              disabled={generating || !name.trim()}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 rounded-md hover:bg-indigo-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {generating ? (
+                <Loader2 size={12} className="animate-spin" />
+              ) : (
+                <Sparkles size={12} />
+              )}
+              {generating ? "Generating..." : "Generate with AI"}
+            </button>
+            {(scraping || generating) && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => abortRef.current?.abort()}
+              >
+                Cancel
+              </Button>
             )}
-            {generating ? "Generating..." : "Generate with AI"}
-          </button>
+          </div>
         </div>
 
         <div>
