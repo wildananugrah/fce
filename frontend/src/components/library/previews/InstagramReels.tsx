@@ -1,5 +1,6 @@
-import { Play, Heart, MessageCircle, Send, Music } from "lucide-react";
+import { Heart, MessageCircle, Send, Music } from "lucide-react";
 import type { PreviewProps } from "./PreviewRegistry";
+import { VideoSlideshowFrame } from "./VideoSlideshowFrame";
 import { VisualScriptScenes, extractScenes } from "./VisualScriptScenes";
 
 function getSectionText(sections: PreviewProps["sections"], type: string): string {
@@ -23,14 +24,12 @@ export function InstagramReels({ content, sections, brandName }: PreviewProps) {
   return (
     <div className="space-y-4">
       {/* Reels phone mockup (9:16) */}
-      <div className="relative bg-gray-900 rounded-2xl overflow-hidden mx-auto" style={{ maxWidth: 340, aspectRatio: "9/16" }}>
-        {/* Play overlay */}
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center">
-            <Play size={32} className="text-white ml-1" />
-          </div>
-        </div>
-
+      <VideoSlideshowFrame
+        scenes={scenes}
+        aspectRatio="9/16"
+        accentBg="bg-pink-500"
+        maxWidth={340}
+      >
         {/* Top: Brand info */}
         <div className="absolute top-4 left-4 right-12 flex items-center gap-2 z-10">
           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-pink-500 via-red-500 to-yellow-500 flex items-center justify-center text-white text-xs font-bold shrink-0">
@@ -64,7 +63,7 @@ export function InstagramReels({ content, sections, brandName }: PreviewProps) {
             <p className="text-white text-[10px]">Original Audio</p>
           </div>
         </div>
-      </div>
+      </VideoSlideshowFrame>
 
       <VisualScriptScenes scenes={scenes} accentClass="text-pink-500" />
 

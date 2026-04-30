@@ -1,5 +1,6 @@
-import { Play, Heart, MessageCircle, Share2, Music, Bookmark } from "lucide-react";
+import { Heart, MessageCircle, Share2, Music, Bookmark } from "lucide-react";
 import type { PreviewProps } from "./PreviewRegistry";
+import { VideoSlideshowFrame } from "./VideoSlideshowFrame";
 import { VisualScriptScenes, extractScenes } from "./VisualScriptScenes";
 
 function getSectionText(sections: PreviewProps["sections"], type: string): string {
@@ -22,14 +23,12 @@ export function TikTokVideo({ content, sections, brandName }: PreviewProps) {
   return (
     <div className="space-y-4">
       {/* TikTok phone mockup (9:16) */}
-      <div className="relative bg-black rounded-2xl overflow-hidden mx-auto" style={{ maxWidth: 340, aspectRatio: "9/16" }}>
-        {/* Play overlay */}
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center border border-white/20">
-            <Play size={32} className="text-white ml-1" />
-          </div>
-        </div>
-
+      <VideoSlideshowFrame
+        scenes={scenes}
+        aspectRatio="9/16"
+        accentBg="bg-red-500"
+        maxWidth={340}
+      >
         {/* Right side actions */}
         <div className="absolute right-3 bottom-28 flex flex-col items-center gap-5 z-10">
           <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center text-white text-xs font-bold ring-2 ring-rose-500">
@@ -65,7 +64,7 @@ export function TikTokVideo({ content, sections, brandName }: PreviewProps) {
             </div>
           </div>
         </div>
-      </div>
+      </VideoSlideshowFrame>
 
       <VisualScriptScenes scenes={scenes} accentClass="text-rose-600" />
 

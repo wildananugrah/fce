@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { ThumbsUp, MessageCircle, Share2, Play, ImageIcon, ChevronLeft, ChevronRight, Globe } from "lucide-react";
+import { ThumbsUp, MessageCircle, Share2, ImageIcon, ChevronLeft, ChevronRight, Globe } from "lucide-react";
 import type { PreviewProps } from "./PreviewRegistry";
+import { VideoSlideshowFrame } from "./VideoSlideshowFrame";
 import { VisualScriptScenes, extractScenes, extractSlides, extractPostImage } from "./VisualScriptScenes";
 
 function getSectionText(sections: PreviewProps["sections"], type: string): string {
@@ -145,12 +146,12 @@ export function FacebookReel({ content, sections, brandName }: PreviewProps) {
   return (
     <div className="space-y-4">
       {/* Vertical mockup */}
-      <div className="relative bg-gray-900 rounded-2xl overflow-hidden mx-auto" style={{ maxWidth: 340, aspectRatio: "9/16" }}>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center">
-            <Play size={32} className="text-white ml-1" />
-          </div>
-        </div>
+      <VideoSlideshowFrame
+        scenes={scenes}
+        aspectRatio="9/16"
+        accentBg="bg-blue-600"
+        maxWidth={340}
+      >
         <div className="absolute bottom-4 left-4 right-12 z-10 space-y-2">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold shrink-0">
@@ -165,7 +166,7 @@ export function FacebookReel({ content, sections, brandName }: PreviewProps) {
           <MessageCircle size={24} className="text-white" />
           <Share2 size={24} className="text-white" />
         </div>
-      </div>
+      </VideoSlideshowFrame>
 
       <VisualScriptScenes scenes={scenes} accentClass="text-blue-600" />
 

@@ -1,5 +1,6 @@
 import { Play, ThumbsUp, ThumbsDown, MessageCircle, Share2 } from "lucide-react";
 import type { PreviewProps } from "./PreviewRegistry";
+import { VideoSlideshowFrame } from "./VideoSlideshowFrame";
 import { VisualScriptScenes, extractScenes } from "./VisualScriptScenes";
 
 function getSectionText(sections: PreviewProps["sections"], type: string): string {
@@ -22,14 +23,12 @@ export function YouTubeShorts({ content, sections, brandName }: PreviewProps) {
   return (
     <div className="space-y-4">
       {/* Shorts phone mockup (9:16) */}
-      <div className="relative bg-black rounded-2xl overflow-hidden mx-auto" style={{ maxWidth: 340, aspectRatio: "9/16" }}>
-        {/* Play overlay */}
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center">
-            <Play size={32} className="text-white ml-1" />
-          </div>
-        </div>
-
+      <VideoSlideshowFrame
+        scenes={scenes}
+        aspectRatio="9/16"
+        accentBg="bg-red-500"
+        maxWidth={340}
+      >
         {/* Shorts badge */}
         <div className="absolute top-4 left-4 z-10 flex items-center gap-1.5">
           <div className="w-5 h-6 bg-red-600 rounded-sm flex items-center justify-center">
@@ -72,7 +71,7 @@ export function YouTubeShorts({ content, sections, brandName }: PreviewProps) {
           {hook && <p className="text-white text-xs line-clamp-2">{hook}</p>}
           {hashtags && <p className="text-white/70 text-[10px]">{hashtags}</p>}
         </div>
-      </div>
+      </VideoSlideshowFrame>
 
       <VisualScriptScenes scenes={scenes} accentClass="text-red-600" />
 
