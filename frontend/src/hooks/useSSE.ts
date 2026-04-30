@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { getAccessToken } from "../services/api";
+import { getAccessToken, refreshAccessToken } from "../services/api";
 
 interface SSEEvent {
   type: string;
@@ -40,6 +40,12 @@ const EVENT_TYPES = [
   "competitor_pipeline_failed",
 ] as const;
 
+// EventSource doesn't surface the HTTP status of a failure — `onerror` just
+// fires. We treat any error after a successful connect as either a network
+// blip OR an expired token; refresh once before reconnecting, and if the
+// refresh fails (no refresh cookie / user logged out) we stop trying.
+const RECONNECT_MS = 3000;
+
 export function useSSE(onEvent: (event: SSEEvent) => void) {
   const eventSourceRef = useRef<EventSource | null>(null);
   const onEventRef = useRef(onEvent);
@@ -49,11 +55,20 @@ export function useSSE(onEvent: (event: SSEEvent) => void) {
     let destroyed = false;
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
-    const connect = () => {
+    const connect = async (forceRefresh = false) => {
       if (destroyed) return;
 
-      const token = getAccessToken();
-      if (!token) return;
+      let token = getAccessToken();
+      if (forceRefresh || !token) {
+        token = await refreshAccessToken();
+      }
+      if (destroyed) return;
+      if (!token) {
+        // No valid token and refresh failed (user logged out, refresh cookie
+        // expired, etc.) — stop reconnecting. The next call to useSSE on
+        // login will start a fresh cycle.
+        return;
+      }
 
       const baseUrl = import.meta.env.VITE_API_URL || "";
       const es = new EventSource(`${baseUrl}/api/sse?token=${token}`);
@@ -74,11 +89,11 @@ export function useSSE(onEvent: (event: SSEEvent) => void) {
       es.onerror = () => {
         es.close();
         eventSourceRef.current = null;
-        // Reconnect after 3s with a fresh token so the stream survives
-        // network blips and access-token rotations.
-        if (!destroyed) {
-          reconnectTimer = setTimeout(connect, 3000);
-        }
+        if (destroyed) return;
+        // Refresh the token before reconnecting. If we don't, an expired
+        // access token causes a 401 every RECONNECT_MS forever — that was
+        // the source of the /api/sse 401 spam in the backend logs.
+        reconnectTimer = setTimeout(() => connect(true), RECONNECT_MS);
       };
     };
 
