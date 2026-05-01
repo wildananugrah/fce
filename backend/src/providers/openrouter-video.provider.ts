@@ -6,8 +6,10 @@ import type { GeneratedScript, VideoAnalysisResult } from "../types/competitor-a
 import type { MinioStorageProvider } from "./minio.provider";
 
 const OPENROUTER_BASE = "https://openrouter.ai/api/v1";
-// 30-second timeout for the OpenRouter request itself.
-const REQUEST_TIMEOUT_MS = 30_000;
+// 3-minute timeout — video analysis models are slow (30–120s is common).
+const REQUEST_TIMEOUT_MS = 3 * 60 * 1000;
+// Signed URL TTL: 30 minutes — enough for analysis to complete + cleanup.
+const SIGNED_URL_TTL_SECONDS = 30 * 60;
 
 interface ChatCompletionResponse {
 	choices: Array<{ message: { content?: string } }>;
@@ -45,13 +47,19 @@ export class OpenRouterVideoAnalyzerProvider implements IVideoAnalyzer {
 	// ─── Private helpers ──────────────────────────────────────────────────────
 
 	/**
-	 * POST to OpenRouter /chat/completions with the given messages array.
-	 * Returns the content string from the first choice.
+	 * POST to OpenRouter /chat/completions with a system-role message and user
+	 * content. Returns the content string from the first choice.
 	 * Throws on non-2xx, empty content, or network timeout.
 	 */
 	private async callOpenRouter(
-		messages: Array<{ role: string; content: string | ContentPart[] }>,
+		systemPrompt: string,
+		userContent: string | ContentPart[],
 	): Promise<string> {
+		const messages = [
+			{ role: "system" as const, content: systemPrompt },
+			{ role: "user" as const, content: userContent },
+		];
+
 		const controller = new AbortController();
 		const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
@@ -117,10 +125,14 @@ export class OpenRouterVideoAnalyzerProvider implements IVideoAnalyzer {
 
 		// 1. Upload video bytes to MinIO.
 		const key = `competitor-videos/${Date.now()}-${Math.random().toString(36).slice(2)}.${mimeType.split("/")[1] ?? "mp4"}`;
-		const videoUrl = await this.minio.upload(this.bucket, key, Buffer.from(bytes), mimeType);
+		await this.minio.upload(this.bucket, key, Buffer.from(bytes), mimeType);
 
 		try {
-			// 2. Build prompts.
+			// 2. Get a short-lived signed URL so OpenRouter can fetch the video
+			//    without requiring a world-readable bucket policy.
+			const signedUrl = await this.minio.getSignedUrl(this.bucket, key, SIGNED_URL_TTL_SECONDS);
+
+			// 3. Build prompts.
 			const systemPrompt = [
 				"You are an expert social media video analyst.",
 				"Analyze the uploaded video and respond with STRICT JSON matching the schema:",
@@ -138,13 +150,13 @@ export class OpenRouterVideoAnalyzerProvider implements IVideoAnalyzer {
 
 			const userPrompt = instructions;
 
-			// 3. Send to OpenRouter with video_url + text in user content.
+			// 4. Send to OpenRouter with video_url + text in user content.
 			const userContent: ContentPart[] = [
-				{ type: "video_url", video_url: { url: videoUrl } },
-				{ type: "text", text: `${systemPrompt}\n\n${userPrompt}` },
+				{ type: "video_url", video_url: { url: signedUrl } },
+				{ type: "text", text: userPrompt },
 			];
 
-			const text = await this.callOpenRouter([{ role: "user", content: userContent }]);
+			const text = await this.callOpenRouter(systemPrompt, userContent);
 
 			// 4. Parse response — throw explicitly with raw text on failure.
 			let analysis: VideoAnalysisResult;
@@ -191,10 +203,10 @@ export class OpenRouterVideoAnalyzerProvider implements IVideoAnalyzer {
 
 		const userContent: ContentPart[] = [
 			{ type: "video_url", video_url: { url: videoUri } },
-			{ type: "text", text: `${systemPrompt}\n\n${userPrompt}` },
+			{ type: "text", text: userPrompt },
 		];
 
-		const text = await this.callOpenRouter([{ role: "user", content: userContent }]);
+		const text = await this.callOpenRouter(systemPrompt, userContent);
 
 		let analysis: VideoAnalysisResult;
 		try {
@@ -260,9 +272,7 @@ export class OpenRouterVideoAnalyzerProvider implements IVideoAnalyzer {
 			videoBlock,
 		].join("\n");
 
-		const text = await this.callOpenRouter([
-			{ role: "user", content: `${systemPrompt}\n\n${userPrompt}` },
-		]);
+		const text = await this.callOpenRouter(systemPrompt, userPrompt);
 
 		let scripts: GeneratedScript[];
 		try {

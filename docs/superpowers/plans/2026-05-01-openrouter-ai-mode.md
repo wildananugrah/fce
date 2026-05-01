@@ -1400,6 +1400,7 @@ export class AiProviderFactory {
 				s.openrouter.apiKey,
 				s.openrouter.videoModel,
 				this.minio,
+				/* bucket */ "competitor-videos", // Reuse the same bucket the gemini provider writes to.
 			);
 		}
 		// Legacy path — preserve current behavior.
