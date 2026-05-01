@@ -198,6 +198,7 @@ export function AiProvidersSection({ workspaceId, showToast }: Props) {
 
 	const saveOpenRouter = async () => {
 		setSaving(true);
+		setOpenrouterTestResult(null);
 		try {
 			const patch: Record<string, string | null> = {};
 			if (openrouterDraft.openrouterApiKey.trim() !== "") {
@@ -223,6 +224,7 @@ export function AiProvidersSection({ workspaceId, showToast }: Props) {
 			});
 			showToast("AI settings saved", "success");
 			await load();
+			setShowOpenrouterKey(false);
 		} catch (e) {
 			showToast(e instanceof Error ? e.message : "Failed to save", "error");
 		} finally {
