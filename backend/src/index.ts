@@ -30,6 +30,7 @@ import { TopicRegenerationJob } from "./jobs/topic-regeneration.job";
 import { createAdminMiddleware } from "./middlewares/admin.middleware";
 import { createAuthMiddleware } from "./middlewares/auth.middleware";
 import { MissingApiKeyError } from "./errors/ai-key-missing-error";
+import { OpenRouterApiError } from "./errors/openrouter-api-error";
 import { UrlFetchError } from "./errors/url-fetch-error";
 import { createErrorHandlerMiddleware } from "./middlewares/error-handler.middleware";
 import { createRequestLoggerMiddleware } from "./middlewares/request-logger.middleware";
@@ -695,7 +696,11 @@ async function main() {
 
 		// Typed user-actionable errors — surface their messages as 400s so
 		// the user gets a clear pointer instead of "Internal server error".
-		if (err instanceof MissingApiKeyError || err instanceof UrlFetchError) {
+		if (
+			err instanceof MissingApiKeyError ||
+			err instanceof UrlFetchError ||
+			err instanceof OpenRouterApiError
+		) {
 			return c.json({ error: message }, 400);
 		}
 
