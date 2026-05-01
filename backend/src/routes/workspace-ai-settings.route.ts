@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import type { IAuditService } from "../interfaces/services/audit.service.interface";
 import type { AiProviderFactory } from "../services/ai-provider-factory.service";
 import type { AiSettingsPatch, WorkspaceSettingRepository } from "../repositories/workspace-setting.repository";
+import { requireWorkspaceAdmin } from "../middlewares/rbac.middleware";
 
 type Variables = {
 	userId: string;
@@ -249,6 +250,8 @@ export function createWorkspaceAiSettingsRoutes(
 
 	// POST /test-openrouter — verify an OpenRouter API key + model.
 	// body: { apiKey: string; model: string }
+	// Gated to workspace admins to prevent proxy abuse.
+	app.use("/test-openrouter", requireWorkspaceAdmin());
 	app.post("/test-openrouter", async (c) => {
 		const body = (await c.req.json()) as { apiKey?: unknown; model?: unknown };
 		const apiKey = typeof body.apiKey === "string" ? body.apiKey : "";

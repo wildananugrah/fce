@@ -325,6 +325,29 @@ describe("AiProviderFactory", () => {
 		});
 	});
 
+	describe("openrouter mode — providers block", () => {
+		it("openrouter mode: providers block reports 'openrouter' for all generators", async () => {
+			const repo = {
+				findByWorkspace: async () => ({
+					aiProvider: "anthropic", // workspace had legacy preference
+					aiContentProvider: "gemini",
+					openrouterApiKey: "or-key",
+					openrouterModel: "anthropic/claude-sonnet-4.5",
+				}),
+			} as any;
+			const env = makeEnvDefaults({});
+			const factory = makeFactory(repo, env, "openrouter");
+
+			const settings = await factory.getSettings("ws-1");
+			expect(settings.providers.default).toBe("openrouter");
+			expect(settings.providers.content).toBe("openrouter");
+			expect(settings.providers.campaign).toBe("openrouter");
+			expect(settings.providers.topic).toBe("openrouter");
+			expect(settings.providers.brandScraper).toBe("openrouter");
+			expect(settings.providers.chat).toBe("openrouter");
+		});
+	});
+
 	describe("ResolvedAiSettings — mode field", () => {
 		it("mode field reflects factory mode in legacy", async () => {
 			const repo = { findByWorkspace: async () => null } as any;

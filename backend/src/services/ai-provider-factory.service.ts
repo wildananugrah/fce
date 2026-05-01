@@ -287,16 +287,28 @@ export class AiProviderFactory {
 		const override = (o: { value: string }): ProviderName =>
 			normalize(o.value || effectiveDefault, effectiveDefault);
 
+		const providers =
+			this._mode === "openrouter"
+				? {
+						default: "openrouter" as const,
+						content: "openrouter" as const,
+						campaign: "openrouter" as const,
+						topic: "openrouter" as const,
+						brandScraper: "openrouter" as const,
+						chat: "openrouter" as const,
+					}
+				: {
+						default: effectiveDefault,
+						content: override(contentProvider),
+						campaign: override(campaignProvider),
+						topic: override(topicProvider),
+						brandScraper: override(brandScraperProvider),
+						chat: override(chatProvider),
+					};
+
 		return {
 			mode: this._mode,
-			providers: {
-				default: effectiveDefault,
-				content: override(contentProvider),
-				campaign: override(campaignProvider),
-				topic: override(topicProvider),
-				brandScraper: override(brandScraperProvider),
-				chat: override(chatProvider),
-			},
+			providers,
 			anthropic: { apiKey: anthropicApiKey.value, model: anthropicModel.value },
 			gemini: {
 				apiKey: geminiApiKey.value,
