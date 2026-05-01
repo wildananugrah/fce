@@ -116,10 +116,14 @@ export class AiProviderFactory {
 	constructor(
 		private repo: WorkspaceSettingRepository,
 		private envDefaults: EnvAiDefaults,
-		private mode: AiMode,
+		private _mode: AiMode,
 		private minio: MinioStorageProvider,
 		private minioBucket: string,
 	) {}
+
+	get mode(): AiMode {
+		return this._mode;
+	}
 
 	invalidate(workspaceId: string): void {
 		this.settingsCache.delete(workspaceId);
@@ -140,7 +144,7 @@ export class AiProviderFactory {
 
 	async getContentGenerator(workspaceId: string): Promise<IContentGenerator & { lastUsage?: unknown }> {
 		const s = await this.getSettings(workspaceId);
-		if (this.mode === "openrouter") {
+		if (this._mode === "openrouter") {
 			this.requireKey("openrouter", s.openrouter.apiKey);
 			return new OpenRouterProvider(s.openrouter.apiKey, s.openrouter.contentModel);
 		}
@@ -149,7 +153,7 @@ export class AiProviderFactory {
 
 	async getCampaignGenerator(workspaceId: string): Promise<ICampaignGenerator & { lastUsage?: unknown }> {
 		const s = await this.getSettings(workspaceId);
-		if (this.mode === "openrouter") {
+		if (this._mode === "openrouter") {
 			this.requireKey("openrouter", s.openrouter.apiKey);
 			return new OpenRouterProvider(s.openrouter.apiKey, s.openrouter.campaignModel);
 		}
@@ -159,7 +163,7 @@ export class AiProviderFactory {
 	async getBriefSummarizer(workspaceId: string): Promise<ICampaignBriefSummarizer & { lastUsage?: unknown }> {
 		// Brief summary reuses the campaign provider selection.
 		const s = await this.getSettings(workspaceId);
-		if (this.mode === "openrouter") {
+		if (this._mode === "openrouter") {
 			this.requireKey("openrouter", s.openrouter.apiKey);
 			return new OpenRouterProvider(s.openrouter.apiKey, s.openrouter.campaignModel);
 		}
@@ -168,7 +172,7 @@ export class AiProviderFactory {
 
 	async getTopicGenerator(workspaceId: string): Promise<ITopicGenerator & { lastUsage?: unknown }> {
 		const s = await this.getSettings(workspaceId);
-		if (this.mode === "openrouter") {
+		if (this._mode === "openrouter") {
 			this.requireKey("openrouter", s.openrouter.apiKey);
 			return new OpenRouterProvider(s.openrouter.apiKey, s.openrouter.topicModel);
 		}
@@ -177,7 +181,7 @@ export class AiProviderFactory {
 
 	async getBrandScraper(workspaceId: string): Promise<IBrandScraper & { lastUsage?: unknown }> {
 		const s = await this.getSettings(workspaceId);
-		if (this.mode === "openrouter") {
+		if (this._mode === "openrouter") {
 			this.requireKey("openrouter", s.openrouter.apiKey);
 			return new OpenRouterProvider(s.openrouter.apiKey, s.openrouter.brandScraperModel);
 		}
@@ -186,7 +190,7 @@ export class AiProviderFactory {
 
 	async getChatProvider(workspaceId: string): Promise<IChatAiProvider> {
 		const s = await this.getSettings(workspaceId);
-		if (this.mode === "openrouter") {
+		if (this._mode === "openrouter") {
 			this.requireKey("openrouter", s.openrouter.apiKey);
 			return new OpenRouterChatProvider(s.openrouter.apiKey, s.openrouter.chatModel);
 		}
@@ -200,7 +204,7 @@ export class AiProviderFactory {
 
 	async getImageProvider(workspaceId: string): Promise<IImageGenerator | null> {
 		const s = await this.getSettings(workspaceId);
-		if (this.mode === "openrouter") {
+		if (this._mode === "openrouter") {
 			this.requireKey("openrouter", s.openrouter.apiKey);
 			return new OpenRouterImageProvider(s.openrouter.apiKey, s.openrouter.imageModel);
 		}
@@ -211,7 +215,7 @@ export class AiProviderFactory {
 
 	async getVideoAnalyzer(workspaceId: string): Promise<IVideoAnalyzer> {
 		const s = await this.getSettings(workspaceId);
-		if (this.mode === "openrouter") {
+		if (this._mode === "openrouter") {
 			this.requireKey("openrouter", s.openrouter.apiKey);
 			return new OpenRouterVideoAnalyzerProvider(
 				s.openrouter.apiKey,
@@ -284,7 +288,7 @@ export class AiProviderFactory {
 			normalize(o.value || effectiveDefault, effectiveDefault);
 
 		return {
-			mode: this.mode,
+			mode: this._mode,
 			providers: {
 				default: effectiveDefault,
 				content: override(contentProvider),

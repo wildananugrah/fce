@@ -23,6 +23,31 @@ function maskKey(key: string | null | undefined): { configured: boolean; masked:
 
 const ALLOWED_PROVIDERS = new Set(["anthropic", "gemini", "openrouter"]);
 
+const OPENROUTER_FIELDS = new Set([
+	"openrouterApiKey",
+	"openrouterModel",
+	"openrouterContentModel",
+	"openrouterCampaignModel",
+	"openrouterTopicModel",
+	"openrouterBrandScraperModel",
+	"openrouterChatModel",
+	"openrouterImageModel",
+	"openrouterVideoModel",
+]);
+const LEGACY_FIELDS = new Set([
+	"aiProvider",
+	"aiContentProvider",
+	"aiCampaignProvider",
+	"aiTopicProvider",
+	"aiBrandScraperProvider",
+	"aiChatProvider",
+	"anthropicApiKey",
+	"anthropicModel",
+	"geminiApiKey",
+	"geminiModel",
+	"geminiImageModel",
+]);
+
 function sanitizeProvider(value: unknown): string | null | undefined {
 	if (value === null) return null; // clear
 	if (typeof value !== "string") return undefined; // ignore
@@ -134,6 +159,22 @@ export function createWorkspaceAiSettingsRoutes(
 		for (const f of stringFields) {
 			const v = sanitizeString(body[f]);
 			if (v !== undefined) patch[f] = v;
+		}
+
+		const mode = aiFactory.mode;
+		for (const key of Object.keys(patch)) {
+			if (mode === "openrouter" && LEGACY_FIELDS.has(key)) {
+				return c.json(
+					{ error: `Field '${key}' is not accepted in openrouter mode` },
+					400,
+				);
+			}
+			if (mode === "legacy" && OPENROUTER_FIELDS.has(key)) {
+				return c.json(
+					{ error: `Field '${key}' is not accepted in legacy mode` },
+					400,
+				);
+			}
 		}
 
 		if (Object.keys(patch).length === 0) {
