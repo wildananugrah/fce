@@ -111,4 +111,44 @@ describe("OpenRouterChatProvider", () => {
 		expect(doneEvt?.usage?.inputTokens).toBe(5);
 		expect(doneEvt?.usage?.outputTokens).toBe(3);
 	});
+
+	it("includes max_tokens and temperature in request body", async () => {
+		const sse = ['data: {"choices":[{"delta":{"content":"x"}}]}\n\n', "data: [DONE]\n\n"];
+		const fetchMock = mock(async () => streamingResponse(sse));
+		const provider = new OpenRouterChatProvider("k", "model", fetchMock as any);
+		const events = [];
+		for await (const e of provider.stream({
+			systemPrompt: "",
+			messages: [{ role: "user", text: "hi" }],
+			tools: [],
+		})) {
+			events.push(e);
+		}
+		const init = (fetchMock.mock.calls[0] as unknown as [string, RequestInit])[1];
+		const body = JSON.parse(init.body as string);
+		expect(body.max_tokens).toBeGreaterThan(0);
+		expect(body.temperature).toBeGreaterThanOrEqual(0);
+	});
+
+	it("HTTP error path: error event includes upstream response body", async () => {
+		const fetchMock = mock(async () =>
+			new Response('{"error":{"message":"Invalid API key"}}', {
+				status: 401,
+				headers: { "Content-Type": "application/json" },
+			}),
+		);
+		const provider = new OpenRouterChatProvider("bad-key", "model", fetchMock as any);
+		const events = [];
+		for await (const e of provider.stream({
+			systemPrompt: "",
+			messages: [{ role: "user", text: "hi" }],
+			tools: [],
+		})) {
+			events.push(e);
+		}
+		const errEvent = events.find((e) => e.type === "error");
+		expect(errEvent).toBeDefined();
+		expect((errEvent as any).message).toMatch(/HTTP 401/);
+		expect((errEvent as any).message).toMatch(/Invalid API key/);
+	});
 });
