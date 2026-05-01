@@ -49,7 +49,7 @@ interface ChatCompletionMessage {
 
 interface ChatCompletionResponse {
 	choices: Array<{ message: { content: string } }>;
-	usage: { prompt_tokens: number; completion_tokens: number };
+	usage?: { prompt_tokens: number; completion_tokens: number };
 }
 
 function parseJsonResponse(text: string): unknown {
@@ -122,11 +122,19 @@ export class OpenRouterProvider
 		}
 
 		const json = (await response.json()) as ChatCompletionResponse;
-		this.lastUsage = {
-			inputTokens: json.usage.prompt_tokens,
-			outputTokens: json.usage.completion_tokens,
-		};
-		return json.choices[0]?.message?.content ?? "";
+		this.lastUsage = json.usage
+			? {
+					inputTokens: json.usage.prompt_tokens,
+					outputTokens: json.usage.completion_tokens,
+				}
+			: null;
+		const content = json.choices[0]?.message?.content;
+		if (!content) {
+			throw new Error(
+				`OpenRouterProvider: empty or missing content in response. Full response: ${JSON.stringify(json)}`,
+			);
+		}
+		return content;
 	}
 
 	async generate(input: ContentGenerationInput): Promise<ContentGenerationOutput>;

@@ -107,4 +107,24 @@ describe("OpenRouterProvider", () => {
 		expect(imageParts).toHaveLength(2);
 		expect(imageParts[0].image_url.url).toBe("https://example.com/a.jpg");
 	});
+
+	it("throws a descriptive error when response has no content (empty choices)", async () => {
+		const fetchMock = mockFetchOnce({
+			choices: [{ message: { content: "" } }],
+			usage: { prompt_tokens: 1, completion_tokens: 0 },
+		});
+		const provider = new OpenRouterProvider("k", "model", fetchMock as any);
+		await expect(
+			provider.generate({
+				brandContext: { name: "B", description: "", language: "en" },
+				productContext: null,
+				platform: "instagram",
+				contentType: "post",
+				framework: "aida",
+				hookType: "curiosity-hook",
+				objective: null,
+				referenceImages: [],
+			} as any),
+		).rejects.toThrow(/empty or missing content/);
+	});
 });
