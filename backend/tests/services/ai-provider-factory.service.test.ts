@@ -306,6 +306,23 @@ describe("AiProviderFactory", () => {
 
 			await expect(factory.getContentGenerator("ws-1")).rejects.toThrow(/OpenRouter/);
 		});
+
+		it("openrouter mode: source.contentModel reflects the actually-resolved field, not the blank per-generator field", async () => {
+			const repo = {
+				findByWorkspace: async () => ({
+					openrouterApiKey: "or-key",
+					openrouterModel: "default-from-workspace",
+					openrouterContentModel: null, // blank → falls back to openrouterModel
+				}),
+			} as any;
+			const env = makeEnvDefaults({ openrouterModel: "" });
+			const factory = makeFactory(repo, env, "openrouter");
+
+			const settings = await factory.getSettings("ws-1");
+			expect(settings.openrouter.contentModel).toBe("default-from-workspace");
+			// openrouterModel was sourced from "workspace", so contentModel should also report "workspace"
+			expect(settings.source.openrouterContentModel).toBe("workspace");
+		});
 	});
 
 	describe("ResolvedAiSettings — mode field", () => {

@@ -261,8 +261,18 @@ export class AiProviderFactory {
 		const orImageModel = pick(record?.openrouterImageModel, env.openrouterImageModel);
 		const orVideoModel = pick(record?.openrouterVideoModel, env.openrouterVideoModel);
 
-		const fallbackToDefault = (val: { value: string; source: "workspace" | "env" }) =>
+		const fallbackToDefault = (
+			val: { value: string; source: "workspace" | "env" },
+		): { value: string; source: "workspace" | "env" } =>
 			val.value && val.value.length > 0 ? val : openrouterModel;
+
+		const orContent = fallbackToDefault(orContentModel);
+		const orCampaign = fallbackToDefault(orCampaignModel);
+		const orTopic = fallbackToDefault(orTopicModel);
+		const orBrand = fallbackToDefault(orBrandModel);
+		const orChat = fallbackToDefault(orChatModel);
+		const orImage = fallbackToDefault(orImageModel);
+		const orVideo = fallbackToDefault(orVideoModel);
 
 		const normalize = (name: string, fallback: ProviderName): ProviderName => {
 			if (name === "anthropic" || name === "gemini" || name === "openrouter") return name;
@@ -292,13 +302,13 @@ export class AiProviderFactory {
 			openrouter: {
 				apiKey: openrouterApiKey.value,
 				defaultModel: openrouterModel.value,
-				contentModel: fallbackToDefault(orContentModel).value,
-				campaignModel: fallbackToDefault(orCampaignModel).value,
-				topicModel: fallbackToDefault(orTopicModel).value,
-				brandScraperModel: fallbackToDefault(orBrandModel).value,
-				chatModel: fallbackToDefault(orChatModel).value,
-				imageModel: fallbackToDefault(orImageModel).value,
-				videoModel: fallbackToDefault(orVideoModel).value,
+				contentModel: orContent.value,
+				campaignModel: orCampaign.value,
+				topicModel: orTopic.value,
+				brandScraperModel: orBrand.value,
+				chatModel: orChat.value,
+				imageModel: orImage.value,
+				videoModel: orVideo.value,
 			},
 			source: {
 				aiProvider: defaultProvider.source,
@@ -314,13 +324,13 @@ export class AiProviderFactory {
 				geminiImageModel: geminiImageModel.source,
 				openrouterApiKey: openrouterApiKey.source,
 				openrouterModel: openrouterModel.source,
-				openrouterContentModel: orContentModel.source,
-				openrouterCampaignModel: orCampaignModel.source,
-				openrouterTopicModel: orTopicModel.source,
-				openrouterBrandScraperModel: orBrandModel.source,
-				openrouterChatModel: orChatModel.source,
-				openrouterImageModel: orImageModel.source,
-				openrouterVideoModel: orVideoModel.source,
+				openrouterContentModel: orContent.source,
+				openrouterCampaignModel: orCampaign.source,
+				openrouterTopicModel: orTopic.source,
+				openrouterBrandScraperModel: orBrand.source,
+				openrouterChatModel: orChat.source,
+				openrouterImageModel: orImage.source,
+				openrouterVideoModel: orVideo.source,
 			},
 		};
 	}

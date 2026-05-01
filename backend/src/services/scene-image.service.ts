@@ -127,7 +127,7 @@ export class SceneImageService {
 		const imageGenerator = await this.aiFactory.getImageProvider(workspaceId);
 		if (!imageGenerator) {
 			throw new Error(
-				"No Gemini API key configured for this workspace. Set one in Workspace Settings → Integrations → AI Providers.",
+				"No image-generation provider configured for this workspace. Set an API key in Workspace Settings → Integrations → AI Providers.",
 			);
 		}
 		const startedAt = Date.now();

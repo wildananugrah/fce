@@ -196,6 +196,7 @@ async function main() {
 			geminiApiKey: env.geminiApiKey,
 			geminiModel: env.geminiModel,
 			geminiImageModel: env.geminiImageModel,
+			// Task 7 will replace these with process.env.OPENROUTER_*
 			openrouterApiKey: "",
 			openrouterModel: "",
 			openrouterContentModel: "",
@@ -483,7 +484,7 @@ async function main() {
 					where: { id: data.runId },
 					data: {
 						status: "failed",
-						errorMessage: err instanceof Error ? err.message : "Gemini config error",
+						errorMessage: err instanceof Error ? err.message : "AI provider config error",
 						completedAt: new Date(),
 					},
 				});
