@@ -124,11 +124,6 @@ import { WorkspaceService } from "./services/workspace.service";
 import { logAiActivity } from "./utils/ai-activity-logger";
 import { env } from "./utils/env";
 
-// AI provider resolution now lives in AiProviderFactory — see below. Env vars
-// act as the fallback when a workspace hasn't configured its own keys.
-const aiMode: "openrouter" | "legacy" =
-	process.env.AI_MODE === "openrouter" ? "openrouter" : "legacy";
-
 // ─── Main Async Setup ────────────────────────────────────────────
 async function main() {
 	// The pg-boss worker concurrency below can run up to ~17 jobs in parallel
@@ -185,6 +180,8 @@ async function main() {
 
 	// Workspace-scoped AI provider resolver + cache. Env values are the
 	// fallback; workspaces override them via Workspace Settings → Integrations.
+	const aiMode: "openrouter" | "legacy" =
+		process.env.AI_MODE === "openrouter" ? "openrouter" : "legacy";
 	const aiProviderFactory = new AiProviderFactory(
 		workspaceSettingRepository,
 		{
@@ -213,6 +210,7 @@ async function main() {
 		storageProvider,
 		env.minioBucket,
 	);
+	logger.info(`AI mode: ${aiMode}`);
 
 	// ─── Services ───────────────────────────────────────────────────
 	// EMAIL_PROVIDER picks the transport. Each branch validates its own
