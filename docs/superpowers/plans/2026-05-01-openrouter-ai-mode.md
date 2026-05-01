@@ -53,7 +53,7 @@ Pre-existing dirty files (`.claude/settings.local.json`, `backend/Makefile`, `do
 - `backend/src/services/scene-image.service.ts` — call renamed `getImageProvider`.
 - `backend/src/services/competitor-pipeline.service.ts` — call renamed `getVideoAnalyzer`.
 - `backend/src/routes/workspace-ai-settings.route.ts` — accept new OpenRouter fields in PUT, add `/test-openrouter` endpoint.
-- `backend/.env.example` — `AI_MODE` + `OPENROUTER_*` keys.
+- `.env.example` — `AI_MODE` + `OPENROUTER_*` keys.
 - `backend/tests/services/ai-provider-factory.service.test.ts` — extend with mode-branching cases.
 
 ### Frontend — modified files
@@ -73,7 +73,7 @@ Pre-existing dirty files (`.claude/settings.local.json`, `backend/Makefile`, `do
 **Files:**
 - Modify: `backend/prisma/schema.prisma:710-737` (add 9 columns to `WorkspaceSetting`)
 - Modify: `backend/src/repositories/workspace-setting.repository.ts` (extend `AiSettingsPatch` and any explicit field lists)
-- Modify: `backend/.env.example` (append `AI_MODE` + `OPENROUTER_*`)
+- Modify: `.env.example` (append `AI_MODE` + `OPENROUTER_*`)
 - Run: `bunx prisma db push && bunx prisma generate`
 
 This task is the data foundation. After this commit, the Prisma client knows about the new fields, the repo can read/write them, and the env example documents them. No behavior change yet — just plumbing.
@@ -154,7 +154,7 @@ openrouterVideoModel?: string | null;
 
 If the repo's `upsertAiSettings` method or `findByWorkspace` method has explicit field lists rather than a generic spread, add the new fields there too. (Most likely the generic `data: patch` spread works as-is.)
 
-- [ ] **Step 4: Append `AI_MODE` + OpenRouter env keys to `backend/.env.example`**
+- [ ] **Step 4: Append `AI_MODE` + OpenRouter env keys to `.env.example`**
 
 Find the AI section near the bottom of `.env.example` and append:
 
@@ -198,7 +198,7 @@ Expected: all pass except the pre-existing chat.service.test.ts failure.
 cd /Users/bellinnn/Documents/projects/fce
 git add backend/prisma/schema.prisma \
         backend/src/repositories/workspace-setting.repository.ts \
-        backend/.env.example
+        .env.example
 git commit -m "feat(backend): add openrouter columns + AI_MODE env
 
 Schema gains 9 nullable openrouter* columns on WorkspaceSetting.
