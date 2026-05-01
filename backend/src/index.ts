@@ -86,6 +86,7 @@ import { createUrlInspirationRoutes } from "./routes/url-inspiration.route";
 import { createSkillListRoutes } from "./routes/skill-list.route";
 import { createWorkspaceAiSettingsRoutes } from "./routes/workspace-ai-settings.route";
 import { createSSERoutes } from "./routes/sse.route";
+import { createSystemRoutes } from "./routes/system.route";
 import { createTaxonomyRoutes } from "./routes/taxonomy.route";
 import { createTopicRoutes } from "./routes/topic.route";
 import { createTrashRoutes } from "./routes/trash.route";
@@ -125,6 +126,8 @@ import { env } from "./utils/env";
 
 // AI provider resolution now lives in AiProviderFactory — see below. Env vars
 // act as the fallback when a workspace hasn't configured its own keys.
+const aiMode: "openrouter" | "legacy" =
+	process.env.AI_MODE === "openrouter" ? "openrouter" : "legacy";
 
 // ─── Main Async Setup ────────────────────────────────────────────
 async function main() {
@@ -196,18 +199,17 @@ async function main() {
 			geminiApiKey: env.geminiApiKey,
 			geminiModel: env.geminiModel,
 			geminiImageModel: env.geminiImageModel,
-			// Task 7 will replace these with process.env.OPENROUTER_*
-			openrouterApiKey: "",
-			openrouterModel: "",
-			openrouterContentModel: "",
-			openrouterCampaignModel: "",
-			openrouterTopicModel: "",
-			openrouterBrandScraperModel: "",
-			openrouterChatModel: "",
-			openrouterImageModel: "",
-			openrouterVideoModel: "",
+			openrouterApiKey: process.env.OPENROUTER_API_KEY ?? "",
+			openrouterModel: process.env.OPENROUTER_MODEL ?? "",
+			openrouterContentModel: process.env.OPENROUTER_CONTENT_MODEL ?? "",
+			openrouterCampaignModel: process.env.OPENROUTER_CAMPAIGN_MODEL ?? "",
+			openrouterTopicModel: process.env.OPENROUTER_TOPIC_MODEL ?? "",
+			openrouterBrandScraperModel: process.env.OPENROUTER_BRAND_SCRAPER_MODEL ?? "",
+			openrouterChatModel: process.env.OPENROUTER_CHAT_MODEL ?? "",
+			openrouterImageModel: process.env.OPENROUTER_IMAGE_MODEL ?? "",
+			openrouterVideoModel: process.env.OPENROUTER_VIDEO_MODEL ?? "",
 		},
-		"legacy", // Task 7 will read from process.env.AI_MODE
+		aiMode,
 		storageProvider,
 		env.minioBucket,
 	);
@@ -729,6 +731,9 @@ async function main() {
 
 	// Public invitation info (no auth — token is unguessable)
 	app.route("/api/invitations", createPublicInvitationRoutes(workspaceService));
+
+	// System info route (no auth — deployment metadata)
+	app.route("/api/system", createSystemRoutes(aiMode));
 
 	// Protected routes
 	app.use("/api/*", authMiddleware);
