@@ -111,4 +111,61 @@ describe("OpenRouterImageProvider", () => {
 		const provider = new OpenRouterImageProvider("k", "model", fetchMock as any);
 		await expect(provider.generate({ prompt: "p" })).rejects.toThrow(/403/);
 	});
+
+	it("downloads image from CDN URL when response is not a data URL", async () => {
+		const cdnImageBytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47]); // PNG magic bytes
+		const fetchMock = mock(async (url: string) => {
+			if (url === "https://openrouter.ai/api/v1/chat/completions") {
+				return new Response(
+					JSON.stringify({
+						choices: [
+							{
+								message: {
+									images: [{ image_url: { url: "https://cdn.example.com/img.png" } }],
+								},
+							},
+						],
+					}),
+				);
+			}
+			// CDN download
+			return new Response(cdnImageBytes, {
+				status: 200,
+				headers: { "Content-Type": "image/png" },
+			});
+		});
+
+		const provider = new OpenRouterImageProvider("k", "model", fetchMock as any);
+		const result = await provider.generate({ prompt: "x" });
+
+		expect(fetchMock).toHaveBeenCalledTimes(2); // OpenRouter + CDN
+		expect(result.mimeType).toBe("image/png");
+		// Decode base64 and confirm bytes round-trip.
+		const decoded = Buffer.from(result.imageBase64, "base64");
+		expect(Array.from(decoded)).toEqual([0x89, 0x50, 0x4e, 0x47]);
+	});
+
+	it("CDN download: rejects when downloaded image exceeds 20MB", async () => {
+		// Use a small synthetic limit to simulate — generate a 21MB buffer.
+		const big = new Uint8Array(21 * 1024 * 1024);
+		const fetchMock = mock(async (url: string) => {
+			if (url.endsWith("/chat/completions")) {
+				return new Response(
+					JSON.stringify({
+						choices: [
+							{
+								message: {
+									images: [{ image_url: { url: "https://cdn.example.com/big.png" } }],
+								},
+							},
+						],
+					}),
+				);
+			}
+			return new Response(big, { status: 200, headers: { "Content-Type": "image/png" } });
+		});
+
+		const provider = new OpenRouterImageProvider("k", "model", fetchMock as any);
+		await expect(provider.generate({ prompt: "x" })).rejects.toThrow(/20MB cap/i);
+	});
 });

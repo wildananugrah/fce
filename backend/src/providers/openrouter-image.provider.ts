@@ -71,13 +71,11 @@ export class OpenRouterImageProvider implements IImageGenerator {
 
 		const json = (await response.json()) as ImageChatResponse;
 
-		// Guard against missing usage — treat as null (defensive pattern).
-		const _usage = json.usage ?? null;
-
 		const images = json.choices[0]?.message?.images;
 		if (!images || images.length === 0) {
+			const snippet = JSON.stringify(json).slice(0, 500);
 			throw new Error(
-				`OpenRouterImageProvider: no image in response. Full response: ${JSON.stringify(json)}`,
+				`OpenRouterImageProvider: response contained no image. Response (truncated): ${snippet}`,
 			);
 		}
 
@@ -92,16 +90,26 @@ export class OpenRouterImageProvider implements IImageGenerator {
 		}
 
 		// Plain HTTPS URL — download and base64-encode.
-		const imgResponse = await this.fetchFn(imageUrl);
+		const controller = new AbortController();
+		const timer = setTimeout(() => controller.abort(), 30_000);
+		let imgResponse: Response;
+		try {
+			imgResponse = await this.fetchFn(imageUrl, { signal: controller.signal });
+		} finally {
+			clearTimeout(timer);
+		}
 		if (!imgResponse.ok) {
-			throw new Error(
-				`OpenRouterImageProvider: could not download generated image from ${imageUrl}: HTTP ${imgResponse.status}`,
-			);
+			throw new Error(`OpenRouterImageProvider: CDN download failed HTTP ${imgResponse.status}`);
 		}
 		const contentType = imgResponse.headers.get("content-type") ?? "image/png";
 		const mimeType = contentType.split(";")[0].trim();
-		const arrayBuffer = await imgResponse.arrayBuffer();
-		const imageBase64 = Buffer.from(arrayBuffer).toString("base64");
+		const buf = await imgResponse.arrayBuffer();
+		if (buf.byteLength > 20 * 1024 * 1024) {
+			throw new Error(
+				`OpenRouterImageProvider: downloaded image exceeds 20MB cap (${buf.byteLength} bytes)`,
+			);
+		}
+		const imageBase64 = Buffer.from(buf).toString("base64");
 		return { imageBase64, mimeType };
 	}
 }
