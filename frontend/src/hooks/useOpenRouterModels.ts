@@ -32,6 +32,7 @@ async function fetchModels(): Promise<OpenRouterModel[]> {
 
 export function refreshOpenRouterModels(): void {
   cachedModels = null;
+  inflight = null;
 }
 
 export function useOpenRouterModels() {
@@ -41,8 +42,14 @@ export function useOpenRouterModels() {
 
   useEffect(() => {
     // useState(cachedModels) already initializes models; loading is initialized to !cachedModels.
-    // Only kick off a fetch when the cache is empty.
-    if (cachedModels) return;
+    // However, cachedModels may have been populated between render and effect run by another
+    // component's fetch resolving. In that case, useState already snapshotted null — sync state.
+    if (cachedModels) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setModels(cachedModels);
+      setLoading(false);
+      return;
+    }
     fetchModels()
       .then((data) => setModels(data))
       .catch((e) => setError(e instanceof Error ? e.message : "Failed to load"))
@@ -54,7 +61,7 @@ export function useOpenRouterModels() {
     loading,
     error,
     refresh: () => {
-      refreshOpenRouterModels();
+      refreshOpenRouterModels(); // clears cachedModels + inflight
       setLoading(true);
       fetchModels()
         .then((data) => {

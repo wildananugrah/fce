@@ -77,6 +77,7 @@ export function OpenRouterModelPicker({ value, onChange, placeholder, category, 
         value={query}
         onChange={(e) => {
           setQuery(e.target.value);
+          onChange(e.target.value);
           setOpen(true);
         }}
         onFocus={() => setOpen(true)}
