@@ -130,7 +130,7 @@ describe("OpenRouterChatProvider", () => {
 		expect(body.temperature).toBeGreaterThanOrEqual(0);
 	});
 
-	it("HTTP error path: error event includes upstream response body", async () => {
+	it("HTTP error path: error event includes friendly message for 401", async () => {
 		const fetchMock = mock(async () =>
 			new Response('{"error":{"message":"Invalid API key"}}', {
 				status: 401,
@@ -148,7 +148,7 @@ describe("OpenRouterChatProvider", () => {
 		}
 		const errEvent = events.find((e) => e.type === "error");
 		expect(errEvent).toBeDefined();
-		expect((errEvent as any).message).toMatch(/HTTP 401/);
-		expect((errEvent as any).message).toMatch(/Invalid API key/);
+		expect((errEvent as any).message).toMatch(/invalid or expired/i);
+		expect((errEvent as any).message).toMatch(/Workspace Settings/i);
 	});
 });

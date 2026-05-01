@@ -1,4 +1,5 @@
 import { generatorTuning } from "../config/generator-tuning";
+import { OpenRouterApiError } from "../errors/openrouter-api-error";
 import type {
 	ChatStreamEvent,
 	ChatStreamInput,
@@ -57,11 +58,8 @@ export class OpenRouterChatProvider implements IChatAiProvider {
 		}
 
 		if (!response.ok) {
-			const errText = await response.text().catch(() => "");
-			yield {
-				type: "error",
-				message: `OpenRouterChatProvider: HTTP ${response.status} - ${errText}`,
-			};
+			const e = await OpenRouterApiError.fromResponse(response);
+			yield { type: "error", message: e.message };
 			yield { type: "done" };
 			return;
 		}

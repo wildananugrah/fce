@@ -104,12 +104,12 @@ describe("OpenRouterImageProvider", () => {
 		expect(result.imageBase64).toBe("noUsage");
 	});
 
-	it("generate: throws with error body on non-2xx response", async () => {
+	it("generate: throws OpenRouterApiError with friendly message on non-2xx response", async () => {
 		const fetchMock = mock(
 			async () => new Response(JSON.stringify({ error: { message: "Forbidden" } }), { status: 403 }),
 		);
 		const provider = new OpenRouterImageProvider("k", "model", fetchMock as any);
-		await expect(provider.generate({ prompt: "p" })).rejects.toThrow(/403/);
+		await expect(provider.generate({ prompt: "p" })).rejects.toThrow(/OpenRouter rejected the request/i);
 	});
 
 	it("downloads image from CDN URL when response is not a data URL", async () => {

@@ -1,3 +1,4 @@
+import { OpenRouterApiError } from "../errors/openrouter-api-error";
 import type {
 	IVideoAnalyzer,
 	VideoAnalyzerUsage,
@@ -79,8 +80,7 @@ export class OpenRouterVideoAnalyzerProvider implements IVideoAnalyzer {
 		}
 
 		if (!response.ok) {
-			const errText = await response.text().catch(() => "");
-			throw new Error(`OpenRouterVideoAnalyzerProvider: HTTP ${response.status} - ${errText}`);
+			throw await OpenRouterApiError.fromResponse(response);
 		}
 
 		const json = (await response.json()) as ChatCompletionResponse;

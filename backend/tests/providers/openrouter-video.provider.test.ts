@@ -170,7 +170,7 @@ describe("OpenRouterVideoAnalyzerProvider", () => {
 					mimeType: "video/mp4",
 					instructions: "describe",
 				}),
-			).rejects.toThrow(/503/);
+			).rejects.toThrow(/temporary/i);
 
 			// Delete must still be called despite the OpenRouter error.
 			expect(minio.delete).toHaveBeenCalledTimes(1);
@@ -248,7 +248,7 @@ describe("OpenRouterVideoAnalyzerProvider", () => {
 			).rejects.toThrow(/parse/i);
 		});
 
-		it("throws with HTTP status and error body on non-2xx response", async () => {
+		it("throws OpenRouterApiError with friendly message on non-2xx response", async () => {
 			const minio = makeMockMinio("https://minio.example.com/test-bucket/video.mp4");
 
 			const fetchMock = mock(
@@ -270,7 +270,7 @@ describe("OpenRouterVideoAnalyzerProvider", () => {
 					mimeType: "video/mp4",
 					instructions: "describe",
 				}),
-			).rejects.toThrow(/401/);
+			).rejects.toThrow(/invalid or expired/i);
 		});
 
 		it("throws when response choices are empty", async () => {

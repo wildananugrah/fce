@@ -1,8 +1,9 @@
 import {
+	type GeneratorTuning,
 	generatorTuning,
 	resolveThinkingBudget,
-	type GeneratorTuning,
 } from "../config/generator-tuning";
+import { OpenRouterApiError } from "../errors/openrouter-api-error";
 import type {
 	BrandScrapingInput,
 	BrandScrapingOutput,
@@ -74,7 +75,12 @@ function languageDirective(language?: string): string {
 }
 
 export class OpenRouterProvider
-	implements IContentGenerator, ICampaignGenerator, ICampaignBriefSummarizer, ITopicGenerator, IBrandScraper
+	implements
+		IContentGenerator,
+		ICampaignGenerator,
+		ICampaignBriefSummarizer,
+		ITopicGenerator,
+		IBrandScraper
 {
 	public lastUsage: { inputTokens: number; outputTokens: number } | null = null;
 
@@ -117,8 +123,7 @@ export class OpenRouterProvider
 		});
 
 		if (!response.ok) {
-			const errText = await response.text().catch(() => "");
-			throw new Error(`OpenRouterProvider: HTTP ${response.status} - ${errText}`);
+			throw await OpenRouterApiError.fromResponse(response);
 		}
 
 		const json = (await response.json()) as ChatCompletionResponse;
