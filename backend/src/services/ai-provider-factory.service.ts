@@ -5,17 +5,27 @@ import { GeminiProvider } from "../providers/gemini.provider";
 import { AnthropicChatProvider } from "../providers/anthropic-chat.provider";
 import { GeminiChatProvider } from "../providers/gemini-chat.provider";
 import { GeminiImageProvider } from "../providers/gemini-image.provider";
+import { GeminiVideoAnalyzerProvider } from "../providers/gemini-video.provider";
+import { OpenRouterProvider } from "../providers/openrouter.provider";
+import { OpenRouterChatProvider } from "../providers/openrouter-chat.provider";
+import { OpenRouterImageProvider } from "../providers/openrouter-image.provider";
+import { OpenRouterVideoAnalyzerProvider } from "../providers/openrouter-video.provider";
+import type { MinioStorageProvider } from "../providers/minio.provider";
 import type { IBrandScraper } from "../interfaces/providers/brand-scraper.interface";
 import type { ICampaignBriefSummarizer } from "../interfaces/providers/campaign-brief-summarizer.interface";
 import type { ICampaignGenerator } from "../interfaces/providers/campaign-generator.interface";
 import type { IChatAiProvider } from "../interfaces/providers/chat-ai.provider.interface";
 import type { IContentGenerator } from "../interfaces/providers/content-generator.interface";
+import type { IImageGenerator } from "../interfaces/providers/image-generator.interface";
 import type { ITopicGenerator } from "../interfaces/providers/topic-generator.interface";
+import type { IVideoAnalyzer } from "../interfaces/providers/video-analyzer.interface";
 import type { WorkspaceSettingRepository } from "../repositories/workspace-setting.repository";
 
-export type ProviderName = "anthropic" | "gemini";
+export type ProviderName = "anthropic" | "gemini" | "openrouter";
+export type AiMode = "openrouter" | "legacy";
 
 export interface ResolvedAiSettings {
+	mode: AiMode;
 	providers: {
 		default: ProviderName;
 		content: ProviderName;
@@ -26,6 +36,17 @@ export interface ResolvedAiSettings {
 	};
 	anthropic: { apiKey: string; model: string };
 	gemini: { apiKey: string; model: string; imageModel: string };
+	openrouter: {
+		apiKey: string;
+		defaultModel: string;
+		contentModel: string;
+		campaignModel: string;
+		topicModel: string;
+		brandScraperModel: string;
+		chatModel: string;
+		imageModel: string;
+		videoModel: string;
+	};
 	source: {
 		aiProvider: "workspace" | "env";
 		aiContentProvider: "workspace" | "env";
@@ -38,6 +59,16 @@ export interface ResolvedAiSettings {
 		geminiApiKey: "workspace" | "env";
 		geminiModel: "workspace" | "env";
 		geminiImageModel: "workspace" | "env";
+		// new openrouter source fields
+		openrouterApiKey: "workspace" | "env";
+		openrouterModel: "workspace" | "env";
+		openrouterContentModel: "workspace" | "env";
+		openrouterCampaignModel: "workspace" | "env";
+		openrouterTopicModel: "workspace" | "env";
+		openrouterBrandScraperModel: "workspace" | "env";
+		openrouterChatModel: "workspace" | "env";
+		openrouterImageModel: "workspace" | "env";
+		openrouterVideoModel: "workspace" | "env";
 	};
 }
 
@@ -53,6 +84,16 @@ export interface EnvAiDefaults {
 	geminiApiKey: string;
 	geminiModel: string;
 	geminiImageModel: string;
+	// new
+	openrouterApiKey: string;
+	openrouterModel: string;
+	openrouterContentModel: string;
+	openrouterCampaignModel: string;
+	openrouterTopicModel: string;
+	openrouterBrandScraperModel: string;
+	openrouterChatModel: string;
+	openrouterImageModel: string;
+	openrouterVideoModel: string;
 }
 
 /**
@@ -75,6 +116,9 @@ export class AiProviderFactory {
 	constructor(
 		private repo: WorkspaceSettingRepository,
 		private envDefaults: EnvAiDefaults,
+		private mode: AiMode,
+		private minio: MinioStorageProvider,
+		private minioBucket: string,
 	) {}
 
 	invalidate(workspaceId: string): void {
@@ -96,32 +140,56 @@ export class AiProviderFactory {
 
 	async getContentGenerator(workspaceId: string): Promise<IContentGenerator & { lastUsage?: unknown }> {
 		const s = await this.getSettings(workspaceId);
+		if (this.mode === "openrouter") {
+			this.requireKey("openrouter", s.openrouter.apiKey);
+			return new OpenRouterProvider(s.openrouter.apiKey, s.openrouter.contentModel);
+		}
 		return this.buildGenerator(s, s.providers.content);
 	}
 
 	async getCampaignGenerator(workspaceId: string): Promise<ICampaignGenerator & { lastUsage?: unknown }> {
 		const s = await this.getSettings(workspaceId);
+		if (this.mode === "openrouter") {
+			this.requireKey("openrouter", s.openrouter.apiKey);
+			return new OpenRouterProvider(s.openrouter.apiKey, s.openrouter.campaignModel);
+		}
 		return this.buildGenerator(s, s.providers.campaign);
 	}
 
 	async getBriefSummarizer(workspaceId: string): Promise<ICampaignBriefSummarizer & { lastUsage?: unknown }> {
 		// Brief summary reuses the campaign provider selection.
 		const s = await this.getSettings(workspaceId);
+		if (this.mode === "openrouter") {
+			this.requireKey("openrouter", s.openrouter.apiKey);
+			return new OpenRouterProvider(s.openrouter.apiKey, s.openrouter.campaignModel);
+		}
 		return this.buildGenerator(s, s.providers.campaign);
 	}
 
 	async getTopicGenerator(workspaceId: string): Promise<ITopicGenerator & { lastUsage?: unknown }> {
 		const s = await this.getSettings(workspaceId);
+		if (this.mode === "openrouter") {
+			this.requireKey("openrouter", s.openrouter.apiKey);
+			return new OpenRouterProvider(s.openrouter.apiKey, s.openrouter.topicModel);
+		}
 		return this.buildGenerator(s, s.providers.topic);
 	}
 
 	async getBrandScraper(workspaceId: string): Promise<IBrandScraper & { lastUsage?: unknown }> {
 		const s = await this.getSettings(workspaceId);
+		if (this.mode === "openrouter") {
+			this.requireKey("openrouter", s.openrouter.apiKey);
+			return new OpenRouterProvider(s.openrouter.apiKey, s.openrouter.brandScraperModel);
+		}
 		return this.buildGenerator(s, s.providers.brandScraper);
 	}
 
 	async getChatProvider(workspaceId: string): Promise<IChatAiProvider> {
 		const s = await this.getSettings(workspaceId);
+		if (this.mode === "openrouter") {
+			this.requireKey("openrouter", s.openrouter.apiKey);
+			return new OpenRouterChatProvider(s.openrouter.apiKey, s.openrouter.chatModel);
+		}
 		if (s.providers.chat === "anthropic") {
 			this.requireKey("anthropic", s.anthropic.apiKey);
 			return new AnthropicChatProvider(s.anthropic.apiKey, s.anthropic.model);
@@ -130,10 +198,33 @@ export class AiProviderFactory {
 		return new GeminiChatProvider(s.gemini.apiKey, s.gemini.model);
 	}
 
-	async getGeminiImageProvider(workspaceId: string): Promise<GeminiImageProvider | null> {
+	async getImageProvider(workspaceId: string): Promise<IImageGenerator | null> {
 		const s = await this.getSettings(workspaceId);
+		if (this.mode === "openrouter") {
+			this.requireKey("openrouter", s.openrouter.apiKey);
+			return new OpenRouterImageProvider(s.openrouter.apiKey, s.openrouter.imageModel);
+		}
+		// Legacy path — preserve current behavior of getGeminiImageProvider.
 		if (!s.gemini.apiKey) return null;
 		return new GeminiImageProvider(s.gemini.apiKey, s.gemini.imageModel);
+	}
+
+	async getVideoAnalyzer(workspaceId: string): Promise<IVideoAnalyzer> {
+		const s = await this.getSettings(workspaceId);
+		if (this.mode === "openrouter") {
+			this.requireKey("openrouter", s.openrouter.apiKey);
+			return new OpenRouterVideoAnalyzerProvider(
+				s.openrouter.apiKey,
+				s.openrouter.videoModel,
+				this.minio,
+				this.minioBucket,
+			);
+		}
+		// Legacy path — Gemini video analyzer.
+		if (!s.gemini.apiKey) {
+			throw new MissingApiKeyError("Gemini");
+		}
+		return new GeminiVideoAnalyzerProvider(s.gemini.apiKey, s.gemini.model);
 	}
 
 	// ─── Internals ────────────────────────────────────────────────
@@ -159,8 +250,22 @@ export class AiProviderFactory {
 		const geminiModel = pick(record?.geminiModel, env.geminiModel);
 		const geminiImageModel = pick(record?.geminiImageModel, env.geminiImageModel);
 
+		// OpenRouter fields
+		const openrouterApiKey = pick(record?.openrouterApiKey, env.openrouterApiKey);
+		const openrouterModel = pick(record?.openrouterModel, env.openrouterModel);
+		const orContentModel = pick(record?.openrouterContentModel, env.openrouterContentModel);
+		const orCampaignModel = pick(record?.openrouterCampaignModel, env.openrouterCampaignModel);
+		const orTopicModel = pick(record?.openrouterTopicModel, env.openrouterTopicModel);
+		const orBrandModel = pick(record?.openrouterBrandScraperModel, env.openrouterBrandScraperModel);
+		const orChatModel = pick(record?.openrouterChatModel, env.openrouterChatModel);
+		const orImageModel = pick(record?.openrouterImageModel, env.openrouterImageModel);
+		const orVideoModel = pick(record?.openrouterVideoModel, env.openrouterVideoModel);
+
+		const fallbackToDefault = (val: { value: string; source: "workspace" | "env" }) =>
+			val.value && val.value.length > 0 ? val : openrouterModel;
+
 		const normalize = (name: string, fallback: ProviderName): ProviderName => {
-			if (name === "anthropic" || name === "gemini") return name;
+			if (name === "anthropic" || name === "gemini" || name === "openrouter") return name;
 			return fallback;
 		};
 
@@ -169,6 +274,7 @@ export class AiProviderFactory {
 			normalize(o.value || effectiveDefault, effectiveDefault);
 
 		return {
+			mode: this.mode,
 			providers: {
 				default: effectiveDefault,
 				content: override(contentProvider),
@@ -183,6 +289,17 @@ export class AiProviderFactory {
 				model: geminiModel.value,
 				imageModel: geminiImageModel.value,
 			},
+			openrouter: {
+				apiKey: openrouterApiKey.value,
+				defaultModel: openrouterModel.value,
+				contentModel: fallbackToDefault(orContentModel).value,
+				campaignModel: fallbackToDefault(orCampaignModel).value,
+				topicModel: fallbackToDefault(orTopicModel).value,
+				brandScraperModel: fallbackToDefault(orBrandModel).value,
+				chatModel: fallbackToDefault(orChatModel).value,
+				imageModel: fallbackToDefault(orImageModel).value,
+				videoModel: fallbackToDefault(orVideoModel).value,
+			},
 			source: {
 				aiProvider: defaultProvider.source,
 				aiContentProvider: contentProvider.source,
@@ -195,6 +312,15 @@ export class AiProviderFactory {
 				geminiApiKey: geminiApiKey.source,
 				geminiModel: geminiModel.source,
 				geminiImageModel: geminiImageModel.source,
+				openrouterApiKey: openrouterApiKey.source,
+				openrouterModel: openrouterModel.source,
+				openrouterContentModel: orContentModel.source,
+				openrouterCampaignModel: orCampaignModel.source,
+				openrouterTopicModel: orTopicModel.source,
+				openrouterBrandScraperModel: orBrandModel.source,
+				openrouterChatModel: orChatModel.source,
+				openrouterImageModel: orImageModel.source,
+				openrouterVideoModel: orVideoModel.source,
 			},
 		};
 	}
@@ -213,6 +339,8 @@ export class AiProviderFactory {
 
 	private requireKey(provider: ProviderName, apiKey: string): void {
 		if (apiKey && apiKey.length > 0) return;
-		throw new MissingApiKeyError(provider === "anthropic" ? "Anthropic" : "Gemini");
+		const label =
+			provider === "anthropic" ? "Anthropic" : provider === "gemini" ? "Gemini" : "OpenRouter";
+		throw new MissingApiKeyError(label);
 	}
 }

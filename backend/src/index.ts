@@ -37,7 +37,7 @@ import { createWorkspaceMiddleware } from "./middlewares/workspace.middleware";
 import { AnthropicChatProvider } from "./providers/anthropic-chat.provider";
 import { AnthropicProvider } from "./providers/anthropic.provider";
 import { GeminiChatProvider } from "./providers/gemini-chat.provider";
-import { GeminiVideoAnalyzerProvider } from "./providers/gemini-video.provider";
+import type { IVideoAnalyzer } from "./interfaces/providers/video-analyzer.interface";
 import { ApifyProvider } from "./providers/apify.provider";
 import { NoopEmailProvider } from "./providers/noop-email.provider";
 import { ResendEmailProvider } from "./providers/resend-email.provider";
@@ -182,19 +182,34 @@ async function main() {
 
 	// Workspace-scoped AI provider resolver + cache. Env values are the
 	// fallback; workspaces override them via Workspace Settings → Integrations.
-	const aiProviderFactory = new AiProviderFactory(workspaceSettingRepository, {
-		aiProvider: env.aiProvider,
-		aiContentProvider: env.aiContentProvider,
-		aiCampaignProvider: env.aiCampaignProvider,
-		aiTopicProvider: env.aiTopicProvider,
-		aiBrandScraperProvider: env.aiBrandScraperProvider,
-		aiChatProvider: env.aiChatProvider,
-		anthropicApiKey: env.anthropicApiKey,
-		anthropicModel: env.anthropicModel,
-		geminiApiKey: env.geminiApiKey,
-		geminiModel: env.geminiModel,
-		geminiImageModel: env.geminiImageModel,
-	});
+	const aiProviderFactory = new AiProviderFactory(
+		workspaceSettingRepository,
+		{
+			aiProvider: env.aiProvider,
+			aiContentProvider: env.aiContentProvider,
+			aiCampaignProvider: env.aiCampaignProvider,
+			aiTopicProvider: env.aiTopicProvider,
+			aiBrandScraperProvider: env.aiBrandScraperProvider,
+			aiChatProvider: env.aiChatProvider,
+			anthropicApiKey: env.anthropicApiKey,
+			anthropicModel: env.anthropicModel,
+			geminiApiKey: env.geminiApiKey,
+			geminiModel: env.geminiModel,
+			geminiImageModel: env.geminiImageModel,
+			openrouterApiKey: "",
+			openrouterModel: "",
+			openrouterContentModel: "",
+			openrouterCampaignModel: "",
+			openrouterTopicModel: "",
+			openrouterBrandScraperModel: "",
+			openrouterChatModel: "",
+			openrouterImageModel: "",
+			openrouterVideoModel: "",
+		},
+		"legacy", // Task 7 will read from process.env.AI_MODE
+		storageProvider,
+		env.minioBucket,
+	);
 
 	// ─── Services ───────────────────────────────────────────────────
 	// EMAIL_PROVIDER picks the transport. Each branch validates its own
@@ -340,13 +355,7 @@ async function main() {
 	// Pipeline job resolves a fresh Gemini analyzer per run using the
 	// per-workspace key via AiProviderFactory. Wrap the class construction in
 	// a small closure so the pg-boss worker signature below stays uniform.
-	const buildVideoAnalyzer = async (workspaceId: string): Promise<GeminiVideoAnalyzerProvider> => {
-		const settings = await aiProviderFactory.getSettings(workspaceId);
-		const apiKey = settings.gemini.apiKey ?? env.geminiApiKey;
-		const model = settings.gemini.model ?? env.geminiModel ?? "gemini-2.5-flash";
-		if (!apiKey) throw new Error("Gemini API key not configured");
-		return new GeminiVideoAnalyzerProvider(apiKey, model);
-	};
+	const buildVideoAnalyzer = (workspaceId: string) => aiProviderFactory.getVideoAnalyzer(workspaceId);
 
 	const videoFetcher = async (url: string): Promise<{ bytes: Uint8Array; mimeType: string }> => {
 		// Browser-like headers — TikTok's own CDN blocks bare fetch() and often
@@ -466,7 +475,7 @@ async function main() {
 				logger.error("competitor_pipeline_failed", { runId: data.runId, error: "Run not found" });
 				return;
 			}
-			let analyzer: GeminiVideoAnalyzerProvider;
+			let analyzer: IVideoAnalyzer;
 			try {
 				analyzer = await buildVideoAnalyzer(run.workspaceId);
 			} catch (err) {
