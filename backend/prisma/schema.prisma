@@ -728,6 +728,18 @@ model WorkspaceSetting {
   geminiModel      String? @map("gemini_model")
   geminiImageModel String? @map("gemini_image_model")
 
+  // OpenRouter mode (used when AI_MODE=openrouter). Per-generator model fields
+  // fall back to openrouterModel when blank.
+  openrouterApiKey            String? @map("openrouter_api_key")
+  openrouterModel             String? @map("openrouter_model")
+  openrouterContentModel      String? @map("openrouter_content_model")
+  openrouterCampaignModel     String? @map("openrouter_campaign_model")
+  openrouterTopicModel        String? @map("openrouter_topic_model")
+  openrouterBrandScraperModel String? @map("openrouter_brand_scraper_model")
+  openrouterChatModel         String? @map("openrouter_chat_model")
+  openrouterImageModel        String? @map("openrouter_image_model")
+  openrouterVideoModel        String? @map("openrouter_video_model")
+
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
