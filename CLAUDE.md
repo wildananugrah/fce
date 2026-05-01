@@ -131,6 +131,14 @@ AI provider keys and model choices live on `WorkspaceSetting` (per-workspace) ra
 
 `.env` keys (`ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `AI_PROVIDER`, per-generator overrides) remain as the fallback for workspaces that haven't configured their own — keeps self-host / dev environments working with a single shared key.
 
+### `AI_MODE` env flag — OpenRouter mode
+
+When `AI_MODE=openrouter` (instead of the default `legacy`), all AI calls — text generation, chat, scene image generation, and video analysis — route through OpenRouter regardless of the workspace's `aiProvider` settings. Workspaces configure an OpenRouter API key + per-generator model selections under Workspace Settings → Integrations. Existing Anthropic+Gemini fields stay in the DB unused; flipping `AI_MODE` back to `legacy` restores them.
+
+OpenRouter env fallbacks: `OPENROUTER_API_KEY`, `OPENROUTER_MODEL`, `OPENROUTER_CONTENT_MODEL`, `OPENROUTER_CAMPAIGN_MODEL`, `OPENROUTER_TOPIC_MODEL`, `OPENROUTER_BRAND_SCRAPER_MODEL`, `OPENROUTER_CHAT_MODEL`, `OPENROUTER_IMAGE_MODEL`, `OPENROUTER_VIDEO_MODEL`. Per-generator models fall back to `OPENROUTER_MODEL` if blank, then to a runtime `MissingApiKeyError` if no key is configured at any level.
+
+In OpenRouter mode the backend `PUT /api/workspaces/:id/ai-settings` rejects legacy fields (`anthropicApiKey`, `aiProvider`, etc.) with 400; symmetric in legacy mode. Video analysis uploads bytes to MinIO and signs a 30-minute URL that OpenRouter fetches from — chosen video model must accept video URL input.
+
 ### AI Activity Logging
 
 Every AI provider call (content, topic, campaign, brand scraping, product scraping, product brain, URL inspiration) is logged to the `ai_provider_logs` table via `logAiActivity()` (`backend/src/utils/ai-activity-logger.ts`). Each log row captures: workspace, user, generator type, provider, model, system/user prompt, response, input/output tokens, duration, estimated cost, and status. Used for token usage tracking (profile/workspace settings pages) and dispute resolution.
