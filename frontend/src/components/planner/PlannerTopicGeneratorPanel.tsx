@@ -36,6 +36,7 @@ interface PlannerTopicGeneratorPanelProps {
   workspaceId: string;
   brands: Brand[];
   initialBrandId: string;
+  initialDate?: string | null;
   onSavedTopics: () => void;
   onEditTopic: (topic: Topic) => void;
   onToast: (msg: string, type: ToastType) => void;
@@ -87,6 +88,7 @@ export function PlannerTopicGeneratorPanel({
   workspaceId,
   brands,
   initialBrandId,
+  initialDate,
   onSavedTopics,
   onEditTopic,
   onToast,
@@ -108,8 +110,13 @@ export function PlannerTopicGeneratorPanel({
   // Reset brandId if the initial prop changes (e.g. user changed brand on calendar
   // before opening the panel).
   useEffect(() => {
-    if (isOpen) setBrandId(initialBrandId);
-  }, [isOpen, initialBrandId]);
+    if (!isOpen) return;
+    setBrandId(initialBrandId);
+    if (initialDate) {
+      setDateFrom(initialDate);
+      setDateTo(initialDate);
+    }
+  }, [isOpen, initialBrandId, initialDate]);
 
   // Lock background scroll while open.
   useEffect(() => {
