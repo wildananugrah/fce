@@ -118,7 +118,11 @@ export function createAuthRoutes(authService: IAuthService) {
 		}
 
 		const result = await authService.refresh(refreshToken);
-		return c.json({ data: result });
+		// Surface the resolved userId so the request-logger reports it
+		// instead of "anonymous" — the refresh route runs before the auth
+		// middleware that normally populates this.
+		c.set("userId", result.userId);
+		return c.json({ data: { accessToken: result.accessToken } });
 	});
 
 	app.get("/me", async (c) => {

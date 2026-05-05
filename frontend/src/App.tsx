@@ -3,6 +3,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 import { WorkspaceProvider } from "./contexts/WorkspaceContext";
 import { ProjectProvider } from "./contexts/ProjectContext";
 import { OnboardingProvider } from "./contexts/OnboardingContext";
+import { SystemProvider } from "./contexts/SystemContext";
 import { AppShell } from "./components/layout/AppShell";
 import { LandingPage } from "./pages/LandingPage";
 import { LoginPage } from "./pages/LoginPage";
@@ -48,6 +49,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <SystemProvider>
         <WorkspaceProvider>
           <ProjectProvider>
             <OnboardingProvider>
@@ -83,6 +85,7 @@ export default function App() {
             </OnboardingProvider>
           </ProjectProvider>
         </WorkspaceProvider>
+        </SystemProvider>
       </AuthProvider>
     </BrowserRouter>
   );

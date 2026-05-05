@@ -12,6 +12,15 @@ export type AiSettingsPatch = Partial<{
 	geminiApiKey: string | null;
 	geminiModel: string | null;
 	geminiImageModel: string | null;
+	openrouterApiKey: string | null;
+	openrouterModel: string | null;
+	openrouterContentModel: string | null;
+	openrouterCampaignModel: string | null;
+	openrouterTopicModel: string | null;
+	openrouterBrandScraperModel: string | null;
+	openrouterChatModel: string | null;
+	openrouterImageModel: string | null;
+	openrouterVideoModel: string | null;
 }>;
 
 /**

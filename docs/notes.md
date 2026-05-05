@@ -142,18 +142,42 @@ dicoba pake ini mas
 6. Double Check ke Competitor Analyzer pake skills UI/UX
 7. satu user create workspace di limit, ini harus configurable di db. [done]
 8. yang create project cuman superdamin doang. 
-9. Skills ini dibuat global. tapi butuh mappingan-nya. 
+9. Skills ini dibuat global. tapi butuh mappingan-nya. [done]
 10. Campaign -> input nya output butuh struktur nya mau gmana ? disabled dulu
 11. Learning Center -> disabled dulu [done]
 12. Research Hub -> disabled dulu.  [done]
 13. Create baby step for tutorial [in progress]
 14. timestamp seems like not valid. [done]
-15. Pindahin workspace nya brand-brand ke project. check chat nya adam di Group RND
-16. Mapping skils-nya.
+15. Pindahin workspace nya brand-brand ke project. check chat nya adam di Group RND [done]
+16. Mapping skils-nya. [done]
 17. Issue di advance mode, strategy controls. 
+    ini gmana sih rules nya >.< ga ngerti. 
 
 == 24 Apr 2026 - Tutor anak content:
 
 1. intinya sih bikin default-nya language nya di Brain. di Product, Topic, Content generator itu ga usah pilih.
 
-idealnya ngikut brand brain dulu sih mas, nanti kalau mau dirubah baru dipilih, biar ngurang2in input aja. tapi sementara gini dulu gpp
+idealnya ngikut brand brain dulu sih mas, nanti kalau mau dirubah baru dipilih, biar ngurang2in input aja. tapi sementara gini dulu gpp 
+
+==
+
+1. language in brand brain only
+2. marketing skills in global and mapped by system
+3. 1 project = 1 brand
+4. baby step for tutorial for new user
+
+== 29 Apr 2026
+1. bikin project dulu baru bisa bikin brand biar bisa di mapping. [done]
+1.1 delete project it should be in Trash tab. [done]
+2. klo ada pdf di download. [opsional]
+3. klo pas video, di preview nya di bikin slideshows ambil dari visual script + image nya. [done]
+4. opsi language di content dan topic itu default nya aja ikut di brand brain [on progress]
+5. abis create project, ga harus refresh untuk nampilin nya. [done]
+6. setiap lagi generate mestinya ada opsi untuk bisa stop. [done]
+7. ada alert dulu klo ada pindah page pas baru aja generate sesuatu. [done]
+8. BUG: ga bisa create proudct klo lebih dari satu.  [done]
+9. BUG: kenapa ga lengkap scrape awal, mestinya lsg lengkap aja. [done]
+10. LEARNING: 
+11. Brand Brain learning terus, update dari report nya. 
+    - harus ada report nya dulu. -> metric cool API. 
+12. Advanced mode need to be doubled check. 

@@ -30,6 +30,7 @@ import { TopicRegenerationJob } from "./jobs/topic-regeneration.job";
 import { createAdminMiddleware } from "./middlewares/admin.middleware";
 import { createAuthMiddleware } from "./middlewares/auth.middleware";
 import { MissingApiKeyError } from "./errors/ai-key-missing-error";
+import { OpenRouterApiError } from "./errors/openrouter-api-error";
 import { UrlFetchError } from "./errors/url-fetch-error";
 import { createErrorHandlerMiddleware } from "./middlewares/error-handler.middleware";
 import { createRequestLoggerMiddleware } from "./middlewares/request-logger.middleware";
@@ -37,7 +38,7 @@ import { createWorkspaceMiddleware } from "./middlewares/workspace.middleware";
 import { AnthropicChatProvider } from "./providers/anthropic-chat.provider";
 import { AnthropicProvider } from "./providers/anthropic.provider";
 import { GeminiChatProvider } from "./providers/gemini-chat.provider";
-import { GeminiVideoAnalyzerProvider } from "./providers/gemini-video.provider";
+import type { IVideoAnalyzer } from "./interfaces/providers/video-analyzer.interface";
 import { ApifyProvider } from "./providers/apify.provider";
 import { NoopEmailProvider } from "./providers/noop-email.provider";
 import { ResendEmailProvider } from "./providers/resend-email.provider";
@@ -86,6 +87,7 @@ import { createUrlInspirationRoutes } from "./routes/url-inspiration.route";
 import { createSkillListRoutes } from "./routes/skill-list.route";
 import { createWorkspaceAiSettingsRoutes } from "./routes/workspace-ai-settings.route";
 import { createSSERoutes } from "./routes/sse.route";
+import { createSystemRoutes } from "./routes/system.route";
 import { createTaxonomyRoutes } from "./routes/taxonomy.route";
 import { createTopicRoutes } from "./routes/topic.route";
 import { createTrashRoutes } from "./routes/trash.route";
@@ -122,9 +124,6 @@ import { TrashService } from "./services/trash.service";
 import { WorkspaceService } from "./services/workspace.service";
 import { logAiActivity } from "./utils/ai-activity-logger";
 import { env } from "./utils/env";
-
-// AI provider resolution now lives in AiProviderFactory — see below. Env vars
-// act as the fallback when a workspace hasn't configured its own keys.
 
 // ─── Main Async Setup ────────────────────────────────────────────
 async function main() {
@@ -182,19 +181,37 @@ async function main() {
 
 	// Workspace-scoped AI provider resolver + cache. Env values are the
 	// fallback; workspaces override them via Workspace Settings → Integrations.
-	const aiProviderFactory = new AiProviderFactory(workspaceSettingRepository, {
-		aiProvider: env.aiProvider,
-		aiContentProvider: env.aiContentProvider,
-		aiCampaignProvider: env.aiCampaignProvider,
-		aiTopicProvider: env.aiTopicProvider,
-		aiBrandScraperProvider: env.aiBrandScraperProvider,
-		aiChatProvider: env.aiChatProvider,
-		anthropicApiKey: env.anthropicApiKey,
-		anthropicModel: env.anthropicModel,
-		geminiApiKey: env.geminiApiKey,
-		geminiModel: env.geminiModel,
-		geminiImageModel: env.geminiImageModel,
-	});
+	const aiMode: "openrouter" | "legacy" =
+		process.env.AI_MODE === "openrouter" ? "openrouter" : "legacy";
+	const aiProviderFactory = new AiProviderFactory(
+		workspaceSettingRepository,
+		{
+			aiProvider: env.aiProvider,
+			aiContentProvider: env.aiContentProvider,
+			aiCampaignProvider: env.aiCampaignProvider,
+			aiTopicProvider: env.aiTopicProvider,
+			aiBrandScraperProvider: env.aiBrandScraperProvider,
+			aiChatProvider: env.aiChatProvider,
+			anthropicApiKey: env.anthropicApiKey,
+			anthropicModel: env.anthropicModel,
+			geminiApiKey: env.geminiApiKey,
+			geminiModel: env.geminiModel,
+			geminiImageModel: env.geminiImageModel,
+			openrouterApiKey: process.env.OPENROUTER_API_KEY ?? "",
+			openrouterModel: process.env.OPENROUTER_MODEL ?? "",
+			openrouterContentModel: process.env.OPENROUTER_CONTENT_MODEL ?? "",
+			openrouterCampaignModel: process.env.OPENROUTER_CAMPAIGN_MODEL ?? "",
+			openrouterTopicModel: process.env.OPENROUTER_TOPIC_MODEL ?? "",
+			openrouterBrandScraperModel: process.env.OPENROUTER_BRAND_SCRAPER_MODEL ?? "",
+			openrouterChatModel: process.env.OPENROUTER_CHAT_MODEL ?? "",
+			openrouterImageModel: process.env.OPENROUTER_IMAGE_MODEL ?? "",
+			openrouterVideoModel: process.env.OPENROUTER_VIDEO_MODEL ?? "",
+		},
+		aiMode,
+		storageProvider,
+		env.minioBucket,
+	);
+	logger.info(`AI mode: ${aiMode}`);
 
 	// ─── Services ───────────────────────────────────────────────────
 	// EMAIL_PROVIDER picks the transport. Each branch validates its own
@@ -340,13 +357,7 @@ async function main() {
 	// Pipeline job resolves a fresh Gemini analyzer per run using the
 	// per-workspace key via AiProviderFactory. Wrap the class construction in
 	// a small closure so the pg-boss worker signature below stays uniform.
-	const buildVideoAnalyzer = async (workspaceId: string): Promise<GeminiVideoAnalyzerProvider> => {
-		const settings = await aiProviderFactory.getSettings(workspaceId);
-		const apiKey = settings.gemini.apiKey ?? env.geminiApiKey;
-		const model = settings.gemini.model ?? env.geminiModel ?? "gemini-2.5-flash";
-		if (!apiKey) throw new Error("Gemini API key not configured");
-		return new GeminiVideoAnalyzerProvider(apiKey, model);
-	};
+	const buildVideoAnalyzer = (workspaceId: string) => aiProviderFactory.getVideoAnalyzer(workspaceId);
 
 	const videoFetcher = async (url: string): Promise<{ bytes: Uint8Array; mimeType: string }> => {
 		// Browser-like headers — TikTok's own CDN blocks bare fetch() and often
@@ -466,7 +477,7 @@ async function main() {
 				logger.error("competitor_pipeline_failed", { runId: data.runId, error: "Run not found" });
 				return;
 			}
-			let analyzer: GeminiVideoAnalyzerProvider;
+			let analyzer: IVideoAnalyzer;
 			try {
 				analyzer = await buildVideoAnalyzer(run.workspaceId);
 			} catch (err) {
@@ -474,7 +485,7 @@ async function main() {
 					where: { id: data.runId },
 					data: {
 						status: "failed",
-						errorMessage: err instanceof Error ? err.message : "Gemini config error",
+						errorMessage: err instanceof Error ? err.message : "AI provider config error",
 						completedAt: new Date(),
 					},
 				});
@@ -685,7 +696,11 @@ async function main() {
 
 		// Typed user-actionable errors — surface their messages as 400s so
 		// the user gets a clear pointer instead of "Internal server error".
-		if (err instanceof MissingApiKeyError || err instanceof UrlFetchError) {
+		if (
+			err instanceof MissingApiKeyError ||
+			err instanceof UrlFetchError ||
+			err instanceof OpenRouterApiError
+		) {
 			return c.json({ error: message }, 400);
 		}
 
@@ -719,6 +734,9 @@ async function main() {
 
 	// Public invitation info (no auth — token is unguessable)
 	app.route("/api/invitations", createPublicInvitationRoutes(workspaceService));
+
+	// System info route (no auth — deployment metadata)
+	app.route("/api/system", createSystemRoutes(aiMode));
 
 	// Protected routes
 	app.use("/api/*", authMiddleware);

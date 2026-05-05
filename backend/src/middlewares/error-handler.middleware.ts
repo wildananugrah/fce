@@ -1,5 +1,6 @@
 import { createMiddleware } from "hono/factory";
 import { MissingApiKeyError } from "../errors/ai-key-missing-error";
+import { OpenRouterApiError } from "../errors/openrouter-api-error";
 import { UrlFetchError } from "../errors/url-fetch-error";
 import type { ILogger } from "../interfaces/providers/logger.provider.interface";
 
@@ -19,7 +20,11 @@ export function createErrorHandlerMiddleware(logger: ILogger) {
 			});
 
 			// Typed user-actionable errors — surface their messages as 400s.
-			if (err instanceof MissingApiKeyError || err instanceof UrlFetchError) {
+			if (
+				err instanceof MissingApiKeyError ||
+				err instanceof UrlFetchError ||
+				err instanceof OpenRouterApiError
+			) {
 				return c.json({ error: message }, 400);
 			}
 

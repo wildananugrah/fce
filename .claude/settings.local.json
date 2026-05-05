@@ -187,7 +187,11 @@
       "Bash(git -C /Users/bellinnn/Documents/projects/fce diff main...HEAD -- frontend/src/pages/BrandsPage.tsx)",
       "Bash(git -C /Users/bellinnn/Documents/projects/fce diff main...HEAD --name-only)",
       "Bash(git -C /Users/bellinnn/Documents/projects/fce diff main...HEAD -- backend/src/routes/workspace.route.ts)",
-      "Bash(git -C /Users/bellinnn/Documents/projects/fce diff main...HEAD --stat)"
+      "Bash(git -C /Users/bellinnn/Documents/projects/fce diff main...HEAD --stat)",
+      "Bash(tsc -b)",
+      "Bash(grep -n 'hookTypeId || \"curiosity\"$' /Users/bellinnn/Documents/projects/fce/frontend/src/pages/GeneratePage.tsx)",
+      "Bash(grep -n \"tonePreset\\\\|visualStyle\" backend/src/jobs/content-generation.job.ts)",
+      "Bash(grep -n \"request\\\\.tonePreset\\\\|request\\\\.visualStyle\" backend/src/jobs/content-generation.job.ts)"
     ],
     "additionalDirectories": [
       "/Users/wildananugrah/Documents/My-Projects/fce/.git"

@@ -1,10 +1,12 @@
 import {
 	CreateBucketCommand,
 	DeleteObjectCommand,
+	GetObjectCommand,
 	HeadBucketCommand,
 	PutObjectCommand,
 	S3Client,
 } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import type { IStorageProvider } from "../interfaces/providers/storage.provider.interface";
 
 export class MinioStorageProvider implements IStorageProvider {
@@ -66,5 +68,10 @@ export class MinioStorageProvider implements IStorageProvider {
 
 	async delete(bucket: string, key: string): Promise<void> {
 		await this.client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
+	}
+
+	async getSignedUrl(bucket: string, key: string, ttlSeconds: number): Promise<string> {
+		const command = new GetObjectCommand({ Bucket: bucket, Key: key });
+		return getSignedUrl(this.client, command, { expiresIn: ttlSeconds });
 	}
 }

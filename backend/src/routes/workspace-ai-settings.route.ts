@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import type { IAuditService } from "../interfaces/services/audit.service.interface";
 import type { AiProviderFactory } from "../services/ai-provider-factory.service";
 import type { AiSettingsPatch, WorkspaceSettingRepository } from "../repositories/workspace-setting.repository";
+import { requireWorkspaceAdmin } from "../middlewares/rbac.middleware";
 
 type Variables = {
 	userId: string;
@@ -21,7 +22,32 @@ function maskKey(key: string | null | undefined): { configured: boolean; masked:
 	return { configured: true, masked: `••••••••${last4}` };
 }
 
-const ALLOWED_PROVIDERS = new Set(["anthropic", "gemini"]);
+const ALLOWED_PROVIDERS = new Set(["anthropic", "gemini", "openrouter"]);
+
+const OPENROUTER_FIELDS = new Set([
+	"openrouterApiKey",
+	"openrouterModel",
+	"openrouterContentModel",
+	"openrouterCampaignModel",
+	"openrouterTopicModel",
+	"openrouterBrandScraperModel",
+	"openrouterChatModel",
+	"openrouterImageModel",
+	"openrouterVideoModel",
+]);
+const LEGACY_FIELDS = new Set([
+	"aiProvider",
+	"aiContentProvider",
+	"aiCampaignProvider",
+	"aiTopicProvider",
+	"aiBrandScraperProvider",
+	"aiChatProvider",
+	"anthropicApiKey",
+	"anthropicModel",
+	"geminiApiKey",
+	"geminiModel",
+	"geminiImageModel",
+]);
 
 function sanitizeProvider(value: unknown): string | null | undefined {
 	if (value === null) return null; // clear
@@ -53,6 +79,7 @@ export function createWorkspaceAiSettingsRoutes(
 
 		return c.json({
 			data: {
+				mode: resolved.mode,
 				providers: resolved.providers,
 				workspaceValues: {
 					aiProvider: record?.aiProvider ?? null,
@@ -64,16 +91,33 @@ export function createWorkspaceAiSettingsRoutes(
 					anthropicModel: record?.anthropicModel ?? null,
 					geminiModel: record?.geminiModel ?? null,
 					geminiImageModel: record?.geminiImageModel ?? null,
+					openrouterModel: record?.openrouterModel ?? null,
+					openrouterContentModel: record?.openrouterContentModel ?? null,
+					openrouterCampaignModel: record?.openrouterCampaignModel ?? null,
+					openrouterTopicModel: record?.openrouterTopicModel ?? null,
+					openrouterBrandScraperModel: record?.openrouterBrandScraperModel ?? null,
+					openrouterChatModel: record?.openrouterChatModel ?? null,
+					openrouterImageModel: record?.openrouterImageModel ?? null,
+					openrouterVideoModel: record?.openrouterVideoModel ?? null,
 				},
 				credentials: {
 					anthropic: maskKey(record?.anthropicApiKey),
 					gemini: maskKey(record?.geminiApiKey),
+					openrouter: maskKey(record?.openrouterApiKey),
 				},
 				source: resolved.source,
 				effectiveModels: {
 					anthropic: resolved.anthropic.model,
 					gemini: resolved.gemini.model,
 					geminiImage: resolved.gemini.imageModel,
+					openrouter: resolved.openrouter.defaultModel,
+					openrouterContent: resolved.openrouter.contentModel,
+					openrouterCampaign: resolved.openrouter.campaignModel,
+					openrouterTopic: resolved.openrouter.topicModel,
+					openrouterBrandScraper: resolved.openrouter.brandScraperModel,
+					openrouterChat: resolved.openrouter.chatModel,
+					openrouterImage: resolved.openrouter.imageModel,
+					openrouterVideo: resolved.openrouter.videoModel,
 				},
 			},
 		});
@@ -103,10 +147,35 @@ export function createWorkspaceAiSettingsRoutes(
 			"geminiApiKey",
 			"geminiModel",
 			"geminiImageModel",
+			"openrouterApiKey",
+			"openrouterModel",
+			"openrouterContentModel",
+			"openrouterCampaignModel",
+			"openrouterTopicModel",
+			"openrouterBrandScraperModel",
+			"openrouterChatModel",
+			"openrouterImageModel",
+			"openrouterVideoModel",
 		] as const;
 		for (const f of stringFields) {
 			const v = sanitizeString(body[f]);
 			if (v !== undefined) patch[f] = v;
+		}
+
+		const mode = aiFactory.mode;
+		for (const key of Object.keys(patch)) {
+			if (mode === "openrouter" && LEGACY_FIELDS.has(key)) {
+				return c.json(
+					{ error: `Field '${key}' is not accepted in openrouter mode` },
+					400,
+				);
+			}
+			if (mode === "legacy" && OPENROUTER_FIELDS.has(key)) {
+				return c.json(
+					{ error: `Field '${key}' is not accepted in legacy mode` },
+					400,
+				);
+			}
 		}
 
 		if (Object.keys(patch).length === 0) {
@@ -166,6 +235,49 @@ export function createWorkspaceAiSettingsRoutes(
 					model: settings.gemini.model,
 					contents: "ping",
 					config: { maxOutputTokens: 1 },
+				});
+			}
+			return c.json({ data: { connected: true } });
+		} catch (e) {
+			return c.json({
+				data: {
+					connected: false,
+					error: e instanceof Error ? e.message : "Connection failed",
+				},
+			});
+		}
+	});
+
+	// POST /test-openrouter — verify an OpenRouter API key + model.
+	// body: { apiKey: string; model: string }
+	// Gated to workspace admins to prevent proxy abuse.
+	app.use("/test-openrouter", requireWorkspaceAdmin());
+	app.post("/test-openrouter", async (c) => {
+		const body = (await c.req.json()) as { apiKey?: unknown; model?: unknown };
+		const apiKey = typeof body.apiKey === "string" ? body.apiKey : "";
+		const model = typeof body.model === "string" ? body.model : "";
+		if (!apiKey || !model) {
+			return c.json({ data: { connected: false, error: "apiKey and model are required" } }, 400);
+		}
+
+		try {
+			// 1-token completion validates both the key and the model id in one call.
+			const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					Authorization: `Bearer ${apiKey}`,
+				},
+				body: JSON.stringify({
+					model,
+					messages: [{ role: "user", content: "ping" }],
+					max_tokens: 1,
+				}),
+			});
+			if (!response.ok) {
+				const text = await response.text().catch(() => "");
+				return c.json({
+					data: { connected: false, error: `HTTP ${response.status}: ${text.slice(0, 200)}` },
 				});
 			}
 			return c.json({ data: { connected: true } });

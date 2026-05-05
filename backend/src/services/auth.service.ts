@@ -142,7 +142,7 @@ export class AuthService implements IAuthService {
 		};
 	}
 
-	async refresh(refreshToken: string): Promise<{ accessToken: string }> {
+	async refresh(refreshToken: string): Promise<{ accessToken: string; userId: string }> {
 		const payload = verifyRefreshToken(refreshToken, this.config.jwtRefreshSecret);
 		const user = await this.userRepository.findById(payload.userId);
 		if (!user) {
@@ -155,7 +155,7 @@ export class AuthService implements IAuthService {
 			this.config.jwtExpiry,
 		);
 
-		return { accessToken };
+		return { accessToken, userId: user.id };
 	}
 
 	async me(userId: string): Promise<AuthResponse["user"]> {

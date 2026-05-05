@@ -6,7 +6,7 @@
  * rather than a generic 500.
  */
 export class MissingApiKeyError extends Error {
-	constructor(provider: "Anthropic" | "Gemini") {
+	constructor(provider: "Anthropic" | "Gemini" | "OpenRouter") {
 		super(
 			`No ${provider} API key configured for this workspace. ` +
 				"Set one in Workspace Settings → Integrations → AI Providers before using AI features.",
