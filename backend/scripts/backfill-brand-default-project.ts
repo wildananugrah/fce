@@ -27,10 +27,13 @@ const pool = new Pool({ connectionString: databaseUrl });
 const prisma = new PrismaClient({ adapter: new PrismaPg(pool) });
 
 async function main() {
-	const orphanedBrands = await prisma.brand.findMany({
-		where: { projectId: null },
-		select: { id: true, name: true, workspaceId: true },
-	});
+	// Raw SQL: the Prisma client now types projectId as non-null (per schema),
+	// so the typed `findMany({ where: { projectId: null } })` is rejected
+	// before the query is sent. The DB column is still nullable until
+	// `prisma db push` succeeds, so raw SQL is the correct escape hatch.
+	const orphanedBrands = await prisma.$queryRaw<
+		{ id: string; name: string; workspaceId: string }[]
+	>`SELECT id, name, workspace_id AS "workspaceId" FROM brands WHERE project_id IS NULL`;
 
 	if (orphanedBrands.length === 0) {
 		console.log("✓ No brands with null projectId. Nothing to do.");

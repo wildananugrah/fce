@@ -33,8 +33,15 @@ set -a
 source .env
 set +a
 bun install
-bunx prisma db push
+# Generate the Prisma client against the new schema first so the pre-push
+# migration scripts below run against types matching the incoming schema.
 bunx prisma generate
+# Idempotent backfills that must run BEFORE `prisma db push`, because the
+# new schema tightens columns that legacy rows may still violate (e.g.
+# Brand.projectId NOT NULL — backfills NULLs to each workspace's Default
+# project). Safe to re-run on every deploy.
+# bun run scripts/migrate-rbac.ts
+bunx prisma db push
 
 echo "Building backend..."
 cd "$REPO_DIR/backend"

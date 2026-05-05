@@ -85,10 +85,12 @@ async function main() {
 					`[dry-run] Would backfill ${brandsToBackfill.length} brands for workspace ${ws.name}`,
 				);
 			} else {
-				await prisma.brand.updateMany({
-					where: { workspaceId: ws.id, projectId: null },
-					data: { projectId: defaultProject.id },
-				});
+				// Raw SQL: the Prisma client now types projectId as non-null
+				// (per schema), so a typed updateMany with `projectId: null`
+				// in the where clause is rejected before the query is sent.
+				// The DB column is still nullable until `prisma db push`
+				// succeeds, so raw SQL is the correct escape hatch.
+				await prisma.$executeRaw`UPDATE brands SET project_id = ${defaultProject.id} WHERE workspace_id = ${ws.id} AND project_id IS NULL`;
 			}
 			stats.brandsBackfilled += brandsToBackfill.length;
 		}
