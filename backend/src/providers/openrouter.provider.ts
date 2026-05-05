@@ -35,7 +35,7 @@ import {
 	buildContentGenerationPrompt,
 	buildTopicGenerationPrompt,
 } from "../utils/prompt-builder";
-import { fetchUrlContent } from "../utils/url-fetcher";
+import { extractOgImage, fetchMultipleUrls, fetchUrlContent } from "../utils/url-fetcher";
 
 const OPENROUTER_BASE = "https://openrouter.ai/api/v1";
 
@@ -300,6 +300,82 @@ ${fetched.content}`;
 			throw new Error(
 				`OpenRouterProvider: Failed to parse brand scraping response as JSON. Raw: ${text}`,
 			);
+		}
+	}
+
+	async scrapeProduct(input: {
+		url?: string;
+		urls?: string[];
+		language?: string;
+		skillContext?: string;
+	}): Promise<{
+		name?: string;
+		type?: string;
+		priceTier?: string;
+		summary?: string;
+		usp?: string;
+		rtb?: string;
+		functionalBenefits?: string[];
+		emotionalBenefits?: string[];
+		targetAudience?: string;
+		imageUrl?: string;
+	}> {
+		const sourceUrls =
+			input.urls && input.urls.length > 0 ? input.urls : input.url ? [input.url] : [];
+		if (sourceUrls.length === 0) {
+			throw new Error("OpenRouterProvider: at least one URL is required for product scraping");
+		}
+
+		const [{ combined, results }, ogImageUrl] = await Promise.all([
+			fetchMultipleUrls(sourceUrls),
+			extractOgImage(sourceUrls[0]),
+		]);
+		const anySuccess = results.some((r) => r.source !== "failed" && r.content);
+		if (!anySuccess) {
+			throw new Error(
+				`OpenRouterProvider: Could not fetch content from any of: ${sourceUrls.join(", ")}`,
+			);
+		}
+
+		const userPrompt = `You are a product analyst. Based on the extracted website and social media content below, extract structured product information.
+
+Return ONLY a valid JSON object with these exact fields (use empty string "" or empty array [] if not found):
+{
+  "name": "Product name",
+  "type": "Type of product (e.g. SaaS, Physical Product, Service, Mobile App, Insurance)",
+  "priceTier": "Pricing positioning (e.g. Premium, Mid-range, Budget, Freemium, Enterprise)",
+  "summary": "2-3 sentence description of what this product does and who it's for",
+  "usp": "The single most compelling reason to choose this product over alternatives",
+  "rtb": "Evidence or proof points backing up the USP (e.g. stats, awards, testimonials, certifications)",
+  "functionalBenefits": ["Tangible benefit #1", "Tangible benefit #2", "Tangible benefit #3"],
+  "emotionalBenefits": ["Emotional benefit #1", "Emotional benefit #2"],
+  "targetAudience": "Description of the primary target customer (demographics, psychographics, job role, pain points)"
+}
+
+Do not hallucinate. If the content does not support a field, leave it as "" or [].
+
+${languageDirective(input.language)}
+
+=== EXTRACTED WEBSITE AND SOCIAL MEDIA CONTENT ===
+${combined}`;
+
+		const baseSystemPromptScraper =
+			"You are a product analyst. You MUST respond with ONLY valid JSON. No markdown, no code blocks, no explanations.";
+		const systemPromptScraper = input.skillContext
+			? `${input.skillContext}\n\n${baseSystemPromptScraper}`
+			: baseSystemPromptScraper;
+
+		const text = await this.callOpenRouter(
+			systemPromptScraper,
+			userPrompt,
+			generatorTuning.productScraper,
+		);
+		try {
+			const parsed = parseJsonResponse(text) as Record<string, unknown>;
+			if (ogImageUrl) parsed.imageUrl = ogImageUrl;
+			return parsed as any;
+		} catch {
+			throw new Error("Failed to parse AI response for product scraping");
 		}
 	}
 }

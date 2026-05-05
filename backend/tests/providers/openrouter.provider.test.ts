@@ -127,4 +127,31 @@ describe("OpenRouterProvider", () => {
 			} as any),
 		).rejects.toThrow(/empty or missing content/);
 	});
+
+	it("scrapeProduct: throws when no URLs provided", async () => {
+		const provider = new OpenRouterProvider("api-key", "model");
+		await expect(provider.scrapeProduct({})).rejects.toThrow(/at least one URL/);
+	});
+
+	it("scrapeProduct: throws when all URLs fail to fetch", async () => {
+		const fakeResponse = {
+			choices: [
+				{
+					message: {
+						content:
+							'{"name":"Test Product","type":"SaaS","summary":"A test","functionalBenefits":["fast"],"emotionalBenefits":[],"targetAudience":"developers"}',
+					},
+				},
+			],
+			usage: { prompt_tokens: 50, completion_tokens: 25 },
+		};
+		const fetchMock = mockFetchOnce(fakeResponse);
+		const provider = new OpenRouterProvider("api-key", "anthropic/claude-sonnet-4.5", fetchMock as any);
+
+		await expect(
+			provider.scrapeProduct({
+				urls: ["http://localhost:1/should-fail"],
+			}),
+		).rejects.toThrow(/Could not fetch content/);
+	});
 });
