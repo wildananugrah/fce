@@ -64,27 +64,112 @@ Three structural notes:
 
 ## Frontend Changes
 
-### File 1: `frontend/src/pages/PlannerPage.tsx`
+The calendar grid lives in a shared component `frontend/src/components/topics/TopicCalendarView.tsx` (used by both `PlannerPage` and `TopicsPage`). The cell click behavior is added there as an **optional callback prop** so `TopicsPage` is not affected unless it opts in.
 
-#### Add eligibility predicate
+### File 1: `frontend/src/components/topics/TopicCalendarView.tsx`
 
-Near the calendar grid render, hoisted above the cell map:
+#### Add optional `onEmptyCellClick` prop to `TopicCalendarViewProps`
 
 ```ts
-const today = new Date();
-today.setHours(0, 0, 0, 0);
+interface TopicCalendarViewProps {
+  topics: Topic[];
+  mode: "month" | "week";
+  onTopicClick: (topic: Topic) => void;
+  onReschedule: (topicId: string, newDate: string | null) => void;
+  getPillarColor: (pillar: string) => string;
+  /**
+   * Optional. When set, eligible empty cells (current-month + future-or-today,
+   * no topics) become clickable buttons that fire this callback with the
+   * cell's date in `YYYY-MM-DD` format. Pages that don't pass this prop
+   * keep the current passive-grid behavior.
+   */
+  onEmptyCellClick?: (dateKey: string) => void;
+}
+```
+
+#### Add eligibility predicate inside the component
+
+Hoisted near the existing date helpers in the file:
+
+```ts
+const todayCmp = new Date();
+todayCmp.setHours(0, 0, 0, 0);
 
 function isClickableEmptyCell(
   cellDate: Date,
-  currentMonth: number,
+  isOtherMonth: boolean,
   hasTopics: boolean,
 ): boolean {
   if (hasTopics) return false;
-  if (cellDate.getMonth() !== currentMonth) return false;
-  if (cellDate < today) return false;
+  if (isOtherMonth) return false;
+  if (cellDate < todayCmp) return false;
   return true;
 }
 ```
+
+`isOtherMonth` is already computed in the existing cell render block (line ~256) — we reuse it rather than recomputing month indices.
+
+#### Branching cell render
+
+The current cell render is a `<div>` with `onDragOver` / `onDragLeave` / `onDrop` handlers (lines 260–272). Wrap it conditionally:
+
+```tsx
+const clickable =
+  onEmptyCellClick !== undefined &&
+  isClickableEmptyCell(date, isOtherMonth, dayTopics.length > 0);
+
+const cellClassName = `${mode === "week" ? "min-h-[320px]" : "min-h-[104px]"} p-1.5 rounded-md border transition-colors text-left ${
+  isDragOver
+    ? "border-indigo-400 bg-indigo-50"
+    : isOtherMonth
+      ? "border-gray-100 bg-gray-50/30"
+      : "border-gray-200 bg-white"
+} ${clickable ? "hover:bg-gray-50 cursor-pointer" : ""}`;
+
+const cellInner = (
+  <>
+    <div className="flex items-center justify-between mb-1">
+      {/* existing day-number + topic-count UI, unchanged */}
+    </div>
+    <div className="space-y-1">
+      {/* existing topic chip render, unchanged */}
+    </div>
+  </>
+);
+
+if (clickable) {
+  return (
+    <button
+      key={i}
+      type="button"
+      onClick={() => onEmptyCellClick!(key)}
+      onDragOver={(e) => handleDragOver(e, key)}
+      onDragLeave={handleDragLeave}
+      onDrop={(e) => handleDrop(e, key)}
+      aria-label={`Schedule topic for ${date.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}`}
+      className={cellClassName}
+    >
+      {cellInner}
+    </button>
+  );
+}
+
+return (
+  <div
+    key={i}
+    onDragOver={(e) => handleDragOver(e, key)}
+    onDragLeave={handleDragLeave}
+    onDrop={(e) => handleDrop(e, key)}
+    className={cellClassName}
+  >
+    {cellInner}
+  </div>
+);
+```
+
+`text-left` is added to the base class because `<button>` defaults to `text-align: center`. Drag handlers (`onDragOver`/`onDragLeave`/`onDrop`) are kept on both branches so existing drag-to-reschedule still works.
+
+### File 2: `frontend/src/pages/PlannerPage.tsx`
 
 #### Add state
 
@@ -94,38 +179,25 @@ Alongside the existing `generatorOpen` state (line 97):
 const [pendingScheduleDate, setPendingScheduleDate] = useState<string | null>(null);
 ```
 
-#### Branching cell render
+#### Pass `onEmptyCellClick` to the calendar view
 
-Each day cell currently renders as a `<div>` with the day number and topic chips. Wrap clickable empty cells in a `<button type="button">` and leave non-clickable cells as plain `<div>`:
+The current `<TopicCalendarView ... />` call (around line 362) receives no click-empty handler. Add:
 
 ```tsx
-const clickable = isClickableEmptyCell(cellDate, currentMonth, dayTopics.length > 0);
-
-if (clickable) {
-  return (
-    <button
-      type="button"
-      key={cellKey}
-      onClick={() => {
-        setPendingScheduleDate(toISODate(cellDate)); // "2026-05-08"
-        setGeneratorOpen(true);
-      }}
-      aria-label={`Schedule topic for ${formatHumanDate(cellDate)}`}
-      className={`${existingCellClass} text-left hover:bg-gray-50 cursor-pointer transition-colors`}
-    >
-      {/* same inner content as today: day number, etc. */}
-    </button>
-  );
-}
-
-return (
-  <div key={cellKey} className={existingCellClass}>
-    {/* same inner content */}
-  </div>
-);
+<TopicCalendarView
+  topics={filteredTopics}
+  mode="month"
+  onTopicClick={handleTopicClick}
+  onReschedule={handleReschedule}
+  getPillarColor={getPillarColor}
+  onEmptyCellClick={(dateKey) => {
+    setPendingScheduleDate(dateKey);
+    setGeneratorOpen(true);
+  }}
+/>
 ```
 
-`toISODate(date)` returns `YYYY-MM-DD`. If a helper for that already exists in the file (or in a shared utils), reuse it; otherwise inline `date.toISOString().slice(0, 10)`.
+`TopicsPage.tsx` continues to use `<TopicCalendarView ... />` without the new prop and is unaffected.
 
 #### Update generator-panel close + props
 
@@ -237,12 +309,14 @@ No frontend test suite in this codebase. Skip.
 
 ### Modified
 
-- `frontend/src/pages/PlannerPage.tsx` — eligibility predicate, `pendingScheduleDate` state, branching cell render, panel prop pass-through.
+- `frontend/src/components/topics/TopicCalendarView.tsx` — optional `onEmptyCellClick` prop, eligibility predicate, branching cell render (button vs div).
+- `frontend/src/pages/PlannerPage.tsx` — `pendingScheduleDate` state, pass `onEmptyCellClick` to the calendar view, pass `initialDate` to the generator panel, clear pending date on panel close.
 - `frontend/src/components/planner/PlannerTopicGeneratorPanel.tsx` — `initialDate` prop on `Props`, override `dateFrom`/`dateTo` in the reset-on-open effect.
 
 ### Not modified
 
 - Backend / routes / schema — no changes.
+- `frontend/src/pages/TopicsPage.tsx` — also uses `TopicCalendarView` but does not pass `onEmptyCellClick`, so its calendar stays passive.
 - Other Planner subcomponents (`PlannerListView`, `PlannerContentGeneratorPanel`, etc.) — out of scope.
 
 ## Rollout
