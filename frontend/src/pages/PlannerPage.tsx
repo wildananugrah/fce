@@ -95,6 +95,7 @@ export function PlannerPage() {
   const [toast, setToast] = useState<ToastState>(null);
   const [detailTopic, setDetailTopic] = useState<Topic | null>(null);
   const [generatorOpen, setGeneratorOpen] = useState(false);
+  const [pendingScheduleDate, setPendingScheduleDate] = useState<string | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [contentByTopicId, setContentByTopicId] = useState<Map<string, LibraryItem>>(new Map());
   const [previewItem, setPreviewItem] = useState<LibraryItem | null>(null);
@@ -365,6 +366,10 @@ export function PlannerPage() {
             onTopicClick={handleTopicClick}
             onReschedule={handleReschedule}
             getPillarColor={getPillarColor}
+            onEmptyCellClick={(dateKey) => {
+              setPendingScheduleDate(dateKey);
+              setGeneratorOpen(true);
+            }}
           />
         ) : (
           <PlannerListView
@@ -446,10 +451,14 @@ export function PlannerPage() {
       {activeWorkspace && (
         <PlannerTopicGeneratorPanel
           isOpen={generatorOpen}
-          onClose={() => setGeneratorOpen(false)}
+          onClose={() => {
+            setGeneratorOpen(false);
+            setPendingScheduleDate(null);
+          }}
           workspaceId={activeWorkspace.id}
           brands={brands}
           initialBrandId={activeBrandId}
+          initialDate={pendingScheduleDate}
           onSavedTopics={loadTopics}
           onEditTopic={(topic) => setDetailTopic(topic)}
           onToast={showToast}
