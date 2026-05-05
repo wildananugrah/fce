@@ -83,11 +83,12 @@ function weekRangeLabel(weekStart: Date): string {
 }
 
 // Today, normalised to local midnight, for "future or today" cell eligibility checks.
-function todayLocalMidnight(): Date {
+// Module-level so it's computed once per session rather than per cell render.
+const TODAY_LOCAL_MIDNIGHT = (() => {
   const t = new Date();
   t.setHours(0, 0, 0, 0);
   return t;
-}
+})();
 
 function isClickableEmptyCell(
   cellDate: Date,
@@ -96,7 +97,7 @@ function isClickableEmptyCell(
 ): boolean {
   if (hasTopics) return false;
   if (isOtherMonth) return false;
-  if (cellDate < todayLocalMidnight()) return false;
+  if (cellDate < TODAY_LOCAL_MIDNIGHT) return false;
   return true;
 }
 
@@ -332,7 +333,7 @@ export function TopicCalendarView({
               <button
                 key={i}
                 type="button"
-                onClick={() => onEmptyCellClick!(key)}
+                onClick={() => onEmptyCellClick?.(key)}
                 onDragOver={(e) => handleDragOver(e, key)}
                 onDragLeave={handleDragLeave}
                 onDrop={(e) => handleDrop(e, key)}
