@@ -339,10 +339,10 @@ export class ContentGenerationJob {
 				data: { requestId, status: "completed" },
 			});
 
-			this.logger.info("Content generation completed", { requestId });
+			this.logger.info("Content generation completed", { requestId, userId });
 		} catch (err) {
 			const message = err instanceof Error ? err.message : String(err);
-			this.logger.error("Content generation failed", { requestId, error: message });
+			this.logger.error("Content generation failed", { requestId, userId, error: message });
 
 			await this.prisma.generationRequest.update({
 				where: { id: requestId },

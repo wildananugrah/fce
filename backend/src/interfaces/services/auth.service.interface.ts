@@ -8,7 +8,7 @@ import type {
 export interface IAuthService {
 	signup(input: SignupInput): Promise<SignupResult>;
 	login(input: LoginInput): Promise<AuthResponse & { refreshToken: string }>;
-	refresh(refreshToken: string): Promise<{ accessToken: string }>;
+	refresh(refreshToken: string): Promise<{ accessToken: string; userId: string }>;
 	me(userId: string): Promise<AuthResponse["user"]>;
 	verifyEmail(token: string): Promise<{ email: string }>;
 	resendVerification(email: string): Promise<{ sent: boolean }>;
