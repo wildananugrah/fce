@@ -26,6 +26,8 @@ import { Spinner } from "../components/ui/Spinner";
 import { Toast } from "../components/ui/Toast";
 import { TopicDetailDrawer } from "../components/topics/TopicDetailDrawer";
 import { TopicCalendarView } from "../components/topics/TopicCalendarView";
+import { getPillarColor } from "../utils/pillar-colors";
+import { getFormatStyle, getStatusColor } from "../utils/topic-styles";
 import { CoachMark } from "../components/onboarding/CoachMark";
 import { HelpButton } from "../components/onboarding/HelpButton";
 
@@ -79,47 +81,6 @@ const STATUS_FILTER_OPTIONS = [
   { value: "archived", label: "Archived" },
 ];
 
-const PILLAR_COLORS: Record<string, string> = {};
-const PILLAR_COLOR_POOL = [
-  "bg-emerald-50 text-emerald-700",
-  "bg-violet-50 text-violet-700",
-  "bg-amber-50 text-amber-700",
-  "bg-teal-50 text-teal-700",
-  "bg-rose-50 text-rose-700",
-  "bg-blue-50 text-blue-700",
-  "bg-orange-50 text-orange-700",
-  "bg-pink-50 text-pink-700",
-];
-let pillarColorIdx = 0;
-
-function getPillarColor(pillar: string): string {
-  if (!PILLAR_COLORS[pillar]) {
-    PILLAR_COLORS[pillar] = PILLAR_COLOR_POOL[pillarColorIdx % PILLAR_COLOR_POOL.length];
-    pillarColorIdx++;
-  }
-  return PILLAR_COLORS[pillar];
-}
-
-function getFormatStyle(format?: string | null) {
-  if (!format) return { className: "bg-gray-100 text-gray-600", icon: "" };
-  const f = format.toLowerCase();
-  if (f.includes("carousel")) return { className: "bg-blue-50 text-blue-700", icon: "\uD83C\uDFA0" };
-  if (f.includes("reel") || f.includes("video") || f.includes("short"))
-    return { className: "bg-red-50 text-red-700", icon: "\uD83C\uDFAC" };
-  if (f.includes("story")) return { className: "bg-purple-50 text-purple-700", icon: "\uD83D\uDCF1" };
-  if (f.includes("single") || f.includes("image"))
-    return { className: "bg-indigo-50 text-indigo-700", icon: "\uD83D\uDDBC\uFE0F" };
-  if (f.includes("thread")) return { className: "bg-amber-50 text-amber-700", icon: "\uD83D\uDCDD" };
-  return { className: "bg-gray-100 text-gray-600", icon: "" };
-}
-
-function getStatusColor(status: string) {
-  if (status === "approved") return "bg-green-50 text-green-700 border-green-200";
-  if (status === "published") return "bg-blue-50 text-blue-700 border-blue-200";
-  if (status === "scheduled") return "bg-amber-50 text-amber-700 border-amber-200";
-  if (status === "archived") return "bg-gray-100 text-gray-500 border-gray-200";
-  return "bg-gray-50 text-gray-600 border-gray-200";
-}
 
 function formatDate(dateStr?: string | null) {
   if (!dateStr) return "";

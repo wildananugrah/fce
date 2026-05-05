@@ -36,7 +36,13 @@ class MockTopicRepository {
 	async update(id: string, data: any) {
 		const idx = this.topics.findIndex((t) => t.id === id);
 		if (idx === -1) throw new Error("Topic not found");
-		this.topics[idx] = { ...this.topics[idx], ...data, updatedAt: new Date() };
+		// Mirror Prisma: keys with `undefined` values are not touched. `null` clears.
+		const merged: any = { ...this.topics[idx] };
+		for (const [key, value] of Object.entries(data)) {
+			if (value !== undefined) merged[key] = value;
+		}
+		merged.updatedAt = new Date();
+		this.topics[idx] = merged;
 		return this.topics[idx];
 	}
 
@@ -203,6 +209,43 @@ describe("TopicService", () => {
 
 			expect(topic.title).toBe("Cross-product topic");
 			expect((topic as any).products).toHaveLength(2);
+		});
+	});
+
+	describe("update", () => {
+		it("clears publishDate when null is passed (drag to Unscheduled)", async () => {
+			const workspaceId = crypto.randomUUID();
+			const topic = await service.create(workspaceId, {
+				title: "Scheduled topic",
+				publishDate: "2026-05-10",
+			});
+			expect(topic.publishDate).toBeInstanceOf(Date);
+
+			const cleared = await service.update(topic.id, { publishDate: null });
+			expect(cleared.publishDate).toBeNull();
+		});
+
+		it("leaves publishDate untouched when undefined", async () => {
+			const workspaceId = crypto.randomUUID();
+			const topic = await service.create(workspaceId, {
+				title: "Scheduled topic",
+				publishDate: "2026-05-10",
+			});
+			const original = topic.publishDate;
+
+			// Update something else without touching publishDate.
+			const updated = await service.update(topic.id, { title: "Renamed" });
+			expect(updated.title).toBe("Renamed");
+			expect(updated.publishDate).toEqual(original);
+		});
+
+		it("sets publishDate when a string is passed (drag to a calendar day)", async () => {
+			const workspaceId = crypto.randomUUID();
+			const topic = await service.create(workspaceId, { title: "Unscheduled topic" });
+			expect(topic.publishDate).toBeUndefined();
+
+			const updated = await service.update(topic.id, { publishDate: "2026-06-15" });
+			expect(updated.publishDate).toEqual(new Date("2026-06-15"));
 		});
 	});
 

@@ -33,7 +33,8 @@ export interface UpdateTopicInput {
 	platform?: string;
 	format?: string;
 	objective?: string;
-	publishDate?: string;
+	/** `null` explicitly clears the date (drag to Unscheduled). `undefined` leaves it alone. */
+	publishDate?: string | null;
 	status?: string;
 	productIds?: string[];
 }

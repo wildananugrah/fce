@@ -45,10 +45,18 @@ export class TopicService implements ITopicService {
 	}
 
 	async update(id: string, input: UpdateTopicInput): Promise<ContentTopic> {
-		return this.topicRepository.update(id, {
-			...input,
-			publishDate: input.publishDate ? new Date(input.publishDate) : undefined,
-		});
+		// `null` explicitly clears publishDate (drag to Unscheduled).
+		// `undefined` (or missing key) leaves it alone — Prisma ignores undefined.
+		// A truthy string becomes a Date.
+		let publishDate: Date | null | undefined;
+		if (input.publishDate === null) {
+			publishDate = null;
+		} else if (input.publishDate) {
+			publishDate = new Date(input.publishDate);
+		} else {
+			publishDate = undefined;
+		}
+		return this.topicRepository.update(id, { ...input, publishDate });
 	}
 
 	async generate(
