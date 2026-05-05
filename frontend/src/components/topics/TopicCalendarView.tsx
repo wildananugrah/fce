@@ -26,6 +26,13 @@ interface TopicCalendarViewProps {
   onTopicClick: (topic: Topic) => void;
   onReschedule: (topicId: string, newDate: string | null) => void;
   getPillarColor: (pillar: string) => string;
+  /**
+   * Optional. When set, eligible empty cells (current-month + future-or-today,
+   * no topics) render as clickable buttons that fire this callback with the
+   * cell's date in YYYY-MM-DD format. Pages that don't pass this prop keep
+   * the current passive-grid behavior.
+   */
+  onEmptyCellClick?: (dateKey: string) => void;
 }
 
 // ─── Date helpers (all UTC-agnostic local date logic) ─────────
@@ -75,6 +82,24 @@ function weekRangeLabel(weekStart: Date): string {
   return `${weekStart.toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${end.toLocaleDateString("en-US", { month: "short", day: "numeric" })}, ${end.getFullYear()}`;
 }
 
+// Today, normalised to local midnight, for "future or today" cell eligibility checks.
+function todayLocalMidnight(): Date {
+  const t = new Date();
+  t.setHours(0, 0, 0, 0);
+  return t;
+}
+
+function isClickableEmptyCell(
+  cellDate: Date,
+  isOtherMonth: boolean,
+  hasTopics: boolean,
+): boolean {
+  if (hasTopics) return false;
+  if (isOtherMonth) return false;
+  if (cellDate < todayLocalMidnight()) return false;
+  return true;
+}
+
 // ─── Main component ────────────────────────────────────────────
 export function TopicCalendarView({
   topics,
@@ -82,6 +107,7 @@ export function TopicCalendarView({
   onTopicClick,
   onReschedule,
   getPillarColor,
+  onEmptyCellClick,
 }: TopicCalendarViewProps) {
   const [cursor, setCursor] = useState(() => new Date());
   const [draggedTopicId, setDraggedTopicId] = useState<string | null>(null);
@@ -255,21 +281,20 @@ export function TopicCalendarView({
           const isToday = key === todayKey;
           const isOtherMonth = mode === "month" && date.getMonth() !== currentMonthIndex;
           const isDragOver = dragOverKey === key;
+          const clickable =
+            onEmptyCellClick !== undefined &&
+            isClickableEmptyCell(date, isOtherMonth, dayTopics.length > 0);
 
-          return (
-            <div
-              key={i}
-              onDragOver={(e) => handleDragOver(e, key)}
-              onDragLeave={handleDragLeave}
-              onDrop={(e) => handleDrop(e, key)}
-              className={`${mode === "week" ? "min-h-[320px]" : "min-h-[104px]"} p-1.5 rounded-md border transition-colors ${
-                isDragOver
-                  ? "border-indigo-400 bg-indigo-50"
-                  : isOtherMonth
-                    ? "border-gray-100 bg-gray-50/30"
-                    : "border-gray-200 bg-white"
-              }`}
-            >
+          const cellClassName = `${mode === "week" ? "min-h-[320px]" : "min-h-[104px]"} p-1.5 rounded-md border transition-colors text-left w-full ${
+            isDragOver
+              ? "border-indigo-400 bg-indigo-50"
+              : isOtherMonth
+                ? "border-gray-100 bg-gray-50/30"
+                : "border-gray-200 bg-white"
+          } ${clickable ? "hover:bg-gray-50 cursor-pointer" : ""}`;
+
+          const cellInner = (
+            <>
               <div className="flex items-center justify-between mb-1">
                 <span
                   className={`text-[11px] font-medium ${
@@ -299,6 +324,39 @@ export function TopicCalendarView({
                   />
                 ))}
               </div>
+            </>
+          );
+
+          if (clickable) {
+            return (
+              <button
+                key={i}
+                type="button"
+                onClick={() => onEmptyCellClick!(key)}
+                onDragOver={(e) => handleDragOver(e, key)}
+                onDragLeave={handleDragLeave}
+                onDrop={(e) => handleDrop(e, key)}
+                aria-label={`Schedule topic for ${date.toLocaleDateString("en-US", {
+                  month: "long",
+                  day: "numeric",
+                  year: "numeric",
+                })}`}
+                className={cellClassName}
+              >
+                {cellInner}
+              </button>
+            );
+          }
+
+          return (
+            <div
+              key={i}
+              onDragOver={(e) => handleDragOver(e, key)}
+              onDragLeave={handleDragLeave}
+              onDrop={(e) => handleDrop(e, key)}
+              className={cellClassName}
+            >
+              {cellInner}
             </div>
           );
         })}
