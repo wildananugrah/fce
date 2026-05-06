@@ -6,6 +6,7 @@ import { Button } from "../ui/Button";
 import { Spinner } from "../ui/Spinner";
 import { getPillarColor } from "../../utils/pillar-colors";
 import { getFormatStyle } from "../../utils/topic-styles";
+import { ReferenceImageUpload, type ImageRef } from "../ui/ReferenceImageUpload";
 
 interface Brand {
   id: string;
@@ -40,6 +41,25 @@ interface PlannerTopicGeneratorPanelProps {
   onSavedTopics: () => void;
   onEditTopic: (topic: Topic) => void;
   onToast: (msg: string, type: ToastType) => void;
+}
+
+interface Product {
+  id: string;
+  name: string;
+  brandId: string;
+}
+
+interface BrainVersion {
+  id: string;
+  isActive: boolean;
+  vocabulary?: {
+    contentPillars?: string[];
+  };
+}
+
+interface BrandWithBrain {
+  id: string;
+  brainVersions?: BrainVersion[];
 }
 
 const PLATFORMS: Array<{ value: string; label: string }> = [
@@ -101,6 +121,12 @@ export function PlannerTopicGeneratorPanel({
   const [dateFrom, setDateFrom] = useState(defaultDateFrom);
   const [dateTo, setDateTo] = useState(defaultDateTo);
   const [count, setCount] = useState(6);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
+  const [contentPillars, setContentPillars] = useState<string[]>([]);
+  const [selectedPillars, setSelectedPillars] = useState<string[]>([]);
+  const [customPrompt, setCustomPrompt] = useState("");
+  const [referenceImages, setReferenceImages] = useState<ImageRef[]>([]);
 
   const [generating, setGenerating] = useState(false);
   const [pendingRunId, setPendingRunId] = useState<string | null>(null);
@@ -117,6 +143,37 @@ export function PlannerTopicGeneratorPanel({
       setDateTo(initialDate);
     }
   }, [isOpen, initialBrandId, initialDate]);
+
+  // Fetch the workspace's products once when the panel opens. Filter
+  // client-side by selected brand at render time.
+  useEffect(() => {
+    if (!isOpen || !workspaceId) return;
+    api<Product[]>(`/api/workspaces/${workspaceId}/products`)
+      .then((p) => setProducts(p))
+      .catch(() => setProducts([]));
+  }, [isOpen, workspaceId]);
+
+  // When brand changes, reset brand-scoped selections (products + pillars)
+  // and re-fetch the new brand's active-brain content pillars.
+  useEffect(() => {
+    (async () => {
+      setSelectedProductIds([]);
+      setSelectedPillars([]);
+      if (!brandId || !workspaceId) {
+        setContentPillars([]);
+        return;
+      }
+      try {
+        const res = await api<BrandWithBrain>(`/api/workspaces/${workspaceId}/brands/${brandId}`);
+        const wrapper = res as unknown as { data?: BrandWithBrain };
+        const data: BrandWithBrain = wrapper.data ?? res;
+        const activeBrain = data.brainVersions?.find((v) => v.isActive);
+        setContentPillars(activeBrain?.vocabulary?.contentPillars ?? []);
+      } catch {
+        setContentPillars([]);
+      }
+    })();
+  }, [brandId, workspaceId]);
 
   // Lock background scroll while open.
   useEffect(() => {
@@ -187,6 +244,13 @@ export function PlannerTopicGeneratorPanel({
             dateTo,
             count,
             language,
+            productIds: selectedProductIds.length > 0 ? selectedProductIds : undefined,
+            pillars: selectedPillars.length > 0 ? selectedPillars : undefined,
+            customPrompt: customPrompt.trim() || undefined,
+            referenceImages:
+              referenceImages.filter((i) => !i.uploading).map((i) => i.url).length > 0
+                ? referenceImages.filter((i) => !i.uploading).map((i) => i.url)
+                : undefined,
           }),
         },
       );
@@ -205,6 +269,10 @@ export function PlannerTopicGeneratorPanel({
     dateTo,
     count,
     language,
+    selectedProductIds,
+    selectedPillars,
+    customPrompt,
+    referenceImages,
     workspaceId,
     onToast,
   ]);
@@ -224,6 +292,7 @@ export function PlannerTopicGeneratorPanel({
   if (!isOpen) return null;
 
   const activeBrandName = brands.find((b) => b.id === brandId)?.name ?? "—";
+  const filteredProducts = products.filter((p) => p.brandId === brandId);
 
   return (
     <div className="fixed inset-0 z-40 flex justify-end">
@@ -265,23 +334,6 @@ export function PlannerTopicGeneratorPanel({
                     ))}
                   </select>
                 </Field>
-              </FormSection>
-
-              <FormSection title="Platform & Objective">
-                <Field label="Platform">
-                  <ChipGroup
-                    value={platform}
-                    onChange={setPlatform}
-                    options={PLATFORMS}
-                  />
-                </Field>
-                <Field label="Objective">
-                  <ChipGroup
-                    value={objective}
-                    onChange={setObjective}
-                    options={OBJECTIVES}
-                  />
-                </Field>
                 <Field label="Language">
                   <div className="inline-flex rounded-md border border-gray-200 bg-gray-50 p-0.5">
                     {(["indonesian", "english"] as const).map((lang) => (
@@ -299,6 +351,90 @@ export function PlannerTopicGeneratorPanel({
                       </button>
                     ))}
                   </div>
+                </Field>
+                {brandId && filteredProducts.length > 0 && (
+                  <Field label="Products">
+                    <p className="mb-2 text-xs text-gray-500">
+                      Select one or more products for cross-product topics.
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {filteredProducts.map((p) => {
+                        const selected = selectedProductIds.includes(p.id);
+                        return (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() =>
+                              setSelectedProductIds((curr) =>
+                                selected ? curr.filter((id) => id !== p.id) : [...curr, p.id],
+                              )
+                            }
+                            className={`rounded-full border px-3 py-1.5 text-xs transition-colors ${
+                              selected
+                                ? "border-violet-600 bg-violet-600 text-white"
+                                : "border-gray-300 bg-white text-gray-700 hover:border-violet-400"
+                            }`}
+                          >
+                            {selected ? "✓ " : ""}{p.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <p className="mt-1.5 text-xs text-gray-400">
+                      {selectedProductIds.length === 0
+                        ? "No product selected — topics span the brand"
+                        : `${selectedProductIds.length} product${selectedProductIds.length === 1 ? "" : "s"} selected`}
+                    </p>
+                  </Field>
+                )}
+                {brandId && contentPillars.length > 0 && (
+                  <Field label="Brand Content Pillars">
+                    <p className="mb-2 text-xs text-gray-500">
+                      Pick one or more pillars, or leave blank to mix across all.
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {contentPillars.map((p) => {
+                        const selected = selectedPillars.includes(p);
+                        const colorClass = selected
+                          ? getPillarColor(p)
+                          : "border-gray-200 bg-gray-50 text-gray-600";
+                        return (
+                          <button
+                            key={p}
+                            type="button"
+                            onClick={() =>
+                              setSelectedPillars((curr) =>
+                                selected ? curr.filter((x) => x !== p) : [...curr, p],
+                              )
+                            }
+                            className={`rounded-full border px-3 py-1.5 text-xs transition-colors ${colorClass}`}
+                          >
+                            {p}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {selectedPillars.length === 0 && (
+                      <p className="mt-1.5 text-xs text-gray-400">Mixed (all pillars)</p>
+                    )}
+                  </Field>
+                )}
+              </FormSection>
+
+              <FormSection title="Platform & Objective">
+                <Field label="Platform">
+                  <ChipGroup
+                    value={platform}
+                    onChange={setPlatform}
+                    options={PLATFORMS}
+                  />
+                </Field>
+                <Field label="Objective">
+                  <ChipGroup
+                    value={objective}
+                    onChange={setObjective}
+                    options={OBJECTIVES}
+                  />
                 </Field>
               </FormSection>
 
@@ -347,7 +483,34 @@ export function PlannerTopicGeneratorPanel({
                     />
                   </Field>
                 </div>
-                <Field label="Count">
+              </FormSection>
+
+              <FormSection
+                title="Reference Images"
+                hint="Optional. The AI uses these to anchor visual style or tone."
+              >
+                <ReferenceImageUpload
+                  workspaceId={workspaceId}
+                  images={referenceImages}
+                  onChange={setReferenceImages}
+                />
+              </FormSection>
+
+              <FormSection
+                title="Additional Direction"
+                hint="Optional free-text guidance the AI follows alongside the brand brain."
+              >
+                <textarea
+                  value={customPrompt}
+                  onChange={(e) => setCustomPrompt(e.target.value)}
+                  placeholder="e.g. focus on Q4 promo angles, or steer towards founder-led storytelling"
+                  rows={3}
+                  className="w-full resize-none rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-violet-400 focus:outline-none focus:ring-1 focus:ring-violet-400"
+                />
+              </FormSection>
+
+              <FormSection title="Count">
+                <Field label="How many topics">
                   <input
                     type="number"
                     min={1}
