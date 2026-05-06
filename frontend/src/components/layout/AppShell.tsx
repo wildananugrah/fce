@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Outlet, Navigate, NavLink } from "react-router-dom";
 import {
   LayoutDashboard,
+  CalendarDays,
   Palette,
   Package,
   Sparkles,
@@ -61,6 +62,12 @@ const navSections: NavSection[] = [
   {
     items: [
       { to: "/", label: "Dashboard", icon: LayoutDashboard, exact: true, flagKey: "dashboard" },
+    ],
+  },
+  {
+    label: "Plan",
+    items: [
+      { to: "/planner", label: "Planner", icon: CalendarDays, menuKey: "planner", flagKey: "planner" },
     ],
   },
   {

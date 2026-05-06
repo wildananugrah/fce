@@ -10,6 +10,7 @@
 
 export type MenuFlagKey =
   | "dashboard"
+  | "planner"
   | "brand-brain"
   | "product-brain"
   | "topic-generator"
@@ -23,6 +24,7 @@ export type MenuFlagKey =
 
 export const MENU_FLAGS: Record<MenuFlagKey, boolean> = {
   "dashboard": false,
+  "planner": true,
   "brand-brain": true,
   "product-brain": true,
   "topic-generator": true,

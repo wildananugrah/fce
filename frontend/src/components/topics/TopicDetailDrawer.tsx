@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Drawer } from "../ui/Drawer";
 import { Button } from "../ui/Button";
 import { api } from "../../services/api";
-import { Save, Tag, Layers, Globe, Target, Calendar, Package, FileText, Sparkles } from "lucide-react";
+import { Save, Tag, Layers, Globe, Target, Calendar, Package, FileText, Sparkles, Eye } from "lucide-react";
 
 interface Topic {
   id: string;
@@ -31,6 +31,12 @@ interface TopicDetailDrawerProps {
   onClose: () => void;
   onUpdated: (topic: Topic) => void;
   onToast: (msg: string, type: "success" | "error" | "info") => void;
+  /** When true, surface a "View Content" button alongside Generate Content (slide 8). */
+  hasContent?: boolean;
+  /** Called when "View Content" is clicked. Required to render the button. */
+  onViewContent?: () => void;
+  /** Override the default Generate Content navigation (e.g. open an in-page panel). */
+  onGenerateContent?: () => void;
 }
 
 const PLATFORMS = [
@@ -73,6 +79,9 @@ export function TopicDetailDrawer({
   onClose,
   onUpdated,
   onToast,
+  hasContent = false,
+  onViewContent,
+  onGenerateContent,
 }: TopicDetailDrawerProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -313,22 +322,34 @@ export function TopicDetailDrawer({
 
         {/* Action buttons */}
         <div className="flex justify-between items-center gap-2 pt-2">
-          <Button
-            variant="secondary"
-            onClick={() => {
-              const params = new URLSearchParams();
-              params.set("topicId", topic.id);
-              if (topic.brandId) params.set("brandId", topic.brandId);
-              if (platform) params.set("platform", platform);
-              if (format.trim()) params.set("format", format.trim());
-              if (objective) params.set("objective", objective);
-              topic.products?.forEach((tp) => params.append("productId", tp.product.id));
-              navigate(`/generate?${params.toString()}`);
-            }}
-          >
-            <Sparkles size={14} className="mr-1.5" />
-            Generate Content
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="secondary"
+              onClick={() => {
+                if (onGenerateContent) {
+                  onGenerateContent();
+                  return;
+                }
+                const params = new URLSearchParams();
+                params.set("topicId", topic.id);
+                if (topic.brandId) params.set("brandId", topic.brandId);
+                if (platform) params.set("platform", platform);
+                if (format.trim()) params.set("format", format.trim());
+                if (objective) params.set("objective", objective);
+                topic.products?.forEach((tp) => params.append("productId", tp.product.id));
+                navigate(`/generate?${params.toString()}`);
+              }}
+            >
+              <Sparkles size={14} className="mr-1.5" />
+              Generate Content
+            </Button>
+            {hasContent && onViewContent && (
+              <Button variant="secondary" onClick={onViewContent}>
+                <Eye size={14} className="mr-1.5" />
+                View Content
+              </Button>
+            )}
+          </div>
           <div className="flex gap-2">
             <Button variant="secondary" onClick={onClose}>
               Cancel

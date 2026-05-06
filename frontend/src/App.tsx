@@ -9,6 +9,7 @@ import { LandingPage } from "./pages/LandingPage";
 import { LoginPage } from "./pages/LoginPage";
 import { SignupPage } from "./pages/SignupPage";
 import { DashboardPage } from "./pages/DashboardPage";
+import { PlannerPage } from "./pages/PlannerPage";
 import { BrandsPage } from "./pages/BrandsPage";
 import { NewBrandPage } from "./pages/NewBrandPage";
 import { ProductsPage } from "./pages/ProductsPage";
@@ -61,6 +62,7 @@ export default function App() {
             <Route path="/verify" element={<VerifyPage />} />
             <Route element={<AppShell />}>
               <Route path="/" element={isMenuEnabled("dashboard") ? <DashboardPage /> : <DisabledMenuNotice />} />
+              <Route path="/planner" element={<Gated flag="planner"><PlannerPage /></Gated>} />
               <Route path="/brands" element={<Gated flag="brand-brain"><BrandsPage /></Gated>} />
               <Route path="/brands/new" element={<Gated flag="brand-brain"><NewBrandPage /></Gated>} />
               <Route path="/brands/:id" element={<Gated flag="brand-brain"><BrandDetailPage /></Gated>} />

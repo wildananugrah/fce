@@ -22,6 +22,7 @@ export function isWorkspaceRole(value: unknown): value is WorkspaceRole {
  * gated by workspace role, not per-project menu.
  */
 export const MENU_KEYS = [
+	"planner",
 	"brand-brain",
 	"product-brain",
 	"topic-generator",

@@ -36,6 +36,7 @@ interface Props {
 }
 
 const MENU_LABELS: Record<MenuKey, string> = {
+  "planner": "Planner",
   "brand-brain": "Brand Brain",
   "product-brain": "Product Brain",
   "topic-generator": "Topic Generator",

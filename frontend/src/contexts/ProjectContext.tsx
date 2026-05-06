@@ -4,6 +4,7 @@ import { useAuth } from "../hooks/useAuth";
 import { useWorkspace } from "../hooks/useWorkspace";
 
 export type MenuKey =
+  | "planner"
   | "brand-brain"
   | "product-brain"
   | "topic-generator"
@@ -16,6 +17,7 @@ export type MenuKey =
   | "competitor-analyzer";
 
 export const ALL_MENU_KEYS: MenuKey[] = [
+  "planner",
   "brand-brain",
   "product-brain",
   "topic-generator",
