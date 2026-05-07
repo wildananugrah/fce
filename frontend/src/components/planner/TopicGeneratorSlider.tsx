@@ -6,6 +6,7 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   initialDate?: string | null;
+  initialBrandId?: string | null;
   onSavedTopics?: () => void;
 }
 
@@ -21,6 +22,7 @@ export function TopicGeneratorSlider({
   isOpen,
   onClose,
   initialDate,
+  initialBrandId,
   onSavedTopics,
 }: Props) {
   useEffect(() => {
@@ -31,6 +33,19 @@ export function TopicGeneratorSlider({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [isOpen, onClose]);
+
+  // Lock the underlying page's scroll while the slider is open so the
+  // planner calendar doesn't scroll under wheel/trackpad gestures aimed
+  // at the slider's content. Restores the previous overflow value on
+  // close so we don't clobber other scroll locks higher up the tree.
+  useEffect(() => {
+    if (!isOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -73,9 +88,14 @@ export function TopicGeneratorSlider({
           <TopicsPage
             embedded
             initialDate={initialDate}
+            initialBrandId={initialBrandId}
             onSavedTopics={() => {
               onSavedTopics?.();
-              onClose();
+              // Delay close so TopicsPage's success toast stays visible
+              // long enough to read. The host refresh callback above
+              // already fired, so the calendar will be fresh by the
+              // time the slider actually unmounts.
+              setTimeout(onClose, 1500);
             }}
           />
         </div>

@@ -122,6 +122,11 @@ interface TopicsPageProps {
 	 */
 	initialDate?: string | null;
 	/**
+	 * When set, force brandId to this value whenever it changes. Used by
+	 * the Planner slider to pre-select the brand the user was viewing.
+	 */
+	initialBrandId?: string | null;
+	/**
 	 * Called after a successful bulk save of generated topics.
 	 * The Planner slider uses this to close itself + refresh the calendar.
 	 */
@@ -135,6 +140,7 @@ interface TopicsPageProps {
 
 export function TopicsPage({
 	initialDate,
+	initialBrandId,
 	onSavedTopics,
 	embedded = false,
 }: TopicsPageProps = {}) {
@@ -221,6 +227,12 @@ export function TopicsPage({
 			setDateTo(initialDate);
 		}
 	}, [initialDate]);
+
+	useEffect(() => {
+		if (initialBrandId) {
+			setBrandId(initialBrandId);
+		}
+	}, [initialBrandId]);
 
 	// 1:1 project:brand — auto-select the only brand once it's loaded so the
 	// user doesn't have to. If the project somehow has multiple (legacy data),

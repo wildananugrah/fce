@@ -456,6 +456,7 @@ export function PlannerPage() {
             setPendingScheduleDate(null);
           }}
           initialDate={pendingScheduleDate}
+          initialBrandId={activeBrandId}
           onSavedTopics={loadTopics}
         />
       )}
