@@ -372,6 +372,15 @@ export function PlannerPage() {
                 }
               : undefined
           }
+          onDeleted={(topicId) => {
+            setTopics((prev) => prev.filter((t) => t.id !== topicId));
+            setContentByTopicId((prev) => {
+              if (!prev.has(topicId)) return prev;
+              const next = new Map(prev);
+              next.delete(topicId);
+              return next;
+            });
+          }}
         />
       )}
 
