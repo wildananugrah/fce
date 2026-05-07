@@ -489,7 +489,7 @@ export function TopicsPage({
 			{/* When embedded, Save All goes in its own right-aligned row above
 			    the form/results columns so the user can still commit a generation. */}
 			{embedded && showSaveAllButton && (
-				<div className="flex justify-end px-6 pt-4">{saveAllTopicsButton}</div>
+				<div className="flex justify-end pt-4">{saveAllTopicsButton}</div>
 			)}
 
 			{loading ? (
@@ -497,7 +497,7 @@ export function TopicsPage({
 					<Spinner />
 				</div>
 			) : (
-				<div className={`flex gap-6${embedded ? " px-6" : ""}`}>
+				<div className="flex gap-6">
 					{/* Left Panel — Form */}
 					<div className="w-[420px] shrink-0 space-y-5">
 						{/* Context Section */}

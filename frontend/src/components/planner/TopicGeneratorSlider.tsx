@@ -1,10 +1,10 @@
+import { useEffect } from "react";
 import { X } from "lucide-react";
 import { TopicsPage } from "../../pages/TopicsPage";
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  workspaceId: string;
   initialDate?: string | null;
   onSavedTopics?: () => void;
 }
@@ -23,24 +23,39 @@ export function TopicGeneratorSlider({
   initialDate,
   onSavedTopics,
 }: Props) {
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-40 flex justify-end"
-      onClick={onClose}
-    >
+    <div className="fixed inset-0 z-40 flex justify-end">
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/30" aria-hidden="true" />
+      <div
+        className="absolute inset-0 bg-black/30"
+        aria-hidden="true"
+        onClick={onClose}
+      />
 
       {/* Slider panel */}
       <div
         className="relative flex h-full w-full max-w-[1100px] flex-col bg-white shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="topic-generator-slider-title"
       >
         {/* Slider header */}
         <div className="flex items-center justify-between border-b border-gray-200 px-6 py-3">
-          <h2 className="text-base font-semibold text-gray-900">
+          <h2
+            id="topic-generator-slider-title"
+            className="text-base font-semibold text-gray-900"
+          >
             Topic Generator
           </h2>
           <button
@@ -54,7 +69,7 @@ export function TopicGeneratorSlider({
         </div>
 
         {/* Embedded TopicsPage */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto px-6">
           <TopicsPage
             embedded
             initialDate={initialDate}
