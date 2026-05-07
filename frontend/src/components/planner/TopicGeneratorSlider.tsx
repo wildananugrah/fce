@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { X } from "lucide-react";
 import { TopicsPage } from "../../pages/TopicsPage";
 
@@ -25,6 +25,11 @@ export function TopicGeneratorSlider({
   initialBrandId,
   onSavedTopics,
 }: Props) {
+  // Track the post-save auto-close timer so we can cancel it if the
+  // slider is closed (X / backdrop / Escape) before the timer fires.
+  // Otherwise an orphaned timer can close a freshly re-opened slider.
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
     if (!isOpen) return;
     const onKey = (e: KeyboardEvent) => {
@@ -38,12 +43,25 @@ export function TopicGeneratorSlider({
   // planner calendar doesn't scroll under wheel/trackpad gestures aimed
   // at the slider's content. Restores the previous overflow value on
   // close so we don't clobber other scroll locks higher up the tree.
+  // Also clears any pending auto-close timer when the slider closes
+  // (via outside trigger) or unmounts, so a stale timer can't fire
+  // onClose against a re-opened instance.
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      if (closeTimerRef.current) {
+        clearTimeout(closeTimerRef.current);
+        closeTimerRef.current = null;
+      }
+      return;
+    }
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = previousOverflow;
+      if (closeTimerRef.current) {
+        clearTimeout(closeTimerRef.current);
+        closeTimerRef.current = null;
+      }
     };
   }, [isOpen]);
 
@@ -94,8 +112,13 @@ export function TopicGeneratorSlider({
               // Delay close so TopicsPage's success toast stays visible
               // long enough to read. The host refresh callback above
               // already fired, so the calendar will be fresh by the
-              // time the slider actually unmounts.
-              setTimeout(onClose, 1500);
+              // time the slider actually unmounts. Captured in a ref
+              // so the cleanup effect can cancel it if the user closes
+              // the slider manually before the timer fires.
+              closeTimerRef.current = setTimeout(() => {
+                onClose();
+                closeTimerRef.current = null;
+              }, 1500);
             }}
           />
         </div>
