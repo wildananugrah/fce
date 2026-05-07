@@ -113,7 +113,29 @@ const PILLAR_COLORS = [
 ];
 
 
-export function TopicsPage() {
+interface TopicsPageProps {
+	/**
+	 * When set, force dateFrom = dateTo = this YYYY-MM-DD value on mount.
+	 * Used by the Planner slider's click-to-schedule flow.
+	 */
+	initialDate?: string | null;
+	/**
+	 * Called after a successful bulk save of generated topics.
+	 * The Planner slider uses this to close itself + refresh the calendar.
+	 */
+	onSavedTopics?: () => void;
+	/**
+	 * Render without page-level chrome (outer padding, page header, CoachMark).
+	 * The slider's own header is the only one shown when embedded.
+	 */
+	embedded?: boolean;
+}
+
+export function TopicsPage({
+	initialDate,
+	onSavedTopics,
+	embedded = false,
+}: TopicsPageProps = {}) {
 	const { activeWorkspace } = useWorkspace();
 	const { activeProject } = useProject();
 	const [brands, setBrands] = useState<Brand[]>([]);
@@ -190,6 +212,13 @@ export function TopicsPage() {
 	useEffect(() => {
 		loadData();
 	}, [loadData]);
+
+	useEffect(() => {
+		if (initialDate) {
+			setDateFrom(initialDate);
+			setDateTo(initialDate);
+		}
+	}, [initialDate]);
 
 	// 1:1 project:brand — auto-select the only brand once it's loaded so the
 	// user doesn't have to. If the project somehow has multiple (legacy data),
@@ -381,6 +410,7 @@ export function TopicsPage() {
 		try {
 			showToast("All topics saved to library!", "success");
 			setTopicsSaved(true);
+			onSavedTopics?.();
 		} finally {
 			setSaving(false);
 		}
@@ -405,52 +435,83 @@ export function TopicsPage() {
 	);
 
 	return (
-		<div className="p-6 space-y-6">
-			{/* Header */}
-			<div className="flex items-start justify-between">
-				<div>
-					<h1 className="text-2xl font-bold text-black">
-						Topic Generator
-					</h1>
-					<p className="text-sm text-gray-500 mt-1">
-						Generate a bulk content calendar before building
-						individual posts.
-					</p>
-				</div>
-				<div className="flex items-center gap-2">
-					<HelpButton pageKey="topics" />
-					{generatedTopics.length > 0 && !topicsSaved && (
-						<Button
-							onClick={handleSaveAll}
-							loading={saving}
-							className="!bg-indigo-600 hover:!bg-indigo-700 !rounded-lg"
+		<div className={`${embedded ? "" : "p-6 "}space-y-6`}>
+			{!embedded && (
+				<>
+					{/* Header */}
+					<div className="flex items-start justify-between">
+						<div>
+							<h1 className="text-2xl font-bold text-black">
+								Topic Generator
+							</h1>
+							<p className="text-sm text-gray-500 mt-1">
+								Generate a bulk content calendar before building
+								individual posts.
+							</p>
+						</div>
+						<div className="flex items-center gap-2">
+							<HelpButton pageKey="topics" />
+							{generatedTopics.length > 0 && !topicsSaved && (
+								<Button
+									onClick={handleSaveAll}
+									loading={saving}
+									className="!bg-indigo-600 hover:!bg-indigo-700 !rounded-lg"
+								>
+									<svg
+										className="w-4 h-4 mr-2"
+										fill="none"
+										viewBox="0 0 24 24"
+										stroke="currentColor"
+										strokeWidth={2}
+									>
+										<path
+											strokeLinecap="round"
+											strokeLinejoin="round"
+											d="M5 13l4 4L19 7"
+										/>
+									</svg>
+									Save All Topics
+								</Button>
+							)}
+						</div>
+					</div>
+					<CoachMark pageKey="topics" title="Topics" body="Topics are content ideas you can save, refine, and turn into posts later. Useful for capturing ideas you're not ready to generate yet." />
+				</>
+			)}
+
+			{/* When embedded, Save All goes in its own right-aligned row above
+			    the form/results columns so the user can still commit a generation. */}
+			{embedded && generatedTopics.length > 0 && !topicsSaved && (
+				<div className="flex justify-end px-6 pt-4">
+					<Button
+						onClick={handleSaveAll}
+						loading={saving}
+						className="!bg-indigo-600 hover:!bg-indigo-700 !rounded-lg"
+					>
+						<svg
+							className="w-4 h-4 mr-2"
+							fill="none"
+							viewBox="0 0 24 24"
+							stroke="currentColor"
+							strokeWidth={2}
 						>
-							<svg
-								className="w-4 h-4 mr-2"
-								fill="none"
-								viewBox="0 0 24 24"
-								stroke="currentColor"
-								strokeWidth={2}
-							>
-								<path
-									strokeLinecap="round"
-									strokeLinejoin="round"
-									d="M5 13l4 4L19 7"
-								/>
-							</svg>
-							Save All Topics
-						</Button>
-					)}
+							<path
+								strokeLinecap="round"
+								strokeLinejoin="round"
+								d="M5 13l4 4L19 7"
+							/>
+						</svg>
+						Save All Topics
+					</Button>
 				</div>
-			</div>
-			<CoachMark pageKey="topics" title="Topics" body="Topics are content ideas you can save, refine, and turn into posts later. Useful for capturing ideas you're not ready to generate yet." />
+			)}
 
 			{loading ? (
 				<div className="flex justify-center py-12">
 					<Spinner />
 				</div>
 			) : (
-				<div className="flex gap-6">
+				<div className={`flex gap-6${embedded ? " px-6" : ""}`}>
 					{/* Left Panel — Form */}
 					<div className="w-[420px] shrink-0 space-y-5">
 						{/* Context Section */}
