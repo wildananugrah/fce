@@ -115,8 +115,10 @@ const PILLAR_COLORS = [
 
 interface TopicsPageProps {
 	/**
-	 * When set, force dateFrom = dateTo = this YYYY-MM-DD value on mount.
-	 * Used by the Planner slider's click-to-schedule flow.
+	 * When set, force dateFrom = dateTo to this YYYY-MM-DD value
+	 * whenever `initialDate` changes. Used by the Planner slider's
+	 * click-to-schedule flow. Falsy values are no-ops, so the standalone
+	 * /topics route keeps its lazy default range.
 	 */
 	initialDate?: string | null;
 	/**
@@ -434,6 +436,32 @@ export function TopicsPage({
 		(p) => !brandId || p.brandId === brandId
 	);
 
+	// Single source of truth for the Save All Topics button — rendered
+	// in two positions (in-header for /topics, alternate row for embedded).
+	const showSaveAllButton = generatedTopics.length > 0 && !topicsSaved;
+	const saveAllTopicsButton = (
+		<Button
+			onClick={handleSaveAll}
+			loading={saving}
+			className="!bg-indigo-600 hover:!bg-indigo-700 !rounded-lg"
+		>
+			<svg
+				className="w-4 h-4 mr-2"
+				fill="none"
+				viewBox="0 0 24 24"
+				stroke="currentColor"
+				strokeWidth={2}
+			>
+				<path
+					strokeLinecap="round"
+					strokeLinejoin="round"
+					d="M5 13l4 4L19 7"
+				/>
+			</svg>
+			Save All Topics
+		</Button>
+	);
+
 	return (
 		<div className={`${embedded ? "" : "p-6 "}space-y-6`}>
 			{!embedded && (
@@ -451,28 +479,7 @@ export function TopicsPage({
 						</div>
 						<div className="flex items-center gap-2">
 							<HelpButton pageKey="topics" />
-							{generatedTopics.length > 0 && !topicsSaved && (
-								<Button
-									onClick={handleSaveAll}
-									loading={saving}
-									className="!bg-indigo-600 hover:!bg-indigo-700 !rounded-lg"
-								>
-									<svg
-										className="w-4 h-4 mr-2"
-										fill="none"
-										viewBox="0 0 24 24"
-										stroke="currentColor"
-										strokeWidth={2}
-									>
-										<path
-											strokeLinecap="round"
-											strokeLinejoin="round"
-											d="M5 13l4 4L19 7"
-										/>
-									</svg>
-									Save All Topics
-								</Button>
-							)}
+							{showSaveAllButton && saveAllTopicsButton}
 						</div>
 					</div>
 					<CoachMark pageKey="topics" title="Topics" body="Topics are content ideas you can save, refine, and turn into posts later. Useful for capturing ideas you're not ready to generate yet." />
@@ -481,29 +488,8 @@ export function TopicsPage({
 
 			{/* When embedded, Save All goes in its own right-aligned row above
 			    the form/results columns so the user can still commit a generation. */}
-			{embedded && generatedTopics.length > 0 && !topicsSaved && (
-				<div className="flex justify-end px-6 pt-4">
-					<Button
-						onClick={handleSaveAll}
-						loading={saving}
-						className="!bg-indigo-600 hover:!bg-indigo-700 !rounded-lg"
-					>
-						<svg
-							className="w-4 h-4 mr-2"
-							fill="none"
-							viewBox="0 0 24 24"
-							stroke="currentColor"
-							strokeWidth={2}
-						>
-							<path
-								strokeLinecap="round"
-								strokeLinejoin="round"
-								d="M5 13l4 4L19 7"
-							/>
-						</svg>
-						Save All Topics
-					</Button>
-				</div>
+			{embedded && showSaveAllButton && (
+				<div className="flex justify-end px-6 pt-4">{saveAllTopicsButton}</div>
 			)}
 
 			{loading ? (
