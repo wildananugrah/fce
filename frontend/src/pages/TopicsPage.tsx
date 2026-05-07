@@ -179,7 +179,7 @@ export function TopicsPage({
 		d.setMonth(d.getMonth() + 2);
 		return d.toISOString().split("T")[0];
 	});
-	const [count, setCount] = useState(10);
+	const [count, setCount] = useState(3);
 
 	// Generated topics (preview before save)
 	const [generatedTopics, setGeneratedTopics] = useState<GeneratedTopic[]>([]);
