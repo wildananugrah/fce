@@ -87,7 +87,7 @@ export function ContentGeneratorSlider({
         </div>
 
         {/* Embedded GeneratePage */}
-        <div className="flex-1 overflow-y-auto px-6">
+        <div className="flex-1 overflow-y-auto px-6 py-6">
           <GeneratePage
             embedded
             initialBrandId={initialBrandId}
