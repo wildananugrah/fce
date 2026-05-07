@@ -257,6 +257,7 @@ function TeamTab({ workspaceId, currentUserId, onToast }: TeamTabProps) {
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [removing, setRemoving] = useState<string | null>(null);
+  const [updatingRole, setUpdatingRole] = useState<string | null>(null);
 
   const loadMembers = useCallback(async () => {
     setLoading(true);
@@ -285,6 +286,22 @@ function TeamTab({ workspaceId, currentUserId, onToast }: TeamTabProps) {
       onToast(e instanceof Error ? e.message : "Failed to remove member", "error");
     } finally {
       setRemoving(null);
+    }
+  };
+
+  const handleRoleChange = async (userId: string, newRole: string) => {
+    setUpdatingRole(userId);
+    try {
+      await api(`/api/workspaces/${workspaceId}/members/${userId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ role: newRole }),
+      });
+      onToast("Role updated", "success");
+      await loadMembers();
+    } catch (e) {
+      onToast(e instanceof Error ? e.message : "Failed to update role", "error");
+    } finally {
+      setUpdatingRole(null);
     }
   };
 
@@ -342,7 +359,19 @@ function TeamTab({ workspaceId, currentUserId, onToast }: TeamTabProps) {
                 </td>
                 <td className="px-4 py-3 text-gray-600">{member.email}</td>
                 <td className="px-4 py-3">
-                  <Badge variant={roleBadgeVariant(member.role)}>{member.role}</Badge>
+                  {isAdmin && member.userId !== currentUserId ? (
+                    <select
+                      value={member.role === "admin" || member.role === "member" ? member.role : "member"}
+                      disabled={updatingRole === member.userId}
+                      onChange={(e) => handleRoleChange(member.userId, e.target.value)}
+                      className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-400 disabled:opacity-50"
+                    >
+                      <option value="admin">admin</option>
+                      <option value="member">member</option>
+                    </select>
+                  ) : (
+                    <Badge variant={roleBadgeVariant(member.role)}>{member.role}</Badge>
+                  )}
                 </td>
                 {isAdmin && (
                   <td className="px-4 py-3 text-right">
