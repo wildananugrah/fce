@@ -148,5 +148,30 @@ export function createWorkspaceRoutes(workspaceService: IWorkspaceService) {
 		return c.json({ data: { success: true } });
 	});
 
+	// PATCH /:id/members/:memberId — change member role (admin or member)
+	app.patch("/:id/members/:memberId", async (c) => {
+		const userId = c.get("userId");
+		const workspaceId = c.req.param("id");
+		const role = await workspaceService.getMemberRole(userId, workspaceId);
+		if (role !== "admin") {
+			return c.json({ error: "Admin access required" }, 403);
+		}
+		const body = (await c.req.json()) as { role?: unknown };
+		if (typeof body.role !== "string") {
+			return c.json({ error: "role is required" }, 400);
+		}
+		try {
+			await workspaceService.setMemberRole(
+				userId,
+				workspaceId,
+				c.req.param("memberId"),
+				body.role,
+			);
+		} catch (e) {
+			return c.json({ error: e instanceof Error ? e.message : "Failed to update role" }, 400);
+		}
+		return c.json({ data: { success: true } });
+	});
+
 	return app;
 }

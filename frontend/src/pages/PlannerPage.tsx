@@ -9,33 +9,17 @@ import { Toast } from "../components/ui/Toast";
 import { TopicCalendarView } from "../components/topics/TopicCalendarView";
 import { TopicDetailDrawer } from "../components/topics/TopicDetailDrawer";
 import { PlannerListView } from "../components/planner/PlannerListView";
-import { PlannerTopicGeneratorPanel } from "../components/planner/PlannerTopicGeneratorPanel";
-import { PlannerContentGeneratorPanel } from "../components/planner/PlannerContentGeneratorPanel";
+import { TopicGeneratorSlider } from "../components/planner/TopicGeneratorSlider";
+import { ContentGeneratorSlider } from "../components/planner/ContentGeneratorSlider";
 import { PlannerContentPreviewPanel } from "../components/planner/PlannerContentPreviewPanel";
 import { getPillarColor } from "../utils/pillar-colors";
 
 type ViewMode = "calendar" | "list";
 
-interface BrainVersion {
-  isActive: boolean;
-  tone?: string | null;
-  personality?: string | null;
-  usp?: string | null;
-  targetAudience?: string | null;
-}
-
 interface Brand {
   id: string;
   name: string;
   language?: string;
-  brainVersions?: BrainVersion[];
-}
-
-interface Product {
-  id: string;
-  name: string;
-  brandId: string;
-  brainVersions?: BrainVersion[];
 }
 
 interface Topic {
@@ -96,7 +80,6 @@ export function PlannerPage() {
   const [detailTopic, setDetailTopic] = useState<Topic | null>(null);
   const [generatorOpen, setGeneratorOpen] = useState(false);
   const [pendingScheduleDate, setPendingScheduleDate] = useState<string | null>(null);
-  const [products, setProducts] = useState<Product[]>([]);
   const [contentByTopicId, setContentByTopicId] = useState<Map<string, LibraryItem>>(new Map());
   const [previewItem, setPreviewItem] = useState<LibraryItem | null>(null);
   const [contentGenTopic, setContentGenTopic] = useState<Topic | null>(null);
@@ -149,24 +132,6 @@ export function PlannerPage() {
   useEffect(() => {
     loadTopics();
   }, [loadTopics]);
-
-  // Load products for the active project — needed by the in-page Content
-  // Generator (slide 7) so the user can pick which products to feature.
-  useEffect(() => {
-    if (!activeWorkspace) return;
-    let cancelled = false;
-    const qs = activeProject ? `?projectId=${activeProject.id}` : "";
-    api<Product[]>(`/api/workspaces/${activeWorkspace.id}/products${qs}`)
-      .then((data) => {
-        if (!cancelled) setProducts(data);
-      })
-      .catch(() => {
-        // Non-fatal — generator just won't show products.
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [activeWorkspace, activeProject]);
 
   // Load all library items once so we can flag which topics already have
   // content and short-circuit the View Content flow without an extra fetch.
@@ -407,23 +372,33 @@ export function PlannerPage() {
                 }
               : undefined
           }
+          onDeleted={(topicId) => {
+            setTopics((prev) => prev.filter((t) => t.id !== topicId));
+            setContentByTopicId((prev) => {
+              if (!prev.has(topicId)) return prev;
+              const next = new Map(prev);
+              next.delete(topicId);
+              return next;
+            });
+          }}
         />
       )}
 
       {activeWorkspace && (
-        <PlannerContentGeneratorPanel
+        <ContentGeneratorSlider
           isOpen={contentGenTopic !== null}
           onClose={() => setContentGenTopic(null)}
-          workspaceId={activeWorkspace.id}
-          brands={brands}
-          products={products}
-          topic={contentGenTopic}
-          onSaved={() => {
+          initialBrandId={contentGenTopic?.brandId ?? activeBrandId}
+          initialTopicId={contentGenTopic?.id}
+          initialProductIds={contentGenTopic?.products?.map((tp) => tp.product.id)}
+          initialPlatform={contentGenTopic?.platform ?? undefined}
+          initialContentType={contentGenTopic?.format ?? undefined}
+          initialObjective={contentGenTopic?.objective ?? undefined}
+          onSavedContent={() => {
             // Refresh the topic→content map so the Planner knows this topic
             // now has content and the View Content button lights up.
             void loadContent();
           }}
-          onToast={showToast}
         />
       )}
 
@@ -449,19 +424,15 @@ export function PlannerPage() {
 
 
       {activeWorkspace && (
-        <PlannerTopicGeneratorPanel
+        <TopicGeneratorSlider
           isOpen={generatorOpen}
           onClose={() => {
             setGeneratorOpen(false);
             setPendingScheduleDate(null);
           }}
-          workspaceId={activeWorkspace.id}
-          brands={brands}
-          initialBrandId={activeBrandId}
           initialDate={pendingScheduleDate}
+          initialBrandId={activeBrandId}
           onSavedTopics={loadTopics}
-          onEditTopic={(topic) => setDetailTopic(topic)}
-          onToast={showToast}
         />
       )}
 

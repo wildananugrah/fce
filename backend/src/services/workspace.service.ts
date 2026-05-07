@@ -271,6 +271,45 @@ export class WorkspaceService implements IWorkspaceService {
 		});
 	}
 
+	async setMemberRole(
+		actingUserId: string,
+		workspaceId: string,
+		targetUserId: string,
+		newRole: string,
+	): Promise<void> {
+		if (newRole !== "admin" && newRole !== "member") {
+			throw new Error("Role must be 'admin' or 'member'");
+		}
+		const members = await this.workspaceRepository.findMembers(workspaceId);
+		const target = members.find((m) => m.userId === targetUserId);
+		if (!target) {
+			throw new Error("Member not found in this workspace");
+		}
+		if (target.role === newRole) {
+			return; // no-op
+		}
+		const admins = members.filter((m) => m.role === "admin");
+		const isTargetAdmin = admins.some((m) => m.userId === targetUserId);
+		if (isTargetAdmin && newRole !== "admin" && admins.length <= 1) {
+			throw new Error("Cannot demote the last admin of the workspace");
+		}
+
+		await this.workspaceRepository.upsertMemberRole(workspaceId, targetUserId, newRole);
+
+		await this.audit.log({
+			workspaceId,
+			userId: actingUserId,
+			action: "workspace.member_role_change",
+			entityType: "workspace_member",
+			entityId: targetUserId,
+			metadata: {
+				targetEmail: target.user.email,
+				priorRole: target.role,
+				newRole,
+			},
+		});
+	}
+
 	async listInvitations(workspaceId: string): Promise<WorkspaceInvitation[]> {
 		return this.workspaceRepository.findInvitations(workspaceId);
 	}

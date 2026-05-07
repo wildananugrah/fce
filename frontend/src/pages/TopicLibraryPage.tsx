@@ -1172,6 +1172,9 @@ export function TopicLibraryPage() {
             setTopics((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
           }}
           onToast={showToast}
+          onDeleted={(topicId) => {
+            setTopics((prev) => prev.filter((t) => t.id !== topicId));
+          }}
         />
       )}
 

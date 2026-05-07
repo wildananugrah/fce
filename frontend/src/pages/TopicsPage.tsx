@@ -113,7 +113,37 @@ const PILLAR_COLORS = [
 ];
 
 
-export function TopicsPage() {
+interface TopicsPageProps {
+	/**
+	 * When set, force dateFrom = dateTo to this YYYY-MM-DD value
+	 * whenever `initialDate` changes. Used by the Planner slider's
+	 * click-to-schedule flow. Falsy values are no-ops, so the standalone
+	 * /topics route keeps its lazy default range.
+	 */
+	initialDate?: string | null;
+	/**
+	 * When set, force brandId to this value whenever it changes. Used by
+	 * the Planner slider to pre-select the brand the user was viewing.
+	 */
+	initialBrandId?: string | null;
+	/**
+	 * Called after a successful bulk save of generated topics.
+	 * The Planner slider uses this to close itself + refresh the calendar.
+	 */
+	onSavedTopics?: () => void;
+	/**
+	 * Render without page-level chrome (outer padding, page header, CoachMark).
+	 * The slider's own header is the only one shown when embedded.
+	 */
+	embedded?: boolean;
+}
+
+export function TopicsPage({
+	initialDate,
+	initialBrandId,
+	onSavedTopics,
+	embedded = false,
+}: TopicsPageProps = {}) {
 	const { activeWorkspace } = useWorkspace();
 	const { activeProject } = useProject();
 	const [brands, setBrands] = useState<Brand[]>([]);
@@ -149,7 +179,7 @@ export function TopicsPage() {
 		d.setMonth(d.getMonth() + 2);
 		return d.toISOString().split("T")[0];
 	});
-	const [count, setCount] = useState(10);
+	const [count, setCount] = useState(3);
 
 	// Generated topics (preview before save)
 	const [generatedTopics, setGeneratedTopics] = useState<GeneratedTopic[]>([]);
@@ -190,6 +220,19 @@ export function TopicsPage() {
 	useEffect(() => {
 		loadData();
 	}, [loadData]);
+
+	useEffect(() => {
+		if (initialDate) {
+			setDateFrom(initialDate);
+			setDateTo(initialDate);
+		}
+	}, [initialDate]);
+
+	useEffect(() => {
+		if (initialBrandId) {
+			setBrandId(initialBrandId);
+		}
+	}, [initialBrandId]);
 
 	// 1:1 project:brand — auto-select the only brand once it's loaded so the
 	// user doesn't have to. If the project somehow has multiple (legacy data),
@@ -381,6 +424,7 @@ export function TopicsPage() {
 		try {
 			showToast("All topics saved to library!", "success");
 			setTopicsSaved(true);
+			onSavedTopics?.();
 		} finally {
 			setSaving(false);
 		}
@@ -404,46 +448,61 @@ export function TopicsPage() {
 		(p) => !brandId || p.brandId === brandId
 	);
 
+	// Single source of truth for the Save All Topics button — rendered
+	// in two positions (in-header for /topics, alternate row for embedded).
+	const showSaveAllButton = generatedTopics.length > 0 && !topicsSaved;
+	const saveAllTopicsButton = (
+		<Button
+			onClick={handleSaveAll}
+			loading={saving}
+			className="!bg-indigo-600 hover:!bg-indigo-700 !rounded-lg"
+		>
+			<svg
+				className="w-4 h-4 mr-2"
+				fill="none"
+				viewBox="0 0 24 24"
+				stroke="currentColor"
+				strokeWidth={2}
+			>
+				<path
+					strokeLinecap="round"
+					strokeLinejoin="round"
+					d="M5 13l4 4L19 7"
+				/>
+			</svg>
+			Save All Topics
+		</Button>
+	);
+
 	return (
-		<div className="p-6 space-y-6">
-			{/* Header */}
-			<div className="flex items-start justify-between">
-				<div>
-					<h1 className="text-2xl font-bold text-black">
-						Topic Generator
-					</h1>
-					<p className="text-sm text-gray-500 mt-1">
-						Generate a bulk content calendar before building
-						individual posts.
-					</p>
-				</div>
-				<div className="flex items-center gap-2">
-					<HelpButton pageKey="topics" />
-					{generatedTopics.length > 0 && !topicsSaved && (
-						<Button
-							onClick={handleSaveAll}
-							loading={saving}
-							className="!bg-indigo-600 hover:!bg-indigo-700 !rounded-lg"
-						>
-							<svg
-								className="w-4 h-4 mr-2"
-								fill="none"
-								viewBox="0 0 24 24"
-								stroke="currentColor"
-								strokeWidth={2}
-							>
-								<path
-									strokeLinecap="round"
-									strokeLinejoin="round"
-									d="M5 13l4 4L19 7"
-								/>
-							</svg>
-							Save All Topics
-						</Button>
-					)}
-				</div>
-			</div>
-			<CoachMark pageKey="topics" title="Topics" body="Topics are content ideas you can save, refine, and turn into posts later. Useful for capturing ideas you're not ready to generate yet." />
+		<div className={`${embedded ? "" : "p-6 "}space-y-6`}>
+			{!embedded && (
+				<>
+					{/* Header */}
+					<div className="flex items-start justify-between">
+						<div>
+							<h1 className="text-2xl font-bold text-black">
+								Topic Generator
+							</h1>
+							<p className="text-sm text-gray-500 mt-1">
+								Generate a bulk content calendar before building
+								individual posts.
+							</p>
+						</div>
+						<div className="flex items-center gap-2">
+							<HelpButton pageKey="topics" />
+							{showSaveAllButton && saveAllTopicsButton}
+						</div>
+					</div>
+					<CoachMark pageKey="topics" title="Topics" body="Topics are content ideas you can save, refine, and turn into posts later. Useful for capturing ideas you're not ready to generate yet." />
+				</>
+			)}
+
+			{/* When embedded, Save All goes in its own right-aligned row above
+			    the form/results columns so the user can still commit a generation. */}
+			{embedded && showSaveAllButton && (
+				<div className="flex justify-end pt-4">{saveAllTopicsButton}</div>
+			)}
 
 			{loading ? (
 				<div className="flex justify-center py-12">

@@ -29,6 +29,12 @@ export interface IWorkspaceService {
 		data: { status: string },
 	): Promise<WorkspaceInvitation>;
 	removeMember(actingUserId: string, workspaceId: string, userId: string): Promise<void>;
+	setMemberRole(
+		actingUserId: string,
+		workspaceId: string,
+		targetUserId: string,
+		newRole: string,
+	): Promise<void>;
 
 	listInvitations(workspaceId: string): Promise<WorkspaceInvitation[]>;
 	getInvitationByToken(token: string): Promise<{

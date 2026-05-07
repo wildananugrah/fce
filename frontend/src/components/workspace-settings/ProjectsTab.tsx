@@ -156,14 +156,125 @@ export function ProjectsTab({ workspaceId, onToast }: ProjectsTabProps) {
           title="Manage Project"
           size="lg"
         >
-          <ProjectMembersPanel
-            workspaceId={workspaceId}
-            projectId={detailProjectId}
-            onToast={onToast}
-            onChanged={load}
-          />
+          <div className="space-y-6">
+            <ProjectSettingsPanel
+              workspaceId={workspaceId}
+              project={projects.find((p) => p.id === detailProjectId) ?? null}
+              onToast={onToast}
+              onSaved={async () => {
+                await Promise.all([load(), refreshSidebar()]);
+              }}
+            />
+            <div className="border-t border-gray-200 pt-5">
+              <ProjectMembersPanel
+                workspaceId={workspaceId}
+                projectId={detailProjectId}
+                onToast={onToast}
+                onChanged={load}
+              />
+            </div>
+          </div>
         </Modal>
       )}
+    </div>
+  );
+}
+
+function ProjectSettingsPanel({
+  workspaceId,
+  project,
+  onToast,
+  onSaved,
+}: {
+  workspaceId: string;
+  project: Project | null;
+  onToast: (msg: string, type: "success" | "error" | "info") => void;
+  onSaved: () => void | Promise<void>;
+}) {
+  const [name, setName] = useState(project?.name ?? "");
+  const [slug, setSlug] = useState(project?.slug ?? "");
+  const [description, setDescription] = useState(project?.description ?? "");
+  const [saving, setSaving] = useState(false);
+
+  // Reset form whenever the modal switches to a different project.
+  useEffect(() => {
+    setName(project?.name ?? "");
+    setSlug(project?.slug ?? "");
+    setDescription(project?.description ?? "");
+  }, [project?.id, project?.name, project?.slug, project?.description]);
+
+  if (!project) return null;
+
+  const isDefault = project.slug === "default";
+  const trimmedName = name.trim();
+  const trimmedSlug = slug.trim();
+  const isDirty =
+    trimmedName !== project.name ||
+    (!isDefault && trimmedSlug !== project.slug) ||
+    (description ?? "") !== (project.description ?? "");
+
+  const submit = async () => {
+    if (!trimmedName) {
+      onToast("Name is required", "error");
+      return;
+    }
+    setSaving(true);
+    try {
+      const payload: Record<string, string | null> = { name: trimmedName };
+      if (!isDefault && trimmedSlug && trimmedSlug !== project.slug) {
+        payload.slug = trimmedSlug;
+      }
+      payload.description = description.trim() || null;
+      await api(`/api/workspaces/${workspaceId}/projects/${project.id}`, {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      });
+      onToast("Project updated", "success");
+      await onSaved();
+    } catch (e) {
+      onToast(e instanceof Error ? e.message : "Failed to update project", "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <h3 className="text-sm font-semibold text-gray-900">Project Settings</h3>
+      <Input
+        label="Name"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+      />
+      <div>
+        <Input
+          label="Slug"
+          value={slug}
+          onChange={(e) => setSlug(e.target.value)}
+          disabled={isDefault}
+        />
+        {isDefault && (
+          <p className="text-[11px] text-gray-500 mt-1">
+            The Default project&apos;s slug is locked because internal lookups depend on it.
+          </p>
+        )}
+      </div>
+      <div>
+        <label className="block text-xs font-medium text-gray-600 uppercase tracking-wide mb-1.5">
+          Description
+        </label>
+        <textarea
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          rows={3}
+          className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-md focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
+        />
+      </div>
+      <div className="flex justify-end">
+        <Button onClick={submit} loading={saving} disabled={!isDirty || !trimmedName}>
+          Save Changes
+        </Button>
+      </div>
     </div>
   );
 }

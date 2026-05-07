@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Drawer } from "../ui/Drawer";
 import { Button } from "../ui/Button";
 import { api } from "../../services/api";
-import { Save, Tag, Layers, Globe, Target, Calendar, Package, FileText, Sparkles, Eye } from "lucide-react";
+import { Save, Tag, Layers, Globe, Target, Calendar, Package, FileText, Sparkles, Eye, Trash2 } from "lucide-react";
 
 interface Topic {
   id: string;
@@ -37,6 +37,8 @@ interface TopicDetailDrawerProps {
   onViewContent?: () => void;
   /** Override the default Generate Content navigation (e.g. open an in-page panel). */
   onGenerateContent?: () => void;
+  /** Called after a successful soft-delete so the parent can drop the topic from its list. */
+  onDeleted?: (topicId: string) => void;
 }
 
 const PLATFORMS = [
@@ -82,6 +84,7 @@ export function TopicDetailDrawer({
   hasContent = false,
   onViewContent,
   onGenerateContent,
+  onDeleted,
 }: TopicDetailDrawerProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -92,6 +95,7 @@ export function TopicDetailDrawer({
   const [publishDate, setPublishDate] = useState("");
   const [status, setStatus] = useState("draft");
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const navigate = useNavigate();
 
   // Reset form whenever a new topic is opened
@@ -147,6 +151,24 @@ export function TopicDetailDrawer({
       onToast(e instanceof Error ? e.message : "Failed to save", "error");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!confirm(`Move "${topic.title}" to Trash?`)) return;
+    setDeleting(true);
+    try {
+      await api(`/api/workspaces/${workspaceId}/topics/bulk`, {
+        method: "DELETE",
+        body: JSON.stringify({ ids: [topic.id] }),
+      });
+      onToast("Topic moved to Trash", "success");
+      onDeleted?.(topic.id);
+      onClose();
+    } catch (e) {
+      onToast(e instanceof Error ? e.message : "Failed to delete topic", "error");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -347,6 +369,12 @@ export function TopicDetailDrawer({
               <Button variant="secondary" onClick={onViewContent}>
                 <Eye size={14} className="mr-1.5" />
                 View Content
+              </Button>
+            )}
+            {onDeleted && (
+              <Button variant="danger" onClick={handleDelete} loading={deleting}>
+                <Trash2 size={14} className="mr-1.5" />
+                Delete
               </Button>
             )}
           </div>

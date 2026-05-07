@@ -38,6 +38,10 @@ interface ContentPreviewModalProps {
    *  it to `draft` and calls this callback so the parent can remove it from
    *  its list. Used by the Content Generator, not the Library. */
   onSent?: (itemId: string) => void;
+  /** Render as a right-side slide-over instead of a centered modal.
+   *  Used when this component is opened from inside another slider, so
+   *  the preview stacks naturally on top of the host slider. */
+  presentation?: "modal" | "slider";
 }
 
 function getStatusStyle(status: string) {
@@ -45,6 +49,45 @@ function getStatusStyle(status: string) {
   if (status === "rejected") return "bg-red-50 text-red-700 border-red-200";
   if (status === "in_review") return "bg-amber-50 text-amber-700 border-amber-200";
   return "bg-gray-50 text-gray-600 border-gray-200";
+}
+
+/**
+ * Picks a slider width bucket based on the content's natural shape.
+ * - Vertical phone formats (reels, stories, IG single image) get a narrow
+ *   panel that mimics a handset.
+ * - Carousels need a touch more room for slide navigation.
+ * - Long-form video sits on a desktop-wide canvas.
+ * - Text-heavy formats get a comfortable reading column.
+ */
+function getSliderWidthClass(contentType: string): string {
+  switch (contentType) {
+    // Phone-portrait (single column, vertical)
+    case "single_image":
+    case "story_image":
+    case "story_video":
+    case "story":
+    case "reels":
+    case "tiktok_video":
+    case "youtube_shorts":
+    case "reel_short_video":
+      return "max-w-md";
+    // Carousels — slightly wider for slide controls
+    case "carousel":
+    case "tiktok_carousel":
+    case "carousel_post":
+    case "carousel_ad":
+      return "max-w-lg";
+    // Long-form text
+    case "thread":
+    case "article":
+      return "max-w-3xl";
+    // Wide desktop video
+    case "long_video":
+      return "max-w-5xl";
+    // Default: text-first feed posts
+    default:
+      return "max-w-2xl";
+  }
 }
 
 export function ContentPreviewModal({
@@ -56,6 +99,7 @@ export function ContentPreviewModal({
   onSectionsUpdated,
   canChangeStatus = true,
   onSent,
+  presentation = "modal",
 }: ContentPreviewModalProps) {
   const [currentStatus, setCurrentStatus] = useState(item.status);
   const [copied, setCopied] = useState(false);
@@ -409,13 +453,26 @@ export function ContentPreviewModal({
     }
   };
 
+  const isSlider = presentation === "slider";
+  const sliderWidthClass = getSliderWidthClass(item.request.contentType);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div
+      className={`fixed inset-0 z-50 flex ${
+        isSlider ? "justify-end" : "items-center justify-center"
+      }`}
+    >
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
 
-      {/* Modal */}
-      <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-5xl max-h-[90vh] flex flex-col mx-4">
+      {/* Modal / Slider */}
+      <div
+        className={
+          isSlider
+            ? `relative flex h-full w-full ${sliderWidthClass} flex-col bg-white shadow-2xl`
+            : "relative bg-white rounded-2xl shadow-xl w-full max-w-5xl max-h-[90vh] flex flex-col mx-4"
+        }
+      >
         {/* Header */}
         <div className="flex items-start justify-between px-5 pt-5 pb-3 shrink-0">
           <div className="min-w-0 flex-1">
