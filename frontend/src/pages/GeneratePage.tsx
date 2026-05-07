@@ -1325,6 +1325,7 @@ const frameworkOptions = [{ value: "", label: "Default (AIDA)" }, ...frameworks.
         <ContentPreviewModal
           item={previewItem}
           workspaceId={activeWorkspace.id}
+          presentation={embedded ? "slider" : "modal"}
           onClose={() => setPreviewItem(null)}
           onStatusChange={(id, status) => {
             setPreviewItem((prev) => prev && prev.id === id ? { ...prev, status } : prev);
