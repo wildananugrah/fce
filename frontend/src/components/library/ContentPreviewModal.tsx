@@ -51,6 +51,45 @@ function getStatusStyle(status: string) {
   return "bg-gray-50 text-gray-600 border-gray-200";
 }
 
+/**
+ * Picks a slider width bucket based on the content's natural shape.
+ * - Vertical phone formats (reels, stories, IG single image) get a narrow
+ *   panel that mimics a handset.
+ * - Carousels need a touch more room for slide navigation.
+ * - Long-form video sits on a desktop-wide canvas.
+ * - Text-heavy formats get a comfortable reading column.
+ */
+function getSliderWidthClass(contentType: string): string {
+  switch (contentType) {
+    // Phone-portrait (single column, vertical)
+    case "single_image":
+    case "story_image":
+    case "story_video":
+    case "story":
+    case "reels":
+    case "tiktok_video":
+    case "youtube_shorts":
+    case "reel_short_video":
+      return "max-w-md";
+    // Carousels — slightly wider for slide controls
+    case "carousel":
+    case "tiktok_carousel":
+    case "carousel_post":
+    case "carousel_ad":
+      return "max-w-lg";
+    // Long-form text
+    case "thread":
+    case "article":
+      return "max-w-3xl";
+    // Wide desktop video
+    case "long_video":
+      return "max-w-5xl";
+    // Default: text-first feed posts
+    default:
+      return "max-w-2xl";
+  }
+}
+
 export function ContentPreviewModal({
   item,
   workspaceId,
@@ -415,6 +454,7 @@ export function ContentPreviewModal({
   };
 
   const isSlider = presentation === "slider";
+  const sliderWidthClass = getSliderWidthClass(item.request.contentType);
 
   return (
     <div
@@ -429,7 +469,7 @@ export function ContentPreviewModal({
       <div
         className={
           isSlider
-            ? "relative flex h-full w-full max-w-[1100px] flex-col bg-white shadow-2xl"
+            ? `relative flex h-full w-full ${sliderWidthClass} flex-col bg-white shadow-2xl`
             : "relative bg-white rounded-2xl shadow-xl w-full max-w-5xl max-h-[90vh] flex flex-col mx-4"
         }
       >
