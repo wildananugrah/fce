@@ -9,7 +9,7 @@ import { Toast } from "../components/ui/Toast";
 import { TopicCalendarView } from "../components/topics/TopicCalendarView";
 import { TopicDetailDrawer } from "../components/topics/TopicDetailDrawer";
 import { PlannerListView } from "../components/planner/PlannerListView";
-import { PlannerTopicGeneratorPanel } from "../components/planner/PlannerTopicGeneratorPanel";
+import { TopicGeneratorSlider } from "../components/planner/TopicGeneratorSlider";
 import { PlannerContentGeneratorPanel } from "../components/planner/PlannerContentGeneratorPanel";
 import { PlannerContentPreviewPanel } from "../components/planner/PlannerContentPreviewPanel";
 import { getPillarColor } from "../utils/pillar-colors";
@@ -449,19 +449,14 @@ export function PlannerPage() {
 
 
       {activeWorkspace && (
-        <PlannerTopicGeneratorPanel
+        <TopicGeneratorSlider
           isOpen={generatorOpen}
           onClose={() => {
             setGeneratorOpen(false);
             setPendingScheduleDate(null);
           }}
-          workspaceId={activeWorkspace.id}
-          brands={brands}
-          initialBrandId={activeBrandId}
           initialDate={pendingScheduleDate}
           onSavedTopics={loadTopics}
-          onEditTopic={(topic) => setDetailTopic(topic)}
-          onToast={showToast}
         />
       )}
 
