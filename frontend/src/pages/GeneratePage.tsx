@@ -371,7 +371,36 @@ function BrainContextCard({ tone, usp }: { tone?: string; usp?: string }) {
 
 // ─── Main Page ──────────────────────────────────────────────────
 
-export function GeneratePage() {
+interface GeneratePageProps {
+  /** When true, skip page-level chrome (outer padding, header, CoachMark, research banner). */
+  embedded?: boolean;
+  /** Pre-fill brand on mount and whenever this changes. */
+  initialBrandId?: string | null;
+  /** Pre-fill topic on mount and whenever this changes. */
+  initialTopicId?: string | null;
+  /** Pre-fill product selection on mount and whenever this changes (by product id). */
+  initialProductIds?: string[];
+  /** Pre-fill platform tab on mount and whenever this changes. */
+  initialPlatform?: string | null;
+  /** Pre-fill output format on mount and whenever this changes. */
+  initialContentType?: string | null;
+  /** Pre-fill objective on mount and whenever this changes. */
+  initialObjective?: string | null;
+  /** Called once after each successful generation completes. The Planner slider
+   *  uses this to refresh its calendar/content map. */
+  onSavedContent?: () => void;
+}
+
+export function GeneratePage({
+  embedded = false,
+  initialBrandId,
+  initialTopicId,
+  initialProductIds,
+  initialPlatform,
+  initialContentType,
+  initialObjective,
+  onSavedContent,
+}: GeneratePageProps = {}) {
   const { activeWorkspace } = useWorkspace();
   const { activeProject } = useProject();
   const { refreshProgress } = useOnboarding();
@@ -379,27 +408,32 @@ export function GeneratePage() {
   const researchContext = searchParams.get("researchContext") || "";
   const researchTitle = searchParams.get("researchTitle") || "";
 
-  // Form state — pre-fill from URL params (e.g., from Topic Library)
-  const initialPlatform = normalizePlatform(searchParams.get("platform")) || "instagram";
-  const initialContentType = normalizeContentType(searchParams.get("format"), initialPlatform);
-  const initialObjective = normalizeObjective(searchParams.get("objective"));
+  // Form state — pre-fill from initial* props (when embedded) or URL params (e.g., from Topic Library)
+  const initialPlatformValue =
+    initialPlatform ?? (normalizePlatform(searchParams.get("platform")) || "instagram");
+  const initialContentTypeValue =
+    initialContentType ?? normalizeContentType(searchParams.get("format"), initialPlatformValue);
+  const initialObjectiveValue = initialObjective ?? normalizeObjective(searchParams.get("objective"));
 
-  const [brandId, setBrandId] = useState(searchParams.get("brandId") ?? "");
+  const [brandId, setBrandId] = useState(initialBrandId ?? searchParams.get("brandId") ?? "");
   const [language, setLanguage] = useState<ScrapeLanguage>("indonesian");
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>(() => {
+    if (initialProductIds && initialProductIds.length > 0) return initialProductIds;
     const ids = searchParams.getAll("productId");
     return ids.length > 0 ? ids : [];
   });
-  const [platform, setPlatform] = useState(initialPlatform);
-  const [contentType, setContentType] = useState(initialContentType);
+  const [platform, setPlatform] = useState(initialPlatformValue);
+  const [contentType, setContentType] = useState(initialContentTypeValue);
   const [frameworkId, setFrameworkId] = useState("");
   const [hookTypeId, setHookTypeId] = useState("");
-  const [contentTopicId, setContentTopicId] = useState(searchParams.get("topicId") ?? "");
+  const [contentTopicId, setContentTopicId] = useState(
+    initialTopicId ?? searchParams.get("topicId") ?? "",
+  );
   const [customPrompt, setCustomPrompt] = useState("");
   const [referenceImages, setReferenceImages] = useState<ImageRef[]>([]);
   const [tonePresetId, setTonePresetId] = useState("");
   const [visualStyleId, setVisualStyleId] = useState("");
-  const [objective, setObjective] = useState(initialObjective);
+  const [objective, setObjective] = useState(initialObjectiveValue);
   const [outputLength, setOutputLength] = useState("");
 
   // Data
@@ -574,6 +608,34 @@ export function GeneratePage() {
     }
   }, [activeWorkspace, activeProject]);
 
+  // Sync initial* props into state on change (used by the planner slider).
+  // Falsy-guard means the standalone /generate route (no props) gets no overrides.
+  useEffect(() => {
+    if (initialBrandId) setBrandId(initialBrandId);
+  }, [initialBrandId]);
+
+  useEffect(() => {
+    if (initialTopicId) setContentTopicId(initialTopicId);
+  }, [initialTopicId]);
+
+  useEffect(() => {
+    if (initialProductIds && initialProductIds.length > 0) {
+      setSelectedProductIds(initialProductIds);
+    }
+  }, [initialProductIds]);
+
+  useEffect(() => {
+    if (initialPlatform) setPlatform(initialPlatform);
+  }, [initialPlatform]);
+
+  useEffect(() => {
+    if (initialContentType) setContentType(initialContentType);
+  }, [initialContentType]);
+
+  useEffect(() => {
+    if (initialObjective) setObjective(initialObjective);
+  }, [initialObjective]);
+
   useEffect(() => {
     loadInitialData();
   }, [loadInitialData]);
@@ -641,6 +703,9 @@ export function GeneratePage() {
     if (event.type === "generation_complete" || event.type === "generation_failed") {
       setPendingRequestId(null);
       loadGenerations();
+      if (embedded && event.type === "generation_complete") {
+        onSavedContent?.();
+      }
     }
   });
 
@@ -722,52 +787,56 @@ const frameworkOptions = [{ value: "", label: "Default (AIDA)" }, ...frameworks.
   const visualStyleOptions = [{ value: "", label: "Select Visual Style" }, ...visualStyles.map((v) => ({ value: v.id, label: v.name }))];
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-black">Content Generator</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Generate platform-native content from Brand Brain and Product Brain.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <HelpButton pageKey="generate" />
-          <span className="text-sm text-gray-500">{advancedMode ? "Advanced mode" : "Basic mode"}</span>
-          <button
-            type="button"
-            onClick={() => setAdvancedMode(!advancedMode)}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-              advancedMode ? "bg-indigo-600" : "bg-gray-300"
-            }`}
-          >
-            <span
-              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                advancedMode ? "translate-x-6" : "translate-x-1"
-              }`}
-            />
-          </button>
-        </div>
-      </div>
-      <CoachMark pageKey="generate" title="Generate content" body="Generate content by picking a product and describing the angle. FCE runs the job in the background — you can keep working, and we'll notify you when it's done." />
-
-      {researchContext && (
-        <div className="flex items-center justify-between rounded-lg border border-violet-500/30 bg-violet-500/10 px-4 py-3 mb-4">
-          <div className="flex items-center gap-2 text-sm text-violet-300">
-            <Sparkles size={16} />
-            <span>Using research as inspiration: {researchTitle || "Research result"}</span>
+    <div className={`${embedded ? "" : "p-6 "}space-y-6`}>
+      {!embedded && (
+        <>
+          {/* Header */}
+          <div className="flex items-start justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-black">Content Generator</h1>
+              <p className="text-sm text-gray-500 mt-1">
+                Generate platform-native content from Brand Brain and Product Brain.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <HelpButton pageKey="generate" />
+              <span className="text-sm text-gray-500">{advancedMode ? "Advanced mode" : "Basic mode"}</span>
+              <button
+                type="button"
+                onClick={() => setAdvancedMode(!advancedMode)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  advancedMode ? "bg-indigo-600" : "bg-gray-300"
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    advancedMode ? "translate-x-6" : "translate-x-1"
+                  }`}
+                />
+              </button>
+            </div>
           </div>
-          <button
-            onClick={() => {
-              searchParams.delete("researchContext");
-              searchParams.delete("researchTitle");
-              setSearchParams(searchParams);
-            }}
-            className="text-xs text-violet-400 hover:text-violet-200"
-          >
-            Dismiss
-          </button>
-        </div>
+          <CoachMark pageKey="generate" title="Generate content" body="Generate content by picking a product and describing the angle. FCE runs the job in the background — you can keep working, and we'll notify you when it's done." />
+
+          {researchContext && (
+            <div className="flex items-center justify-between rounded-lg border border-violet-500/30 bg-violet-500/10 px-4 py-3 mb-4">
+              <div className="flex items-center gap-2 text-sm text-violet-300">
+                <Sparkles size={16} />
+                <span>Using research as inspiration: {researchTitle || "Research result"}</span>
+              </div>
+              <button
+                onClick={() => {
+                  searchParams.delete("researchContext");
+                  searchParams.delete("researchTitle");
+                  setSearchParams(searchParams);
+                }}
+                className="text-xs text-violet-400 hover:text-violet-200"
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
+        </>
       )}
 
       {loading ? (
