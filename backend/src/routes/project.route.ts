@@ -182,15 +182,38 @@ export function createProjectRoutes(prisma: PrismaClient, auditService: IAuditSe
 		const projectId = c.req.param("projectId");
 		const existing = await prisma.project.findUnique({
 			where: { id: projectId },
-			select: { workspaceId: true, name: true, description: true },
+			select: { workspaceId: true, name: true, slug: true, description: true },
 		});
 		if (!existing || existing.workspaceId !== workspaceId) {
 			return c.json({ error: "Project not found" }, 404);
 		}
 
-		const body = (await c.req.json()) as { name?: unknown; description?: unknown };
-		const data: { name?: string; description?: string | null } = {};
+		const body = (await c.req.json()) as {
+			name?: unknown;
+			slug?: unknown;
+			description?: unknown;
+		};
+		const data: { name?: string; slug?: string; description?: string | null } = {};
 		if (typeof body.name === "string" && body.name.trim()) data.name = body.name.trim();
+		if (typeof body.slug === "string" && body.slug.trim()) {
+			if (existing.slug === "default") {
+				return c.json({ error: "The Default project's slug cannot be changed" }, 400);
+			}
+			const nextSlug = slugify(body.slug);
+			if (!nextSlug) {
+				return c.json({ error: "Slug must contain at least one alphanumeric character" }, 400);
+			}
+			if (nextSlug !== existing.slug) {
+				const clash = await prisma.project.findUnique({
+					where: { workspaceId_slug: { workspaceId, slug: nextSlug } },
+					select: { id: true },
+				});
+				if (clash) {
+					return c.json({ error: `A project with slug "${nextSlug}" already exists` }, 409);
+				}
+				data.slug = nextSlug;
+			}
+		}
 		if (body.description === null || typeof body.description === "string") {
 			data.description = body.description as string | null;
 		}
@@ -201,6 +224,9 @@ export function createProjectRoutes(prisma: PrismaClient, auditService: IAuditSe
 		const changes: Record<string, { from: unknown; to: unknown }> = {};
 		if (typeof data.name === "string" && data.name !== existing.name) {
 			changes.name = { from: existing.name, to: data.name };
+		}
+		if (typeof data.slug === "string" && data.slug !== existing.slug) {
+			changes.slug = { from: existing.slug, to: data.slug };
 		}
 		if ("description" in data && data.description !== existing.description) {
 			changes.description = { from: existing.description, to: data.description };
