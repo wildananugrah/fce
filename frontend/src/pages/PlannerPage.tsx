@@ -16,19 +16,10 @@ import { getPillarColor } from "../utils/pillar-colors";
 
 type ViewMode = "calendar" | "list";
 
-interface BrainVersion {
-  isActive: boolean;
-  tone?: string | null;
-  personality?: string | null;
-  usp?: string | null;
-  targetAudience?: string | null;
-}
-
 interface Brand {
   id: string;
   name: string;
   language?: string;
-  brainVersions?: BrainVersion[];
 }
 
 interface Topic {
