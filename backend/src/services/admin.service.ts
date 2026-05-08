@@ -256,7 +256,10 @@ export class AdminService implements IAdminService {
 	async listAuditLogs(workspaceId?: string, limit = 50) {
 		return this.prisma.auditLog.findMany({
 			where: workspaceId ? { workspaceId } : {},
-			include: { user: { select: { email: true, fullName: true } } },
+			include: {
+				user: { select: { email: true, fullName: true } },
+				workspace: { select: { id: true, name: true } },
+			},
 			orderBy: { createdAt: "desc" },
 			take: limit,
 		});

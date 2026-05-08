@@ -30,7 +30,24 @@ interface AuditLogEntry {
   entityId: string | null;
   createdAt: string;
   user: { email: string; fullName: string | null };
+  workspace: { id: string; name: string } | null;
+  metadata: Record<string, unknown> | null;
   [key: string]: unknown;
+}
+
+/**
+ * Best-effort project name derivation. Project-level audit entries log the
+ * project's name in metadata, so we surface it directly. Other entity types
+ * don't carry project info on the audit row today, so they show "—".
+ */
+function deriveProjectName(log: AuditLogEntry): string {
+  if (log.entityType === "project") {
+    const meta = log.metadata;
+    if (meta && typeof meta.name === "string" && meta.name.trim().length > 0) {
+      return meta.name as string;
+    }
+  }
+  return "—";
 }
 
 const TABS = [
@@ -176,6 +193,16 @@ export function AdminPage() {
               key: "user",
               header: "User",
               render: (l) => l.user?.email || "-",
+            },
+            {
+              key: "workspace",
+              header: "Workspace",
+              render: (l) => l.workspace?.name ?? "—",
+            },
+            {
+              key: "project",
+              header: "Project",
+              render: deriveProjectName,
             },
             { key: "action", header: "Action" },
             { key: "entityType", header: "Entity" },
