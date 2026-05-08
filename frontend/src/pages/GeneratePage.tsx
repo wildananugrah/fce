@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Trash2, X, Sparkles } from "lucide-react";
 import { useWorkspace } from "../hooks/useWorkspace";
@@ -75,6 +75,7 @@ interface Generation {
   status: string;
   platform: string;
   contentType: string;
+  contentTopicId?: string | null;
   createdAt: string;
   brand?: { id: string; name: string } | null;
   product?: { id: string; name: string } | null;
@@ -714,6 +715,14 @@ export function GeneratePage({
 
   const canGenerate = brandId && platform && contentType && objective;
 
+  // When embedded for a specific topic (e.g. opened from the planner), the
+  // Recent Generations table is scoped to that topic. Standalone /generate
+  // shows everything in the workspace as before.
+  const displayedGenerations = useMemo(() => {
+    if (!embedded || !initialTopicId) return generations;
+    return generations.filter((g) => g.contentTopicId === initialTopicId);
+  }, [generations, embedded, initialTopicId]);
+
   const handleSubmit = async () => {
     if (!brandId) { showToast("Please select a brand", "error"); return; }
     if (!platform) { showToast("Please select a platform", "error"); return; }
@@ -1245,7 +1254,7 @@ const frameworkOptions = [{ value: "", label: "Default (AIDA)" }, ...frameworks.
 
           {/* Right Panel — Results / Empty State */}
           <div className="flex-1 min-w-0">
-            {generations.length > 0 ? (
+            {displayedGenerations.length > 0 ? (
               <div className="space-y-4">
                 <h2 className="text-sm font-semibold text-gray-800">Recent Generations</h2>
                 <div className="bg-white border border-gray-200 rounded-xl overflow-x-auto">
@@ -1256,15 +1265,15 @@ const frameworkOptions = [{ value: "", label: "Default (AIDA)" }, ...frameworks.
                           <input
                             type="checkbox"
                             className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                            checked={generations.length > 0 && generations.every((g) => selectedGenIds.has(g.id))}
+                            checked={displayedGenerations.length > 0 && displayedGenerations.every((g) => selectedGenIds.has(g.id))}
                             ref={(el) => {
                               if (!el) return;
-                              const count = generations.filter((g) => selectedGenIds.has(g.id)).length;
-                              el.indeterminate = count > 0 && count < generations.length;
+                              const count = displayedGenerations.filter((g) => selectedGenIds.has(g.id)).length;
+                              el.indeterminate = count > 0 && count < displayedGenerations.length;
                             }}
                             onChange={(e) => {
                               if (e.target.checked) {
-                                setSelectedGenIds(new Set(generations.map((g) => g.id)));
+                                setSelectedGenIds(new Set(displayedGenerations.map((g) => g.id)));
                               } else {
                                 setSelectedGenIds(new Set());
                               }
@@ -1280,7 +1289,7 @@ const frameworkOptions = [{ value: "", label: "Default (AIDA)" }, ...frameworks.
                       </tr>
                     </thead>
                     <tbody>
-                      {generations.map((gen) => (
+                      {displayedGenerations.map((gen) => (
                         <GenerationResultRow
                           key={gen.id}
                           generation={gen}
