@@ -167,11 +167,11 @@ idealnya ngikut brand brain dulu sih mas, nanti kalau mau dirubah baru dipilih, 
 4. baby step for tutorial for new user
 
 == 29 Apr 2026
-1. bikin project dulu baru bisa bikin brand biar bisa di mapping. [done]
+1. mandatory project sebelum bikin brand. [done]
 1.1 delete project it should be in Trash tab. [done]
 2. klo ada pdf di download. [opsional]
-3. klo pas video, di preview nya di bikin slideshows ambil dari visual script + image nya. [done]
-4. opsi language di content dan topic itu default nya aja ikut di brand brain [on progress]
+3. untuk video content creator di preview nya di biat carousel gerak otomatis [done]
+4. opsi language di content dan topic itu default nya aja ikut di brand brain [done]
 5. abis create project, ga harus refresh untuk nampilin nya. [done]
 6. setiap lagi generate mestinya ada opsi untuk bisa stop. [done]
 7. ada alert dulu klo ada pindah page pas baru aja generate sesuatu. [done]
@@ -181,3 +181,23 @@ idealnya ngikut brand brain dulu sih mas, nanti kalau mau dirubah baru dipilih, 
 11. Brand Brain learning terus, update dari report nya. 
     - harus ada report nya dulu. -> metric cool API. 
 12. Advanced mode need to be doubled check. 
+
+
+== 
+1. mandatory project sebelum bikin brand. [done]
+1.1 delete project it should be in Trash tab. [done]
+2. untuk video content creator di preview nya di biat carousel gerak otomatis [done]
+3. opsi language di content dan topic itu default nya aja ikut di brand brain [done]
+4. abis create project, ga harus refresh untuk nampilin nya. [done]
+5. setiap lagi generate mestinya ada opsi untuk bisa stop. [done]
+6. ada alert dulu klo ada pindah page pas baru aja generate sesuatu. [done]
+7. BUG: ga bisa create proudct klo lebih dari satu.  [done]
+8. BUG: kenapa ga lengkap scrape awal, mestinya lsg lengkap aja. [done]
+
+== BUGS
+1. ini email kadang suka ga ke kirim. [done]
+2. orang udah click verificationn link tetep ga bisa login. [done]
+
+== enhance
+1. update project
+2. set role member in workspace
