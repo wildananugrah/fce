@@ -845,7 +845,7 @@ export function ContentPreviewModal({
         {!isGeneratorContext && (
           <>
             {/* Footer — Status (editable only for approvers) */}
-            <div className="flex items-center gap-3 px-5 py-4 border-t border-gray-100 shrink-0">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-3 px-5 py-4 border-t border-gray-100 shrink-0">
               <span className="text-xs font-medium text-gray-500">Status:</span>
               {canChangeStatus ? (
                 <div className="relative">
@@ -878,7 +878,7 @@ export function ContentPreviewModal({
                 </span>
               )}
               {pendingStatus && (
-                <div className="ml-auto flex items-center gap-2 w-full sm:w-auto sm:max-w-md">
+                <div className="flex w-full flex-wrap items-stretch gap-2">
                   <textarea
                     value={statusNote}
                     onChange={(e) => setStatusNote(e.target.value)}
@@ -888,7 +888,7 @@ export function ContentPreviewModal({
                         ? "Note (required) — why are you rejecting?"
                         : "Note (optional)"
                     }
-                    className="flex-1 px-2 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:border-indigo-400 resize-none"
+                    className="min-w-0 flex-1 basis-full px-2 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:border-indigo-400 resize-none sm:basis-auto"
                   />
                   <button
                     type="button"
