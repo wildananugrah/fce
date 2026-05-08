@@ -11,7 +11,8 @@ import { TopicDetailDrawer } from "../components/topics/TopicDetailDrawer";
 import { PlannerListView } from "../components/planner/PlannerListView";
 import { TopicGeneratorSlider } from "../components/planner/TopicGeneratorSlider";
 import { ContentGeneratorSlider } from "../components/planner/ContentGeneratorSlider";
-import { PlannerContentPreviewPanel } from "../components/planner/PlannerContentPreviewPanel";
+import { TopicContentListSlider } from "../components/planner/TopicContentListSlider";
+import { ContentPreviewModal } from "../components/library/ContentPreviewModal";
 import { getPillarColor } from "../utils/pillar-colors";
 
 type ViewMode = "calendar" | "list";
@@ -80,7 +81,8 @@ export function PlannerPage() {
   const [detailTopic, setDetailTopic] = useState<Topic | null>(null);
   const [generatorOpen, setGeneratorOpen] = useState(false);
   const [pendingScheduleDate, setPendingScheduleDate] = useState<string | null>(null);
-  const [contentByTopicId, setContentByTopicId] = useState<Map<string, LibraryItem>>(new Map());
+  const [contentByTopicId, setContentByTopicId] = useState<Map<string, LibraryItem[]>>(new Map());
+  const [viewListForTopic, setViewListForTopic] = useState<Topic | null>(null);
   const [previewItem, setPreviewItem] = useState<LibraryItem | null>(null);
   const [contentGenTopic, setContentGenTopic] = useState<Topic | null>(null);
 
@@ -134,8 +136,9 @@ export function PlannerPage() {
   }, [loadTopics]);
 
   // Load all library items once so we can flag which topics already have
-  // content and short-circuit the View Content flow without an extra fetch.
-  // We keep only the latest LibraryItem per contentTopicId.
+  // content and surface the full per-topic list in the View Content slider
+  // without an extra fetch. Items per topic stay in createdAt-desc order
+  // because that's how the backend returns them.
   const loadContent = useCallback(async () => {
     if (!activeWorkspace) return;
     try {
@@ -143,16 +146,17 @@ export function PlannerPage() {
       const items = await api<LibraryItem[]>(
         `/api/workspaces/${activeWorkspace.id}/library?status=draft,in_review,approved,rejected${projectParam}`,
       );
-      // items are ordered by createdAt desc by the backend, so the first item
-      // we see for a topic is the most recent.
-      const map = new Map<string, LibraryItem>();
+      const map = new Map<string, LibraryItem[]>();
       for (const item of items) {
         const tid = item.request.contentTopicId;
-        if (tid && !map.has(tid)) map.set(tid, item);
+        if (!tid) continue;
+        const list = map.get(tid);
+        if (list) list.push(item);
+        else map.set(tid, [item]);
       }
       setContentByTopicId(map);
     } catch (e) {
-      // Non-fatal — preview just won't appear. Don't toast: this fires on
+      // Non-fatal — list just won't appear. Don't toast: this fires on
       // page load and a transient failure shouldn't surface a user-visible error.
       console.error("Failed to load planner content map", e);
     }
@@ -220,14 +224,15 @@ export function PlannerPage() {
 
   const handleViewContentForTopic = useCallback(
     (topicId: string) => {
-      const item = contentByTopicId.get(topicId);
-      if (!item) {
+      const list = contentByTopicId.get(topicId);
+      if (!list || list.length === 0) {
         showToast("No content found for this topic yet", "info");
         return;
       }
-      setPreviewItem(item);
+      const topic = topics.find((t) => t.id === topicId) ?? null;
+      if (topic) setViewListForTopic(topic);
     },
-    [contentByTopicId, showToast],
+    [contentByTopicId, topics, showToast],
   );
 
 
@@ -353,7 +358,11 @@ export function PlannerPage() {
           onClose={() => setDetailTopic(null)}
           onUpdated={handleTopicUpdated}
           onToast={showToast}
-          hasContent={detailTopic ? contentByTopicId.has(detailTopic.id) : false}
+          hasContent={
+            detailTopic
+              ? (contentByTopicId.get(detailTopic.id)?.length ?? 0) > 0
+              : false
+          }
           onViewContent={
             detailTopic
               ? () => {
@@ -402,25 +411,40 @@ export function PlannerPage() {
         />
       )}
 
-      <PlannerContentPreviewPanel
-        isOpen={previewItem !== null}
-        item={previewItem}
-        onClose={() => setPreviewItem(null)}
-        onRegenerate={
-          previewItem
-            ? () => {
-                const topicId = [...contentByTopicId.entries()].find(
-                  ([, item]) => item.id === previewItem.id,
-                )?.[0];
-                const topic = topics.find((t) => t.id === topicId) ?? null;
-                setPreviewItem(null);
-                if (topic) setContentGenTopic(topic);
-              }
-            : undefined
-        }
-        onSave={() => setPreviewItem(null)}
-        onToast={showToast}
+      <TopicContentListSlider
+        isOpen={viewListForTopic !== null}
+        onClose={() => setViewListForTopic(null)}
+        topicTitle={viewListForTopic?.title ?? ""}
+        items={viewListForTopic ? (contentByTopicId.get(viewListForTopic.id) ?? []) : []}
+        onPickItem={(itemId) => {
+          const list = viewListForTopic
+            ? contentByTopicId.get(viewListForTopic.id)
+            : undefined;
+          const item = list?.find((i) => i.id === itemId) ?? null;
+          if (item) setPreviewItem(item);
+        }}
       />
+
+      {previewItem && activeWorkspace && (
+        <ContentPreviewModal
+          item={previewItem}
+          workspaceId={activeWorkspace.id}
+          presentation="slider"
+          onClose={() => setPreviewItem(null)}
+          onStatusChange={(id, status) => {
+            setPreviewItem((prev) => (prev && prev.id === id ? { ...prev, status } : prev));
+            setContentByTopicId((prev) => {
+              const next = new Map(prev);
+              for (const [tid, list] of next) {
+                const updated = list.map((it) => (it.id === id ? { ...it, status } : it));
+                next.set(tid, updated);
+              }
+              return next;
+            });
+          }}
+          onToast={showToast}
+        />
+      )}
 
 
       {activeWorkspace && (
