@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Play, Pause } from "lucide-react";
+import { Play, Pause, ChevronLeft, ChevronRight } from "lucide-react";
 import type { SceneLike } from "./VisualScriptScenes";
 
 interface Props {
@@ -101,21 +101,34 @@ export function VideoSlideshowFrame({
   const scene = scenes[index];
   const num = scene?.sceneNumber ?? index + 1;
   const progress = Math.min(100, (elapsed / sceneMs) * 100);
+  const goPrev = () => {
+    setPaused(true);
+    setIndex((i) => (i - 1 + scenes.length) % scenes.length);
+  };
+  const goNext = () => {
+    setPaused(true);
+    setIndex((i) => (i + 1) % scenes.length);
+  };
 
   return (
-    <button
-      type="button"
-      onClick={() => setPaused((p) => !p)}
-      onKeyDown={(e) => {
-        if (e.key === " ") {
-          e.preventDefault();
-          setPaused((p) => !p);
-        }
-      }}
-      className={`relative bg-gray-900 ${rounded} overflow-hidden mx-auto block w-full p-0 ${className}`}
+    <div
+      className={`relative bg-gray-900 ${rounded} overflow-hidden mx-auto ${className}`}
       style={{ maxWidth, aspectRatio }}
       aria-label={`Video preview, ${scenes.length} scenes, ${paused ? "paused" : "auto-playing"}`}
     >
+      {/* Tap-to-pause overlay (covers the frame; nav buttons sit above it) */}
+      <button
+        type="button"
+        onClick={() => setPaused((p) => !p)}
+        onKeyDown={(e) => {
+          if (e.key === " ") {
+            e.preventDefault();
+            setPaused((p) => !p);
+          }
+        }}
+        className="absolute inset-0 z-10 cursor-pointer"
+        aria-label={paused ? "Resume scene autoplay" : "Pause scene autoplay"}
+      />
       {scene?.referenceImageUrl ? (
         <img
           src={scene.referenceImageUrl}
@@ -155,12 +168,36 @@ export function VideoSlideshowFrame({
 
       {children}
 
-      <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/20">
+      {scenes.length > 1 && (
+        <>
+          <button
+            type="button"
+            onClick={goPrev}
+            aria-label="Previous scene"
+            className="absolute left-2 top-1/2 z-20 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-black/40 text-white shadow hover:bg-black/60 transition-colors"
+          >
+            <ChevronLeft size={18} />
+          </button>
+          <button
+            type="button"
+            onClick={goNext}
+            aria-label="Next scene"
+            className="absolute right-2 top-1/2 z-20 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-black/40 text-white shadow hover:bg-black/60 transition-colors"
+          >
+            <ChevronRight size={18} />
+          </button>
+          <span className="absolute top-2 right-2 z-20 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-medium text-white">
+            {num} / {scenes.length}
+          </span>
+        </>
+      )}
+
+      <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/20 z-20">
         <div
           className={`h-full transition-[width] ${accentBg}`}
           style={{ width: `${progress}%` }}
         />
       </div>
-    </button>
+    </div>
   );
 }

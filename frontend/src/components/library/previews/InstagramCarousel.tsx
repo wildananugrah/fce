@@ -64,7 +64,7 @@ export function InstagramCarousel({ content, sections, brandName }: PreviewProps
                 <button
                   type="button"
                   onClick={() => setCurrent(current - 1)}
-                  className="absolute left-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-white/80 flex items-center justify-center shadow opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="absolute left-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-white/80 flex items-center justify-center shadow hover:bg-white transition-colors"
                 >
                   <ChevronLeft size={16} />
                 </button>
@@ -73,7 +73,7 @@ export function InstagramCarousel({ content, sections, brandName }: PreviewProps
                 <button
                   type="button"
                   onClick={() => setCurrent(current + 1)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-white/80 flex items-center justify-center shadow opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-white/80 flex items-center justify-center shadow hover:bg-white transition-colors"
                 >
                   <ChevronRight size={16} />
                 </button>

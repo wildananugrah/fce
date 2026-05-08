@@ -55,7 +55,7 @@ export function TikTokCarousel({ content, sections, brandName }: PreviewProps) {
                 <button
                   type="button"
                   onClick={() => setCurrent(current - 1)}
-                  className="absolute left-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-white/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="absolute left-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-white/40 flex items-center justify-center hover:bg-white/60 transition-colors"
                 >
                   <ChevronLeft size={16} className="text-white" />
                 </button>
@@ -64,7 +64,7 @@ export function TikTokCarousel({ content, sections, brandName }: PreviewProps) {
                 <button
                   type="button"
                   onClick={() => setCurrent(current + 1)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-white/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-white/40 flex items-center justify-center hover:bg-white/60 transition-colors"
                 >
                   <ChevronRight size={16} className="text-white" />
                 </button>
