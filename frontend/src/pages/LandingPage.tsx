@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import floochinkCircleLogo from "../assets/floochink-logo-circle.png";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { api } from "../services/api";
@@ -11,11 +12,11 @@ import {
   FileText,
   Layers,
   Target,
-  Search,
-  Zap,
+  TrendingUp,
   ArrowRight,
   CheckCircle2,
   MailCheck,
+  BarChart2,
 } from "lucide-react";
 
 function LoginModal({
@@ -49,7 +50,7 @@ function LoginModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Log in to FCE" size="sm">
+    <Modal isOpen={isOpen} onClose={onClose} title="Log in to Floothink Content Engine" size="sm">
       {error && (
         <div className="mb-4 p-3 text-xs text-red-700 bg-red-50 border border-red-200 rounded-md">
           {error}
@@ -197,7 +198,7 @@ function SignupModal({
   }
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Create your FCE account" size="sm">
+    <Modal isOpen={isOpen} onClose={onClose} title="Create your Floothink Content Engine account" size="sm">
       {error && (
         <div className="mb-4 p-3 text-xs text-red-700 bg-red-50 border border-red-200 rounded-md">
           {error}
@@ -251,58 +252,64 @@ const FEATURES = [
     icon: Brain,
     title: "Brand Brain",
     description:
-      "Define your brand's DNA — personality, tone, values, audience — and let AI internalize it for every piece of content.",
+      "Define your brand's DNA — personality, tone, values, and audience — and let the AI internalize it for every piece of content it creates.",
   },
   {
     icon: Sparkles,
     title: "Content Generator",
     description:
-      "Generate platform-ready social media content with hooks, captions, visual direction, and hashtags in seconds.",
+      "Generate platform-ready social media content with hooks, captions, visual direction, and hashtags — grounded in your brand voice.",
   },
   {
     icon: FileText,
     title: "Campaign Generator",
     description:
-      "Upload a PDF brief and get an AI-powered campaign plan with messaging pillars, big idea, and 8 ready-to-produce topics.",
+      "Upload a brief and get an AI-powered campaign plan with messaging pillars, a big idea, and ready-to-produce content topics.",
   },
   {
     icon: Layers,
     title: "Topic Library",
     description:
-      "Plan and organize content topics in a calendar view. Each topic flows directly into content generation.",
-  },
-  {
-    icon: Search,
-    title: "Research Hub",
-    description:
-      "Analyze competitor content and trending formats across platforms to inform your content strategy.",
+      "Plan and organize content topics in a calendar view. Each topic flows directly into content generation for a seamless workflow.",
   },
   {
     icon: Target,
     title: "AI Skills",
     description:
-      "Customizable marketing frameworks and templates that guide AI generation for consistent, on-brand output.",
+      "Plug-and-play marketing frameworks that boost content quality. Skills teach the AI the right techniques — so every output is sharper and more effective.",
+  },
+  {
+    icon: BarChart2,
+    title: "Performance Learning",
+    description:
+      "The platform integrates with your analytics to learn what drives engagement. Brand Brain and Product Brain evolve continuously based on real performance data.",
   },
 ];
 
 const STEPS = [
   {
     step: "01",
-    title: "Set up your Brand Brain",
+    title: "Build your Brand & Product Brain",
     description:
-      "Enter your brand's website URL or fill in details manually. AI extracts your brand identity, tone, values, and audience in seconds.",
+      "Enter your brand's URL or fill in details manually. AI extracts your identity, tone, audience, and product positioning — forming a living knowledge base that every generation draws from.",
   },
   {
     step: "02",
-    title: "Generate content & campaigns",
+    title: "Activate AI Skills",
     description:
-      "Choose a platform, pick a format, and let AI create scroll-stopping content grounded in your brand voice. Or upload a PDF brief for a full campaign plan.",
+      "Layer in marketing Skills — proven frameworks and techniques — that guide the AI to produce higher-quality, more effective content. Skills make your AI sharper and more aligned with what actually works in your niche.",
   },
   {
     step: "03",
-    title: "Review, refine & publish",
+    title: "Generate, review & publish",
     description:
-      "Edit AI-generated content inline, approve what works, and export to your publishing tools. Every piece stays on-brand.",
+      "Choose a platform and format, generate scroll-stopping content grounded in your brand voice, edit inline, approve what works, and push to your publishing workflow.",
+  },
+  {
+    step: "04",
+    title: "Learn, analyse & improve",
+    description:
+      "Connect your performance analytics. The platform analyses engagement, reach, and virality data to surface insights and automatically evolve your Brand Brain and Product Brain — so the AI keeps getting smarter about what content to create and what to avoid.",
   },
 ];
 
@@ -326,10 +333,12 @@ export function LandingPage() {
       <nav className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-100">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-black flex items-center justify-center">
-              <Zap size={16} className="text-white" />
-            </div>
-            <span className="text-base font-bold text-black tracking-tight">FCE</span>
+            <img
+              src={floochinkCircleLogo}
+              alt="Floothink"
+              className="w-8 h-8 rounded-full object-cover"
+            />
+            <span className="text-base font-bold text-black tracking-tight">Floothink Content Engine</span>
           </div>
           <div className="flex items-center gap-3">
             <button
@@ -353,17 +362,26 @@ export function LandingPage() {
             <Sparkles size={12} />
             AI-Powered Content Engine
           </div>
+          <div className="flex justify-center mb-6">
+            <img
+              src={floochinkCircleLogo}
+              alt="Floothink Content Engine"
+              className="w-20 h-20 rounded-full object-cover shadow-md"
+            />
+          </div>
           <h1 className="text-4xl sm:text-5xl font-bold text-black tracking-tight leading-tight">
-            Create on-brand content{" "}
+            Content that{" "}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-600">
-              in seconds
+              knows your brand
             </span>
-            , not days
+            {" "}and keeps getting smarter
           </h1>
           <p className="mt-6 text-lg text-gray-500 leading-relaxed max-w-2xl mx-auto">
-            FCE is the content engine for marketing teams. Define your brand DNA once, then generate
-            social media content, campaign plans, and topic calendars — all grounded in your brand
-            voice.
+            Floothink Content Engine beats other AI content tools because we make the AI{" "}
+            <strong className="text-gray-700">smarter and more relevant to your brand</strong>.
+            We implement Skills that boost content quality, and we continuously evolve your Brand Brain
+            and Product Brain based on performance data and industry trends — so the AI knows exactly
+            what content drives engagement and virality, and what to avoid.
           </p>
           <div className="mt-10 flex items-center justify-center gap-4">
             <Button size="md" onClick={() => setShowSignup(true)}>
@@ -418,18 +436,27 @@ export function LandingPage() {
           <div className="text-center mb-14">
             <h2 className="text-2xl sm:text-3xl font-bold text-black">How it works</h2>
             <p className="mt-3 text-sm text-gray-500">
-              Three steps from brand setup to published content.
+              A continuous cycle — from brand setup to smarter AI output, guided by real performance.
             </p>
           </div>
           <div className="space-y-8">
-            {STEPS.map((step) => (
+            {STEPS.map((step, i) => (
               <div key={step.step} className="flex gap-6 items-start">
-                <div className="shrink-0 w-12 h-12 rounded-full bg-black text-white flex items-center justify-center text-sm font-bold">
-                  {step.step}
+                <div className={`shrink-0 w-12 h-12 rounded-full flex items-center justify-center text-sm font-bold ${
+                  i === 3
+                    ? "bg-gradient-to-br from-indigo-600 to-violet-600 text-white"
+                    : "bg-black text-white"
+                }`}>
+                  {i === 3 ? <TrendingUp size={18} /> : step.step}
                 </div>
                 <div className="pt-1">
                   <h3 className="text-base font-semibold text-black mb-1">{step.title}</h3>
                   <p className="text-sm text-gray-500 leading-relaxed">{step.description}</p>
+                  {i === 3 && (
+                    <span className="inline-flex items-center gap-1 mt-2 text-xs font-medium text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">
+                      <BarChart2 size={10} /> Powered by performance analytics
+                    </span>
+                  )}
                 </div>
               </div>
             ))}
@@ -463,10 +490,11 @@ export function LandingPage() {
       <section className="py-20 px-6">
         <div className="max-w-3xl mx-auto text-center">
           <h2 className="text-2xl sm:text-3xl font-bold text-black">
-            Ready to transform your content workflow?
+            Ready to make your AI content engine smarter?
           </h2>
           <p className="mt-4 text-sm text-gray-500 max-w-lg mx-auto">
-            Join marketing teams using FCE to create consistent, high-quality content at scale.
+            Join marketing teams using Floothink Content Engine to create consistent, high-quality
+            content that gets better with every campaign.
           </p>
           <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
             <Button size="md" onClick={() => setShowSignup(true)}>
@@ -495,13 +523,15 @@ export function LandingPage() {
       <footer className="border-t border-gray-100 py-8 px-6">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-md bg-black flex items-center justify-center">
-              <Zap size={12} className="text-white" />
-            </div>
-            <span className="text-sm font-semibold text-black">FCE</span>
+            <img
+              src={floochinkCircleLogo}
+              alt="Floothink"
+              className="w-6 h-6 rounded-full object-cover"
+            />
+            <span className="text-sm font-semibold text-black">Floothink Content Engine</span>
           </div>
           <p className="text-xs text-gray-400">
-            &copy; {new Date().getFullYear()} FCE. All rights reserved.
+            &copy; {new Date().getFullYear()} Floothink. All rights reserved.
           </p>
         </div>
       </footer>
