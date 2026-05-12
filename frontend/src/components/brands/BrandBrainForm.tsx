@@ -27,10 +27,11 @@ import { Input } from "../ui/Input";
 import { ScrapeLanguageToggle } from "../ui/ScrapeLanguageToggle";
 import { useScrapeLanguage } from "../../hooks/useScrapeLanguage";
 import { useUnsavedAsync } from "../../hooks/useUnsavedAsync";
-import { api, ApiError } from "../../services/api";
+import { api, ApiError, apiUpload } from "../../services/api";
 import { useOnboarding } from "../../hooks/useOnboarding";
 import { ProductReferences } from "../products/ProductReferences";
 import { SkillsAppliedStrip } from "../skills/SkillsAppliedStrip";
+import { FileDropZone } from "../ui/FileDropZone";
 
 // ─── Types ──────────────────────────────────────────────────────
 
@@ -345,6 +346,8 @@ export const BrandBrainForm = forwardRef<BrandBrainFormHandle, BrandBrainFormPro
     const [error, setError] = useState("");
     const [scrapeLanguage, setScrapeLanguage] = useScrapeLanguage();
     const abortRef = useRef<AbortController | null>(null);
+    const [pendingFile, setPendingFile] = useState<File | null>(null);
+    const [uploadProgress, setUploadProgress] = useState(0);
 
     useUnsavedAsync(
       scraping,
@@ -435,12 +438,17 @@ export const BrandBrainForm = forwardRef<BrandBrainFormHandle, BrandBrainFormPro
     };
 
     const handleAutoFill = async () => {
-      if (!form.websiteUrl.trim()) return;
+      if (!form.websiteUrl.trim() && !pendingFile) return;
       setScraping(true);
       setError("");
       const controller = new AbortController();
       abortRef.current = controller;
       try {
+        const formData = new FormData();
+        if (form.websiteUrl.trim()) formData.append("url", form.websiteUrl.trim());
+        if (pendingFile) formData.append("file", pendingFile);
+        formData.append("language", scrapeLanguage);
+
         const result = await api<{
           name: string;
           category?: string;
@@ -457,7 +465,7 @@ export const BrandBrainForm = forwardRef<BrandBrainFormHandle, BrandBrainFormPro
           donts?: string[];
         }>(`/api/workspaces/${workspaceId}/brands/scrape-preview`, {
           method: "POST",
-          body: JSON.stringify({ url: form.websiteUrl.trim(), language: scrapeLanguage }),
+          body: formData,
           signal: controller.signal,
         });
         setForm((prev) => ({
@@ -471,9 +479,7 @@ export const BrandBrainForm = forwardRef<BrandBrainFormHandle, BrandBrainFormPro
           brandPromise: result.brandPromise || prev.brandPromise,
           usp: result.usp || prev.usp,
           brandValues: result.values?.length ? result.values : prev.brandValues,
-          contentPillars: result.contentPillars?.length
-            ? result.contentPillars
-            : prev.contentPillars,
+          contentPillars: result.contentPillars?.length ? result.contentPillars : prev.contentPillars,
           marketingStrategy: result.marketingStrategy || prev.marketingStrategy,
           dos: result.dos?.length ? result.dos : prev.dos,
           donts: result.donts?.length ? result.donts : prev.donts,
@@ -550,6 +556,16 @@ export const BrandBrainForm = forwardRef<BrandBrainFormHandle, BrandBrainFormPro
             method: "POST",
             body: JSON.stringify(buildBrainPayload()),
           });
+          if (pendingFile) {
+            const fd = new FormData();
+            fd.append("file", pendingFile);
+            fd.append("brandId", brand.id);
+            await apiUpload(
+              `/api/workspaces/${workspaceId}/documents/upload`,
+              fd,
+              setUploadProgress,
+            );
+          }
           refreshProgress();
         }
         onSaved();
@@ -627,12 +643,14 @@ export const BrandBrainForm = forwardRef<BrandBrainFormHandle, BrandBrainFormPro
                     <div>
                       <div className="flex items-center gap-2 mb-1">
                         <Globe size={18} className="text-gray-500" />
-                        <h3 className="text-sm font-semibold text-gray-900">Website</h3>
+                        <h3 className="text-sm font-semibold text-gray-900">Website or Document</h3>
                       </div>
                       <p className="text-xs text-gray-500 mb-3">
-                        Enter the brand website URL to auto-fill brand information using AI.
+                        Enter a website URL, upload a document, or both — the AI will use all available sources to auto-fill the brand details.
                       </p>
-                      <div className="flex gap-2 items-stretch">
+
+                      {/* URL row */}
+                      <div className="flex gap-2 items-stretch mb-3">
                         <input
                           value={form.websiteUrl}
                           onChange={(e) => update("websiteUrl", e.target.value)}
@@ -644,14 +662,36 @@ export const BrandBrainForm = forwardRef<BrandBrainFormHandle, BrandBrainFormPro
                           onChange={setScrapeLanguage}
                           disabled={scraping}
                         />
+                      </div>
+
+                      {/* Divider */}
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="h-px flex-1 bg-gray-200" />
+                        <span className="text-xs text-gray-400">or</span>
+                        <div className="h-px flex-1 bg-gray-200" />
+                      </div>
+
+                      {/* File drop zone */}
+                      <div className="mb-3">
+                        <FileDropZone
+                          selectedFile={pendingFile}
+                          onFileSelect={setPendingFile}
+                          onClear={() => setPendingFile(null)}
+                          maxSizeMB={5}
+                          disabled={scraping}
+                        />
+                      </div>
+
+                      {/* Auto-fill button row */}
+                      <div className="flex items-center gap-2">
                         <Button
                           variant="secondary"
                           onClick={handleAutoFill}
                           loading={scraping}
-                          disabled={!form.websiteUrl.trim()}
+                          disabled={!form.websiteUrl.trim() && !pendingFile}
                         >
                           <Sparkles size={14} className="mr-1.5" />
-                          Auto-fill from Website
+                          {pendingFile ? "Auto-fill from Sources" : "Auto-fill from Website"}
                         </Button>
                         {scraping && (
                           <Button
