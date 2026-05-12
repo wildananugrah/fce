@@ -1,5 +1,5 @@
 export interface BrandScrapingInput {
-	url: string;
+	url?: string;
 	// "indonesian" | "english". Controls the language of the AI-extracted
 	// fields (summary, tone, dos/donts, etc). Defaults to indonesian when
 	// omitted to match the rest of the app.
@@ -8,6 +8,8 @@ export interface BrandScrapingInput {
 	// When provided, it is prepended to the system prompt so active skills
 	// can influence the brand-analysis output.
 	skillContext?: string;
+	/** Plain text extracted from an uploaded file. Merged with URL content when both are present. */
+	fileText?: string;
 }
 
 export interface BrandScrapingOutput {
