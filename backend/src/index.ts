@@ -16,6 +16,7 @@ import { loadSkillRegistry } from "./config/skills/loader";
 import type { SkillRegistry } from "./config/skills/loader";
 import { ArchiveSweepJob } from "./jobs/archive-sweep.job";
 import { BrandScrapingJob } from "./jobs/brand-scraping.job";
+import { BrandBrainRefreshJob } from "./jobs/brand-brain-refresh.job";
 import { CampaignGenerationJob } from "./jobs/campaign-generation.job";
 import { CampaignPdfGenerationJob } from "./jobs/campaign-pdf-generation.job";
 import { CompetitorPipelineJob } from "./jobs/competitor-pipeline.job";
@@ -446,6 +447,13 @@ async function main() {
 		apifyProvider,
 		skillRegistry,
 	);
+	const brandBrainRefreshJob = new BrandBrainRefreshJob(
+		prisma,
+		aiProviderFactory,
+		notificationService,
+		logger,
+		skillRegistry,
+	);
 	const documentExtractionJob = new DocumentExtractionJob(documentRepository, logger);
 	const linkScrapingJob = new LinkScrapingJob(documentRepository, logger);
 	const recommendationRecomputeJob = new RecommendationRecomputeJob(
@@ -533,6 +541,7 @@ async function main() {
 	await boss.createQueue("topic-generation");
 	await boss.createQueue("topic-regeneration");
 	await boss.createQueue("brand-scraping");
+	await boss.createQueue("brand-brain-refresh");
 	await boss.createQueue("document-extraction");
 	await boss.createQueue("link-scraping");
 	await boss.createQueue("recommendation-recompute");
@@ -591,6 +600,13 @@ async function main() {
 		{ localConcurrency: 2, pollingIntervalSeconds: 2 },
 		async (jobs) => {
 			for (const job of jobs) await brandScrapingJob.handle(job.data as any);
+		},
+	);
+	await boss.work(
+		"brand-brain-refresh",
+		{ localConcurrency: 2, pollingIntervalSeconds: 2 },
+		async (jobs) => {
+			for (const job of jobs) await brandBrainRefreshJob.handle(job.data as any);
 		},
 	);
 	await boss.work(
