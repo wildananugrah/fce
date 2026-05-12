@@ -1,6 +1,9 @@
 #!/bin/bash
 set -e
 
+# Ensure bun is on PATH when running in non-interactive shells (e.g. GitHub Actions SSH)
+export PATH="/root/.bun/bin:$PATH"
+
 REPO_DIR="/root/repo/fce"
 DEPLOY_DIR="/var/www/html/fce"
 
