@@ -180,8 +180,6 @@ export function PlannerPage() {
     return topics.filter((t) => (t.brand?.id ?? t.brandId) === activeBrandId);
   }, [topics, activeBrandId]);
 
-  const activeBrand = brands.find((b) => b.id === activeBrandId) ?? null;
-
   // Inject brand selector + month nav into GlobalHeader
   useEffect(() => {
     setSlot(
