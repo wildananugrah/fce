@@ -1,0 +1,32 @@
+@host=https://n8n.floothink.com
+### brand-brain scraping from website
+POST {{host}}/webhook/brand-brain
+Content-Type: application/json
+Authorization-fce: f47ac10b-58cc-4372-a567-0e02b2c3d479
+
+{
+  "url": "https://www.bcalife.co.id/",
+  "language" : "chinese",
+  "references" : [
+    {
+      "link": "[pdf-link]",
+      "type" : "pdf"
+    },
+    {
+      "link": "[image-link]",
+      "type" : "image"
+    },
+    {
+      "link": "[video-link]",
+      "type" : "video"
+    }
+  ]
+}
+
+###
+@jobId=535f6907-4044-4efa-abbf-59788027189a
+
+### brand-brain scraping from website job status
+GET {{host}}/webhook/brand-brain/status?jobId={{jobId}}
+Content-Type: application/json
+Authorization-fce: f47ac10b-58cc-4372-a567-0e02b2c3d479

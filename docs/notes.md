@@ -199,5 +199,10 @@ idealnya ngikut brand brain dulu sih mas, nanti kalau mau dirubah baru dipilih, 
 2. orang udah click verificationn link tetep ga bisa login. [done]
 
 == enhance
-1. update project
-2. set role member in workspace
+1. new layout in Planner menu [done]
+2. update project details [done]
+3. set role member in workspace settings [done]
+
+== enhance
+1. pdf upload di brand brain, jadi reference, put the table kirim ke ai provider. 
+2. 
