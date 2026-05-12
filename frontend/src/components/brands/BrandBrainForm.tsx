@@ -1,5 +1,6 @@
 import {
   forwardRef,
+  useCallback,
   useEffect,
   useImperativeHandle,
   useRef,
@@ -29,6 +30,7 @@ import { useScrapeLanguage } from "../../hooks/useScrapeLanguage";
 import { useUnsavedAsync } from "../../hooks/useUnsavedAsync";
 import { api, ApiError, apiUpload } from "../../services/api";
 import { useOnboarding } from "../../hooks/useOnboarding";
+import { useSSE } from "../../hooks/useSSE";
 import { ProductReferences } from "../products/ProductReferences";
 import { SkillsAppliedStrip } from "../skills/SkillsAppliedStrip";
 import { FileDropZone } from "../ui/FileDropZone";
@@ -347,10 +349,15 @@ export const BrandBrainForm = forwardRef<BrandBrainFormHandle, BrandBrainFormPro
     const [scrapeLanguage, setScrapeLanguage] = useScrapeLanguage();
     const abortRef = useRef<AbortController | null>(null);
     const [pendingFile, setPendingFile] = useState<File | null>(null);
+    const [brainRefreshing, setBrainRefreshing] = useState(false);
 
     useUnsavedAsync(
       scraping,
       "AI is auto-filling your brand brain — leave anyway? Your progress will be lost.",
+    );
+    useUnsavedAsync(
+      brainRefreshing,
+      "Brand brain is being updated from references — leave anyway? Your progress will be lost.",
     );
 
     // On edit, pre-select the toggle from the brand's persisted language.
@@ -422,6 +429,53 @@ export const BrandBrainForm = forwardRef<BrandBrainFormHandle, BrandBrainFormPro
     const update = <K extends keyof BrandFormData>(key: K, value: BrandFormData[K]) => {
       setForm((prev) => ({ ...prev, [key]: value }));
     };
+
+    const reloadBrainVersion = useCallback(async () => {
+      if (!editBrand?.id) return;
+      try {
+        const brand = await api<EditBrand>(
+          `/api/workspaces/${workspaceId}/brands/${editBrand.id}`,
+        );
+        const brain =
+          brand.brainVersions?.find((v) => v.isActive) ?? brand.brainVersions?.[0];
+        const vocab = brain?.vocabulary ?? {};
+        const rules = brain?.messagingRules ?? {};
+        const audience = brain?.audiencePersonas;
+        const audienceText = Array.isArray(audience)
+          ? audience.map((a: any) => a.traits?.join(", ") ?? a.name).join("; ")
+          : "";
+        setForm((prev) => ({
+          ...prev,
+          name: brand.name,
+          industry: brand.category ?? prev.industry,
+          summary: (vocab as any).summary ?? prev.summary,
+          tone: brain?.tone ?? prev.tone,
+          personality: brain?.personality ?? prev.personality,
+          contentLanguage: (vocab as any).contentLanguage ?? prev.contentLanguage,
+          platforms: (vocab as any).preferred ?? prev.platforms,
+          targetAudience: audienceText || prev.targetAudience,
+          brandValues: Array.isArray(brain?.values) ? brain.values : prev.brandValues,
+          brandPromise: (vocab as any).brandPromise ?? prev.brandPromise,
+          usp: (vocab as any).usp ?? prev.usp,
+          contentPillars: (vocab as any).contentPillars ?? prev.contentPillars,
+          marketingStrategy: (vocab as any).marketingStrategy ?? prev.marketingStrategy,
+          dos: Array.isArray(rules.do) ? rules.do : prev.dos,
+          donts: Array.isArray(rules.dont) ? rules.dont : prev.donts,
+        }));
+      } catch {
+        // silent — form keeps current values on error
+      }
+    }, [editBrand?.id, workspaceId]);
+
+    useSSE((event) => {
+      if (
+        event.type === "brand_brain_updated" &&
+        (event.data as any).brandId === editBrand?.id
+      ) {
+        setBrainRefreshing(false);
+        reloadBrainVersion();
+      }
+    });
 
     // References tab only makes sense for an existing brand.
     const visibleTabs = BRAND_TABS.filter((t) => (t.key === "references" ? isEditMode : true));
@@ -934,7 +988,7 @@ export const BrandBrainForm = forwardRef<BrandBrainFormHandle, BrandBrainFormPro
                   </>
                 )}
 
-                {activeTab === "references" && editBrand && (
+                {activeTab === "references" && isEditMode && editBrand && (
                   <>
                     <div>
                       <div className="flex items-center gap-2 mb-1">
@@ -946,7 +1000,26 @@ export const BrandBrainForm = forwardRef<BrandBrainFormHandle, BrandBrainFormPro
                         when generating content for this brand.
                       </p>
                     </div>
-                    <ProductReferences workspaceId={workspaceId} brandId={editBrand.id} />
+                    <div className="space-y-4">
+                      {brainRefreshing && (
+                        <div className="bg-indigo-50 border border-indigo-100 rounded-md px-4 py-3 flex items-center gap-2.5">
+                          <Loader2 size={14} className="text-indigo-600 animate-spin shrink-0" />
+                          <div>
+                            <p className="text-xs font-medium text-indigo-700">
+                              Updating brand brain from references…
+                            </p>
+                            <p className="text-[10px] text-indigo-500 mt-0.5">
+                              Your brand brain will refresh once analysis is done.
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                      <ProductReferences
+                        workspaceId={workspaceId}
+                        brandId={editBrand.id}
+                        onReferenceAdded={() => setBrainRefreshing(true)}
+                      />
+                    </div>
                   </>
                 )}
 
