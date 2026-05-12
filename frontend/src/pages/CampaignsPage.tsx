@@ -6,7 +6,6 @@ import { useSSE } from "../hooks/useSSE";
 import { api } from "../services/api";
 import { Button } from "../components/ui/Button";
 import { CoachMark } from "../components/onboarding/CoachMark";
-import { HelpButton } from "../components/onboarding/HelpButton";
 import { UploadBriefModal } from "../components/campaigns/UploadBriefModal";
 import { Input } from "../components/ui/Input";
 import { Select } from "../components/ui/Select";
@@ -771,10 +770,8 @@ export function CampaignsPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-black">Campaigns</h1>
+      <div className="flex items-center justify-end">
         <div className="flex gap-2">
-          <HelpButton pageKey="campaigns" />
           <Button variant="secondary" onClick={() => setShowCreate(true)}>
             Create Manually
           </Button>

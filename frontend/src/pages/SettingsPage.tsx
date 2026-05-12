@@ -40,7 +40,6 @@ export function SettingsPage() {
 
   return (
     <div className="p-6 max-w-3xl">
-      <h1 className="text-xl font-semibold text-gray-900 mb-6">Profile Settings</h1>
 
       <div className="space-y-4 max-w-lg">
         <Input label="Email" value={user?.email || ""} disabled />

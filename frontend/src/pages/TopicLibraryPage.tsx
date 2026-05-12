@@ -29,7 +29,6 @@ import { TopicCalendarView } from "../components/topics/TopicCalendarView";
 import { getPillarColor } from "../utils/pillar-colors";
 import { getFormatStyle, getStatusColor } from "../utils/topic-styles";
 import { CoachMark } from "../components/onboarding/CoachMark";
-import { HelpButton } from "../components/onboarding/HelpButton";
 
 type ViewMode = "table" | "month" | "week";
 
@@ -577,14 +576,9 @@ export function TopicLibraryPage() {
 
   return (
     <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-black">Topic Library</h1>
-          <p className="text-sm text-gray-500 mt-1">All saved content topics, grouped by brand.</p>
-        </div>
+      {/* Actions */}
+      <div className="flex items-center justify-end">
         <div className="flex items-center gap-2">
-          <HelpButton pageKey="topic-library" />
           <Button
             onClick={() => handleExportToExcel(filteredTopics)}
             className="!bg-white !text-gray-700 !border !border-gray-300 hover:!bg-gray-50 !rounded-lg disabled:!text-gray-400 disabled:!border-gray-200 disabled:cursor-not-allowed"

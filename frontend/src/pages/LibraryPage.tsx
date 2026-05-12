@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Search, Eye, Trash2, X, ChevronUp, ChevronDown } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
+import { useHeaderSlot } from "../contexts/HeaderSlotContext";
+import { Eye, Trash2, X, ChevronUp, ChevronDown } from "lucide-react";
 import { useProject } from "../hooks/useProject";
 import { useWorkspace } from "../hooks/useWorkspace";
 import { api } from "../services/api";
@@ -9,7 +11,6 @@ import { Modal } from "../components/ui/Modal";
 import { Button } from "../components/ui/Button";
 import { ContentPreviewModal } from "../components/library/ContentPreviewModal";
 import { CoachMark } from "../components/onboarding/CoachMark";
-import { HelpButton } from "../components/onboarding/HelpButton";
 
 interface LibraryItem {
   id: string;
@@ -187,9 +188,12 @@ export function LibraryPage() {
   const { activeProject, isApprover } = useProject();
   const [items, setItems] = useState<LibraryItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
+  const [searchParams] = useSearchParams();
+  const search = searchParams.get("q") ?? "";
+  const viewMode = searchParams.get("view") ?? "table";
   const [platformFilter, setPlatformFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const setSlot = useHeaderSlot();
   const [selectedItem, setSelectedItem] = useState<LibraryItem | null>(null);
   const [toast, setToast] = useState<ToastState>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -359,6 +363,35 @@ export function LibraryPage() {
     return out;
   }, [items, platformFilter, statusFilter, search, sortKey, sortDir]);
 
+  // Inject platform + status filters into GlobalHeader
+  useEffect(() => {
+    setSlot(
+      <div className="flex items-center gap-2">
+        <select
+          className="text-xs font-medium bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-gray-300 focus:border-gray-300 text-gray-700"
+          value={platformFilter}
+          onChange={(e) => setPlatformFilter(e.target.value)}
+        >
+          {PLATFORM_FILTER_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
+        <select
+          className="text-xs font-medium bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-gray-300 focus:border-gray-300 text-gray-700"
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+        >
+          {STATUS_FILTER_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
+        <span className="text-xs text-gray-400 whitespace-nowrap">{filtered.length} items</span>
+      </div>,
+    );
+    return () => setSlot(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [setSlot, platformFilter, statusFilter, filtered.length]);
+
   if (!activeWorkspace) {
     return (
       <div className="p-6">
@@ -369,62 +402,10 @@ export function LibraryPage() {
 
   return (
     <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-black">Content Library</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Review and approve generated content. Items start as <span className="font-medium">Draft</span>, move to
-            <span className="font-medium"> In Review</span>, then become <span className="font-medium">Approved</span> or
-            <span className="font-medium"> Rejected</span>.
-          </p>
-        </div>
-        <HelpButton pageKey="content-library" />
-      </div>
 
       <CoachMark pageKey="content-library" title="Content Library" body="Every piece of content you've generated, grouped by brand and product. Preview, approve, or re-generate individual posts here before publishing." />
 
-      {/* Search + Filters */}
-      <div className="flex items-center gap-3">
-        {/* Search */}
-        <div className="flex-1 relative">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search content, hooks, brands..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-2.5 text-sm bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-black focus:ring-1 focus:ring-black placeholder-gray-400"
-          />
-        </div>
-
-        {/* Platform filter */}
-        <select
-          className="px-3 py-2.5 text-sm bg-white border border-gray-300 rounded-lg text-gray-700 focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
-          value={platformFilter}
-          onChange={(e) => setPlatformFilter(e.target.value)}
-        >
-          {PLATFORM_FILTER_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>{o.label}</option>
-          ))}
-        </select>
-
-        {/* Status filter */}
-        <select
-          className="px-3 py-2.5 text-sm bg-white border border-gray-300 rounded-lg text-gray-700 focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-        >
-          {STATUS_FILTER_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>{o.label}</option>
-          ))}
-        </select>
-
-        {/* Count */}
-        <span className="text-sm text-gray-500 whitespace-nowrap">{filtered.length} items</span>
-      </div>
-
-      {/* Table */}
+      {/* Content: Table or Grid */}
       {loading ? (
         <div className="flex justify-center py-12"><Spinner /></div>
       ) : filtered.length === 0 ? (
@@ -434,6 +415,52 @@ export function LibraryPage() {
               ? "No content matches the current filters."
               : "No content in library yet. Generate some content first."}
           </p>
+        </div>
+      ) : viewMode === "grid" ? (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {filtered.map((item) => {
+            const platformStyle = getPlatformStyle(item.request.platform);
+            return (
+              <div
+                key={item.id}
+                className="bg-white rounded-xl border border-gray-200 p-4 hover:border-gray-300 transition-all"
+              >
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <span
+                    className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium capitalize ${platformStyle.bg} ${platformStyle.text}`}
+                  >
+                    {item.request.platform}
+                  </span>
+                  <span
+                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium capitalize ${getStatusStyle(item.status)}`}
+                  >
+                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${getStatusDotColor(item.status)}`} />
+                    {item.status.replace(/_/g, " ")}
+                  </span>
+                </div>
+                <p className="text-sm font-medium text-gray-900 line-clamp-2 mb-1 min-h-[2.5rem]">
+                  {item.contentTitle ?? "Untitled Content"}
+                </p>
+                <p className="text-xs text-gray-400 mb-3 truncate">
+                  {item.request.contentType}
+                  {item.request.brand ? ` · ${item.request.brand.name}` : ""}
+                </p>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-400">
+                    {formatCreatedAt(item.createdAt).date}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedItem(item)}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    <Eye size={12} />
+                    View
+                  </button>
+                </div>
+              </div>
+            );
+          })}
         </div>
       ) : (
         <div className="bg-white border border-gray-200 rounded-xl overflow-x-auto">
@@ -602,8 +629,8 @@ export function LibraryPage() {
         />
       )}
 
-      {/* Bulk Action Bar */}
-      {selectedIds.size > 0 && (
+      {/* Bulk Action Bar — table mode only */}
+      {selectedIds.size > 0 && viewMode !== "grid" && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 bg-gray-900 text-white rounded-xl shadow-2xl border border-gray-800 px-4 py-3 flex items-center gap-3">
           <span className="text-sm font-medium">
             {selectedIds.size} item{selectedIds.size > 1 ? "s" : ""} selected

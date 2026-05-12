@@ -1,6 +1,9 @@
 import { useState } from "react";
 import floochinkLogo from "../../assets/floochink-logo.jpg";
 import { Outlet, Navigate, NavLink } from "react-router-dom";
+import { GlobalHeader } from "./GlobalHeader";
+import { TopicGeneratorSlider } from "../planner/TopicGeneratorSlider";
+import { HeaderSlotProvider } from "../../contexts/HeaderSlotContext";
 import {
   LayoutDashboard,
   CalendarDays,
@@ -114,6 +117,7 @@ export function AppShell() {
     setActiveProject,
   } = useProject();
   const [projectSwitcherOpen, setProjectSwitcherOpen] = useState(false);
+  const [topicGeneratorOpen, setTopicGeneratorOpen] = useState(false);
   const canSeeMenu = (item: NavItem) => {
     // Global flag hides a menu for everyone, admins included.
     if (item.flagKey && !isMenuEnabled(item.flagKey)) return false;
@@ -194,7 +198,8 @@ export function AppShell() {
     } ${collapsed ? "justify-center" : ""}`;
 
   return (
-    <div className="min-h-screen flex bg-[#f5f5f5]">
+    <HeaderSlotProvider>
+    <div className="h-screen overflow-hidden flex bg-[#f5f5f5]">
       <aside className={`${collapsed ? "w-[60px]" : "w-[220px]"} bg-[#111] flex flex-col shrink-0 h-screen sticky top-0 transition-[width] duration-200`}>
         {/* Logo */}
         <div className={`${collapsed ? "px-2" : "px-4"} py-4 border-b border-gray-800 flex items-center ${collapsed ? "justify-center" : "justify-between"}`}>
@@ -417,11 +422,18 @@ export function AppShell() {
         </div>
       </aside>
 
-      <main className="flex-1 overflow-auto">
-        <div className="p-6">
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <GlobalHeader onGenerateClick={() => setTopicGeneratorOpen(true)} />
+        <main className="flex-1 overflow-auto">
           <Outlet />
-        </div>
-      </main>
+        </main>
+      </div>
+
+      <TopicGeneratorSlider
+        isOpen={topicGeneratorOpen}
+        onClose={() => setTopicGeneratorOpen(false)}
+        onSavedTopics={() => setTopicGeneratorOpen(false)}
+      />
 
       <Modal isOpen={createModalOpen} onClose={() => setCreateModalOpen(false)} title="Create Workspace">
         <div className="space-y-4">
@@ -450,5 +462,6 @@ export function AppShell() {
       <WelcomeModal />
       <GettingStartedChecklist />
     </div>
+    </HeaderSlotProvider>
   );
 }

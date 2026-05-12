@@ -6,7 +6,6 @@ import { useUnsavedAsync } from "../hooks/useUnsavedAsync";
 import { api } from "../services/api";
 import { Button } from "../components/ui/Button";
 import { CoachMark } from "../components/onboarding/CoachMark";
-import { HelpButton } from "../components/onboarding/HelpButton";
 import { Select } from "../components/ui/Select";
 import { Spinner } from "../components/ui/Spinner";
 import { Toast } from "../components/ui/Toast";
@@ -478,22 +477,9 @@ export function TopicsPage({
 		<div className={`${embedded ? "" : "p-6 "}space-y-6`}>
 			{!embedded && (
 				<>
-					{/* Header */}
-					<div className="flex items-start justify-between">
-						<div>
-							<h1 className="text-2xl font-bold text-black">
-								Topic Generator
-							</h1>
-							<p className="text-sm text-gray-500 mt-1">
-								Generate a bulk content calendar before building
-								individual posts.
-							</p>
-						</div>
-						<div className="flex items-center gap-2">
-							<HelpButton pageKey="topics" />
-							{showSaveAllButton && saveAllTopicsButton}
-						</div>
-					</div>
+					{showSaveAllButton && (
+						<div className="flex justify-end">{saveAllTopicsButton}</div>
+					)}
 					<CoachMark pageKey="topics" title="Topics" body="Topics are content ideas you can save, refine, and turn into posts later. Useful for capturing ideas you're not ready to generate yet." />
 				</>
 			)}

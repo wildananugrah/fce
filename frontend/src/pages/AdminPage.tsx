@@ -11,7 +11,6 @@ import { Toast } from "../components/ui/Toast";
 import { AdminNewUserModal } from "../components/admin/AdminNewUserModal";
 import { AdminUserModal } from "../components/admin/AdminUserModal";
 import { CoachMark } from "../components/onboarding/CoachMark";
-import { HelpButton } from "../components/onboarding/HelpButton";
 
 interface AdminUser {
   id: string;
@@ -218,16 +217,6 @@ export function AdminPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-lg font-semibold text-black">Admin Panel</h1>
-          <p className="text-sm text-gray-500 mt-0.5">
-            Manage users and view audit logs.
-          </p>
-        </div>
-        <HelpButton pageKey="admin" />
-      </div>
-
       <CoachMark pageKey="admin" title="Admin" body="Superadmin-only tools for managing users, workspaces, and system-wide settings across all tenants on this instance." />
 
       <Tabs tabs={TABS} activeTab={activeTab} onChange={setActiveTab} />
