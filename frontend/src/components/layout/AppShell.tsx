@@ -1,4 +1,5 @@
 import { useState } from "react";
+import floochinkLogo from "../../assets/floochink-logo.jpg";
 import { Outlet, Navigate, NavLink } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -197,13 +198,23 @@ export function AppShell() {
       <aside className={`${collapsed ? "w-[60px]" : "w-[220px]"} bg-[#111] flex flex-col shrink-0 h-screen sticky top-0 transition-[width] duration-200`}>
         {/* Logo */}
         <div className={`${collapsed ? "px-2" : "px-4"} py-4 border-b border-gray-800 flex items-center ${collapsed ? "justify-center" : "justify-between"}`}>
-          {!collapsed && (
-            <span className="text-white font-bold text-sm tracking-tight truncate">FCE Dashboard</span>
+          {collapsed ? (
+            <img
+              src={floochinkLogo}
+              alt="Floochink"
+              className="w-7 h-7 rounded object-cover object-center shrink-0"
+            />
+          ) : (
+            <img
+              src={floochinkLogo}
+              alt="Floochink"
+              className="h-7 w-auto object-contain"
+            />
           )}
           <button
             type="button"
             onClick={toggleCollapsed}
-            className="text-gray-400 hover:text-white transition-colors p-1 rounded hover:bg-[#1a1a1a]"
+            className="text-gray-400 hover:text-white transition-colors p-1 rounded hover:bg-[#1a1a1a] shrink-0"
             title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
             {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
