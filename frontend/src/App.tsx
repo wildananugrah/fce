@@ -30,7 +30,7 @@ import { ResearchRunDetail } from "./pages/Research/ResearchRunDetail";
 import { CompetitorAnalyzerPage } from "./pages/CompetitorAnalyzerPage";
 import { AcceptInvitationPage } from "./pages/AcceptInvitationPage";
 import { VerifyPage } from "./pages/VerifyPage";
-import { isMenuEnabled, type MenuFlagKey } from "./config/menu-flags";
+import { isMenuEnabled, DEFAULT_LANDING_PAGE, type MenuFlagKey } from "./config/menu-flags";
 
 function Gated({ flag, children }: { flag: MenuFlagKey; children: React.ReactNode }) {
   return isMenuEnabled(flag) ? <>{children}</> : <Navigate to="/" replace />;
@@ -82,7 +82,7 @@ export default function App() {
               <Route path="/workspace-settings" element={<WorkspaceSettingsPage />} />
               <Route path="/admin" element={<AdminPage />} />
             </Route>
-            <Route path="*" element={<Navigate to="/" replace />} />
+            <Route path="*" element={<Navigate to={DEFAULT_LANDING_PAGE} replace />} />
           </Routes>
             </OnboardingProvider>
           </ProjectProvider>

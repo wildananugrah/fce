@@ -2,6 +2,7 @@ import { useState, useEffect, type FormEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { api, ApiError } from "../services/api";
+import { DEFAULT_LANDING_PAGE } from "../config/menu-flags";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 
@@ -36,7 +37,7 @@ export function LoginPage() {
     setLoading(true);
     try {
       await login(email, password);
-      navigate("/");
+      navigate(DEFAULT_LANDING_PAGE);
     } catch (err) {
       if (err instanceof ApiError && err.body.verificationRequired === true) {
         setVerificationRequired(true);
