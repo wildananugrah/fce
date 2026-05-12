@@ -64,10 +64,13 @@ export function FileDropZone({
   return (
     <div>
       <div
+        role="button"
+        tabIndex={disabled ? -1 : 0}
         onDragOver={(e) => { e.preventDefault(); if (!disabled) setDragging(true); }}
         onDragLeave={() => setDragging(false)}
         onDrop={handleDrop}
         onClick={() => !disabled && fileInputRef.current?.click()}
+        onKeyDown={(e) => { if (!disabled && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); fileInputRef.current?.click(); } }}
         className={`border-2 border-dashed rounded-lg px-4 py-5 text-center transition-colors ${
           disabled
             ? "opacity-50 cursor-not-allowed border-gray-200"
