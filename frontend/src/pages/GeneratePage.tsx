@@ -8,7 +8,6 @@ import { useOnboarding } from "../hooks/useOnboarding";
 import { useUnsavedAsync } from "../hooks/useUnsavedAsync";
 import { api } from "../services/api";
 import { CoachMark } from "../components/onboarding/CoachMark";
-import { HelpButton } from "../components/onboarding/HelpButton";
 import { Button } from "../components/ui/Button";
 import { Select } from "../components/ui/Select";
 import { SearchableSelect } from "../components/ui/SearchableSelect";
@@ -799,31 +798,22 @@ const frameworkOptions = [{ value: "", label: "Default (AIDA)" }, ...frameworks.
     <div className={`${embedded ? "" : "p-6 "}space-y-6`}>
       {!embedded && (
         <>
-          {/* Header */}
-          <div className="flex items-start justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-black">Content Generator</h1>
-              <p className="text-sm text-gray-500 mt-1">
-                Generate platform-native content from Brand Brain and Product Brain.
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <HelpButton pageKey="generate" />
-              <span className="text-sm text-gray-500">{advancedMode ? "Advanced mode" : "Basic mode"}</span>
-              <button
-                type="button"
-                onClick={() => setAdvancedMode(!advancedMode)}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  advancedMode ? "bg-indigo-600" : "bg-gray-300"
+          {/* Advanced mode toggle */}
+          <div className="flex items-center justify-end gap-2">
+            <span className="text-sm text-gray-500">{advancedMode ? "Advanced mode" : "Basic mode"}</span>
+            <button
+              type="button"
+              onClick={() => setAdvancedMode(!advancedMode)}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                advancedMode ? "bg-indigo-600" : "bg-gray-300"
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  advancedMode ? "translate-x-6" : "translate-x-1"
                 }`}
-              >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    advancedMode ? "translate-x-6" : "translate-x-1"
-                  }`}
-                />
-              </button>
-            </div>
+              />
+            </button>
           </div>
           <CoachMark pageKey="generate" title="Generate content" body="Generate content by picking a product and describing the angle. FCE runs the job in the background — you can keep working, and we'll notify you when it's done." />
 

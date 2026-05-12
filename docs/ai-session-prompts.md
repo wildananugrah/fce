@@ -9,31 +9,25 @@ on the `ui/adam-redesign` branch. Copy-paste them as-is; fill in the
 ## 🟢 SESSION START PROMPT
 
 ```
-You are continuing UI development on the Floothink Content Engine (FCE)
-project. We are on branch `ui/adam-redesign`.
+You are continuing UI development on the Floothink Content Engine (FCE) project. We are on branch `ui/adam-redesign`.
 
 ## Scope
-- ONLY UI / frontend changes. Do NOT touch backend, infrastructure,
-  workflow logic, database schema, or API routes.
+- ONLY UI / frontend changes. Do NOT touch backend, infrastructure, workflow logic, database schema, or API routes.
 - Working directory: `/Users/adamlahm/fce/frontend/src`
 
 ## Tech stack (frontend only)
 - React 19, TypeScript (strict), Vite 8
 - Tailwind CSS 4 (utility-first; avoid arbitrary inline styles)
 - React Router 7, Hono (API calls via frontend services)
-- File conventions: pages in `src/pages/`, shared components in
-  `src/components/`, layout shell in `src/components/layout/AppShell.tsx`
+- File conventions: pages in `src/pages/`, shared components in `src/components/`, layout shell in `src/components/layout/AppShell.tsx`
 
 ## Project docs to read before anything else
-1. `CLAUDE.md` — full project overview and code style rules (Frontend
-   Structure section: lines 146–152 is most relevant)
+1. `CLAUDE.md` — full project overview and code style rules(Frontend Structure section: lines 146–152 is most relevant)
 2. `docs/todo.md` — completed phases; Phase 7 is the baseline
 3. `docs/notes.md` — latest discussion notes and pending items
 
 ## Current session goal
-[DESCRIBE EXACTLY WHAT YOU WANT TO DO — e.g., "Redesign the sidebar in
-AppShell.tsx with a collapsible nav and new icon set" or "Restyle the
-DashboardPage.tsx KPI cards with glassmorphism and animated counters"]
+[DESCRIBE EXACTLY WHAT YOU WANT TO DO — e.g., "Redesign the sidebar in AppShell.tsx with a collapsible nav and new icon set" or "Restyle the DashboardPage.tsx KPI cards with glassmorphism and animated counters"]
 
 ## Files in scope this session
 [LIST THE SPECIFIC FILES YOU EXPECT TO CHANGE — keeps the AI focused]
@@ -44,8 +38,7 @@ DashboardPage.tsx KPI cards with glassmorphism and animated counters"]
 ## Constraints / design direction
 [ANY SPECIFIC DESIGN CONSTRAINTS — or delete this block if none]
 - e.g. "Dark mode only, keep the existing sidebar color palette"
-- e.g. "Match the mockup I described; do not change any API calls or
-  state management hooks"
+- e.g. "Match the mockup I described; do not change any API calls or state management hooks"
 
 ## Do NOT change
 - Any `.ts` / `.tsx` file under `backend/`
@@ -55,8 +48,7 @@ DashboardPage.tsx KPI cards with glassmorphism and animated counters"]
 - Route definitions in `src/App.tsx`
 - `docker-compose.yml`, `CLAUDE.md`, `docs/`, deploy scripts
 
-Begin by confirming the files you will touch and the approach you will
-take, then proceed.
+Begin by confirming the files you will touch and the approach you will take, then proceed.
 ```
 
 ---
@@ -77,13 +69,10 @@ This session is wrapping up. Please do the following before we close:
    comments you left in the code.
 
 4. **Recommended next session start**
-   Write 1–3 sentences I can paste at the top of the next START PROMPT's
-   "Current session goal" field so the next session picks up exactly where
-   we left off.
+   Write 1–3 sentences I can paste at the top of the next START PROMPT's "Current session goal" field so the next session picks up exactly where we left off.
 
 5. **Build check**
-   Run `npm run typecheck` from `frontend/` and report the result.
-   If there are errors, fix them now before summarising.
+   Run `npm run typecheck` from `frontend/` and report the result. If there are errors, fix them now before summarising.
 ```
 
 ---

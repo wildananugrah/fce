@@ -26,13 +26,10 @@ interface TopicCalendarViewProps {
   onTopicClick: (topic: Topic) => void;
   onReschedule: (topicId: string, newDate: string | null) => void;
   getPillarColor: (pillar: string) => string;
-  /**
-   * Optional. When set, eligible empty cells (current-month + future-or-today,
-   * no topics) render as clickable buttons that fire this callback with the
-   * cell's date in YYYY-MM-DD format. Pages that don't pass this prop keep
-   * the current passive-grid behavior.
-   */
   onEmptyCellClick?: (dateKey: string) => void;
+  /** When provided the caller owns the cursor; the built-in nav header is hidden. */
+  cursor?: Date;
+  onCursorChange?: (date: Date) => void;
 }
 
 // ─── Date helpers (all UTC-agnostic local date logic) ─────────
@@ -109,8 +106,18 @@ export function TopicCalendarView({
   onReschedule,
   getPillarColor,
   onEmptyCellClick,
+  cursor: externalCursor,
+  onCursorChange,
 }: TopicCalendarViewProps) {
-  const [cursor, setCursor] = useState(() => new Date());
+  const [internalCursor, setInternalCursor] = useState(() => new Date());
+  const cursor = externalCursor ?? internalCursor;
+  const isControlled = externalCursor !== undefined;
+
+  const setCursor = (next: Date) => {
+    setInternalCursor(next);
+    onCursorChange?.(next);
+  };
+
   const [draggedTopicId, setDraggedTopicId] = useState<string | null>(null);
   const [dragOverKey, setDragOverKey] = useState<string | null>(null);
 
@@ -147,12 +154,8 @@ export function TopicCalendarView({
   const currentMonthIndex = cursor.getMonth();
 
   // ─── Navigation ──────────────────────────────────────────────
-  const goPrev = () => {
-    setCursor(mode === "month" ? addMonths(cursor, -1) : addDays(cursor, -7));
-  };
-  const goNext = () => {
-    setCursor(mode === "month" ? addMonths(cursor, 1) : addDays(cursor, 7));
-  };
+  const goPrev = () => setCursor(mode === "month" ? addMonths(cursor, -1) : addDays(cursor, -7));
+  const goNext = () => setCursor(mode === "month" ? addMonths(cursor, 1) : addDays(cursor, 7));
   const goToday = () => setCursor(new Date());
 
   // ─── DnD handlers ─────────────────────────────────────────────
@@ -191,37 +194,39 @@ export function TopicCalendarView({
 
   return (
     <div className="space-y-3">
-      {/* Header: navigation */}
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-gray-900">
-          {mode === "month" ? monthLabel(cursor) : weekRangeLabel(startOfWeek(cursor))}
-        </h3>
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={goPrev}
-            className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
-            title="Previous"
-          >
-            <ChevronLeft size={14} />
-          </button>
-          <button
-            type="button"
-            onClick={goToday}
-            className="px-2.5 py-1 text-[11px] font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
-          >
-            Today
-          </button>
-          <button
-            type="button"
-            onClick={goNext}
-            className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
-            title="Next"
-          >
-            <ChevronRight size={14} />
-          </button>
+      {/* Header: navigation — hidden when the caller owns the cursor */}
+      {!isControlled && (
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-gray-900">
+            {mode === "month" ? monthLabel(cursor) : weekRangeLabel(startOfWeek(cursor))}
+          </h3>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={goPrev}
+              className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
+              title="Previous"
+            >
+              <ChevronLeft size={14} />
+            </button>
+            <button
+              type="button"
+              onClick={goToday}
+              className="px-2.5 py-1 text-[11px] font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
+            >
+              Today
+            </button>
+            <button
+              type="button"
+              onClick={goNext}
+              className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
+              title="Next"
+            >
+              <ChevronRight size={14} />
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Unscheduled strip — drop target for removing the publish date */}
       <div

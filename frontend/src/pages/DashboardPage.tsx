@@ -4,7 +4,6 @@ import { useWorkspace } from "../hooks/useWorkspace";
 import { api } from "../services/api";
 import { Badge } from "../components/ui/Badge";
 import { CoachMark } from "../components/onboarding/CoachMark";
-import { HelpButton } from "../components/onboarding/HelpButton";
 import { Spinner } from "../components/ui/Spinner";
 import type { DashboardStats } from "../types";
 
@@ -107,10 +106,6 @@ export function DashboardPage() {
   return (
     <div className="p-6 space-y-6">
       {pendingInvitationsBanner}
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Dashboard</h1>
-        <HelpButton pageKey="dashboard" />
-      </div>
       <CoachMark pageKey="dashboard" title="Dashboard" body="This is your dashboard. Generation jobs, recent content, and workspace activity show up here as they happen." />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

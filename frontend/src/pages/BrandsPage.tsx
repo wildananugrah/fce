@@ -18,7 +18,6 @@ import {
   Save,
 } from "lucide-react";
 import { CoachMark } from "../components/onboarding/CoachMark";
-import { HelpButton } from "../components/onboarding/HelpButton";
 import { useWorkspace } from "../hooks/useWorkspace";
 import { useProject } from "../hooks/useProject";
 import { api, ApiError } from "../services/api";
@@ -318,7 +317,6 @@ export function BrandsPage() {
             <h1 className="text-2xl font-semibold text-gray-900">
               {activeProject ? "Set up this project's brand" : "Pick a project first"}
             </h1>
-            <HelpButton pageKey="brands" />
           </div>
           <p className="text-sm text-gray-500 mb-6 max-w-md mx-auto">
             {activeProject
@@ -355,10 +353,6 @@ export function BrandsPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-black">Brands</h1>
-        <HelpButton pageKey="brands" />
-      </div>
       {brandsCoachMark}
       {/* ── Hero ─────────────────────────────────────────────── */}
       {editing && draft ? (

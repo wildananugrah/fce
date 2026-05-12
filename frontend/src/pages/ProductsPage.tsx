@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
+import { useHeaderSlot } from "../contexts/HeaderSlotContext";
 import { useWorkspace } from "../hooks/useWorkspace";
 import { useProject } from "../hooks/useProject";
 import { useOnboarding } from "../hooks/useOnboarding";
 import { api } from "../services/api";
-import { Button } from "../components/ui/Button";
 import { CoachMark } from "../components/onboarding/CoachMark";
-import { HelpButton } from "../components/onboarding/HelpButton";
 import { ProductDrawer } from "../components/products/ProductDrawer";
 import { Spinner } from "../components/ui/Spinner";
 import { Toast } from "../components/ui/Toast";
@@ -180,9 +180,33 @@ export function ProductsPage() {
     }
   };
 
+  const [searchParams] = useSearchParams();
+  const searchQuery = (searchParams.get("q") ?? "").toLowerCase();
+  const setSlot = useHeaderSlot();
+
+  useEffect(() => {
+    setSlot(
+      <button
+        type="button"
+        onClick={() => setShowCreate(true)}
+        className="flex items-center gap-1.5 bg-black text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-gray-800 transition-colors"
+      >
+        + Add Product
+      </button>,
+    );
+    return () => setSlot(null);
+  }, [setSlot, setShowCreate]);
+
   const productsByBrand = useMemo(() => {
     const grouped = new Map<string, { brand: Brand; products: Product[] }>();
     for (const product of products) {
+      if (
+        searchQuery &&
+        !product.name.toLowerCase().includes(searchQuery) &&
+        !(product.summary ?? "").toLowerCase().includes(searchQuery)
+      ) {
+        continue;
+      }
       const brand = product.brand ?? brands.find((b) => b.id === product.brandId);
       const brandId = brand?.id ?? product.brandId;
       const brandName = brand?.name ?? "Unknown";
@@ -192,7 +216,7 @@ export function ProductsPage() {
       grouped.get(brandId)!.products.push(product);
     }
     return Array.from(grouped.values());
-  }, [products, brands]);
+  }, [products, brands, searchQuery]);
 
   if (!activeWorkspace) {
     return (
@@ -204,16 +228,6 @@ export function ProductsPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-lg font-semibold text-black">Product Brain</h1>
-          <p className="text-sm text-gray-500">Manage your products and their AI-powered content context.</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <HelpButton pageKey="products" />
-          <Button onClick={() => setShowCreate(true)}>+ Add Product</Button>
-        </div>
-      </div>
       <CoachMark pageKey="products" title="Products" body="Products live inside a brand and represent what you're talking about — a service, a launch, a feature. Content is generated against a product, not a brand." />
 
       {loading ? (
@@ -223,6 +237,10 @@ export function ProductsPage() {
       ) : products.length === 0 ? (
         <div className="bg-white border border-gray-200 rounded-lg p-12 text-center">
           <p className="text-sm text-gray-400">No products yet. Create your first product to get started.</p>
+        </div>
+      ) : productsByBrand.length === 0 ? (
+        <div className="bg-white border border-gray-200 rounded-lg p-12 text-center">
+          <p className="text-sm text-gray-400">No products match &ldquo;{searchQuery}&rdquo;.</p>
         </div>
       ) : (
         <div className="space-y-8">

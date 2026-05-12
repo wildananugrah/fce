@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CalendarDays, Sparkles, Table as TableIcon } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
+import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
+import { useHeaderSlot } from "../contexts/HeaderSlotContext";
 import { useWorkspace } from "../hooks/useWorkspace";
 import { useProject } from "../hooks/useProject";
 import { api } from "../services/api";
-import { Button } from "../components/ui/Button";
 import { Spinner } from "../components/ui/Spinner";
 import { Toast } from "../components/ui/Toast";
 import { TopicCalendarView } from "../components/topics/TopicCalendarView";
@@ -63,17 +64,25 @@ interface LibraryItem {
 type ToastType = "success" | "error" | "info";
 type ToastState = { message: string; type: ToastType } | null;
 
-function brandInitial(name: string): string {
-  return name.trim().charAt(0).toUpperCase() || "?";
+function addMonths(date: Date, n: number): Date {
+  const d = new Date(date);
+  d.setMonth(d.getMonth() + n);
+  return d;
+}
+function monthLabel(date: Date): string {
+  return date.toLocaleDateString("en-US", { month: "long", year: "numeric" });
 }
 
 export function PlannerPage() {
   const { activeWorkspace } = useWorkspace();
   const { activeProject } = useProject();
 
-  const [viewMode, setViewMode] = useState<ViewMode>("calendar");
+  const [searchParams] = useSearchParams();
+  const viewMode = (searchParams.get("view") as ViewMode) ?? "calendar";
   const [brands, setBrands] = useState<Brand[]>([]);
   const [activeBrandId, setActiveBrandId] = useState<string>("");
+  const [cursor, setCursor] = useState(() => new Date());
+  const setSlot = useHeaderSlot();
   const [topics, setTopics] = useState<Topic[]>([]);
   const [loadingBrands, setLoadingBrands] = useState(true);
   const [loadingTopics, setLoadingTopics] = useState(false);
@@ -173,6 +182,57 @@ export function PlannerPage() {
 
   const activeBrand = brands.find((b) => b.id === activeBrandId) ?? null;
 
+  // Inject brand selector + month nav into GlobalHeader
+  useEffect(() => {
+    setSlot(
+      <div className="flex flex-1 items-center justify-center gap-4">
+        {brands.length > 1 && (
+          <select
+            value={activeBrandId}
+            onChange={(e) => setActiveBrandId(e.target.value)}
+            className="text-sm bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-gray-300 focus:border-gray-300"
+          >
+            {brands.map((b) => (
+              <option key={b.id} value={b.id}>{b.name}</option>
+            ))}
+          </select>
+        )}
+        {viewMode === "calendar" && (
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setCursor((d) => addMonths(d, -1))}
+              className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
+              title="Previous month"
+            >
+              <ChevronLeft size={14} />
+            </button>
+            <span className="text-sm font-semibold text-gray-900 min-w-[130px] text-center">
+              {monthLabel(cursor)}
+            </span>
+            <button
+              type="button"
+              onClick={() => setCursor(new Date())}
+              className="px-2.5 py-1 text-[11px] font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
+            >
+              Today
+            </button>
+            <button
+              type="button"
+              onClick={() => setCursor((d) => addMonths(d, 1))}
+              className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
+              title="Next month"
+            >
+              <ChevronRight size={14} />
+            </button>
+          </div>
+        )}
+      </div>,
+    );
+    return () => setSlot(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [setSlot, brands, activeBrandId, viewMode, cursor]);
+
   const handleTopicClick = useCallback((topic: Topic) => {
     setDetailTopic(topic);
   }, []);
@@ -241,80 +301,8 @@ export function PlannerPage() {
   }, []);
 
   return (
-    <div className="flex h-full flex-col">
-      <header className="flex items-center justify-between border-b border-gray-200 bg-white px-6 py-3">
-        <div className="flex items-center gap-3">
-          {activeBrand ? (
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-violet-100 text-sm font-semibold text-violet-700">
-              {brandInitial(activeBrand.name)}
-            </div>
-          ) : (
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100 text-gray-400">
-              <CalendarDays size={18} />
-            </div>
-          )}
-          <div className="flex flex-col gap-0.5">
-            {brands.length > 0 ? (
-              <select
-                value={activeBrandId}
-                onChange={(e) => setActiveBrandId(e.target.value)}
-                className="-ml-1 rounded px-1 text-sm font-semibold text-gray-900 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-violet-200"
-              >
-                {brands.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.name}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <span className="text-sm font-semibold text-gray-500">
-                {loadingBrands ? "Loading brands…" : "No brands"}
-              </span>
-            )}
-            <span className="text-xs text-gray-500">
-              {loadingTopics ? "…" : `${brandTopics.length} topic${brandTopics.length === 1 ? "" : "s"}`}
-            </span>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <div className="inline-flex rounded-md border border-gray-200 bg-gray-50 p-0.5">
-            <button
-              type="button"
-              onClick={() => setViewMode("calendar")}
-              className={`flex items-center gap-1.5 rounded px-3 py-1.5 text-sm font-medium transition ${
-                viewMode === "calendar"
-                  ? "bg-white text-gray-900 shadow-sm"
-                  : "text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              <CalendarDays size={14} />
-              Calendar
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode("list")}
-              className={`flex items-center gap-1.5 rounded px-3 py-1.5 text-sm font-medium transition ${
-                viewMode === "list"
-                  ? "bg-white text-gray-900 shadow-sm"
-                  : "text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              <TableIcon size={14} />
-              List
-            </button>
-          </div>
-          <Button
-            disabled={!activeBrandId}
-            onClick={() => setGeneratorOpen(true)}
-          >
-            <Sparkles size={14} className="mr-1.5" />
-            Generate
-          </Button>
-        </div>
-      </header>
-
-      <div className="flex-1 overflow-auto bg-gray-50 p-6">
+    <div className="flex h-full flex-col bg-gray-50">
+      <div className="flex-1 overflow-auto p-6">
         {!activeWorkspace ? (
           <EmptyState message="Pick a workspace to get started." />
         ) : loadingBrands ? (
@@ -324,7 +312,7 @@ export function PlannerPage() {
         ) : brands.length === 0 ? (
           <EmptyState message="This project has no brands yet. Create one in Brand Brain to start planning." />
         ) : !activeBrandId ? (
-          <EmptyState message="Pick a brand from the header to view its topics." />
+          <EmptyState message="No brand found for this project." />
         ) : loadingTopics ? (
           <Centered>
             <Spinner size="lg" />
@@ -336,6 +324,8 @@ export function PlannerPage() {
             onTopicClick={handleTopicClick}
             onReschedule={handleReschedule}
             getPillarColor={getPillarColor}
+            cursor={cursor}
+            onCursorChange={setCursor}
             onEmptyCellClick={(dateKey) => {
               setPendingScheduleDate(dateKey);
               setGeneratorOpen(true);
