@@ -1,14 +1,28 @@
+import type { PgBoss } from "pg-boss";
 import type { ILogger } from "../interfaces/providers/logger.provider.interface";
 import type { IDocumentRepository } from "../interfaces/repositories/document.repository.interface";
+
+interface DocumentExtractionJobData {
+	documentId: string;
+	fileUrl: string;
+	fileName: string;
+	fileType: string;
+	brandId?: string | null;
+	workspaceId?: string | null;
+	productId?: string | null;
+	userId?: string | null;
+}
 
 export class DocumentExtractionJob {
 	constructor(
 		private documentRepository: IDocumentRepository,
 		private logger: ILogger,
+		private boss: PgBoss,
 	) {}
 
-	async handle(data: { documentId: string; fileUrl: string; fileName: string; fileType: string }) {
-		const { documentId, fileUrl, fileName, fileType } = data;
+	async handle(data: DocumentExtractionJobData) {
+		const { documentId, fileUrl, fileName, fileType, brandId, workspaceId, productId, userId } =
+			data;
 		try {
 			this.logger.info("Starting document extraction", { documentId, fileName });
 			await this.documentRepository.updateExtractionStatus(documentId, "processing");
@@ -37,6 +51,11 @@ export class DocumentExtractionJob {
 				documentId,
 				chunkCount: chunks.length,
 			});
+
+			// Trigger brand brain refresh for brand-level docs only (no productId)
+			if (brandId && workspaceId && userId && !productId) {
+				await this.boss.send("brand-brain-refresh", { brandId, workspaceId, userId });
+			}
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
 			this.logger.error("Document extraction failed", { documentId, error: message });
@@ -49,7 +68,6 @@ export class DocumentExtractionJob {
 		const buffer = Buffer.from(await response.arrayBuffer());
 		const { PDFParse } = await import("pdf-parse");
 		const parser = new PDFParse({ data: new Uint8Array(buffer) });
-		await parser.load();
 		const result = await parser.getText();
 		return result.text;
 	}

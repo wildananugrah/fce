@@ -454,8 +454,8 @@ async function main() {
 		logger,
 		skillRegistry,
 	);
-	const documentExtractionJob = new DocumentExtractionJob(documentRepository, logger);
-	const linkScrapingJob = new LinkScrapingJob(documentRepository, logger);
+	const documentExtractionJob = new DocumentExtractionJob(documentRepository, logger, boss);
+	const linkScrapingJob = new LinkScrapingJob(documentRepository, logger, boss);
 	const recommendationRecomputeJob = new RecommendationRecomputeJob(
 		prisma,
 		recommendationRepository,
