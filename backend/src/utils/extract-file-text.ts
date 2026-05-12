@@ -17,7 +17,6 @@ export async function extractFileText(file: File): Promise<string> {
 	if (mimeType === "application/pdf") {
 		const { PDFParse } = await import("pdf-parse");
 		const parser = new PDFParse({ data: new Uint8Array(buffer) });
-		await parser.load();
 		const result = await parser.getText();
 		return result.text;
 	}
