@@ -347,7 +347,6 @@ export const BrandBrainForm = forwardRef<BrandBrainFormHandle, BrandBrainFormPro
     const [scrapeLanguage, setScrapeLanguage] = useScrapeLanguage();
     const abortRef = useRef<AbortController | null>(null);
     const [pendingFile, setPendingFile] = useState<File | null>(null);
-    const [uploadProgress, setUploadProgress] = useState(0);
 
     useUnsavedAsync(
       scraping,
@@ -418,7 +417,7 @@ export const BrandBrainForm = forwardRef<BrandBrainFormHandle, BrandBrainFormPro
       return () => {
         cancelled = true;
       };
-    }, [editBrand?.id, workspaceId]);
+    }, [editBrand?.id, workspaceId]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const update = <K extends keyof BrandFormData>(key: K, value: BrandFormData[K]) => {
       setForm((prev) => ({ ...prev, [key]: value }));
@@ -563,7 +562,6 @@ export const BrandBrainForm = forwardRef<BrandBrainFormHandle, BrandBrainFormPro
             await apiUpload(
               `/api/workspaces/${workspaceId}/documents/upload`,
               fd,
-              setUploadProgress,
             );
           }
           refreshProgress();
