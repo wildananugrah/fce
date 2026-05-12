@@ -205,4 +205,4 @@ idealnya ngikut brand brain dulu sih mas, nanti kalau mau dirubah baru dipilih, 
 
 == enhance
 1. pdf upload di brand brain, jadi reference, put the table kirim ke ai provider. 
-2. 
+2. bikin halaman dashboard nya. 
