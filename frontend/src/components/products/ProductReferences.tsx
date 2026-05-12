@@ -23,9 +23,10 @@ interface ProductReferencesProps {
   workspaceId: string;
   productId?: string;
   brandId: string;
+  onReferenceAdded?: () => void;
 }
 
-export function ProductReferences({ workspaceId, productId, brandId }: ProductReferencesProps) {
+export function ProductReferences({ workspaceId, productId, brandId, onReferenceAdded }: ProductReferencesProps) {
   const [docs, setDocs] = useState<ProductDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [linkUrl, setLinkUrl] = useState("");
@@ -85,6 +86,7 @@ export function ProductReferences({ workspaceId, productId, brandId }: ProductRe
 
       if (!res.ok) throw new Error("Upload failed");
       await loadDocs();
+      if (!productId) onReferenceAdded?.();
     } catch {
       // silent
     } finally {
@@ -102,6 +104,7 @@ export function ProductReferences({ workspaceId, productId, brandId }: ProductRe
       });
       setLinkUrl("");
       await loadDocs();
+      if (!productId) onReferenceAdded?.();
     } catch {
       // silent
     } finally {
