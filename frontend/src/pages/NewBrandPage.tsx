@@ -80,7 +80,7 @@ export function NewBrandPage() {
           </Button>
           <Button onClick={() => formRef.current?.save()} loading={saving}>
             <Save size={14} className="mr-1.5" />
-            Save brand
+            {saving ? "Saving…" : "Save brand"}
           </Button>
         </div>
       </div>
