@@ -249,12 +249,25 @@ export class OpenRouterProvider
 	}
 
 	async scrape(input: BrandScrapingInput): Promise<BrandScrapingOutput> {
-		// Fetch actual page content via Jina Reader (with HTML fallback)
-		const fetched = await fetchUrlContent(input.url);
-		if (fetched.source === "failed" || !fetched.content) {
-			throw new Error(
-				`OpenRouterProvider: Could not fetch content from ${input.url}: ${fetched.error ?? "unknown error"}`,
+		const contextParts: string[] = [];
+
+		if (input.url) {
+			const fetched = await fetchUrlContent(input.url);
+			if (fetched.source !== "failed" && fetched.content) {
+				contextParts.push(
+					`=== EXTRACTED WEBSITE CONTENT ===\n=== Source: ${fetched.url} (fetched via ${fetched.source}) ===\n${fetched.content}`,
+				);
+			}
+		}
+
+		if (input.fileText?.trim()) {
+			contextParts.push(
+				`=== UPLOADED DOCUMENT CONTENT ===\n${input.fileText.trim()}`,
 			);
+		}
+
+		if (contextParts.length === 0) {
+			throw new Error("OpenRouterProvider: at least one of url or fileText is required for brand scraping");
 		}
 
 		const baseSystemPrompt = `You are a brand analyst expert. Analyze the provided website content and extract structured brand identity information.
@@ -289,9 +302,7 @@ These are brand-strategy interpretations, not factual claims. Derive them from t
 
 ${languageDirective(input.language)}
 
-=== EXTRACTED WEBSITE CONTENT ===
-=== Source: ${fetched.url} (fetched via ${fetched.source}) ===
-${fetched.content}`;
+${contextParts.join("\n\n")}`;
 
 		const text = await this.callOpenRouter(systemPrompt, userPrompt, generatorTuning.brandScraper);
 		try {
