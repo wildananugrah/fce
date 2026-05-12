@@ -251,12 +251,15 @@ export class OpenRouterProvider
 	async scrape(input: BrandScrapingInput): Promise<BrandScrapingOutput> {
 		const contextParts: string[] = [];
 
+		let urlFetchError: string | undefined;
 		if (input.url) {
 			const fetched = await fetchUrlContent(input.url);
 			if (fetched.source !== "failed" && fetched.content) {
 				contextParts.push(
 					`=== EXTRACTED WEBSITE CONTENT ===\n=== Source: ${fetched.url} (fetched via ${fetched.source}) ===\n${fetched.content}`,
 				);
+			} else {
+				urlFetchError = fetched.error ?? "unknown error";
 			}
 		}
 
@@ -267,6 +270,9 @@ export class OpenRouterProvider
 		}
 
 		if (contextParts.length === 0) {
+			if (urlFetchError !== undefined) {
+				throw new Error(`OpenRouterProvider: Could not fetch content from ${input.url}: ${urlFetchError}`);
+			}
 			throw new Error("OpenRouterProvider: at least one of url or fileText is required for brand scraping");
 		}
 

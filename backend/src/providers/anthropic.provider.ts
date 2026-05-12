@@ -361,12 +361,15 @@ ${combined}`;
 		// Build the context sections from URL and/or uploaded file text.
 		const contextParts: string[] = [];
 
+		let urlFetchError: string | undefined;
 		if (input.url) {
 			const fetched = await fetchUrlContent(input.url);
 			if (fetched.source !== "failed" && fetched.content) {
 				contextParts.push(
 					`=== EXTRACTED WEBSITE CONTENT ===\n=== Source: ${fetched.url} (fetched via ${fetched.source}) ===\n${fetched.content}`,
 				);
+			} else {
+				urlFetchError = fetched.error ?? "unknown error";
 			}
 		}
 
@@ -377,6 +380,9 @@ ${combined}`;
 		}
 
 		if (contextParts.length === 0) {
+			if (urlFetchError !== undefined) {
+				throw new Error(`AnthropicProvider: Could not fetch content from ${input.url}: ${urlFetchError}`);
+			}
 			throw new Error("AnthropicProvider: at least one of url or fileText is required for brand scraping");
 		}
 
