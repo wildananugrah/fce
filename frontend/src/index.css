@@ -1,29 +1,200 @@
 @import "tailwindcss";
+@import "@heroui/styles";
+
+/* ── HeroUI Theme ── */
+:root,
+.light,
+.default,
+[data-theme="light"],
+[data-theme="default"] {
+  --accent: oklch(0 0 0);
+  --accent-foreground: oklch(99.11% 0 0);
+  --background: oklch(97.02% 0 0);
+  --border: oklch(90% 0 0);
+  --danger: oklch(65.32% 0.2328 355.28);
+  --danger-foreground: oklch(99.11% 0 0);
+  --default: oklch(94% 0 0);
+  --default-foreground: oklch(21.03% 0.0059 0);
+  --field-background: oklch(100% 0 0);
+  --field-foreground: oklch(21.03% 0 0);
+  --field-placeholder: oklch(55.17% 0 0);
+  --focus: oklch(0 0 0);
+  --foreground: oklch(21.03% 0 0);
+  --muted: oklch(55.17% 0 0);
+  --overlay: oklch(100% 0 0);
+  --overlay-foreground: oklch(21.03% 0 0);
+  --scrollbar: oklch(87.1% 0 0);
+  --segment: oklch(100% 0 0);
+  --segment-foreground: oklch(21.03% 0 0);
+  --separator: oklch(92% 0 0);
+  --success: oklch(73.29% 0.1935 120.35);
+  --success-foreground: oklch(21.03% 0.0059 120.35);
+  --surface: oklch(100% 0 0);
+  --surface-foreground: oklch(21.03% 0 0);
+  --surface-secondary: oklch(95.24% 0 0);
+  --surface-secondary-foreground: oklch(21.03% 0 0);
+  --surface-tertiary: oklch(93.73% 0 0);
+  --surface-tertiary-foreground: oklch(21.03% 0 0);
+  --warning: oklch(78.19% 0.1585 41.87);
+  --warning-foreground: oklch(21.03% 0.0059 41.87);
+  --radius: 0.5rem;
+  --field-radius: 0.5rem;
+  --font-sans: "Figtree", system-ui, -apple-system, sans-serif;
+}
+
+.dark,
+[data-theme="dark"] {
+  color-scheme: dark;
+  --accent: oklch(0.9848 0 0);
+  --accent-foreground: oklch(15% 0 0);
+  --background: oklch(12% 0 0);
+  --border: oklch(28% 0 0);
+  --danger: oklch(59.4% 0.1967 354.17);
+  --danger-foreground: oklch(99.11% 0 0);
+  --default: oklch(27.4% 0 0);
+  --default-foreground: oklch(99.11% 0 0);
+  --field-background: oklch(21.03% 0 0);
+  --field-foreground: oklch(99.11% 0 0);
+  --field-placeholder: oklch(70.5% 0 0);
+  --focus: oklch(0.9848 0 0);
+  --foreground: oklch(99.11% 0 0);
+  --muted: oklch(70.5% 0 0);
+  --overlay: oklch(21.03% 0 0);
+  --overlay-foreground: oklch(99.11% 0 0);
+  --scrollbar: oklch(70.5% 0 0);
+  --segment: oklch(39.64% 0 0);
+  --segment-foreground: oklch(99.11% 0 0);
+  --separator: oklch(25% 0 0);
+  --success: oklch(73.29% 0.1935 120.35);
+  --success-foreground: oklch(21.03% 0.0059 120.35);
+  --surface: oklch(21.03% 0 0);
+  --surface-foreground: oklch(99.11% 0 0);
+  --surface-secondary: oklch(25.7% 0 0);
+  --surface-secondary-foreground: oklch(99.11% 0 0);
+  --surface-tertiary: oklch(27.21% 0 0);
+  --surface-tertiary-foreground: oklch(99.11% 0 0);
+  --warning: oklch(82.03% 0.1388 45.88);
+  --warning-foreground: oklch(21.03% 0.0059 45.88);
+}
+
+@theme inline {
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-border: var(--border);
+  --color-muted: var(--muted);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --font-sans: var(--font-sans);
+}
 
 body {
-  font-family: "Figtree", system-ui, -apple-system, sans-serif;
-  background-color: #f5f5f5;
-  color: #111111;
+  font-family: var(--font-sans);
+  background-color: var(--background);
+  color: var(--foreground);
   margin: 0;
 }
 
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #d4d4d4; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #999; }
+/* Scrollbar — hidden by default, fades in on parent hover */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+*:hover {
+  scrollbar-color: #d4d4d4 transparent;
+}
+
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 3px;
+  transition: background 0.2s;
+}
+
+*:hover::-webkit-scrollbar-thumb {
+  background: #d4d4d4;
+}
+
+*:hover::-webkit-scrollbar-thumb:hover {
+  background: #999;
+}
 
 @keyframes slide-in-right {
-  from { transform: translateX(100%); }
-  to { transform: translateX(0); }
+  from {
+    transform: translateX(100%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
 }
+
 .animate-slide-in-right {
   animation: slide-in-right 0.25s ease-out;
 }
 
-@keyframes typing-dot {
-  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
-  30% { transform: translateY(-2px); opacity: 1; }
+@keyframes slide-in-left {
+  from {
+    transform: translateX(-100%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
 }
+
+.animate-slide-in-left {
+  animation: slide-in-left 0.25s ease-out;
+}
+
+@keyframes typing-dot {
+
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+
+  30% {
+    transform: translateY(-2px);
+    opacity: 1;
+  }
+}
+
 .animate-typing-dot {
   animation: typing-dot 1.2s ease-in-out infinite;
+}
+
+/* ── Global radius overrides (unlayered → beats @layer components) ── */
+
+/* Buttons: full pill */
+button,
+[role="button"] {
+  border-radius: 9999px;
+}
+
+/* Text / number / date / time inputs and select dropdowns: full pill */
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]) {
+  border-radius: 9999px;
+}
+
+select {
+  border-radius: 9999px;
+  padding-right: 2rem; /* balance against native OS arrow on macOS */
+}
+
+/* Textareas: soft corners, capped at 30px */
+textarea {
+  border-radius: 15px;
 }

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Card as HeroCard } from "@heroui/react";
 
 interface CardProps {
   children: ReactNode;
@@ -8,11 +9,12 @@ interface CardProps {
 
 export function Card({ children, className = "", onClick }: CardProps) {
   return (
-    <div
-      className={`bg-white border border-gray-200 rounded-lg ${onClick ? "cursor-pointer hover:border-gray-300" : ""} ${className}`}
+    <HeroCard
+      className={className}
       onClick={onClick}
+      style={onClick ? { cursor: "pointer" } : undefined}
     >
-      {children}
-    </div>
+      <HeroCard.Content>{children}</HeroCard.Content>
+    </HeroCard>
   );
 }
