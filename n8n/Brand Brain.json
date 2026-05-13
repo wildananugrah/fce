@@ -1,0 +1,1862 @@
+{
+  "name": "Brand Brain",
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=additional insight for better responses\n{{ $json.output }}\n\nCRITICAL: You must return ONLY valid JSON. \n- Never add numbers or prefixes to field names (e.g. \"1_brand_summary\" is WRONG, \"brand_summary\" is CORRECT)\n- Never use UPPERCASE field names\n- Always use exact snake_case field names as specified\n- Never add markdown, explanation, or any text outside the JSON\n\nPlease using this language for your output: {{ $('Webhook').item.json.body.language }}\n\nYou are a professional brand strategist and content analyst. Your task is to analyze a brand's website thoroughly and produce a structured brand analysis report.\n\nUse the Apify tool to scrape the provided website URL. Analyze all content including homepage, about page, products/services, and any other relevant pages.\n\nBased on the scraped content, produce a comprehensive brand analysis with EXACTLY these 8 sections:\n\n1. BRAND SUMMARY\nA concise overview of what the company is, what they do, their history, scale, and market position.\n\n2. PERSONALITY AND TONE\nDescribe the brand's character, voice, and communication style. Is it formal/informal, innovative/traditional, warm/corporate?\n\n3. AUDIENCE AND VALUES\nWho are their target audiences? What values does the brand stand for? What beliefs drive their business?\n\n4. BRAND PROMISE\nWhat core promise does the brand make to its customers? What transformation or outcome do they deliver?\n\n5. UNIQUE SELLING POINTS\nList 5-7 specific differentiators that set this brand apart from competitors.\n\n6. SOCIAL MEDIA CONTENT STRATEGY\nRecommend a content strategy including platform priorities, posting frequency, content mix, and engagement approach based on the brand's identity.\n\n7. CONTENT PILLARS\nDefine 4-6 core content pillars with description and example content ideas for each pillar.\n\n8. RULES\nList at least 5 do's and 5 don'ts for this brand's communication and content creation.\n\nReturn your response ONLY as a valid JSON object. No explanation, no markdown, no preamble ",
+        "hasOutputParser": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.1,
+      "position": [
+        2752,
+        -16
+      ],
+      "id": "66c9eb2c-e9cb-406d-bf2d-189fb5d45df1",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "operation": "Scrape single URL",
+        "url": "={{ $('Webhook').item.json.body.url }}"
+      },
+      "type": "@apify/n8n-nodes-apify.apifyTool",
+      "typeVersion": 1,
+      "position": [
+        2928,
+        208
+      ],
+      "id": "a0d57e54-0cb2-46fb-95e1-06964b905d68",
+      "name": "Scrape single URL in Apify",
+      "credentials": {
+        "apifyApi": {
+          "id": "Y68aIWKu4yMELu9Y",
+          "name": "Apify account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        2688,
+        208
+      ],
+      "id": "03624d0b-4f3a-4890-85a8-5b8bf2a3e7d7",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "5Fe7BvgqrELCE6cV",
+          "name": "OpenAI Bayu"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"brand_summary\": \"string\",\n  \"personality_and_tone\": {\n    \"character\": \"string\",\n    \"voice\": \"string\",\n    \"communication_style\": \"string\"\n  },\n  \"audience_and_values\": {\n    \"target_audience\": [\"string\"],\n    \"core_values\": [\"string\"]\n  },\n  \"brand_promise\": \"string\",\n  \"unique_selling_points\": [\"string\"],\n  \"social_media_content_strategy\": {\n    \"platform_priorities\": [\"string\"],\n    \"posting_frequency\": \"string\",\n    \"content_mix\": \"string\",\n    \"engagement_approach\": \"string\"\n  },\n  \"content_pillars\": [\n    {\n      \"pillar_name\": \"string\",\n      \"description\": \"string\",\n      \"example_ideas\": [\"string\"]\n    }\n  ],\n  \"rules\": {\n    \"dos\": [\"string\"],\n    \"donts\": [\"string\"]\n  }\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        3088,
+        208
+      ],
+      "id": "75107691-4589-4886-8676-cc83da8184ab",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "brand-brain",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -784,
+        -32
+      ],
+      "id": "b3e4c1ce-d651-4dc7-b7ba-f1821bfa12c6",
+      "name": "Webhook",
+      "webhookId": "e7a95659-bbb3-4811-9d51-42deb8edb402",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "Nasabny45H3V3lyf",
+          "name": "Project ID"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const jobId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {\n  const r = Math.random() * 16 | 0;\n  const v = c === 'x' ? r : (r & 0x3 | 0x8);\n  return v.toString(16);\n});\nconst url = $input.first().json.body.url;\nconst language = $input.first().json.body.language || 'indonesian';\nconst references = $input.first().json.body.references || [];\nreturn [{ json: { jobId, url, language, references } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -544,
+        -32
+      ],
+      "id": "41cc206a-21f7-44c7-90e5-b017fd07d18d",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ jobId: $('Code in JavaScript').item.json.jobId }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -96,
+        -32
+      ],
+      "id": "2d2dc7f1-dd9b-4834-8475-0fc9ea3ce039",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO brand_analysis (job_id, status, website_url, language) \nVALUES ('{{ $json.jobId }}', 'IN_PROGRESS', '{{ $json.url }}', '{{ $json.language }}')\nON CONFLICT (job_id) DO UPDATE SET status = 'IN_PROGRESS', updated_at = now();",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -320,
+        -32
+      ],
+      "id": "61654e9c-94d4-4df4-87e1-126783c04aee",
+      "name": "Execute a SQL query",
+      "credentials": {
+        "postgres": {
+          "id": "YkWjVauTa48dvHlA",
+          "name": "Postgree N8N Floothink"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "schema": {
+          "__rl": true,
+          "value": "public",
+          "mode": "list",
+          "cachedResultName": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "brand_analysis",
+          "mode": "list",
+          "cachedResultName": "brand_analysis"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "website_url": "={{ $('Webhook').item.json.body.url }}",
+            "brand_summary": "={{ $json.output.brand_summary }}",
+            "personality_and_tone": "={{ $json.output.personality_and_tone }}",
+            "audience_and_values": "={{ $json.output.audience_and_values }}",
+            "brand_promise": "={{ $json.output.brand_promise }}",
+            "unique_selling_points": "={{ $json.output.unique_selling_points }}",
+            "social_media_strategy": "={{ $json.output.social_media_content_strategy }}",
+            "content_pillars": "={{ $json.output.content_pillars }}",
+            "rules": "={{ $json.output.rules }}",
+            "job_id": "={{ $('Code in JavaScript').item.json.jobId }}",
+            "status": "DONE",
+            "language": "={{ $('Code in JavaScript').item.json.language }}",
+            "brand_references": "=={{ JSON.stringify($('Code in JavaScript').item.json.references) }}"
+          },
+          "matchingColumns": [
+            "job_id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "website_url",
+              "displayName": "website_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "brand_summary",
+              "displayName": "brand_summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "personality_and_tone",
+              "displayName": "personality_and_tone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "audience_and_values",
+              "displayName": "audience_and_values",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "brand_promise",
+              "displayName": "brand_promise",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "unique_selling_points",
+              "displayName": "unique_selling_points",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "social_media_strategy",
+              "displayName": "social_media_strategy",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "content_pillars",
+              "displayName": "content_pillars",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "rules",
+              "displayName": "rules",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "job_id",
+              "displayName": "job_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "language",
+              "displayName": "language",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "updated_at",
+              "displayName": "updated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "brand_references",
+              "displayName": "brand_references",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3136,
+        -16
+      ],
+      "id": "b5eaeea4-4a95-4da5-a6b2-0ede1f0e2b7a",
+      "name": "Update rows in a table",
+      "credentials": {
+        "postgres": {
+          "id": "YkWjVauTa48dvHlA",
+          "name": "Postgree N8N Floothink"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "path": "brand-brain/status",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -784,
+        144
+      ],
+      "id": "6321280c-caf5-4672-bd62-e04d58c1ad8f",
+      "name": "Webhook1",
+      "webhookId": "a29f19c1-c98b-467a-a23a-d8b8fb81b747",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "Nasabny45H3V3lyf",
+          "name": "Project ID"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const job = $input.first().json;\n\nif (!job || !job.job_id) {\n  return [{ json: { \n    status: 404, \n    body: { error: 'Job not found' } \n  }}];\n}\n\nif (job.status === 'IN_PROGRESS') {\n  return [{ json: { \n    status: 200, \n    body: { status: 'IN_PROGRESS' } \n  }}];\n}\n\n// Status DONE, return semua data\nreturn [{ json: { \n  status: 200, \n  body: { \n    status: 'DONE',\n    data: {\n      name: job.brand_summary,\n      brand_summary: job.brand_summary,\n      personality_and_tone: job.personality_and_tone,\n      audience_and_values: job.audience_and_values,\n      brand_promise: job.brand_promise,\n      unique_selling_points: job.unique_selling_points,\n      social_media_strategy: job.social_media_strategy,\n      content_pillars: job.content_pillars,\n      rules: job.rules,\n      website_url: job.website_url,\n      language: job.language\n    }\n  }\n}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -320,
+        144
+      ],
+      "id": "88dd87c2-859b-41af-b959-3a0861dfabb6",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM brand_analysis \nWHERE job_id = '{{ $json.query.jobId }}'\nLIMIT 1;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -544,
+        144
+      ],
+      "id": "49a29951-eb76-4b5a-a8b3-91ec132b717a",
+      "name": "Execute a SQL query1",
+      "credentials": {
+        "postgres": {
+          "id": "YkWjVauTa48dvHlA",
+          "name": "Postgree N8N Floothink"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {
+          "responseCode": "={{ $json.status }}"
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -96,
+        144
+      ],
+      "id": "325a70a5-9069-452a-a6d1-4892687c3d9f",
+      "name": "Respond to Webhook1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "e348f6dd-e2da-4cf2-86e4-4b146d8e3a45",
+              "leftValue": "={{ $('Webhook').item.json.body.references.length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        112,
+        -32
+      ],
+      "id": "a78e6b4d-02b6-4502-a65a-e9b1a139c8f0",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "jsCode": "const allReferences = $('Code in JavaScript').first().json;\nconst references = allReferences.references || [];\n\n// grouping\nconst website = references\n  .filter(r => r.platform === 'website' || r.type === 'website' || r.content_type === 'website')\n  .map(r => r.link);\n\nconst instagram = references\n  .filter(r => r.platform === 'instagram')\n  .map(r => r.link);\n\nconst tiktok = references\n  .filter(r => r.platform === 'tiktok')\n  .map(r => r.link);\n\nconst youtube = references\n  .filter(r => r.platform === 'youtube')\n  .map(r => r.link);\n\nconst linkedin = references\n  .filter(r => r.platform === 'linkedin')\n  .map(r => r.link);\n\nconst facebook = references\n  .filter(r => r.platform === 'facebook')\n  .map(r => r.link);\n\nconst pdf = references\n  .filter(r =>\n    r.platform === 'pdf' ||\n    r.type === 'pdf' ||\n    r.content_type === 'pdf' ||\n    r.link?.toLowerCase().includes('.pdf')\n  )\n  .map(r => r.link);\n\nconst image = references\n  .filter(r =>\n    r.platform === 'image' ||\n    r.type === 'image' ||\n    r.content_type === 'image'\n  )\n  .map(r => r.link);\n\nreturn [{\n  json: {\n    website,\n    instagram,\n    tiktok,\n    youtube,\n    linkedin,\n    facebook,\n    pdf,\n    image\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        352,
+        -48
+      ],
+      "id": "058a4bee-2391-487c-87e7-8e6bbf042b12",
+      "name": "Code in JavaScript2"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=The Instagram URL to analyze is in:\n{{ $json.link }}\n\nYou are an Instagram Research Assistant that helps a main Brand Strategist AI.\n\nYour job is NOT to create the final brand analysis.\n\nYour job is to analyze Instagram references and extract useful supporting insights that can help the main AI answer these 8 categories better:\n\n1. Brand Summary\n2. Personality and Tone\n3. Audience and Values\n4. Brand Promise\n5. Unique Selling Points\n6. Social Media Content Strategy\n7. Content Pillars\n8. Rules\n\nIMPORTANT:\n- Different Instagram links provide different levels of information.\n- A profile URL may provide broader brand insights.\n- A reel/post/carousel may only provide partial insights.\n- Do NOT force all 8 categories if the data does not support them.\n- Only return insights that are genuinely supported or strongly inferred from the content.\n- Never hallucinate.\n- Keep insights concise but strategic.\n\nAlways use the Instagram scraping tool when an Instagram URL is provided.\n\nYou may receive:\n- Instagram profile URLs\n- Reel URLs\n- Carousel post URLs\n- Single image post URLs\n\nYour task:\n1. Detect the type of Instagram content.\n2. Use the Instagram scraping tool.\n3. Extract strategic insights useful for brand analysis.\n4. Return ONLY the useful findings.\n\nReturn ONLY valid JSON.\n\nUse this exact structure:\n\n{\n  \"platform\": \"instagram\",\n  \"source_type\": \"\",\n  \"url\": \"\",\n  \"useful_for\": [],\n  \"insights\": {\n    \"brand_summary\": [],\n    \"personality_and_tone\": [],\n    \"audience_and_values\": [],\n    \"brand_promise\": [],\n    \"unique_selling_points\": [],\n    \"social_media_content_strategy\": [],\n    \"content_pillars\": [],\n    \"rules\": []\n  },\n  \"confidence_score\": 0.0\n}\n\nRules:\n- Every field inside \"insights\" must be an array.\n- If no useful insight exists for a category, return an empty array.\n- useful_for should contain only categories that actually received meaningful insights.\n- confidence_score must be between 0 and 1.\n- Return concise strategic observations, not long paragraphs.\n- Never include markdown.\n- Never include explanations outside JSON.",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1904,
+        -1264
+      ],
+      "id": "c85ed9f2-868e-49be-8e63-8fbaa40bd0c7",
+      "name": "AI Agent1"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "references",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        768,
+        -48
+      ],
+      "id": "6a80cb66-3177-4aa0-8dd9-9c7c87f4dc95",
+      "name": "Split Out"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $('Code in JavaScript2').first().json;\n\nconst platforms = [\n  'website',\n  'instagram',\n  'tiktok',\n  'youtube',\n  'linkedin',\n  'facebook',\n  'pdf',\n  'image'\n];\n\nconst allLinks = platforms.flatMap(platform =>\n  (data[platform] || []).map(link => ({\n    platform,\n    link\n  }))\n);\n\nreturn [{\n  json: {\n    references: allLinks\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        560,
+        -48
+      ],
+      "id": "c293be27-95e8-4166-b0bf-44e1996d53ca",
+      "name": "Code in JavaScript3"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        1888,
+        -1072
+      ],
+      "id": "111a0b6f-e0b5-4be2-85be-8759ae46d51b",
+      "name": "OpenAI Chat Model2",
+      "credentials": {
+        "openAiApi": {
+          "id": "5Fe7BvgqrELCE6cV",
+          "name": "OpenAI Bayu"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        976,
+        -48
+      ],
+      "id": "3c5a91ee-7645-447f-bdd4-60750307adab",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "operation": "Run actor and get dataset",
+        "actorSource": "store",
+        "actorId": {
+          "__rl": true,
+          "value": "shu8hvrXbJbY3Eb9W",
+          "mode": "list",
+          "cachedResultName": "Instagram Scraper (apify/instagram-scraper)",
+          "cachedResultUrl": "https://console.apify.com/actors/shu8hvrXbJbY3Eb9W/input"
+        },
+        "customBody": "={\n  \"directUrls\": [\n    \"{{ $json.link }}\"\n  ],\n  \"resultsType\": \"details\",\n  \"resultsLimit\": 5\n}"
+      },
+      "type": "@apify/n8n-nodes-apify.apifyTool",
+      "typeVersion": 1,
+      "position": [
+        2112,
+        -1072
+      ],
+      "id": "056d2c9d-d336-4b0c-9e73-444d79c75b66",
+      "name": "IG1",
+      "credentials": {
+        "apifyApi": {
+          "id": "rbUEEwQJFDupQM9h",
+          "name": "Apify Floothink"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.platform }}",
+                    "rightValue": "instagram",
+                    "operator": {
+                      "type": "string",
+                      "operation": "regex"
+                    },
+                    "id": "971b3992-f564-4708-a53d-c53e2395c72c"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Instagram"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "ef7457d8-b674-498c-a751-c5b50f3f8a4e",
+                    "leftValue": "={{ $json.platform }}",
+                    "rightValue": "tiktok",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Tiktok"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "6621db32-432a-46ad-bcb0-e5325794391a",
+                    "leftValue": "={{ $json.platform }}",
+                    "rightValue": "facebook",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Facebook"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "d3fa5ec0-9396-40ba-acd0-84765c96050c",
+                    "leftValue": "={{ $json.platform }}",
+                    "rightValue": "linkedin",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Linkedin"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "cf0d3c82-cedf-4d37-800c-614178d9e94c",
+                    "leftValue": "={{ $json.platform }}",
+                    "rightValue": "youtube",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Youtube"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "e830d3d1-ad03-41e5-90c4-966ca76d6c46",
+                    "leftValue": "={{ $json.platform }}",
+                    "rightValue": "website",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Website"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "bb02cfd9-6a80-48c2-a9a7-7b77cf4ed25b",
+                    "leftValue": "={{ $json.platform }}",
+                    "rightValue": "pdf",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "PDF"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "120f883f-7d5e-49b4-84d7-904a7ca45112",
+                    "leftValue": "={{ $json.platform }}",
+                    "rightValue": "image",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Image"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        1216,
+        -128
+      ],
+      "id": "3439f3a6-05df-4425-9f1f-924bc8fe4b4b",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Current TikTok URL to analyze:\n{{ $json.link }}\n\nYou are a TikTok Research Assistant that helps a main Brand Strategist AI.\n\nYour job is NOT to create the final brand analysis.\n\nYour job is to analyze TikTok references and extract useful supporting insights that can help the main AI answer these 8 categories better:\n\n1. Brand Summary\n2. Personality and Tone\n3. Audience and Values\n4. Brand Promise\n5. Unique Selling Points\n6. Social Media Content Strategy\n7. Content Pillars\n8. Rules\n\nIMPORTANT:\n- Always use the TikTok scraping tool with the current URL.\n- Different TikTok links provide different levels of information.\n- A TikTok profile may provide broader brand/content insights.\n- A TikTok video may only provide partial insights.\n- Do NOT force all 8 categories if the data does not support them.\n- Only return insights that are supported or strongly inferred from the scraped content.\n- If an insight is inferred, phrase it with “Likely”, “Suggests”, or “Indicates”.\n- Never hallucinate.\n- Keep insights concise but strategic.\n\nYour task:\n1. Use the TikTok scraping tool.\n2. Analyze captions, hashtags, video metadata, engagement patterns, hooks, and recurring topics if available.\n3. Extract strategic insights useful for brand analysis.\n4. Return ONLY the useful findings.\n\nReturn ONLY valid JSON.\n\nUse this exact structure:\n\n{\n  \"platform\": \"tiktok\",\n  \"source_type\": \"\",\n  \"url\": \"\",\n  \"useful_for\": [],\n  \"insights\": {\n    \"brand_summary\": [],\n    \"personality_and_tone\": [],\n    \"audience_and_values\": [],\n    \"brand_promise\": [],\n    \"unique_selling_points\": [],\n    \"social_media_content_strategy\": [],\n    \"content_pillars\": [],\n    \"rules\": []\n  },\n  \"confidence_score\": 0.0\n}\n\nRules:\n- Every field inside \"insights\" must be an array.\n- If no useful insight exists for a category, return an empty array.\n- useful_for should contain only categories that actually received meaningful insights.\n- confidence_score must be between 0 and 1.\n- Return concise strategic observations, not long paragraphs.\n- Never include markdown.\n- Never include explanations outside JSON.\n",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1904,
+        -912
+      ],
+      "id": "26664e6d-4ae3-4854-acf6-42c7fe01e5ef",
+      "name": "AI Agent2"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        1888,
+        -720
+      ],
+      "id": "556d32da-061e-43aa-a4ee-02c1fc0ac34e",
+      "name": "OpenAI Chat Model3",
+      "credentials": {
+        "openAiApi": {
+          "id": "5Fe7BvgqrELCE6cV",
+          "name": "OpenAI Bayu"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Current Facebook URL to analyze:\n{{ $json.link }}\n\nYou are a Facebook Research Assistant that helps a main Brand Strategist AI.\n\nYour job is NOT to create the final brand analysis.\n\nYour job is to analyze Facebook references and extract useful supporting insights that can help the main AI answer these 8 categories better:\n\n1. Brand Summary\n2. Personality and Tone\n3. Audience and Values\n4. Brand Promise\n5. Unique Selling Points\n6. Social Media Content Strategy\n7. Content Pillars\n8. Rules\n\nIMPORTANT:\n- Always use the Facebook scraping tool with the current URL.\n- Different Facebook links provide different levels of information.\n- A Facebook Page may provide broader brand/content insights.\n- A Facebook post/video may only provide partial insights.\n- Do NOT force all 8 categories if the data does not support them.\n- Only return insights that are supported or strongly inferred from the scraped content.\n- If an insight is inferred, phrase it with “Likely”, “Suggests”, or “Indicates”.\n- Never hallucinate.\n- Keep insights concise but strategic.\n\nYour task:\n1. Use the Facebook scraping tool.\n2. Analyze captions, post formats, engagement patterns, hooks, comments, hashtags, visuals, and recurring topics if available.\n3. Extract strategic insights useful for brand analysis.\n4. Return ONLY the useful findings.\n\nReturn ONLY valid JSON.\n\nUse this exact structure:\n\n{\n  \"platform\": \"facebook\",\n  \"source_type\": \"\",\n  \"url\": \"\",\n  \"useful_for\": [],\n  \"insights\": {\n    \"brand_summary\": [],\n    \"personality_and_tone\": [],\n    \"audience_and_values\": [],\n    \"brand_promise\": [],\n    \"unique_selling_points\": [],\n    \"social_media_content_strategy\": [],\n    \"content_pillars\": [],\n    \"rules\": []\n  },\n  \"confidence_score\": 0.0\n}\n\nRules:\n- Every field inside \"insights\" must be an array.\n- If no useful insight exists for a category, return an empty array.\n- useful_for should contain only categories that actually received meaningful insights.\n- confidence_score must be between 0 and 1.\n- Return concise strategic observations, not long paragraphs.\n- Never include markdown.\n- Never include explanations outside JSON.",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1904,
+        -560
+      ],
+      "id": "8445ff7b-b3d2-49f8-be7c-77d335491073",
+      "name": "AI Agent3"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        1888,
+        -368
+      ],
+      "id": "ad9be30f-9352-4a63-a7d5-358df2864d78",
+      "name": "OpenAI Chat Model4",
+      "credentials": {
+        "openAiApi": {
+          "id": "5Fe7BvgqrELCE6cV",
+          "name": "OpenAI Bayu"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Current LinkedIn URL to analyze:\n{{ $json.link }}\n\nYou are a LinkedIn Research Assistant that helps a main Brand Strategist AI.\n\nYour job is NOT to create the final brand analysis.\n\nYour job is to analyze LinkedIn references and extract useful supporting insights that can help the main AI answer these 8 categories better:\n\n1. Brand Summary\n2. Personality and Tone\n3. Audience and Values\n4. Brand Promise\n5. Unique Selling Points\n6. Social Media Content Strategy\n7. Content Pillars\n8. Rules\n\nIMPORTANT:\n- Always use the LinkedIn scraping tool with the current URL.\n- Different LinkedIn links provide different levels of information.\n- A LinkedIn company page may provide broader brand and positioning insights.\n- A LinkedIn post/article may only provide partial insights.\n- Do NOT force all 8 categories if the data does not support them.\n- Only return insights that are supported or strongly inferred from the scraped content.\n- If an insight is inferred, phrase it with “Likely”, “Suggests”, or “Indicates”.\n- Never hallucinate.\n- Keep insights concise but strategic.\n\nYour task:\n1. Use the LinkedIn scraping tool.\n2. Analyze company descriptions, posts, employee messaging, engagement patterns, visuals, hashtags, articles, and recurring topics if available.\n3. Extract strategic insights useful for brand analysis.\n4. Return ONLY the useful findings.\n\nReturn ONLY valid JSON.\n\nUse this exact structure:\n\n{\n  \"platform\": \"linkedin\",\n  \"source_type\": \"\",\n  \"url\": \"\",\n  \"useful_for\": [],\n  \"insights\": {\n    \"brand_summary\": [],\n    \"personality_and_tone\": [],\n    \"audience_and_values\": [],\n    \"brand_promise\": [],\n    \"unique_selling_points\": [],\n    \"social_media_content_strategy\": [],\n    \"content_pillars\": [],\n    \"rules\": []\n  },\n  \"confidence_score\": 0.0\n}\n\nRules:\n- Every field inside \"insights\" must be an array.\n- If no useful insight exists for a category, return an empty array.\n- useful_for should contain only categories that actually received meaningful insights.\n- confidence_score must be between 0 and 1.\n- Return concise strategic observations, not long paragraphs.\n- Never include markdown.\n- Never include explanations outside JSON.",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1904,
+        -176
+      ],
+      "id": "c7082a97-1326-446e-87a0-90b886cdc8d8",
+      "name": "AI Agent4"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        1888,
+        16
+      ],
+      "id": "60d09a40-d66a-43ce-8321-d267aab6ac27",
+      "name": "OpenAI Chat Model5",
+      "credentials": {
+        "openAiApi": {
+          "id": "5Fe7BvgqrELCE6cV",
+          "name": "OpenAI Bayu"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=PDF URL to analyze:\n{{ $('HTTP Request').first().json.link || 'Unknown URL' }}\n\nExtracted PDF text:\n{{ $json.text }}\n\nPDF metadata:\n{{ JSON.stringify($json.info || {}) }}\n\nYou are a PDF Research Assistant that helps a main Brand Strategist AI.\n\nYour job is NOT to create the final brand analysis.\n\nYour job is to analyze PDF references and extract useful supporting insights that can help the main AI answer these 8 categories better:\n\n1. Brand Summary\n2. Personality and Tone\n3. Audience and Values\n4. Brand Promise\n5. Unique Selling Points\n6. Social Media Content Strategy\n7. Content Pillars\n8. Rules\n\nIMPORTANT:\n- Analyze only the extracted PDF text and metadata provided above.\n- Do NOT browse or guess.\n- Different PDFs provide different levels of information.\n- A company profile PDF may provide broad brand and positioning insights.\n- A brochure or credential deck may provide service, USP, audience, and proof signals.\n- A dummy/sample PDF may provide little or no useful brand insight.\n- Do NOT force all 8 categories if the data does not support them.\n- Only return insights that are supported or strongly inferred from the PDF content.\n- If an insight is inferred, phrase it with “Likely”, “Suggests”, or “Indicates”.\n- Never hallucinate.\n- Keep insights concise but strategic.\n\nReturn ONLY valid JSON.\n\nRules:\n- Every field inside \"insights\" must be an array.\n- If no useful insight exists for a category, return an empty array.\n- useful_for should contain only categories that actually received meaningful insights.\n- confidence_score must be between 0 and 1.\n- Never include markdown.\n- Never include explanations outside JSON.\n- Response must start with { and end with }.",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        2288,
+        912
+      ],
+      "id": "fa76c4e4-9b03-48c0-886a-855594e220d5",
+      "name": "AI Agent5"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        2288,
+        1088
+      ],
+      "id": "5a2f756b-3954-430c-97b4-ba4ff5e7bf00",
+      "name": "OpenAI Chat Model6",
+      "credentials": {
+        "openAiApi": {
+          "id": "5Fe7BvgqrELCE6cV",
+          "name": "OpenAI Bayu"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Current Website URL to analyze:\n{{ $json.link }}\n\nYou are a Website Research Assistant that helps a main Brand Strategist AI.\n\nYour job is NOT to create the final brand analysis.\n\nYour job is to analyze website references and extract useful supporting insights that can help the main AI answer these 8 categories better:\n\n1. Brand Summary\n2. Personality and Tone\n3. Audience and Values\n4. Brand Promise\n5. Unique Selling Points\n6. Social Media Content Strategy\n7. Content Pillars\n8. Rules\n\nIMPORTANT:\n- Always use the website scraping tool with the current URL.\n- Different websites provide different levels of information.\n- A homepage may provide broad positioning and messaging insights.\n- Product/service pages may provide more specific strategic insights.\n- Blog pages may provide content strategy and authority-building insights.\n- Do NOT force all 8 categories if the data does not support them.\n- Only return insights that are supported or strongly inferred from the scraped content.\n- If an insight is inferred, phrase it with “Likely”, “Suggests”, or “Indicates”.\n- Never hallucinate.\n- Keep insights concise but strategic.\n\nYour task:\n1. Use the website scraping tool.\n2. Analyze headlines, copywriting, CTA patterns, service descriptions, structure, navigation, blog topics, testimonials, case studies, and recurring messaging if available.\n3. Extract strategic insights useful for brand analysis.\n4. Return ONLY the useful findings.\n\nReturn ONLY valid JSON.\n\nUse this exact structure:\n\n{\n  \"platform\": \"website\",\n  \"source_type\": \"\",\n  \"url\": \"\",\n  \"useful_for\": [],\n  \"insights\": {\n    \"brand_summary\": [],\n    \"personality_and_tone\": [],\n    \"audience_and_values\": [],\n    \"brand_promise\": [],\n    \"unique_selling_points\": [],\n    \"social_media_content_strategy\": [],\n    \"content_pillars\": [],\n    \"rules\": []\n  },\n  \"confidence_score\": 0.0\n}\n\nRules:\n- Every field inside \"insights\" must be an array.\n- If no useful insight exists for a category, return an empty array.\n- useful_for should contain only categories that actually received meaningful insights.\n- confidence_score must be between 0 and 1.\n- Return concise strategic observations, not long paragraphs.\n- Never include markdown.\n- Never include explanations outside JSON.",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1904,
+        560
+      ],
+      "id": "be11e2db-dda4-4a27-9348-eb0e6ff10fd9",
+      "name": "AI Agent6"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        1888,
+        752
+      ],
+      "id": "fdd59a27-229c-45b3-a2d9-9d483efbff43",
+      "name": "OpenAI Chat Model7",
+      "credentials": {
+        "openAiApi": {
+          "id": "5Fe7BvgqrELCE6cV",
+          "name": "OpenAI Bayu"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Current YouTube URL to analyze:\n{{ $json.link }}\n\nYou are a YouTube Research Assistant that helps a main Brand Strategist AI.\n\nYour job is NOT to create the final brand analysis.\n\nYour job is to analyze YouTube references and extract useful supporting insights that can help the main AI answer these 8 categories better:\n\n1. Brand Summary\n2. Personality and Tone\n3. Audience and Values\n4. Brand Promise\n5. Unique Selling Points\n6. Social Media Content Strategy\n7. Content Pillars\n8. Rules\n\nIMPORTANT:\n- Always use the YouTube scraping tool with the current URL.\n- Different YouTube links provide different levels of information.\n- A YouTube channel may provide broader brand/content insights.\n- A YouTube video may only provide partial insights.\n- Do NOT force all 8 categories if the data does not support them.\n- Only return insights that are supported or strongly inferred from the scraped content.\n- If an insight is inferred, phrase it with “Likely”, “Suggests”, or “Indicates”.\n- Never hallucinate.\n- Keep insights concise but strategic.\n\nYour task:\n1. Use the YouTube scraping tool.\n2. Analyze titles, descriptions, thumbnails, engagement patterns, video topics, upload consistency, hooks, comments, playlists, and recurring themes if available.\n3. Extract strategic insights useful for brand analysis.\n4. Return ONLY the useful findings.\n\nReturn ONLY valid JSON.\n\nUse this exact structure:\n\n{\n  \"platform\": \"youtube\",\n  \"source_type\": \"\",\n  \"url\": \"\",\n  \"useful_for\": [],\n  \"insights\": {\n    \"brand_summary\": [],\n    \"personality_and_tone\": [],\n    \"audience_and_values\": [],\n    \"brand_promise\": [],\n    \"unique_selling_points\": [],\n    \"social_media_content_strategy\": [],\n    \"content_pillars\": [],\n    \"rules\": []\n  },\n  \"confidence_score\": 0.0\n}\n\nRules:\n- Every field inside \"insights\" must be an array.\n- If no useful insight exists for a category, return an empty array.\n- useful_for should contain only categories that actually received meaningful insights.\n- confidence_score must be between 0 and 1.\n- Return concise strategic observations, not long paragraphs.\n- Never include markdown.\n- Never include explanations outside JSON.",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1904,
+        192
+      ],
+      "id": "c3a258ef-47b0-4cc4-a52a-080778d74a63",
+      "name": "AI Agent7"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        1888,
+        384
+      ],
+      "id": "aed2d3ae-3033-4711-9dac-71d44e77e447",
+      "name": "OpenAI Chat Model8",
+      "credentials": {
+        "openAiApi": {
+          "id": "5Fe7BvgqrELCE6cV",
+          "name": "OpenAI Bayu"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "Run actor and get dataset",
+        "actorSource": "store",
+        "actorId": {
+          "__rl": true,
+          "value": "GdWCkxBtKWOsKjdch",
+          "mode": "list",
+          "cachedResultName": "TikTok Scraper (clockworks/tiktok-scraper)",
+          "cachedResultUrl": "https://console.apify.com/actors/GdWCkxBtKWOsKjdch/input"
+        },
+        "customBody": "={\n  \"profiles\": [\n    \"{{ $json.link }}\"\n  ]\n}"
+      },
+      "type": "@apify/n8n-nodes-apify.apifyTool",
+      "typeVersion": 1,
+      "position": [
+        2112,
+        -704
+      ],
+      "id": "0056f051-bbf2-4640-bce9-56b77861d2ee",
+      "name": "Tiktok",
+      "credentials": {
+        "apifyApi": {
+          "id": "rbUEEwQJFDupQM9h",
+          "name": "Apify Floothink"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "Run actor and get dataset",
+        "actorSource": "store",
+        "actorId": {
+          "__rl": true,
+          "value": "KoJrdxJCTtpon81KY",
+          "mode": "list",
+          "cachedResultName": "Facebook Posts Scraper (apify/facebook-posts-scraper)",
+          "cachedResultUrl": "https://console.apify.com/actors/KoJrdxJCTtpon81KY/input"
+        },
+        "customBody": "={\n  \"startUrls\": [\n    {\n      \"url\": \"{{ $json.link.split('?')[0] }}\"\n    }\n  ]\n}"
+      },
+      "type": "@apify/n8n-nodes-apify.apifyTool",
+      "typeVersion": 1,
+      "position": [
+        2080,
+        -368
+      ],
+      "id": "853898a8-63a4-4556-a3b7-fe0db0a9ada6",
+      "name": "Facebook",
+      "credentials": {
+        "apifyApi": {
+          "id": "rbUEEwQJFDupQM9h",
+          "name": "Apify Floothink"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "Run actor and get dataset",
+        "actorSource": "store",
+        "actorId": {
+          "__rl": true,
+          "value": "Wpp1BZ6yGWjySadk3",
+          "mode": "list",
+          "cachedResultName": "Linkedin Post Scraper ✅ No cookies · $1 per 1k (supreme_coder/linkedin-post)",
+          "cachedResultUrl": "https://console.apify.com/actors/Wpp1BZ6yGWjySadk3/input"
+        },
+        "customBody": "={\n  \"urls\": [\n    \"{{ $json.link }}\"\n  ]\n}"
+      },
+      "type": "@apify/n8n-nodes-apify.apifyTool",
+      "typeVersion": 1,
+      "position": [
+        2096,
+        16
+      ],
+      "id": "f8fc0245-d28d-4a89-b5ba-c8938735c475",
+      "name": "Linkedin",
+      "credentials": {
+        "apifyApi": {
+          "id": "rbUEEwQJFDupQM9h",
+          "name": "Apify Floothink"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "Run actor and get dataset",
+        "actorSource": "store",
+        "actorId": {
+          "__rl": true,
+          "value": "aYG0l9s7dbB7j3gbS",
+          "mode": "list",
+          "cachedResultName": "Website Content Crawler (apify/website-content-crawler)",
+          "cachedResultUrl": "https://console.apify.com/actors/aYG0l9s7dbB7j3gbS/input"
+        },
+        "customBody": "={\n  \"startUrls\": [\n    {\n      \"url\": \"{{ $json.link }}\"\n    }\n  ],\n  \"crawlerType\": \"cheerio\",\n  \"maxCrawlPages\": 3\n}"
+      },
+      "type": "@apify/n8n-nodes-apify.apifyTool",
+      "typeVersion": 1,
+      "position": [
+        2080,
+        752
+      ],
+      "id": "c0aede9f-03cd-4940-ba6e-b2e5ee97cff7",
+      "name": "Website",
+      "credentials": {
+        "apifyApi": {
+          "id": "rbUEEwQJFDupQM9h",
+          "name": "Apify Floothink"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "Run actor and get dataset",
+        "actorSource": "store",
+        "actorId": {
+          "__rl": true,
+          "value": "h7sDV53CddomktSi5",
+          "mode": "list",
+          "cachedResultName": "YouTube Scraper (streamers/youtube-scraper)",
+          "cachedResultUrl": "https://console.apify.com/actors/h7sDV53CddomktSi5/input"
+        },
+        "customBody": "={\n  \"startUrls\": [\n    {\n      \"url\": \"{{ $json.link }}\"\n    }\n  ],\n  \"maxResults\": 5\n}"
+      },
+      "type": "@apify/n8n-nodes-apify.apifyTool",
+      "typeVersion": 1,
+      "position": [
+        2080,
+        384
+      ],
+      "id": "1bfa0fb7-238a-434c-a99f-356988a51eb6",
+      "name": "Youtube",
+      "credentials": {
+        "apifyApi": {
+          "id": "rbUEEwQJFDupQM9h",
+          "name": "Apify Floothink"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldsToAggregate": {
+          "fieldToAggregate": [
+            {
+              "fieldToAggregate": "output"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        2368,
+        -64
+      ],
+      "id": "36b44cfb-8715-42d2-ba20-ce350d813fe8",
+      "name": "Aggregate"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Image URL to analyze:\n{{ $('HTTP Request1').first().binary.data.url || $('HTTP Request1').first().json.link || 'Unknown URL' }}\n\nYou are an Image Research Assistant that helps a main Brand Strategist AI.\n\nYour job is NOT to create the final brand analysis.\n\nYour job is to analyze image references and extract useful supporting insights that can help the main AI answer these 8 categories better:\n\n1. Brand Summary\n2. Personality and Tone\n3. Audience and Values\n4. Brand Promise\n5. Unique Selling Points\n6. Social Media Content Strategy\n7. Content Pillars\n8. Rules\n\nIMPORTANT:\n- Analyze only the provided image.\n- Do NOT browse or guess.\n- Different images provide different levels of information.\n- A brand poster may provide visual identity, campaign, offer, tone, audience, and CTA insights.\n- A product image may provide product, positioning, usage context, and visual style insights.\n- A generic stock image may provide little or no useful brand insight.\n- Focus on visible elements: logo, text, colors, layout, people, product, setting, CTA, mood, visual style, and composition.\n- Do NOT force all 8 categories if the image does not support them.\n- Only return insights that are visible or strongly inferred from the image.\n- If an insight is inferred, phrase it with “Likely”, “Suggests”, or “Indicates”.\n- Never hallucinate.\n- Keep insights concise but strategic.\n\nReturn ONLY valid JSON.\n\n\nRules:\n- Every field inside \"insights\" must be an array.\n- If no useful insight exists for a category, return an empty array.\n- useful_for should contain only categories that actually received meaningful insights.\n- confidence_score must be between 0 and 1.\n- Never include markdown.\n- Never include explanations outside JSON.\n- Response must start with { and end with }.",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        2096,
+        1216
+      ],
+      "id": "b1ec816f-bae7-4dc5-9b6b-cc7b3fe219c1",
+      "name": "AI Agent8"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        2096,
+        1424
+      ],
+      "id": "c533e949-0ff7-43bc-bdce-8c88902ebfde",
+      "name": "OpenAI Chat Model9",
+      "credentials": {
+        "openAiApi": {
+          "id": "5Fe7BvgqrELCE6cV",
+          "name": "OpenAI Bayu"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.link }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1904,
+        912
+      ],
+      "id": "c2c31eaa-feff-4309-8f7b-a9a609c30d4a",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        2096,
+        912
+      ],
+      "id": "fa8bbf15-f6fd-4429-b55e-76e8bf5bb915",
+      "name": "Extract from File1"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.link }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1904,
+        1216
+      ],
+      "id": "3d62f55c-083b-49d3-950b-d9f6c906e6fb",
+      "name": "HTTP Request1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Scrape single URL in Apify": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Update rows in a table",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update rows in a table": {
+      "main": [
+        []
+      ]
+    },
+    "Webhook1": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond to Webhook": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript3": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IG1": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI Agent2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI Agent3",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI Agent4",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI Agent7",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI Agent6",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model3": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent2",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model4": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent3",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model5": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent4",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model6": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent5",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model7": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent6",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model8": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent7",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent2": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent3": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent4": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent5": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent6": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent7": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tiktok": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent2",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Facebook": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent3",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Linkedin": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent4",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Website": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent6",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Youtube": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent7",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model9": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent8",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent8": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Extract from File1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File1": {
+      "main": [
+        [
+          {
+            "node": "AI Agent5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "AI Agent8",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "ceaec05e-8f66-4680-80c0-4d2c65c7ac6b",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "de05e9a2fde146d01845966a070288e86cb0db7d6640cd2282172981fb03c5d1"
+  },
+  "id": "hxKpsNuLvlKfchEP",
+  "tags": [
+    {
+      "updatedAt": "2026-05-07T11:13:17.567Z",
+      "createdAt": "2026-05-07T11:13:17.567Z",
+      "id": "XERPR1YzHq1ni2I2",
+      "name": "Rehan"
+    }
+  ]
+}
