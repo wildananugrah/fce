@@ -43,7 +43,7 @@ export function SkillsAppliedStrip({ generator, className }: Props) {
   return (
     <div
       ref={containerRef}
-      className={`flex flex-wrap items-center gap-1.5 text-xs ${className ?? ""}`}
+      className={`flex flex-wrap items-center gap-1.5 text-[10px] ${className ?? ""}`}
     >
       <span className="text-gray-500">Marketing skills applied:</span>
       {skills.map((s) => {

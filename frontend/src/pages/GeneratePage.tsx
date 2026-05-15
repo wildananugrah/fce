@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Trash2, X, Sparkles } from "lucide-react";
+import { Trash2, X, Sparkles, Eye } from "lucide-react";
 import { useWorkspace } from "../hooks/useWorkspace";
 import { useProject } from "../hooks/useProject";
 import { useSSE } from "../hooks/useSSE";
@@ -351,18 +351,18 @@ function FormatBadge({ type }: { type: "SLIDES" | "VIDEO" }) {
 function BrainContextCard({ tone, usp }: { tone?: string; usp?: string }) {
   if (!tone && !usp) return null;
   return (
-    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mt-3">
-      <p className="text-[10px] font-bold text-amber-600 uppercase tracking-wider mb-2">
+    <div className="bg-warning/10 border border-warning/30 rounded-lg p-4 mt-3">
+      <p className="text-[10px] font-bold text-warning uppercase tracking-wider mb-2">
         Brain Context
       </p>
       {tone && (
-        <p className="text-sm text-gray-700 mb-1">
-          <span className="font-semibold text-amber-600">Tone:</span> {tone}
+        <p className="text-xs text-foreground mb-1">
+          <span className="font-semibold text-warning">Tone:</span> {tone}
         </p>
       )}
       {usp && (
-        <p className="text-sm text-gray-700">
-          <span className="font-semibold text-amber-600">USP:</span> {usp}
+        <p className="text-xs text-foreground">
+          <span className="font-semibold text-warning">USP:</span> {usp}
         </p>
       )}
     </div>
@@ -795,7 +795,7 @@ const frameworkOptions = [{ value: "", label: "Default (AIDA)" }, ...frameworks.
   const visualStyleOptions = [{ value: "", label: "Select Visual Style" }, ...visualStyles.map((v) => ({ value: v.id, label: v.name }))];
 
   return (
-    <div className={`${embedded ? "" : "p-6 "}space-y-6`}>
+    <div className={embedded ? "flex flex-1 min-h-0 flex-col" : "p-6 space-y-6"}>
       {!embedded && (
         <>
           {/* Advanced mode toggle */}
@@ -805,7 +805,7 @@ const frameworkOptions = [{ value: "", label: "Default (AIDA)" }, ...frameworks.
               type="button"
               onClick={() => setAdvancedMode(!advancedMode)}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                advancedMode ? "bg-indigo-600" : "bg-gray-300"
+                advancedMode ? "bg-foreground" : "bg-surface-tertiary"
               }`}
             >
               <span
@@ -841,12 +841,12 @@ const frameworkOptions = [{ value: "", label: "Default (AIDA)" }, ...frameworks.
       {loading ? (
         <div className="flex justify-center py-12"><Spinner /></div>
       ) : (
-        <div className="flex gap-6">
+        <div className={embedded ? "flex flex-1 min-h-0" : "flex gap-6"}>
           {/* Left Panel — Form */}
-          <div className="w-[440px] shrink-0 space-y-5">
+          <div className={embedded ? "w-1/2 overflow-y-auto px-6 py-5 border-r border-gray-100 shrink-0 space-y-5" : "w-[440px] shrink-0 space-y-5"}>
             {/* Context Section */}
-            <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-4">
-              <div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+            <div className="pb-5 space-y-4 border-b border-gray-100">
+              <div className="flex items-center gap-2 text-xs font-semibold text-gray-700">
                 <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -859,8 +859,8 @@ const frameworkOptions = [{ value: "", label: "Default (AIDA)" }, ...frameworks.
                   <label className="block text-xs font-medium text-gray-600 uppercase tracking-wide mb-1.5">
                     Brand
                   </label>
-                  <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-gray-50 border border-gray-200 text-sm">
-                    <span className="w-5 h-5 rounded bg-indigo-100 text-indigo-600 flex items-center justify-center text-[10px] font-bold">
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-gray-50 border border-gray-200 text-xs">
+                    <span className="w-5 h-5 rounded bg-surface-secondary text-foreground flex items-center justify-center text-[10px] font-bold">
                       {brands[0].name.charAt(0).toUpperCase()}
                     </span>
                     <span className="text-gray-700">{brands[0].name}</span>
@@ -909,8 +909,8 @@ const frameworkOptions = [{ value: "", label: "Default (AIDA)" }, ...frameworks.
                           }
                           className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
                             selectedProductIds.includes(p.id)
-                              ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
-                              : "bg-white text-gray-600 border-gray-200 hover:border-indigo-300 hover:bg-indigo-50"
+                              ? "bg-foreground text-background border-foreground shadow-sm"
+                              : "bg-surface text-muted border-border hover:bg-surface-secondary hover:text-foreground"
                           }`}
                         >
                           <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -925,25 +925,45 @@ const frameworkOptions = [{ value: "", label: "Default (AIDA)" }, ...frameworks.
                       ))}
                     </div>
                     {selectedProductIds.length > 0 && (
-                      <p className="text-[11px] text-indigo-500 mt-1.5">
+                      <p className="text-[11px] text-muted mt-1.5">
                         {selectedProductIds.length} product{selectedProductIds.length > 1 ? "s" : ""} selected
                       </p>
                     )}
                   </div>
 
-                  <SearchableSelect
-                    label="Topic (optional)"
-                    options={topics
-                      .filter((t) => t.brandId === brandId)
-                      .map((t) => ({
-                        value: t.id,
-                        label: t.title,
-                        sublabel: [t.pillar, t.platform, t.format].filter(Boolean).join(" \u00B7 "),
-                      }))}
-                    value={contentTopicId}
-                    onChange={setContentTopicId}
-                    placeholder="Search topics..."
-                  />
+                  {contentTopicId ? (
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 uppercase tracking-wide mb-1.5">
+                        Topic
+                      </label>
+                      <div className="inline-flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 bg-surface-secondary text-foreground text-xs font-medium rounded-[5px] border border-border max-w-full">
+                        <span className="truncate max-w-[280px]">
+                          {topics.find((t) => t.id === contentTopicId)?.title}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setContentTopicId("")}
+                          className="shrink-0 p-0.5 rounded hover:bg-surface-tertiary text-muted hover:text-foreground transition-colors"
+                        >
+                          <X size={11} />
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <SearchableSelect
+                      label="Topic (optional)"
+                      options={topics
+                        .filter((t) => t.brandId === brandId)
+                        .map((t) => ({
+                          value: t.id,
+                          label: t.title,
+                          sublabel: [t.pillar, t.platform, t.format].filter(Boolean).join(" \u00B7 "),
+                        }))}
+                      value={contentTopicId}
+                      onChange={setContentTopicId}
+                      placeholder="Search topics..."
+                    />
+                  )}
                   {/* Mirror the pillar from the picked topic so the writer can
                       see what angle it was planned under. Blank pillar means
                       the topic was generated from the "mix all pillars" path
@@ -958,7 +978,7 @@ const frameworkOptions = [{ value: "", label: "Default (AIDA)" }, ...frameworks.
                           Pillar
                         </span>
                         {selectedTopic.pillar ? (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-indigo-50 text-indigo-700 border border-indigo-100">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-[5px] text-[11px] font-medium bg-surface-secondary text-foreground border border-border">
                             {selectedTopic.pillar}
                           </span>
                         ) : (
@@ -995,7 +1015,7 @@ const frameworkOptions = [{ value: "", label: "Default (AIDA)" }, ...frameworks.
                                 }
                                 className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium border transition-all ${
                                   isSelected
-                                    ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
+                                    ? "bg-foreground text-background border-foreground shadow-sm"
                                     : `${PILLAR_COLORS[i % PILLAR_COLORS.length]} border-transparent hover:border-gray-300`
                                 }`}
                               >
@@ -1017,8 +1037,8 @@ const frameworkOptions = [{ value: "", label: "Default (AIDA)" }, ...frameworks.
             </div>
 
             {/* Target Section */}
-            <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-4">
-              <div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+            <div className="pb-5 space-y-4 border-b border-gray-100">
+              <div className="flex items-center gap-2 text-xs font-semibold text-gray-700">
                 <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
@@ -1039,8 +1059,8 @@ const frameworkOptions = [{ value: "", label: "Default (AIDA)" }, ...frameworks.
                       }}
                       className={`px-3.5 py-1.5 rounded-full text-xs font-medium border transition-colors ${
                         platform === p.value
-                          ? "bg-indigo-600 text-white border-indigo-600"
-                          : "bg-white text-gray-600 border-gray-300 hover:border-gray-400"
+                          ? "bg-foreground text-background border-foreground"
+                          : "bg-surface text-muted border-border hover:bg-surface-secondary hover:text-foreground"
                       }`}
                     >
                       {p.label}
@@ -1061,10 +1081,10 @@ const frameworkOptions = [{ value: "", label: "Default (AIDA)" }, ...frameworks.
                         key={fmt.value}
                         type="button"
                         onClick={() => setContentType(fmt.value)}
-                        className={`w-full flex items-center justify-between px-4 py-3 rounded-lg text-sm transition-colors border ${
+                        className={`w-full flex items-center justify-between px-3 py-1.5 rounded-md text-xs transition-colors border ${
                           contentType === fmt.value
-                            ? "bg-indigo-50 border-indigo-300 text-indigo-800"
-                            : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50"
+                            ? "bg-foreground/5 border-foreground/30 text-foreground"
+                            : "bg-surface border-border text-muted hover:bg-surface-secondary"
                         }`}
                       >
                         <div className="flex items-center gap-3">
@@ -1093,8 +1113,8 @@ const frameworkOptions = [{ value: "", label: "Default (AIDA)" }, ...frameworks.
                       }
                       className={`px-3.5 py-1.5 rounded-full text-xs font-medium border transition-colors ${
                         objective === o.value
-                          ? "bg-indigo-600 text-white border-indigo-600"
-                          : "bg-white text-gray-600 border-gray-300 hover:border-gray-400"
+                          ? "bg-foreground text-background border-foreground"
+                          : "bg-surface text-muted border-border hover:bg-surface-secondary hover:text-foreground"
                       }`}
                     >
                       {o.label}
@@ -1106,8 +1126,8 @@ const frameworkOptions = [{ value: "", label: "Default (AIDA)" }, ...frameworks.
 
             {/* Advanced Mode — Strategy Controls */}
             {advancedMode && (
-              <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-4">
-                <div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+              <div className="pb-5 space-y-4 border-b border-gray-100">
+                <div className="flex items-center gap-2 text-xs font-semibold text-gray-700">
                   <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -1150,8 +1170,8 @@ const frameworkOptions = [{ value: "", label: "Default (AIDA)" }, ...frameworks.
             )}
 
             {/* Additional Direction Section — always visible */}
-            <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-4">
-              <div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+            <div className="pb-5 space-y-4 border-b border-gray-100">
+              <div className="flex items-center gap-2 text-xs font-semibold text-gray-700">
                 <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />
                 </svg>
@@ -1160,7 +1180,7 @@ const frameworkOptions = [{ value: "", label: "Default (AIDA)" }, ...frameworks.
 
               <div>
                 <textarea
-                  className="w-full px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 resize-y min-h-[140px] leading-relaxed"
+                  className="w-full px-3 py-2.5 text-xs bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 resize-y min-h-[140px] leading-relaxed"
                   rows={6}
                   placeholder="Add any specific instructions, direction, or context...&#10;&#10;Tip: Paste URLs here — they'll be scraped and used as reference material."
                   value={customPrompt}
@@ -1196,7 +1216,7 @@ const frameworkOptions = [{ value: "", label: "Default (AIDA)" }, ...frameworks.
               type="button"
               onClick={handleSubmit}
               disabled={!canGenerate || submitting}
-              className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl text-sm font-semibold transition-colors bg-amber-400 text-black hover:bg-amber-300 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl text-sm font-semibold transition-colors bg-warning text-warning-foreground hover:bg-warning/90 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {submitting ? (
                 <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
@@ -1243,78 +1263,132 @@ const frameworkOptions = [{ value: "", label: "Default (AIDA)" }, ...frameworks.
           </div>
 
           {/* Right Panel — Results / Empty State */}
-          <div className="flex-1 min-w-0">
-            {displayedGenerations.length > 0 ? (
-              <div className="space-y-4">
-                <h2 className="text-sm font-semibold text-gray-800">Recent Generations</h2>
-                <div className="bg-white border border-gray-200 rounded-xl overflow-x-auto">
-                  <table className="w-full min-w-[640px]">
-                    <thead>
-                      <tr className="border-b border-gray-100 bg-gray-50">
-                        <th className="w-10 px-4 py-2.5">
-                          <input
-                            type="checkbox"
-                            className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                            checked={displayedGenerations.length > 0 && displayedGenerations.every((g) => selectedGenIds.has(g.id))}
-                            ref={(el) => {
-                              if (!el) return;
-                              const count = displayedGenerations.filter((g) => selectedGenIds.has(g.id)).length;
-                              el.indeterminate = count > 0 && count < displayedGenerations.length;
-                            }}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setSelectedGenIds(new Set(displayedGenerations.map((g) => g.id)));
-                              } else {
-                                setSelectedGenIds(new Set());
-                              }
-                            }}
-                          />
-                        </th>
-                        <th className="px-4 py-2.5 w-8" />
-                        <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-wide">Brand</th>
-                        <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-wide">Platform</th>
-                        <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-wide">Format</th>
-                        <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-wide">Status</th>
-                        <th className="px-4 py-2.5" />
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {displayedGenerations.map((gen) => (
-                        <GenerationResultRow
-                          key={gen.id}
-                          generation={gen}
-                          workspaceId={activeWorkspace!.id}
-                          selected={selectedGenIds.has(gen.id)}
-                          onSelect={toggleSelectGen}
-                          onApproved={handleGenerationApproved}
-                          onRejected={handleGenerationRejected}
-                          onDeleted={(genId) => {
-                            setGenerations((prev) => prev.filter((g) => g.id !== genId));
-                            showToast("Generation deleted", "info");
-                          }}
-                          onViewFull={handleViewGeneration}
-                          getPlatformStyle={getPlatformStyle}
-                          getStatusStyle={getStatusStyle}
-                          getStatusDot={getStatusDot}
-                          formatRelativeDate={formatRelativeDate}
-                        />
-                      ))}
-                    </tbody>
-                  </table>
+          <div className={embedded ? "w-1/2 overflow-y-auto bg-gray-50 shrink-0" : "flex-1 min-w-0"}>
+            {embedded ? (
+              displayedGenerations.length > 0 ? (
+                <div className="p-5 space-y-3">
+                  <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    Generated Content ({displayedGenerations.length})
+                  </h3>
+                  <div className="space-y-3">
+                    {displayedGenerations.map((gen) => (
+                      <div key={gen.id} className="bg-white border border-gray-100 rounded-lg p-4 shadow-sm space-y-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-2 flex-wrap min-w-0">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold capitalize ${getPlatformStyle(gen.platform).bg} ${getPlatformStyle(gen.platform).text}`}>
+                              {gen.platform}
+                            </span>
+                            <span className="text-[10px] text-gray-500 capitalize truncate">{gen.contentType.replace(/_/g, " ")}</span>
+                          </div>
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium shrink-0 ${getStatusStyle(gen.status)}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${getStatusDot(gen.status)}`} />
+                            {gen.status}
+                          </span>
+                        </div>
+                        {(gen.brand || gen.product) && (
+                          <div className="text-[10px] text-gray-500">
+                            {gen.brand?.name}{gen.product ? ` · ${gen.product.name}` : ""}
+                          </div>
+                        )}
+                        <div className="flex items-center justify-between pt-1.5 border-t border-gray-50">
+                          <span className="text-[10px] text-gray-400">{formatRelativeDate(gen.createdAt)}</span>
+                          {gen.status === "completed" && (
+                            <button
+                              type="button"
+                              onClick={() => handleViewGeneration(gen)}
+                              className="inline-flex items-center gap-1 text-[10px] font-medium text-indigo-600 hover:text-indigo-800 transition-colors"
+                            >
+                              <Eye size={10} />
+                              View
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full p-8 text-center">
+                  <svg className="w-10 h-10 text-gray-300 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 00-2.455 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" />
+                  </svg>
+                  <p className="text-sm font-medium text-gray-500">No generations yet</p>
+                  <p className="text-xs text-gray-400 mt-1">Configure the settings and click Generate</p>
+                </div>
+              )
             ) : (
-              <div className="flex flex-col items-center justify-center h-[500px] bg-white border border-gray-200 rounded-xl">
-                <svg className="w-16 h-16 text-indigo-200 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 00-2.455 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" />
-                </svg>
-                <p className="text-lg font-semibold text-gray-700">Ready to generate</p>
-                <p className="text-sm text-gray-400 mt-2 text-center max-w-xs">
-                  Configure the left panel and click Generate. FCE will build
-                  content tailored to your chosen format — slides, scenes,
-                  or single-post copy.
-                </p>
-              </div>
+              displayedGenerations.length > 0 ? (
+                <div className="space-y-4">
+                  <h2 className="text-sm font-semibold text-gray-800">Recent Generations</h2>
+                  <div className="bg-white border border-gray-200 rounded-xl overflow-x-auto">
+                    <table className="w-full min-w-[640px]">
+                      <thead>
+                        <tr className="border-b border-gray-100 bg-gray-50">
+                          <th className="w-10 px-4 py-2.5">
+                            <input
+                              type="checkbox"
+                              className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                              checked={displayedGenerations.length > 0 && displayedGenerations.every((g) => selectedGenIds.has(g.id))}
+                              ref={(el) => {
+                                if (!el) return;
+                                const count = displayedGenerations.filter((g) => selectedGenIds.has(g.id)).length;
+                                el.indeterminate = count > 0 && count < displayedGenerations.length;
+                              }}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedGenIds(new Set(displayedGenerations.map((g) => g.id)));
+                                } else {
+                                  setSelectedGenIds(new Set());
+                                }
+                              }}
+                            />
+                          </th>
+                          <th className="px-4 py-2.5 w-8" />
+                          <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-wide">Brand</th>
+                          <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-wide">Platform</th>
+                          <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-wide">Format</th>
+                          <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-wide">Status</th>
+                          <th className="px-4 py-2.5" />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {displayedGenerations.map((gen) => (
+                          <GenerationResultRow
+                            key={gen.id}
+                            generation={gen}
+                            workspaceId={activeWorkspace!.id}
+                            selected={selectedGenIds.has(gen.id)}
+                            onSelect={toggleSelectGen}
+                            onApproved={handleGenerationApproved}
+                            onRejected={handleGenerationRejected}
+                            onDeleted={(genId) => {
+                              setGenerations((prev) => prev.filter((g) => g.id !== genId));
+                              showToast("Generation deleted", "info");
+                            }}
+                            onViewFull={handleViewGeneration}
+                            getPlatformStyle={getPlatformStyle}
+                            getStatusStyle={getStatusStyle}
+                            getStatusDot={getStatusDot}
+                            formatRelativeDate={formatRelativeDate}
+                          />
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-[500px] bg-white border border-gray-200 rounded-xl">
+                  <svg className="w-16 h-16 text-indigo-200 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 00-2.455 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" />
+                  </svg>
+                  <p className="text-lg font-semibold text-gray-700">Ready to generate</p>
+                  <p className="text-sm text-gray-400 mt-2 text-center max-w-xs">
+                    Configure the left panel and click Generate. FCE will build
+                    content tailored to your chosen format — slides, scenes,
+                    or single-post copy.
+                  </p>
+                </div>
+              )
             )}
           </div>
         </div>
@@ -1324,21 +1398,14 @@ const frameworkOptions = [{ value: "", label: "Default (AIDA)" }, ...frameworks.
         <ContentPreviewModal
           item={previewItem}
           workspaceId={activeWorkspace.id}
-          presentation={embedded ? "slider" : "modal"}
           onClose={() => setPreviewItem(null)}
           onStatusChange={(id, status) => {
             setPreviewItem((prev) => prev && prev.id === id ? { ...prev, status } : prev);
           }}
           onToast={showToast}
           onSent={() => {
-            // The modal just flipped the output's status to "draft". The
-            // backend's list filter (findByWorkspace) only returns requests
-            // with no outputs OR outputs still in "generated" state — so
-            // this request will disappear from the list on reload.
-            // Reload instead of doing id correlation gymnastics:
-            // previewItem carries the output id, not the generation id.
             setPreviewItem(null);
-            loadGenerations();
+            if (!embedded) loadGenerations();
             showToast(
               "Sent to Library as Draft — review it there to approve or reject.",
               "success",

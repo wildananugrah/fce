@@ -94,7 +94,7 @@ export function SectionViewer({ sections, workspaceId, outputId, onSectionUpdate
 						{editingId === section.id ? (
 							<div>
 								<textarea
-									className="w-full border border-gray-300 rounded p-2 text-sm min-h-[100px] focus:outline-none focus:border-black"
+									className="w-full border border-gray-300 rounded p-2 text-xs min-h-[100px] focus:outline-none focus:border-black"
 									value={editText}
 									onChange={(e) => setEditText(e.target.value)}
 								/>

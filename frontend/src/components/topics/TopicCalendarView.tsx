@@ -84,8 +84,7 @@ const TODAY_LOCAL_MIDNIGHT = (() => {
   return t;
 })();
 
-function isClickableEmptyCell(cellDate: Date, isOtherMonth: boolean, hasTopics: boolean): boolean {
-  if (hasTopics) return false;
+function isClickableCell(cellDate: Date, isOtherMonth: boolean): boolean {
   if (isOtherMonth) return false;
   if (cellDate < TODAY_LOCAL_MIDNIGHT) return false;
   return true;
@@ -241,7 +240,7 @@ export function TopicCalendarView({
             const isDragOver = dragOverKey === key;
             const clickable =
               onEmptyCellClick !== undefined &&
-              isClickableEmptyCell(date, isOtherMonth, dayTopics.length > 0);
+              isClickableCell(date, isOtherMonth);
 
             const isLastCol = (i + 1) % 7 === 0;
             const isLastRow = i >= cells.length - 7;
