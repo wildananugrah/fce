@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Upload, Link2, Trash2, Loader2, FileText, Image, Globe, ChevronDown, ChevronRight } from "lucide-react";
+import { Button } from "../ui/Button";
 import { api, getAccessToken } from "../../services/api";
 
 interface DocumentChunk {
@@ -187,17 +188,16 @@ export function ProductReferences({ workspaceId, productId, brandId }: ProductRe
               value={linkUrl}
               onChange={(e) => setLinkUrl(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleAddLink()}
-              className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400"
+              className="w-full pl-9 pr-3 py-2 text-xs border border-gray-200 rounded-md focus:outline-none focus:border-gray-400"
             />
           </div>
-          <button
-            type="button"
+          <Button
             onClick={handleAddLink}
             disabled={!linkUrl.trim() || addingLink}
-            className="px-4 py-2 text-xs font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            loading={addingLink}
           >
-            {addingLink ? "Adding..." : "Add"}
-          </button>
+            Add
+          </Button>
         </div>
         <p className="text-[10px] text-gray-400 mt-1">
           The link content will be scraped and extracted as reference material.

@@ -57,7 +57,7 @@ export function AcceptInvitationPage() {
     setSubmitError(null);
     try {
       await signup(info.inviteeEmail, password, fullName || undefined, token);
-      navigate("/");
+      navigate("/planner");
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : "Signup failed");
     } finally {
@@ -71,7 +71,7 @@ export function AcceptInvitationPage() {
     setSubmitError(null);
     try {
       await api(`/api/invitations/${token}/accept`, { method: "POST" });
-      navigate("/");
+      navigate("/planner");
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : "Failed to accept invitation");
     } finally {

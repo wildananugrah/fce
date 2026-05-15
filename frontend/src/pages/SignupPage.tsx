@@ -30,7 +30,7 @@ export function SignupPage() {
         setPendingEmail(outcome.email);
         return;
       }
-      navigate("/");
+      navigate("/planner");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Signup failed");
     } finally {

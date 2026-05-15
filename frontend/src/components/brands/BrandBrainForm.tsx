@@ -23,7 +23,6 @@ import {
   Loader2,
 } from "lucide-react";
 import { Button } from "../ui/Button";
-import { Input } from "../ui/Input";
 import { ScrapeLanguageToggle } from "../ui/ScrapeLanguageToggle";
 import { useScrapeLanguage } from "../../hooks/useScrapeLanguage";
 import { useUnsavedAsync } from "../../hooks/useUnsavedAsync";
@@ -158,7 +157,7 @@ export function TagInput({
             }
           }}
           placeholder={placeholder}
-          className="flex-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+          className="flex-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:outline-none"
         />
         <Button variant="secondary" size="sm" onClick={add}>
           Add
@@ -201,13 +200,9 @@ export function PillarInput({
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <p className="text-sm font-medium text-gray-700">Content Pillars</p>
-        <button
-          type="button"
-          onClick={() => onChange([...value, ""])}
-          className="text-xs text-indigo-600 font-medium hover:underline flex items-center gap-0.5"
-        >
+        <Button variant="secondary" size="sm" onClick={() => onChange([...value, ""])}>
           + Add Pillar
-        </button>
+        </Button>
       </div>
       {value.length === 0 ? (
         <button
@@ -229,7 +224,7 @@ export function PillarInput({
                 onChange(next);
               }}
               placeholder={`Pillar ${i + 1} (e.g. Education, Inspiration…)`}
-              className="flex-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+              className="flex-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:outline-none"
             />
             <button
               type="button"
@@ -270,13 +265,9 @@ export function RuleList({
         <span className={`text-sm font-medium ${labelColor} flex items-center gap-1.5`}>
           {color === "green" ? "✓" : "✗"} {label}
         </span>
-        <button
-          type="button"
-          onClick={() => onChange([...items, ""])}
-          className="text-xs text-indigo-600 font-medium hover:underline"
-        >
+        <Button variant="secondary" size="sm" onClick={() => onChange([...items, ""])}>
           + Add
-        </button>
+        </Button>
       </div>
       {items.map((item, i) => (
         <div key={i} className="flex items-center gap-2">
@@ -289,7 +280,7 @@ export function RuleList({
               onChange(next);
             }}
             placeholder={placeholder}
-            className="flex-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+            className="flex-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:outline-none"
           />
           <button
             type="button"
@@ -587,7 +578,7 @@ export const BrandBrainForm = forwardRef<BrandBrainFormHandle, BrandBrainFormPro
     return (
       <div className="flex h-full min-h-0">
         {/* Sidebar tabs */}
-        <nav className="w-52 border-r border-gray-200 py-4 shrink-0" aria-label="Brand brain sections">
+        <nav className="w-52 border-r border-gray-200 py-4 px-2 shrink-0 flex flex-col gap-1" aria-label="Brand brain sections">
           {visibleTabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.key;
@@ -597,13 +588,13 @@ export const BrandBrainForm = forwardRef<BrandBrainFormHandle, BrandBrainFormPro
                 type="button"
                 onClick={() => setActiveTab(tab.key)}
                 aria-current={isActive ? "page" : undefined}
-                className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors text-left ${
+                className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-xs transition-colors text-left rounded-full ${
                   isActive
-                    ? "bg-indigo-50 text-indigo-700 font-medium border-r-2 border-indigo-600"
-                    : "text-gray-500 hover:text-gray-900 hover:bg-gray-50"
+                    ? "bg-gray-900 text-white font-medium"
+                    : "text-gray-500 hover:text-gray-900 hover:bg-gray-100"
                 }`}
               >
-                <Icon size={16} />
+                <Icon size={14} />
                 {tab.label}
               </button>
             );
@@ -637,7 +628,7 @@ export const BrandBrainForm = forwardRef<BrandBrainFormHandle, BrandBrainFormPro
                           value={form.websiteUrl}
                           onChange={(e) => update("websiteUrl", e.target.value)}
                           placeholder="https://brand.com"
-                          className="flex-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                          className="flex-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:outline-none"
                         />
                         <ScrapeLanguageToggle
                           value={scrapeLanguage}
@@ -674,18 +665,28 @@ export const BrandBrainForm = forwardRef<BrandBrainFormHandle, BrandBrainFormPro
                       <p className="text-xs text-gray-500 mb-3">Core identity of this brand.</p>
                       <div className="space-y-4">
                         <div className="grid grid-cols-2 gap-4">
-                          <Input
-                            label="Brand Name *"
-                            value={form.name}
-                            onChange={(e) => update("name", e.target.value)}
-                            placeholder="e.g. TableCheck"
-                          />
-                          <Input
-                            label="Industry"
-                            value={form.industry}
-                            onChange={(e) => update("industry", e.target.value)}
-                            placeholder="e.g. SaaS, F&B, Fashion, Healthcare"
-                          />
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 uppercase tracking-wide mb-1.5">
+                              Brand Name *
+                            </label>
+                            <input
+                              value={form.name}
+                              onChange={(e) => update("name", e.target.value)}
+                              placeholder="e.g. TableCheck"
+                              className="block w-full rounded-md border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:outline-none"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 uppercase tracking-wide mb-1.5">
+                              Industry
+                            </label>
+                            <input
+                              value={form.industry}
+                              onChange={(e) => update("industry", e.target.value)}
+                              placeholder="e.g. SaaS, F&B, Fashion, Healthcare"
+                              className="block w-full rounded-md border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:outline-none"
+                            />
+                          </div>
                         </div>
                         <div>
                           <label className="block text-xs font-medium text-gray-600 uppercase tracking-wide mb-1.5">
@@ -696,7 +697,7 @@ export const BrandBrainForm = forwardRef<BrandBrainFormHandle, BrandBrainFormPro
                             onChange={(e) => update("summary", e.target.value)}
                             placeholder="What does this brand do? Who do they serve? What's their mission?"
                             rows={4}
-                            className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none resize-y"
+                            className="block w-full rounded-md border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:outline-none resize-y"
                           />
                         </div>
                       </div>
@@ -716,18 +717,28 @@ export const BrandBrainForm = forwardRef<BrandBrainFormHandle, BrandBrainFormPro
                       </p>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
-                      <Input
-                        label="Tone of Voice"
-                        value={form.tone}
-                        onChange={(e) => update("tone", e.target.value)}
-                        placeholder="e.g. Professional, Friendly, Bold"
-                      />
-                      <Input
-                        label="Brand Personality"
-                        value={form.personality}
-                        onChange={(e) => update("personality", e.target.value)}
-                        placeholder="e.g. The Trusted Expert, The Bold Disruptor"
-                      />
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 uppercase tracking-wide mb-1.5">
+                          Tone of Voice
+                        </label>
+                        <input
+                          value={form.tone}
+                          onChange={(e) => update("tone", e.target.value)}
+                          placeholder="e.g. Professional, Friendly, Bold"
+                          className="block w-full rounded-md border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 uppercase tracking-wide mb-1.5">
+                          Brand Personality
+                        </label>
+                        <input
+                          value={form.personality}
+                          onChange={(e) => update("personality", e.target.value)}
+                          placeholder="e.g. The Trusted Expert, The Bold Disruptor"
+                          className="block w-full rounded-md border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:outline-none"
+                        />
+                      </div>
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-gray-600 uppercase tracking-wide mb-1.5">
@@ -736,7 +747,7 @@ export const BrandBrainForm = forwardRef<BrandBrainFormHandle, BrandBrainFormPro
                       <select
                         value={form.contentLanguage}
                         onChange={(e) => update("contentLanguage", e.target.value)}
-                        className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                        className="block w-full rounded-md border border-gray-300 px-3 py-2 text-xs text-gray-900 focus:border-indigo-500 focus:outline-none"
                       >
                         {BRAND_LANGUAGE_OPTIONS.map((lang) => (
                           <option key={lang} value={lang}>
@@ -802,7 +813,7 @@ export const BrandBrainForm = forwardRef<BrandBrainFormHandle, BrandBrainFormPro
                         onChange={(e) => update("targetAudience", e.target.value)}
                         placeholder="Who is this brand for? Age, role, pain points, goals, lifestyle…"
                         rows={3}
-                        className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none resize-y"
+                        className="block w-full rounded-md border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:outline-none resize-y"
                       />
                     </div>
                     <div>
@@ -815,12 +826,17 @@ export const BrandBrainForm = forwardRef<BrandBrainFormHandle, BrandBrainFormPro
                         placeholder="Type a value and press Enter (e.g. Innovation)"
                       />
                     </div>
-                    <Input
-                      label="Brand Promise"
-                      value={form.brandPromise}
-                      onChange={(e) => update("brandPromise", e.target.value)}
-                      placeholder="e.g. We help restaurants fill seats and delight guests."
-                    />
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 uppercase tracking-wide mb-1.5">
+                        Brand Promise
+                      </label>
+                      <input
+                        value={form.brandPromise}
+                        onChange={(e) => update("brandPromise", e.target.value)}
+                        placeholder="e.g. We help restaurants fill seats and delight guests."
+                        className="block w-full rounded-md border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:outline-none"
+                      />
+                    </div>
                     <div>
                       <label className="block text-xs font-medium text-gray-600 uppercase tracking-wide mb-1.5">
                         Unique Selling Points
@@ -830,7 +846,7 @@ export const BrandBrainForm = forwardRef<BrandBrainFormHandle, BrandBrainFormPro
                         onChange={(e) => update("usp", e.target.value)}
                         placeholder="What makes this brand stand out? Key differentiators vs. competitors…"
                         rows={3}
-                        className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none resize-y"
+                        className="block w-full rounded-md border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:outline-none resize-y"
                       />
                     </div>
                   </>
@@ -860,7 +876,7 @@ export const BrandBrainForm = forwardRef<BrandBrainFormHandle, BrandBrainFormPro
                         onChange={(e) => update("marketingStrategy", e.target.value)}
                         placeholder="Describe the overall marketing approach, focus areas, campaign types, funnel strategy…"
                         rows={4}
-                        className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none resize-y"
+                        className="block w-full rounded-md border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:outline-none resize-y"
                       />
                     </div>
                   </>
@@ -937,7 +953,7 @@ export const BrandBrainForm = forwardRef<BrandBrainFormHandle, BrandBrainFormPro
             {isLast ? (
               <Button onClick={handleSave} loading={saving}>
                 <Save size={14} className="mr-1.5" />
-                {isEditMode ? "Save changes" : "Save brand"}
+                Save brand
               </Button>
             ) : (
               <Button onClick={goNext}>

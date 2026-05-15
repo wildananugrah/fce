@@ -5,7 +5,6 @@ import { useAuth } from "../hooks/useAuth";
 import { api } from "../services/api";
 import { Modal } from "../components/ui/Modal";
 import { Button } from "../components/ui/Button";
-import { Input } from "../components/ui/Input";
 import {
   Sparkles,
   Brain,
@@ -18,6 +17,9 @@ import {
   MailCheck,
   BarChart2,
 } from "lucide-react";
+
+const labelCls = "block text-xs font-medium text-gray-600 uppercase tracking-wide mb-1.5";
+const inputCls = "block w-full rounded-full border border-gray-300 px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-black focus:outline-none";
 
 function LoginModal({
   isOpen,
@@ -41,7 +43,7 @@ function LoginModal({
     setLoading(true);
     try {
       await login(email, password);
-      navigate("/");
+      navigate("/planner");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
     } finally {
@@ -57,22 +59,14 @@ function LoginModal({
         </div>
       )}
       <form onSubmit={handleSubmit} className="space-y-4">
-        <Input
-          label="Email"
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="you@example.com"
-          required
-        />
-        <Input
-          label="Password"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="Enter your password"
-          required
-        />
+        <div>
+          <label className={labelCls}>Email</label>
+          <input type="email" className={inputCls} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required />
+        </div>
+        <div>
+          <label className={labelCls}>Password</label>
+          <input type="password" className={inputCls} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Enter your password" required />
+        </div>
         <Button type="submit" className="w-full" loading={loading}>
           Log in
         </Button>
@@ -128,7 +122,7 @@ function SignupModal({
         setPendingEmail(outcome.email);
         return;
       }
-      navigate("/");
+      navigate("/planner");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Signup failed");
     } finally {
@@ -205,30 +199,18 @@ function SignupModal({
         </div>
       )}
       <form onSubmit={handleSubmit} className="space-y-4">
-        <Input
-          label="Full name"
-          type="text"
-          value={fullName}
-          onChange={(e) => setFullName(e.target.value)}
-          placeholder="John Doe"
-        />
-        <Input
-          label="Email"
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="you@example.com"
-          required
-        />
-        <Input
-          label="Password"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="Min 8 characters"
-          minLength={8}
-          required
-        />
+        <div>
+          <label className={labelCls}>Full name</label>
+          <input type="text" className={inputCls} value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="John Doe" />
+        </div>
+        <div>
+          <label className={labelCls}>Email</label>
+          <input type="email" className={inputCls} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required />
+        </div>
+        <div>
+          <label className={labelCls}>Password</label>
+          <input type="password" className={inputCls} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Min 8 characters" minLength={8} required />
+        </div>
         <Button type="submit" className="w-full" loading={loading}>
           Create account
         </Button>

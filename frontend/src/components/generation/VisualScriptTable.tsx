@@ -9,10 +9,16 @@ interface Section {
   contentText: string;
 }
 
+const PORTRAIT_VIDEO_TYPES = new Set([
+  "reels", "story_video", "tiktok_video", "youtube_shorts",
+]);
+
 interface VisualScriptTableProps {
   scenes: Section[];
   workspaceId: string;
   outputId: string;
+  platform?: string;
+  contentType?: string;
   getJsonField: (sectionId: string, contentText: string, field: string) => string;
   onJsonFieldChange: (
     sectionId: string,
@@ -32,11 +38,15 @@ export function VisualScriptTable({
   scenes,
   workspaceId,
   outputId,
+  platform: _platform,
+  contentType,
   getJsonField,
   onJsonFieldChange,
   onSectionUpdated,
   onError,
 }: VisualScriptTableProps) {
+  const sceneAspectRatio = contentType && PORTRAIT_VIDEO_TYPES.has(contentType) ? "9/16" : "16/9";
+  const sceneAspectClass = sceneAspectRatio === "9/16" ? "aspect-[9/16]" : "aspect-video";
   const [generatingIds, setGeneratingIds] = useState<Set<string>>(new Set());
   const [preview, setPreview] = useState<{
     imageUrl: string;
@@ -190,14 +200,14 @@ export function VisualScriptTable({
                               ),
                             })
                           }
-                          className="block w-full rounded border border-gray-200 overflow-hidden hover:border-indigo-400 hover:shadow-sm transition-all"
+                          className="block w-full border border-gray-200 overflow-hidden hover:border-indigo-400 hover:shadow-sm transition-all"
                           title="Click to view full size"
                         >
                           <img
                             src={imageUrl}
                             alt={`Scene ${num} reference`}
                             loading="lazy"
-                            className="w-full aspect-video object-cover"
+                            className={`w-full ${sceneAspectClass} object-cover`}
                           />
                         </button>
                         <button
@@ -219,7 +229,7 @@ export function VisualScriptTable({
                         type="button"
                         onClick={() => handleGenerate(scene.id)}
                         disabled={busy}
-                        className="w-full aspect-video flex flex-col items-center justify-center gap-1 border border-dashed border-gray-300 rounded text-gray-400 hover:border-indigo-400 hover:text-indigo-500 hover:bg-indigo-50/40 disabled:opacity-50 transition-colors"
+                        className={`w-full ${sceneAspectClass} flex flex-col items-center justify-center gap-1 border border-dashed border-gray-300 text-gray-400 hover:border-indigo-400 hover:text-indigo-500 hover:bg-indigo-50/40 disabled:opacity-50 transition-colors`}
                       >
                         {busy ? (
                           <>

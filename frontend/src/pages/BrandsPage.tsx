@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Trash2,
@@ -22,7 +22,6 @@ import { useWorkspace } from "../hooks/useWorkspace";
 import { useProject } from "../hooks/useProject";
 import { api, ApiError } from "../services/api";
 import { Button } from "../components/ui/Button";
-import { Input } from "../components/ui/Input";
 import { Spinner } from "../components/ui/Spinner";
 import { Toast } from "../components/ui/Toast";
 import { ProductReferences } from "../components/products/ProductReferences";
@@ -147,6 +146,37 @@ function buildBrainPayload(form: BrandFormData) {
       marketingStrategy: form.marketingStrategy.trim() || undefined,
     },
   };
+}
+
+// ─── Shared form primitives ──────────────────────────────────────
+
+const labelCls = "block text-xs font-medium text-gray-600 uppercase tracking-wide mb-1.5";
+const inputCls =
+  "block w-full rounded-md border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:outline-none";
+
+function AutoTextarea({
+  value,
+  onChange,
+  style: externalStyle,
+  ...rest
+}: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [value]);
+  return (
+    <textarea
+      ref={ref}
+      value={value}
+      onChange={onChange}
+      rows={1}
+      style={{ resize: "none", overflow: "hidden", ...externalStyle }}
+      {...rest}
+    />
+  );
 }
 
 // ─── Page ────────────────────────────────────────────────────────
@@ -362,35 +392,39 @@ export function BrandsPage() {
               {(draft.name || brand.name).charAt(0).toUpperCase()}
             </div>
             <div className="flex-1 min-w-0 grid grid-cols-2 gap-4">
-              <Input
-                label="Brand Name *"
-                value={draft.name}
-                onChange={(e) => updateDraft("name", e.target.value)}
-              />
-              <Input
-                label="Industry"
-                value={draft.industry}
-                onChange={(e) => updateDraft("industry", e.target.value)}
-                placeholder="e.g. SaaS, F&B, Fashion"
-              />
+              <div>
+                <label className={labelCls}>Brand Name *</label>
+                <input
+                  className={inputCls}
+                  value={draft.name}
+                  onChange={(e) => updateDraft("name", e.target.value)}
+                />
+              </div>
+              <div>
+                <label className={labelCls}>Industry</label>
+                <input
+                  className={inputCls}
+                  value={draft.industry}
+                  onChange={(e) => updateDraft("industry", e.target.value)}
+                  placeholder="e.g. SaaS, F&B, Fashion"
+                />
+              </div>
               <div className="col-span-2">
-                <Input
-                  label="Website URL"
+                <label className={labelCls}>Website URL</label>
+                <input
+                  className={inputCls}
                   value={draft.websiteUrl}
                   onChange={(e) => updateDraft("websiteUrl", e.target.value)}
                   placeholder="https://brand.com"
                 />
               </div>
               <div className="col-span-2">
-                <label className="block text-xs font-medium text-gray-600 uppercase tracking-wide mb-1.5">
-                  Summary
-                </label>
-                <textarea
+                <label className={labelCls}>Summary</label>
+                <AutoTextarea
                   value={draft.summary}
                   onChange={(e) => updateDraft("summary", e.target.value)}
                   placeholder="What does this brand do? Who do they serve? What's their mission?"
-                  rows={3}
-                  className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none resize-y"
+                  className={inputCls}
                 />
               </div>
             </div>
@@ -492,27 +526,31 @@ export function BrandsPage() {
           {editing && draft ? (
             <>
               <div className="grid grid-cols-2 gap-3">
-                <Input
-                  label="Personality"
-                  value={draft.personality}
-                  onChange={(e) => updateDraft("personality", e.target.value)}
-                  placeholder="e.g. The Trusted Expert"
-                />
-                <Input
-                  label="Tone"
-                  value={draft.tone}
-                  onChange={(e) => updateDraft("tone", e.target.value)}
-                  placeholder="e.g. Friendly, Bold"
-                />
+                <div>
+                  <label className={labelCls}>Personality</label>
+                  <input
+                    className={inputCls}
+                    value={draft.personality}
+                    onChange={(e) => updateDraft("personality", e.target.value)}
+                    placeholder="e.g. The Trusted Expert"
+                  />
+                </div>
+                <div>
+                  <label className={labelCls}>Tone</label>
+                  <input
+                    className={inputCls}
+                    value={draft.tone}
+                    onChange={(e) => updateDraft("tone", e.target.value)}
+                    placeholder="e.g. Friendly, Bold"
+                  />
+                </div>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 uppercase tracking-wide mb-1.5">
-                  Language
-                </label>
+                <label className={labelCls}>Language</label>
                 <select
                   value={draft.contentLanguage}
                   onChange={(e) => updateDraft("contentLanguage", e.target.value)}
-                  className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                  className={inputCls}
                 >
                   {BRAND_LANGUAGE_OPTIONS.map((lang) => (
                     <option key={lang} value={lang}>
@@ -576,15 +614,12 @@ export function BrandsPage() {
           {editing && draft ? (
             <>
               <div>
-                <label className="block text-xs font-medium text-gray-600 uppercase tracking-wide mb-1.5">
-                  Target Audience
-                </label>
-                <textarea
+                <label className={labelCls}>Target Audience</label>
+                <AutoTextarea
                   value={draft.targetAudience}
                   onChange={(e) => updateDraft("targetAudience", e.target.value)}
                   placeholder="Who is this brand for? Age, role, goals…"
-                  rows={3}
-                  className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none resize-y"
+                  className={inputCls}
                 />
               </div>
               <div>
@@ -597,22 +632,22 @@ export function BrandsPage() {
                   placeholder="Type a value and press Enter"
                 />
               </div>
-              <Input
-                label="Brand Promise"
-                value={draft.brandPromise}
-                onChange={(e) => updateDraft("brandPromise", e.target.value)}
-                placeholder="e.g. We help restaurants delight their guests."
-              />
               <div>
-                <label className="block text-xs font-medium text-gray-600 uppercase tracking-wide mb-1.5">
-                  Unique Selling Point
-                </label>
-                <textarea
+                <label className={labelCls}>Brand Promise</label>
+                <input
+                  className={inputCls}
+                  value={draft.brandPromise}
+                  onChange={(e) => updateDraft("brandPromise", e.target.value)}
+                  placeholder="e.g. We help restaurants delight their guests."
+                />
+              </div>
+              <div>
+                <label className={labelCls}>Unique Selling Point</label>
+                <AutoTextarea
                   value={draft.usp}
                   onChange={(e) => updateDraft("usp", e.target.value)}
                   placeholder="What makes this brand stand out?"
-                  rows={2}
-                  className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none resize-y"
+                  className={inputCls}
                 />
               </div>
             </>
@@ -645,15 +680,12 @@ export function BrandsPage() {
                 onChange={(v) => updateDraft("contentPillars", v)}
               />
               <div>
-                <label className="block text-xs font-medium text-gray-600 uppercase tracking-wide mb-1.5">
-                  Marketing Strategy
-                </label>
-                <textarea
+                <label className={labelCls}>Marketing Strategy</label>
+                <AutoTextarea
                   value={draft.marketingStrategy}
                   onChange={(e) => updateDraft("marketingStrategy", e.target.value)}
                   placeholder="Describe the overall approach, focus areas, funnel strategy…"
-                  rows={3}
-                  className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none resize-y"
+                  className={inputCls}
                 />
               </div>
             </>

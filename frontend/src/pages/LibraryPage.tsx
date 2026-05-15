@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useHeaderSlot } from "../contexts/HeaderSlotContext";
-import { Eye, Trash2, X, ChevronUp, ChevronDown } from "lucide-react";
+import { Eye, Trash2, X, ChevronUp, ChevronDown, Calendar } from "lucide-react";
+import { getFormatStyle, getStatusColor } from "../utils/topic-styles";
+import { getPillarColor } from "../utils/pillar-colors";
 import { useProject } from "../hooks/useProject";
 import { useWorkspace } from "../hooks/useWorkspace";
 import { api } from "../services/api";
@@ -23,6 +25,8 @@ interface LibraryItem {
     contentType: string;
     brand?: { id: string; name: string } | null;
     product?: { id: string; name: string } | null;
+    contentTopicId?: string | null;
+    contentTopic?: { pillar?: string | null; publishDate?: string | null } | null;
   };
   sections: {
     id: string;
@@ -36,21 +40,6 @@ type ToastState = { message: string; type: "success" | "error" | "info" } | null
 
 // ── Helpers ────────────────────────────────────────────────────
 
-function getContentSubtitle(contentType: string, content: Record<string, unknown>): string {
-  const slides = Array.isArray(content.slides) ? content.slides.length : 0;
-  const scenes = Array.isArray(content.scenes) ? content.scenes.length : 0;
-  const frames = Array.isArray(content.frames) ? content.frames.length : 0;
-
-  if (slides > 0) return `${slides} slides`;
-  if (scenes > 0) return `${scenes} scenes`;
-  if (frames > 0) return `${frames} frames`;
-
-  // Infer from content type
-  const ct = contentType.toLowerCase();
-  if (ct.includes("carousel") || ct.includes("thread")) return "slides";
-  if (ct.includes("reel") || ct.includes("video") || ct.includes("short")) return "video";
-  return "post";
-}
 
 function getPlatformStyle(platform: string): { bg: string; text: string } {
   const map: Record<string, { bg: string; text: string }> = {
@@ -79,18 +68,6 @@ function getStatusDotColor(status: string): string {
   return "bg-gray-400";
 }
 
-function formatRelativeDate(dateStr: string): string {
-  const now = new Date();
-  const date = new Date(dateStr);
-  const diffMs = now.getTime() - date.getTime();
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-  if (diffDays === 0) return "Today";
-  if (diffDays === 1) return "yesterday";
-  if (diffDays < 7) return `${diffDays} days ago`;
-  if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
-  return date.toLocaleDateString();
-}
 
 function formatCreatedAt(dateStr: string): { date: string; time: string } {
   const d = new Date(dateStr);
@@ -100,7 +77,15 @@ function formatCreatedAt(dateStr: string): { date: string; time: string } {
   };
 }
 
-type SortKey = "title" | "brand" | "platform" | "status" | "createdAt";
+function formatDate(d?: string | null): string {
+  if (!d) return "—";
+  return new Date(d).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" });
+}
+
+const TH = "px-3 py-2.5 font-medium text-center text-[11px] uppercase tracking-wide text-gray-500 select-none";
+const TD = "px-3 py-2.5 text-[11px] text-gray-700 align-middle";
+
+type SortKey = "title" | "brand" | "platform" | "status";
 type SortDir = "asc" | "desc";
 
 // Status sort order matches the editorial flow so sorting feels natural.
@@ -133,12 +118,12 @@ function SortableHeader({
     <th
       scope="col"
       aria-sort={isActive ? (dir === "asc" ? "ascending" : "descending") : "none"}
-      className={`text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide select-none ${className ?? ""}`}
+      className={`${TH} ${className ?? ""}`}
     >
       <button
         type="button"
         onClick={() => onClick(sortKeyValue)}
-        className="inline-flex items-center gap-1 hover:text-gray-800 transition-colors"
+        className="inline-flex items-center justify-center gap-1 uppercase hover:text-gray-800 transition-colors"
       >
         <span>{label}</span>
         {isActive ? (
@@ -199,16 +184,15 @@ export function LibraryPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   const [bulkActionRunning, setBulkActionRunning] = useState(false);
-  const [sortKey, setSortKey] = useState<SortKey>("createdAt");
-  const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [sortKey, setSortKey] = useState<SortKey>("status");
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) {
       setSortDir((d) => (d === "asc" ? "desc" : "asc"));
     } else {
       setSortKey(key);
-      // Date defaults to newest-first; everything else defaults to A→Z.
-      setSortDir(key === "createdAt" ? "desc" : "asc");
+      setSortDir("asc");
     }
   }
 
@@ -351,10 +335,6 @@ export function LibraryPage() {
           av = STATUS_ORDER[a.status] ?? 99;
           bv = STATUS_ORDER[b.status] ?? 99;
           break;
-        case "createdAt":
-          av = new Date(a.createdAt).getTime();
-          bv = new Date(b.createdAt).getTime();
-          break;
       }
       if (av < bv) return -1 * sign;
       if (av > bv) return 1 * sign;
@@ -463,151 +443,158 @@ export function LibraryPage() {
           })}
         </div>
       ) : (
-        <div className="bg-white border border-gray-200 rounded-xl overflow-x-auto">
-          <table className="w-full min-w-[640px]">
-            <thead>
-              <tr className="border-b border-gray-100 bg-gray-50">
-                <th className="w-10 px-4 py-3">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                    checked={filtered.length > 0 && filtered.every((i) => selectedIds.has(i.id))}
-                    ref={(el) => {
-                      if (!el) return;
-                      const selectedOnPage = filtered.filter((i) => selectedIds.has(i.id)).length;
-                      el.indeterminate = selectedOnPage > 0 && selectedOnPage < filtered.length;
-                    }}
-                    onChange={(e) =>
-                      toggleSelectAll(
-                        filtered.map((i) => i.id),
-                        e.target.checked,
-                      )
-                    }
+        <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="border-b border-gray-200 bg-gray-50">
+                <tr>
+                  <th className="w-10 px-3 py-2.5 text-center">
+                    <input
+                      type="checkbox"
+                      className="h-3.5 w-3.5 cursor-pointer rounded border-gray-300 text-violet-600 focus:ring-violet-500"
+                      checked={filtered.length > 0 && filtered.every((i) => selectedIds.has(i.id))}
+                      ref={(el) => {
+                        if (!el) return;
+                        const selectedOnPage = filtered.filter((i) => selectedIds.has(i.id)).length;
+                        el.indeterminate = selectedOnPage > 0 && selectedOnPage < filtered.length;
+                      }}
+                      onChange={(e) =>
+                        toggleSelectAll(
+                          filtered.map((i) => i.id),
+                          e.target.checked,
+                        )
+                      }
+                    />
+                  </th>
+                  <th className={`${TH} whitespace-nowrap min-w-[110px]`}>Publish Date</th>
+                  <SortableHeader
+                    label="Title"
+                    sortKeyValue="title"
+                    active={sortKey}
+                    dir={sortDir}
+                    onClick={toggleSort}
+                    className="min-w-[220px] text-left"
                   />
-                </th>
-                <SortableHeader
-                  label="Content Title"
-                  sortKeyValue="title"
-                  active={sortKey}
-                  dir={sortDir}
-                  onClick={toggleSort}
-                  className="px-5"
-                />
-                <SortableHeader
-                  label="Brand"
-                  sortKeyValue="brand"
-                  active={sortKey}
-                  dir={sortDir}
-                  onClick={toggleSort}
-                />
-                <SortableHeader
-                  label="Platform"
-                  sortKeyValue="platform"
-                  active={sortKey}
-                  dir={sortDir}
-                  onClick={toggleSort}
-                />
-                <SortableHeader
-                  label="Status"
-                  sortKeyValue="status"
-                  active={sortKey}
-                  dir={sortDir}
-                  onClick={toggleSort}
-                />
-                <SortableHeader
-                  label="Created At"
-                  sortKeyValue="createdAt"
-                  active={sortKey}
-                  dir={sortDir}
-                  onClick={toggleSort}
-                />
-                <th className="px-4 py-3" />
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((item) => {
-                const platformStyle = getPlatformStyle(item.request.platform);
-                const subtitle = getContentSubtitle(item.request.contentType, item.content);
-                const isSelected = selectedIds.has(item.id);
+                  <th className={TH}>Pillar</th>
+                  <SortableHeader
+                    label="Platform"
+                    sortKeyValue="platform"
+                    active={sortKey}
+                    dir={sortDir}
+                    onClick={toggleSort}
+                  />
+                  <th className={TH}>Format</th>
+                  <th className={TH}>Product</th>
+                  <SortableHeader
+                    label="Status"
+                    sortKeyValue="status"
+                    active={sortKey}
+                    dir={sortDir}
+                    onClick={toggleSort}
+                  />
+                  <th className={TH}>Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {filtered.map((item) => {
+                  const fmt = getFormatStyle(item.request.contentType);
+                  const isSelected = selectedIds.has(item.id);
+                  return (
+                    <tr key={item.id} className={isSelected ? "bg-violet-50/40" : "hover:bg-gray-50"}>
+                      {/* Checkbox */}
+                      <td className="px-3 py-2.5 text-center align-middle">
+                        <input
+                          type="checkbox"
+                          className="h-3.5 w-3.5 cursor-pointer rounded border-gray-300 text-violet-600 focus:ring-violet-500"
+                          checked={isSelected}
+                          onChange={() => toggleSelect(item.id)}
+                        />
+                      </td>
 
-                return (
-                  <tr
-                    key={item.id}
-                    className={`border-b border-gray-50 ${isSelected ? "bg-indigo-50/50" : "hover:bg-gray-50"}`}
-                  >
-                    {/* Select */}
-                    <td className="w-10 px-4 py-3">
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                        checked={isSelected}
-                        onChange={() => toggleSelect(item.id)}
-                      />
-                    </td>
-                    {/* Title */}
-                    <td className="px-5 py-3 max-w-[320px]">
-                      <p className="text-sm font-medium text-gray-900 truncate">
-                        {item.contentTitle ?? "Untitled Content"}
-                      </p>
-                      <p className="text-xs text-gray-400">{subtitle}</p>
-                    </td>
+                      {/* Publish Date */}
+                      <td className="px-3 py-2.5 text-[11px] text-gray-700 align-middle whitespace-nowrap">
+                        {item.request.contentTopic?.publishDate ? (
+                          <span className="inline-flex items-center gap-1 text-[11px] text-gray-600">
+                            <Calendar size={11} className="text-gray-400 shrink-0" />
+                            {formatDate(item.request.contentTopic.publishDate)}
+                          </span>
+                        ) : (
+                          <span className="text-gray-300">—</span>
+                        )}
+                      </td>
 
-                    {/* Brand */}
-                    <td className="px-4 py-3">
-                      <p className="text-sm text-gray-800">
-                        {item.request.brand?.name ?? "—"}
-                      </p>
-                      {item.request.product?.name && (
-                        <p className="text-xs text-gray-400">{item.request.product.name}</p>
-                      )}
-                    </td>
+                      {/* Title */}
+                      <td className="max-w-[280px] px-3 py-2.5 align-middle">
+                        <p className="truncate text-[11px] font-medium text-gray-900">
+                          {item.contentTitle ?? "Untitled Content"}
+                        </p>
+                      </td>
 
-                    {/* Platform */}
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium capitalize ${platformStyle.bg} ${platformStyle.text}`}>
-                        {item.request.platform}
-                      </span>
-                    </td>
+                      {/* Pillar */}
+                      <td className={`${TD} text-center`}>
+                        {item.request.contentTopic?.pillar ? (
+                          <span className={`inline-flex items-center rounded px-2 py-0.5 text-[11px] font-medium ${getPillarColor(item.request.contentTopic.pillar)}`}>
+                            {item.request.contentTopic.pillar}
+                          </span>
+                        ) : (
+                          <span className="text-gray-300">—</span>
+                        )}
+                      </td>
 
-                    {/* Status */}
-                    <td className="px-4 py-3">
-                      <span
-                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium capitalize ${getStatusStyle(item.status)}`}
-                      >
-                        <span className={`w-1.5 h-1.5 rounded-full ${getStatusDotColor(item.status)}`} />
-                        {item.status.replace(/_/g, " ")}
-                      </span>
-                    </td>
+                      {/* Platform */}
+                      <td className={`${TD} text-center capitalize`}>
+                        {item.request.platform ?? <span className="text-gray-300">—</span>}
+                      </td>
 
-                    {/* Created At */}
-                    <td
-                      className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap"
-                      title={formatRelativeDate(item.createdAt)}
-                    >
-                      <div className="flex flex-col leading-tight">
-                        <span>{formatCreatedAt(item.createdAt).date}</span>
-                        <span className="text-xs text-gray-400">
-                          {formatCreatedAt(item.createdAt).time}
+                      {/* Format */}
+                      <td className={`${TD} text-center`}>
+                        {item.request.contentType ? (
+                          <span className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-medium ${fmt.className}`}>
+                            {fmt.icon && <span>{fmt.icon}</span>}
+                            {item.request.contentType}
+                          </span>
+                        ) : (
+                          <span className="text-gray-300">—</span>
+                        )}
+                      </td>
+
+                      {/* Product */}
+                      <td className={`${TD} text-center`}>
+                        {item.request.product ? (
+                          <span className="inline-flex items-center rounded bg-gray-100 px-1.5 py-0.5 text-[11px] font-medium text-gray-600">
+                            {item.request.product.name}
+                          </span>
+                        ) : (
+                          <span className="text-gray-300">—</span>
+                        )}
+                      </td>
+
+                      {/* Status */}
+                      <td className={`${TD} text-center`}>
+                        <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium capitalize ${getStatusColor(item.status)}`}>
+                          {item.status.replace(/_/g, " ")}
                         </span>
-                      </div>
-                    </td>
+                      </td>
 
-                    {/* View */}
-                    <td className="px-4 py-3">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedItem(item)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                      >
-                        <Eye size={14} />
-                        View
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                      {/* Actions */}
+                      <td className="px-3 py-2.5 align-middle">
+                        <div className="flex items-center justify-center">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedItem(item)}
+                            className="inline-flex items-center gap-1 rounded border border-gray-200 bg-white px-2 py-0.5 text-[11px] font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+                          >
+                            <Eye size={11} />
+                            View
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 

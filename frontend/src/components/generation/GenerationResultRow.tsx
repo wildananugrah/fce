@@ -494,6 +494,8 @@ export function GenerationResultRow({
                       scenes={scenes}
                       workspaceId={workspaceId}
                       outputId={outputId}
+                      platform={generation.platform}
+                      contentType={generation.contentType}
                       getJsonField={getJsonField}
                       onJsonFieldChange={handleJsonFieldChange}
                       onSectionUpdated={(sectionId, contentText) => {

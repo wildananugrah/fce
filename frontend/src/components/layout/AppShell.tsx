@@ -1,9 +1,11 @@
 import { useState } from "react";
-import floochinkLogo from "../../assets/floochink-logo.jpg";
+import floothinkLogo from "../../assets/floothink-logo.png";
+import floothinkIcon from "../../assets/floothink-icon.png";
 import { Outlet, Navigate, NavLink } from "react-router-dom";
 import { GlobalHeader } from "./GlobalHeader";
 import { TopicGeneratorSlider } from "../planner/TopicGeneratorSlider";
 import { HeaderSlotProvider } from "../../contexts/HeaderSlotContext";
+import type { LucideIcon } from "lucide-react";
 import {
   LayoutDashboard,
   CalendarDays,
@@ -16,10 +18,10 @@ import {
   Library,
   GraduationCap,
   Settings,
-  Shield,
+  Briefcase,
+  Users,
   ChevronDown,
-  ChevronLeft,
-  ChevronRight,
+  Menu,
   Check,
   Plus,
   LogOut,
@@ -43,7 +45,7 @@ import { isMenuEnabled, type MenuFlagKey } from "../../config/menu-flags";
 interface NavItem {
   to: string;
   label: string;
-  icon: React.ComponentType<{ size?: number }>;
+  icon: LucideIcon;
   exact?: boolean;
   /**
    * RBAC key — drives per-user visibility via menuAccess. Omit for items that
@@ -191,39 +193,48 @@ export function AppShell() {
   }
 
   const navLinkClass = ({ isActive }: { isActive: boolean }) =>
-    `flex items-center gap-2.5 px-2 py-1.5 rounded-md text-xs font-medium transition-colors ${
+    `flex items-center gap-2.5 px-3 py-2.5 rounded-full text-xs font-medium transition-colors ${
       isActive
-        ? "bg-[#333] text-white"
-        : "text-gray-400 hover:text-white hover:bg-[#1a1a1a]"
+        ? "bg-black text-white"
+        : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
     } ${collapsed ? "justify-center" : ""}`;
 
   return (
     <HeaderSlotProvider>
     <div className="h-screen overflow-hidden flex bg-[#f5f5f5]">
-      <aside className={`${collapsed ? "w-[60px]" : "w-[220px]"} bg-[#111] flex flex-col shrink-0 h-screen sticky top-0 transition-[width] duration-200`}>
+      <aside className={`${collapsed ? "w-[60px]" : "w-[220px]"} bg-white border-r border-gray-200 flex flex-col shrink-0 h-screen sticky top-0 transition-[width] duration-200`}>
         {/* Logo */}
-        <div className={`${collapsed ? "px-2" : "px-4"} py-4 border-b border-gray-800 flex items-center ${collapsed ? "justify-center" : "justify-between"}`}>
+        <div className={`h-14 ${collapsed ? "px-2" : "px-4"} border-b border-gray-200 flex items-center shrink-0 ${collapsed ? "justify-center" : "justify-between"}`}>
           {collapsed ? (
-            <img
-              src={floochinkLogo}
-              alt="Floochink"
-              className="w-7 h-7 rounded object-cover object-center shrink-0"
-            />
+            <button
+              type="button"
+              onClick={toggleCollapsed}
+              title="Expand sidebar"
+              className="flex items-center focus:outline-none"
+            >
+              <img
+                src={floothinkIcon}
+                alt="Floothink"
+                className="h-[22px] w-auto object-contain shrink-0"
+              />
+            </button>
           ) : (
-            <img
-              src={floochinkLogo}
-              alt="Floochink"
-              className="h-7 w-auto object-contain"
-            />
+            <>
+              <img
+                src={floothinkLogo}
+                alt="Floothink"
+                className="h-[22px] w-auto object-contain shrink-0"
+              />
+              <button
+                type="button"
+                onClick={toggleCollapsed}
+                className="text-gray-400 hover:text-gray-700 transition-colors p-1 rounded hover:bg-gray-100 shrink-0"
+                title="Collapse sidebar"
+              >
+                <Menu size={14} />
+              </button>
+            </>
           )}
-          <button
-            type="button"
-            onClick={toggleCollapsed}
-            className="text-gray-400 hover:text-white transition-colors p-1 rounded hover:bg-[#1a1a1a] shrink-0"
-            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          >
-            {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
-          </button>
         </div>
 
         {/* Project Switcher — hidden when there are no projects or sidebar is
@@ -237,18 +248,18 @@ export function AppShell() {
               <button
                 type="button"
                 onClick={() => setProjectSwitcherOpen((o) => !o)}
-                className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-[#1a1a1a] transition-colors text-left"
+                className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-gray-100 transition-colors text-left"
                 title={activeProject?.name}
               >
-                <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 shrink-0" />
-                <span className="text-xs text-gray-300 truncate flex-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-black shrink-0" />
+                <span className="text-xs text-black truncate flex-1">
                   {activeProject?.name ?? "No project"}
                 </span>
                 <ChevronDown size={12} className="text-gray-500 shrink-0" />
               </button>
 
               {projectSwitcherOpen && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-[#1a1a1a] border border-gray-700 rounded-md shadow-lg overflow-hidden z-10 max-h-60 overflow-y-auto">
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 shadow-lg overflow-hidden z-10 max-h-60 overflow-y-auto">
                   {projects.map((p) => (
                     <button
                       key={p.id}
@@ -257,14 +268,14 @@ export function AppShell() {
                         setActiveProject(p);
                         setProjectSwitcherOpen(false);
                       }}
-                      className={`w-full flex items-center gap-2 px-2 py-1.5 hover:bg-[#333] transition-colors text-left ${
-                        p.id === activeProject?.id ? "bg-[#222]" : ""
+                      className={`w-full flex items-center gap-2 px-2 py-1.5 hover:bg-gray-100 transition-colors text-left ${
+                        p.id === activeProject?.id ? "bg-gray-50" : ""
                       }`}
                     >
-                      <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 shrink-0" />
-                      <span className="text-xs text-gray-300 truncate flex-1">{p.name}</span>
+                      <span className="w-1.5 h-1.5 rounded-full bg-black shrink-0" />
+                      <span className="text-xs text-black truncate flex-1">{p.name}</span>
                       {p.id === activeProject?.id && (
-                        <Check size={12} className="text-indigo-400 shrink-0" />
+                        <Check size={12} className="text-black shrink-0" />
                       )}
                     </button>
                   ))}
@@ -281,12 +292,15 @@ export function AppShell() {
             if (items.length === 0) return null;
             return (
               <div key={section.label ?? i}>
+                {section.label && (
+                  <div className="border-t border-gray-200 mb-3" />
+                )}
                 {section.label && !collapsed && (
                   <p className="px-2 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-500">
                     {section.label}
                   </p>
                 )}
-                <div className="space-y-0.5">
+                <div className="space-y-1">
                   {items.map((item) => (
                     <NavLink
                       key={item.to}
@@ -306,10 +320,10 @@ export function AppShell() {
         </nav>
 
         {/* Bottom nav — Settings */}
-        <div className="px-3 pb-1 space-y-0.5">
+        <div className="px-3 pb-1 space-y-1">
           {canSeeWorkspaceSettings && (
             <NavLink to="/workspace-settings" className={navLinkClass} title={collapsed ? "Workspace Settings" : undefined}>
-              <Settings size={14} />
+              <Briefcase size={14} />
               {!collapsed && <span>Workspace Settings</span>}
             </NavLink>
           )}
@@ -318,15 +332,15 @@ export function AppShell() {
             {!collapsed && <span>Profile Settings</span>}
           </NavLink>
           {user.isSuperadmin && (
-            <NavLink to="/admin" className={navLinkClass} title={collapsed ? "Admin" : undefined}>
-              <Shield size={14} />
-              {!collapsed && <span>Admin</span>}
+            <NavLink to="/admin" className={navLinkClass} title={collapsed ? "User Settings" : undefined}>
+              <Users size={14} />
+              {!collapsed && <span>User Settings</span>}
             </NavLink>
           )}
         </div>
 
         {/* Workspace Switcher */}
-        <div className="border-t border-gray-800 px-3 py-3">
+        <div className="border-t border-gray-200 px-3 py-3">
           {wsLoading ? (
             <div className="flex items-center gap-2 px-2 py-1.5">
               <Spinner size="sm" />
@@ -342,7 +356,7 @@ export function AppShell() {
                     setWorkspaceSwitcherOpen((o) => !o);
                   }
                 }}
-                className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-[#1a1a1a] transition-colors text-left ${collapsed ? "justify-center" : ""}`}
+                className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-gray-100 transition-colors text-left ${collapsed ? "justify-center" : ""}`}
                 title={collapsed && activeWorkspace ? activeWorkspace.name : undefined}
               >
                 {activeWorkspace ? (
@@ -355,7 +369,7 @@ export function AppShell() {
                     </div>
                     {!collapsed && (
                       <>
-                        <span className="text-xs text-gray-300 truncate flex-1">
+                        <span className="text-xs text-black truncate flex-1">
                           {activeWorkspace.name}
                         </span>
                         <ChevronDown size={12} className="text-gray-500 shrink-0" />
@@ -371,7 +385,7 @@ export function AppShell() {
               </button>
 
               {!collapsed && workspaceSwitcherOpen && (
-                <div className="absolute bottom-full left-0 right-0 mb-1 bg-[#1a1a1a] border border-gray-700 rounded-md shadow-lg overflow-hidden z-10">
+                <div className="absolute bottom-full left-0 right-0 mb-1 bg-white border border-gray-200 shadow-lg overflow-hidden z-10">
                   {workspaces.map((ws) => (
                     <button
                       key={ws.id}
@@ -379,7 +393,7 @@ export function AppShell() {
                         setActiveWorkspace(ws);
                         setWorkspaceSwitcherOpen(false);
                       }}
-                      className="w-full flex items-center gap-2 px-2 py-1.5 hover:bg-[#333] transition-colors text-left"
+                      className="w-full flex items-center gap-2 px-2 py-1.5 hover:bg-gray-100 transition-colors text-left"
                     >
                       <div
                         className="w-5 h-5 rounded flex items-center justify-center text-xs shrink-0"
@@ -387,9 +401,9 @@ export function AppShell() {
                       >
                         {ws.avatarEmoji || ws.name.charAt(0).toUpperCase()}
                       </div>
-                      <span className="text-xs text-gray-300 truncate flex-1">{ws.name}</span>
+                      <span className="text-xs text-black truncate flex-1">{ws.name}</span>
                       {activeWorkspace?.id === ws.id && (
-                        <Check size={12} className="text-white shrink-0" />
+                        <Check size={12} className="text-gray-900 shrink-0" />
                       )}
                     </button>
                   ))}
@@ -398,10 +412,10 @@ export function AppShell() {
                       setWorkspaceSwitcherOpen(false);
                       setCreateModalOpen(true);
                     }}
-                    className="w-full flex items-center gap-2 px-2 py-1.5 hover:bg-[#333] transition-colors text-left border-t border-gray-700"
+                    className="w-full flex items-center gap-2 px-2 py-1.5 hover:bg-gray-100 transition-colors text-left border-t border-gray-200"
                   >
                     <Plus size={14} className="text-gray-400 shrink-0" />
-                    <span className="text-xs text-gray-400">Create workspace</span>
+                    <span className="text-xs text-gray-600">Create workspace</span>
                   </button>
                 </div>
               )}
@@ -410,12 +424,12 @@ export function AppShell() {
         </div>
 
         {/* User email + logout */}
-        <div className={`${collapsed ? "px-2" : "px-4"} py-3 border-t border-gray-800 flex items-center ${collapsed ? "justify-center" : "justify-between"}`}>
+        <div className={`${collapsed ? "px-2" : "px-4"} py-3 border-t border-gray-200 flex items-center ${collapsed ? "justify-center" : "justify-between"}`}>
           {!collapsed && <p className="text-gray-500 text-xs truncate flex-1">{user.email}</p>}
           <button
             onClick={logout}
             title={collapsed ? `Logout (${user.email})` : "Logout"}
-            className={`text-gray-500 hover:text-white transition-colors ${collapsed ? "" : "ml-2"} shrink-0`}
+            className={`text-gray-500 hover:text-gray-900 transition-colors ${collapsed ? "" : "ml-2"} shrink-0`}
           >
             <LogOut size={14} />
           </button>
