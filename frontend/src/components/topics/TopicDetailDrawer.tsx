@@ -1,10 +1,9 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Drawer } from "../ui/Drawer";
 import { ContentPreviewModal } from "../library/ContentPreviewModal";
 import { api } from "../../services/api";
 import {
-  Save,
   Tag,
   Layers,
   Globe,
@@ -66,6 +65,10 @@ interface TopicDetailDrawerProps {
   onClose: () => void;
   onUpdated: (topic: Topic) => void;
   onToast: (msg: string, type: "success" | "error" | "info") => void;
+  /** Whether this topic already has generated content. */
+  hasContent?: boolean;
+  /** Called to navigate to the content view for this topic. */
+  onViewContent?: () => void;
   /** Override the default Generate Content navigation (e.g. open an in-page panel). */
   onGenerateContent?: () => void;
   /** Called after a successful soft-delete so the parent can drop the topic from its list. */
