@@ -417,7 +417,6 @@ export function PlannerPage() {
         <ContentPreviewModal
           item={previewItem}
           workspaceId={activeWorkspace.id}
-          presentation="slider"
           onClose={() => setPreviewItem(null)}
           onStatusChange={(id, status) => {
             setPreviewItem((prev) => (prev && prev.id === id ? { ...prev, status } : prev));

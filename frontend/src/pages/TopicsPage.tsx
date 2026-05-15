@@ -498,7 +498,7 @@ export function TopicsPage({
 									<label className="block text-xs font-medium text-muted uppercase tracking-wide mb-1.5">
 										Brand
 									</label>
-									<div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-surface-secondary border border-border text-sm">
+									<div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-surface-secondary border border-border text-xs">
 										<span className="w-5 h-5 rounded-md bg-accent/10 text-accent flex items-center justify-center text-[10px] font-bold">
 											{brands[0].name.charAt(0).toUpperCase()}
 										</span>
@@ -550,7 +550,7 @@ export function TopicsPage({
 															: [...prev, p.id]
 													)
 												}
-												className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+												className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-medium border transition-all ${
 													selectedProductIds.includes(p.id)
 														? "bg-accent text-accent-foreground border-accent shadow-sm"
 														: "bg-surface text-foreground border-border hover:bg-surface-secondary"
@@ -656,7 +656,7 @@ export function TopicsPage({
 												);
 												setSelectedFormats([]);
 											}}
-											className={`px-3.5 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+											className={`px-3.5 py-1.5 rounded-full text-[10px] font-medium border transition-colors ${
 												platform === p.value
 													? "bg-accent text-accent-foreground border-accent"
 													: "bg-surface text-foreground border-border hover:bg-surface-secondary"
@@ -685,7 +685,7 @@ export function TopicsPage({
 														: o.value
 												)
 											}
-											className={`px-3.5 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+											className={`px-3.5 py-1.5 rounded-full text-[10px] font-medium border transition-colors ${
 												objective === o.value
 													? "bg-accent text-accent-foreground border-accent"
 													: "bg-surface text-foreground border-border hover:bg-surface-secondary"
@@ -718,7 +718,7 @@ export function TopicsPage({
 															: [...prev, f.value]
 													)
 												}
-												className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+												className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-medium border transition-all ${
 													selectedFormats.includes(f.value)
 														? "bg-accent text-accent-foreground border-accent shadow-sm"
 														: "bg-surface text-foreground border-border hover:bg-surface-secondary"
@@ -769,7 +769,7 @@ export function TopicsPage({
 									</label>
 									<input
 										type="date"
-										className="w-full px-3 py-2 text-sm bg-field-background text-foreground border border-border rounded-[--radius] focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
+										className="w-full px-3 py-2 text-[10px] bg-field-background text-foreground border border-border rounded-[--radius] focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
 										value={dateFrom}
 										onChange={(e) =>
 											setDateFrom(e.target.value)
@@ -782,7 +782,7 @@ export function TopicsPage({
 									</label>
 									<input
 										type="date"
-										className="w-full px-3 py-2 text-sm bg-field-background text-foreground border border-border rounded-[--radius] focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
+										className="w-full px-3 py-2 text-[10px] bg-field-background text-foreground border border-border rounded-[--radius] focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
 										value={dateTo}
 										onChange={(e) =>
 											setDateTo(e.target.value)
@@ -831,7 +831,7 @@ export function TopicsPage({
 
 							<div>
 								<textarea
-									className="w-full px-3 py-2.5 text-sm bg-field-background text-foreground border border-border rounded-[--radius] focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent resize-y min-h-[140px] leading-relaxed placeholder:text-muted"
+									className="w-full px-3 py-2.5 text-xs bg-field-background text-foreground border border-border rounded-[--radius] focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent resize-y min-h-[140px] leading-relaxed placeholder:text-muted"
 									rows={6}
 									placeholder="Add any specific instructions, direction, or context...&#10;&#10;Tip: Paste URLs here — they'll be scraped and used as reference material."
 									value={topicPrompt}
@@ -971,7 +971,7 @@ export function TopicsPage({
 												value={topic.title}
 												onChange={(e) => handleTopicFieldChange(topic.id, "title", e.target.value)}
 												rows={2}
-												className="w-full text-sm font-semibold text-foreground bg-transparent border-0 border-b border-transparent hover:border-border focus:border-accent focus:outline-none transition-colors resize-none !rounded-none"
+												className="w-full text-xs font-semibold text-foreground bg-transparent border-0 border-b border-transparent hover:border-border focus:border-accent focus:outline-none transition-colors resize-none !rounded-none"
 											/>
 
 											<textarea
@@ -979,7 +979,7 @@ export function TopicsPage({
 												onChange={(e) => handleTopicFieldChange(topic.id, "description", e.target.value)}
 												placeholder="Add a description..."
 												rows={5}
-												className="w-full text-sm text-foreground leading-relaxed bg-transparent border-0 border-b border-transparent hover:border-border focus:border-accent focus:outline-none resize-y transition-colors placeholder:text-muted !rounded-none"
+												className="w-full text-xs text-foreground leading-relaxed bg-transparent border-0 border-b border-transparent hover:border-border focus:border-accent focus:outline-none resize-y transition-colors placeholder:text-muted !rounded-none"
 											/>
 
 											<div className="grid grid-cols-2 gap-2">

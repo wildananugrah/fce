@@ -92,6 +92,7 @@ interface SectionImageCellProps {
   // Display options
   aspectRatio?: string; // CSS aspect-ratio value, e.g. "16/9", "1/1", "9/16"
   className?: string;
+  square?: boolean; // remove border-radius from the thumbnail
 }
 
 // Single button + thumbnail slot used by slide, frame, and post_image
@@ -107,6 +108,7 @@ export function SectionImageCell({
   onError,
   aspectRatio = "16/9",
   className = "",
+  square = false,
 }: SectionImageCellProps) {
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState(false);
@@ -144,7 +146,7 @@ export function SectionImageCell({
           <button
             type="button"
             onClick={() => setPreview(true)}
-            className="block w-full rounded border border-gray-200 overflow-hidden hover:border-indigo-400 hover:shadow-sm transition-all"
+            className={`block w-full border border-gray-200 overflow-hidden hover:border-indigo-400 hover:shadow-sm transition-all ${square ? "rounded-none" : "rounded"}`}
             style={{ aspectRatio }}
             title="Click to view full size"
           >

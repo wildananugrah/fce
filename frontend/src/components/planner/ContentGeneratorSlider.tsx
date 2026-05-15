@@ -63,16 +63,16 @@ export function ContentGeneratorSlider({
 
       {/* Slider panel */}
       <div
-        className="relative flex h-full w-full max-w-[1100px] flex-col bg-white shadow-2xl"
+        className="relative flex h-full w-[50vw] flex-col bg-white shadow-2xl"
         role="dialog"
         aria-modal="true"
         aria-labelledby="content-generator-slider-title"
       >
         {/* Slider header */}
-        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-3">
+        <div className="flex items-center justify-between border-b border-border px-6 py-3 bg-surface shrink-0">
           <h2
             id="content-generator-slider-title"
-            className="text-base font-semibold text-gray-900"
+            className="text-sm font-semibold text-foreground"
           >
             Content Generator
           </h2>
@@ -80,14 +80,14 @@ export function ContentGeneratorSlider({
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="rounded-md p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+            className="rounded-md p-1.5 text-muted hover:bg-surface-secondary hover:text-foreground transition-colors"
           >
-            <X size={18} />
+            <X size={16} />
           </button>
         </div>
 
         {/* Embedded GeneratePage */}
-        <div className="flex-1 overflow-y-auto px-6 py-6">
+        <div className="flex-1 min-h-0 flex">
           <GeneratePage
             embedded
             initialBrandId={initialBrandId}
