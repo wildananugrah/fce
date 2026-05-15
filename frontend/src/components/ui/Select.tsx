@@ -1,4 +1,5 @@
 import type { SelectHTMLAttributes } from "react";
+import { Label } from "@heroui/react";
 
 interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   label?: string;
@@ -9,17 +10,10 @@ export function Select({ label, options, className = "", id, ...props }: SelectP
   const selectId = id || label?.toLowerCase().replace(/\s+/g, "-");
   return (
     <div className="w-full">
-      {label && (
-        <label
-          htmlFor={selectId}
-          className="block text-xs font-medium text-gray-600 uppercase tracking-wide mb-1.5"
-        >
-          {label}
-        </label>
-      )}
+      {label && <Label htmlFor={selectId}>{label}</Label>}
       <select
         id={selectId}
-        className={`w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-md focus:outline-none focus:border-black focus:ring-1 focus:ring-black ${className}`}
+        className={`w-full px-3 py-2 text-sm bg-field-bg text-foreground border border-border rounded-[--radius] focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent ${className}`}
         {...props}
       >
         {options.map((opt) => (

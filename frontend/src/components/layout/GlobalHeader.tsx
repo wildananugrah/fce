@@ -253,7 +253,7 @@ export function GlobalHeader({ onGenerateClick }: GlobalHeaderProps = {}) {
   }
 
   return (
-    <div className="h-14 bg-white border-b border-gray-100 flex items-center px-6 gap-4 shrink-0 shadow-sm z-20">
+    <div className="h-14 bg-white border-b border-gray-100 flex items-center px-6 gap-4 shrink-0 z-20">
       {/* Page title */}
       <h1 className="text-sm font-semibold text-gray-900 shrink-0">{config.title}</h1>
 
@@ -310,14 +310,14 @@ export function GlobalHeader({ onGenerateClick }: GlobalHeaderProps = {}) {
 
         {/* View switcher */}
         {config.viewOptions && config.viewOptions.length > 0 && (
-          <div className="inline-flex rounded-md border border-gray-200 bg-gray-50 p-0.5">
+          <div className="inline-flex rounded-full border border-gray-200 bg-gray-50 p-0.5">
             {config.viewOptions.map(({ value, icon: Icon, label }) => (
               <button
                 key={value}
                 type="button"
                 onClick={() => handleViewChange(value)}
                 title={label}
-                className={`p-1.5 rounded transition-colors ${
+                className={`p-1.5 rounded-full transition-colors ${
                   currentView === value
                     ? "bg-white text-gray-900 shadow-sm"
                     : "text-gray-400 hover:text-gray-600"

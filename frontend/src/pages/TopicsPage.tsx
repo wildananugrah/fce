@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, type ReactNode } from "react";
 import { useWorkspace } from "../hooks/useWorkspace";
 import { useProject } from "../hooks/useProject";
 import { useSSE } from "../hooks/useSSE";
@@ -13,6 +13,7 @@ import { ReferenceImageUpload, type ImageRef } from "../components/ui/ReferenceI
 import { UrlInspirationChips } from "../components/url-inspiration/UrlInspirationChips";
 import { SkillsAppliedStrip } from "../components/skills/SkillsAppliedStrip";
 import { ScrapeLanguageToggle } from "../components/ui/ScrapeLanguageToggle";
+import { Check, Zap } from "lucide-react";
 import type { ScrapeLanguage } from "../types";
 
 interface Brand {
@@ -113,28 +114,12 @@ const PILLAR_COLORS = [
 
 
 interface TopicsPageProps {
-	/**
-	 * When set, force dateFrom = dateTo to this YYYY-MM-DD value
-	 * whenever `initialDate` changes. Used by the Planner slider's
-	 * click-to-schedule flow. Falsy values are no-ops, so the standalone
-	 * /topics route keeps its lazy default range.
-	 */
 	initialDate?: string | null;
-	/**
-	 * When set, force brandId to this value whenever it changes. Used by
-	 * the Planner slider to pre-select the brand the user was viewing.
-	 */
 	initialBrandId?: string | null;
-	/**
-	 * Called after a successful bulk save of generated topics.
-	 * The Planner slider uses this to close itself + refresh the calendar.
-	 */
 	onSavedTopics?: () => void;
-	/**
-	 * Render without page-level chrome (outer padding, page header, CoachMark).
-	 * The slider's own header is the only one shown when embedded.
-	 */
 	embedded?: boolean;
+	/** Called with the Save All Topics button node (or null) for the host to render in a header slot. */
+	onHeaderContent?: (node: ReactNode | null) => void;
 }
 
 export function TopicsPage({
@@ -142,6 +127,7 @@ export function TopicsPage({
 	initialBrandId,
 	onSavedTopics,
 	embedded = false,
+	onHeaderContent,
 }: TopicsPageProps = {}) {
 	const { activeWorkspace } = useWorkspace();
 	const { activeProject } = useProject();
@@ -233,23 +219,18 @@ export function TopicsPage({
 		}
 	}, [initialBrandId]);
 
-	// 1:1 project:brand — auto-select the only brand once it's loaded so the
-	// user doesn't have to. If the project somehow has multiple (legacy data),
-	// fall through to the selector by leaving brandId empty.
 	useEffect(() => {
 		if (brands.length === 1 && brandId !== brands[0].id) {
 			setBrandId(brands[0].id);
 		}
 	}, [brands, brandId]);
 
-	// Reset to the active brand's language when the user picks a different brand.
 	useEffect(() => {
 		const brand = brands.find((b) => b.id === brandId);
 		const lang = brand?.language as ScrapeLanguage | undefined;
 		if (lang) setLanguage(lang);
 	}, [brandId, brands]);
 
-	// Fetch content pillars when brand/product changes
 	useEffect(() => {
 		if (!activeWorkspace || !brandId) {
 			setContentPillars([]);
@@ -258,11 +239,8 @@ export function TopicsPage({
 		}
 
 		(async () => {
-			// Reset immediately on brand switch so we never send stale
-			// Brand-A pillar strings while the Brand-B fetch is in flight.
 			setSelectedPillars([]);
 			try {
-				// Try to get brain version for the selected brand
 				const res = await api<{
 					data: {
 						id: string;
@@ -285,7 +263,6 @@ export function TopicsPage({
 		})();
 	}, [activeWorkspace, brandId]);
 
-	// Listen for SSE events
 	useSSE((event) => {
 		if (
 			event.type === "topic_generation_complete" ||
@@ -293,13 +270,11 @@ export function TopicsPage({
 		) {
 			setGenerating(false);
 			setPendingRunId(null);
-			// Fetch the generated topics
 			if (activeWorkspace) {
 				api<{ data: GeneratedTopic[] }>(
 					`/api/workspaces/${activeWorkspace.id}/topics`
 				).then((res) => {
 					const topics = Array.isArray(res) ? res : res.data;
-					// Show only the most recently generated topics (matching count)
 					const recent = topics
 						.filter((t: GeneratedTopic) => t.status === "draft")
 						.slice(0, count);
@@ -417,8 +392,7 @@ export function TopicsPage({
 		}
 	};
 
-	const handleSaveAll = async () => {
-		// Topics are already saved in the backend as drafts, this is just confirmation
+	const handleSaveAll = useCallback(async () => {
 		setSaving(true);
 		try {
 			showToast("All topics saved to library!", "success");
@@ -427,12 +401,33 @@ export function TopicsPage({
 		} finally {
 			setSaving(false);
 		}
-	};
+	}, [onSavedTopics]);
+
+	// Sync header slot for embedded mode (slider header)
+	useEffect(() => {
+		if (!onHeaderContent) return;
+		const show = generatedTopics.length > 0 && !topicsSaved;
+		if (!show) {
+			onHeaderContent(null);
+			return;
+		}
+		onHeaderContent(
+			<button
+				type="button"
+				disabled={saving}
+				onClick={handleSaveAll}
+				className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-accent text-accent-foreground rounded-full hover:opacity-80 transition-opacity disabled:opacity-50"
+			>
+				<Check size={13} />
+				Save All Topics
+			</button>
+		);
+	}, [onHeaderContent, generatedTopics.length, topicsSaved, saving, handleSaveAll]);
 
 	if (!activeWorkspace) {
 		return (
 			<div className="p-6">
-				<p className="text-sm text-gray-500">
+				<p className="text-sm text-muted">
 					Create a workspace first to generate topics.
 				</p>
 			</div>
@@ -447,34 +442,16 @@ export function TopicsPage({
 		(p) => !brandId || p.brandId === brandId
 	);
 
-	// Single source of truth for the Save All Topics button — rendered
-	// in two positions (in-header for /topics, alternate row for embedded).
 	const showSaveAllButton = generatedTopics.length > 0 && !topicsSaved;
 	const saveAllTopicsButton = (
-		<Button
-			onClick={handleSaveAll}
-			loading={saving}
-			className="!bg-indigo-600 hover:!bg-indigo-700 !rounded-lg"
-		>
-			<svg
-				className="w-4 h-4 mr-2"
-				fill="none"
-				viewBox="0 0 24 24"
-				stroke="currentColor"
-				strokeWidth={2}
-			>
-				<path
-					strokeLinecap="round"
-					strokeLinejoin="round"
-					d="M5 13l4 4L19 7"
-				/>
-			</svg>
+		<Button onClick={handleSaveAll} loading={saving}>
+			<Check size={14} className="mr-1.5" />
 			Save All Topics
 		</Button>
 	);
 
 	return (
-		<div className={`${embedded ? "" : "p-6 "}space-y-6`}>
+		<div className={embedded ? "flex flex-1 min-h-0" : "p-6 space-y-6"}>
 			{!embedded && (
 				<>
 					{showSaveAllButton && (
@@ -484,25 +461,19 @@ export function TopicsPage({
 				</>
 			)}
 
-			{/* When embedded, Save All goes in its own right-aligned row above
-			    the form/results columns so the user can still commit a generation. */}
-			{embedded && showSaveAllButton && (
-				<div className="flex justify-end pt-4">{saveAllTopicsButton}</div>
-			)}
-
 			{loading ? (
 				<div className="flex justify-center py-12">
 					<Spinner />
 				</div>
 			) : (
-				<div className="flex gap-6">
+				<div className={embedded ? "flex flex-1 min-h-0" : "flex"}>
 					{/* Left Panel — Form */}
-					<div className="w-[420px] shrink-0 space-y-5">
+					<div className={`w-1/2 shrink-0 border-r border-border ${embedded ? "overflow-y-auto px-6 pb-6" : "pr-6"}`}>
 						{/* Context Section */}
-						<div className="bg-white border border-gray-200 rounded-xl p-5 space-y-4">
-							<div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+						<div className="space-y-4 py-5">
+							<div className="flex items-center gap-2 text-sm font-semibold text-foreground">
 								<svg
-									className="w-4 h-4 text-gray-400"
+									className="w-4 h-4 text-muted"
 									fill="none"
 									viewBox="0 0 24 24"
 									stroke="currentColor"
@@ -524,14 +495,14 @@ export function TopicsPage({
 
 							{brands.length === 1 ? (
 								<div>
-									<label className="block text-xs font-medium text-gray-600 uppercase tracking-wide mb-1.5">
+									<label className="block text-xs font-medium text-muted uppercase tracking-wide mb-1.5">
 										Brand
 									</label>
-									<div className="flex items-center gap-2 px-3 py-2 rounded-md bg-gray-50 border border-gray-200 text-sm">
-										<span className="w-5 h-5 rounded bg-indigo-100 text-indigo-600 flex items-center justify-center text-[10px] font-bold">
+									<div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-surface-secondary border border-border text-sm">
+										<span className="w-5 h-5 rounded-md bg-accent/10 text-accent flex items-center justify-center text-[10px] font-bold">
 											{brands[0].name.charAt(0).toUpperCase()}
 										</span>
-										<span className="text-gray-700">{brands[0].name}</span>
+										<span className="text-foreground">{brands[0].name}</span>
 									</div>
 								</div>
 							) : (
@@ -548,7 +519,7 @@ export function TopicsPage({
 
 							{brandId && (
 								<div className="flex items-center gap-2">
-									<span className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+									<span className="text-xs font-medium text-muted uppercase tracking-wider">
 										Language
 									</span>
 									<ScrapeLanguageToggle
@@ -561,10 +532,10 @@ export function TopicsPage({
 
 							{brandId && filteredProducts.length > 0 && (
 								<div>
-									<label className="block text-xs font-medium text-gray-600 uppercase tracking-wide mb-2">
+									<label className="block text-xs font-medium text-muted uppercase tracking-wide mb-2">
 										Products
 									</label>
-									<p className="text-[11px] text-gray-400 mb-2">
+									<p className="text-[11px] text-muted/60 mb-2">
 										Select one or more products for cross-product topics
 									</p>
 									<div className="flex flex-wrap gap-2">
@@ -579,10 +550,10 @@ export function TopicsPage({
 															: [...prev, p.id]
 													)
 												}
-												className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+												className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
 													selectedProductIds.includes(p.id)
-														? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
-														: "bg-white text-gray-600 border-gray-200 hover:border-indigo-300 hover:bg-indigo-50"
+														? "bg-accent text-accent-foreground border-accent shadow-sm"
+														: "bg-surface text-foreground border-border hover:bg-surface-secondary"
 												}`}
 											>
 												<svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -597,7 +568,7 @@ export function TopicsPage({
 										))}
 									</div>
 									{selectedProductIds.length > 0 && (
-										<p className="text-[11px] text-indigo-500 mt-1.5">
+										<p className="text-[11px] text-accent mt-1.5">
 											{selectedProductIds.length} product{selectedProductIds.length > 1 ? "s" : ""} selected
 										</p>
 									)}
@@ -605,12 +576,12 @@ export function TopicsPage({
 							)}
 
 							{brandId && contentPillars.length > 0 && (
-								<div className="pt-3 border-t border-gray-100">
+								<div className="pt-3 border-t border-border">
 									<div className="flex items-center justify-between mb-2">
-										<label className="block text-[10px] font-medium text-gray-400 uppercase tracking-wide">
+										<label className="block text-[10px] font-medium text-muted uppercase tracking-wide">
 											Brand Content Pillars
 										</label>
-										<span className="text-[10px] text-gray-400">
+										<span className="text-[10px] text-muted">
 											{selectedPillars.length === 0
 												? "Mixed (all pillars)"
 												: `Selected: ${selectedPillars.join(", ")}`}
@@ -628,10 +599,10 @@ export function TopicsPage({
 															prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p],
 														)
 													}
-													className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium border transition-all ${
+													className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border transition-all ${
 														isSelected
-															? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
-															: `${PILLAR_COLORS[i % PILLAR_COLORS.length]} border-transparent hover:border-gray-300`
+															? "bg-accent text-accent-foreground border-accent shadow-sm"
+															: `${PILLAR_COLORS[i % PILLAR_COLORS.length]} border-transparent hover:border-border`
 													}`}
 												>
 													{p}
@@ -639,18 +610,20 @@ export function TopicsPage({
 											);
 										})}
 									</div>
-									<p className="text-[10px] text-gray-400 mt-1.5">
+									<p className="text-[10px] text-muted/60 mt-1.5">
 										Pick one or more pillars, or leave blank to mix across all.
 									</p>
 								</div>
 							)}
 						</div>
 
+						<div className="border-t border-border" />
+
 						{/* Platform & Objective Section */}
-						<div className="bg-white border border-gray-200 rounded-xl p-5 space-y-4">
-							<div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+						<div className="space-y-4 py-5">
+							<div className="flex items-center gap-2 text-sm font-semibold text-foreground">
 								<svg
-									className="w-4 h-4 text-gray-400"
+									className="w-4 h-4 text-muted"
 									fill="none"
 									viewBox="0 0 24 24"
 									stroke="currentColor"
@@ -667,7 +640,7 @@ export function TopicsPage({
 
 							{/* Platform chips */}
 							<div>
-								<label className="block text-xs font-medium text-gray-600 uppercase tracking-wide mb-2">
+								<label className="block text-xs font-medium text-muted uppercase tracking-wide mb-2">
 									Platform
 								</label>
 								<div className="flex flex-wrap gap-2">
@@ -685,8 +658,8 @@ export function TopicsPage({
 											}}
 											className={`px-3.5 py-1.5 rounded-full text-xs font-medium border transition-colors ${
 												platform === p.value
-													? "bg-indigo-600 text-white border-indigo-600"
-													: "bg-white text-gray-600 border-gray-300 hover:border-gray-400"
+													? "bg-accent text-accent-foreground border-accent"
+													: "bg-surface text-foreground border-border hover:bg-surface-secondary"
 											}`}
 										>
 											{p.label}
@@ -697,7 +670,7 @@ export function TopicsPage({
 
 							{/* Objective */}
 							<div>
-								<label className="block text-xs font-medium text-gray-600 uppercase tracking-wide mb-2">
+								<label className="block text-xs font-medium text-muted uppercase tracking-wide mb-2">
 									Objective
 								</label>
 								<div className="flex flex-wrap gap-2">
@@ -714,8 +687,8 @@ export function TopicsPage({
 											}
 											className={`px-3.5 py-1.5 rounded-full text-xs font-medium border transition-colors ${
 												objective === o.value
-													? "bg-indigo-600 text-white border-indigo-600"
-													: "bg-white text-gray-600 border-gray-300 hover:border-gray-400"
+													? "bg-accent text-accent-foreground border-accent"
+													: "bg-surface text-foreground border-border hover:bg-surface-secondary"
 											}`}
 										>
 											{o.label}
@@ -724,13 +697,13 @@ export function TopicsPage({
 								</div>
 							</div>
 
-							{/* Content Formats — separate card-like section */}
+							{/* Content Formats */}
 							{platform && PLATFORM_FORMATS[platform] && (
-								<div className="pt-3 border-t border-gray-100">
-									<label className="block text-xs font-medium text-gray-600 uppercase tracking-wide mb-1">
+								<div className="pt-3 border-t border-border">
+									<label className="block text-xs font-medium text-muted uppercase tracking-wide mb-1">
 										Content Formats
 									</label>
-									<p className="text-[11px] text-gray-400 mb-2">
+									<p className="text-[11px] text-muted/60 mb-2">
 										Select which formats the AI can assign to topics
 									</p>
 									<div className="flex flex-wrap gap-2">
@@ -745,22 +718,22 @@ export function TopicsPage({
 															: [...prev, f.value]
 													)
 												}
-												className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+												className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
 													selectedFormats.includes(f.value)
-														? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
-														: "bg-white text-gray-600 border-gray-200 hover:border-indigo-300 hover:bg-indigo-50"
+														? "bg-accent text-accent-foreground border-accent shadow-sm"
+														: "bg-surface text-foreground border-border hover:bg-surface-secondary"
 												}`}
 											>
 												<span>{f.icon}</span>
 												{f.label}
 												{f.badge && (
-													<span className={`text-[9px] ${selectedFormats.includes(f.value) ? "opacity-70" : "text-gray-400"}`}>{f.badge}</span>
+													<span className={`text-[9px] ${selectedFormats.includes(f.value) ? "opacity-70" : "text-muted"}`}>{f.badge}</span>
 												)}
 											</button>
 										))}
 									</div>
 									{selectedFormats.length > 0 && (
-										<p className="text-[11px] text-indigo-500 mt-1.5">
+										<p className="text-[11px] text-accent mt-1.5">
 											{selectedFormats.length} format{selectedFormats.length > 1 ? "s" : ""} selected
 										</p>
 									)}
@@ -768,11 +741,13 @@ export function TopicsPage({
 							)}
 						</div>
 
+						<div className="border-t border-border" />
+
 						{/* Schedule Section */}
-						<div className="bg-white border border-gray-200 rounded-xl p-5 space-y-4">
-							<div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+						<div className="space-y-4 py-5">
+							<div className="flex items-center gap-2 text-sm font-semibold text-foreground">
 								<svg
-									className="w-4 h-4 text-gray-400"
+									className="w-4 h-4 text-muted"
 									fill="none"
 									viewBox="0 0 24 24"
 									stroke="currentColor"
@@ -789,12 +764,12 @@ export function TopicsPage({
 
 							<div className="grid grid-cols-2 gap-4">
 								<div>
-									<label className="block text-xs font-medium text-gray-600 mb-1.5">
+									<label className="block text-xs font-medium text-muted mb-1.5">
 										From
 									</label>
 									<input
 										type="date"
-										className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-md focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
+										className="w-full px-3 py-2 text-sm bg-field-background text-foreground border border-border rounded-[--radius] focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
 										value={dateFrom}
 										onChange={(e) =>
 											setDateFrom(e.target.value)
@@ -802,12 +777,12 @@ export function TopicsPage({
 									/>
 								</div>
 								<div>
-									<label className="block text-xs font-medium text-gray-600 mb-1.5">
+									<label className="block text-xs font-medium text-muted mb-1.5">
 										To
 									</label>
 									<input
 										type="date"
-										className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-md focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
+										className="w-full px-3 py-2 text-sm bg-field-background text-foreground border border-border rounded-[--radius] focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
 										value={dateTo}
 										onChange={(e) =>
 											setDateTo(e.target.value)
@@ -818,9 +793,9 @@ export function TopicsPage({
 
 							{/* Topic count slider */}
 							<div>
-								<label className="block text-xs font-medium text-gray-600 mb-1.5">
+								<label className="block text-xs font-medium text-muted mb-1.5">
 									Number of topics:{" "}
-									<span className="font-bold text-gray-900">
+									<span className="font-bold text-foreground">
 										{count}
 									</span>
 								</label>
@@ -833,9 +808,9 @@ export function TopicsPage({
 									onChange={(e) =>
 										setCount(parseInt(e.target.value))
 									}
-									className="w-full accent-indigo-600"
+									className="w-full accent-accent"
 								/>
-								<div className="flex justify-between text-xs text-gray-400 mt-1">
+								<div className="flex justify-between text-xs text-muted mt-1">
 									<span>1</span>
 									<span>15</span>
 									<span>30</span>
@@ -843,10 +818,12 @@ export function TopicsPage({
 							</div>
 						</div>
 
+						<div className="border-t border-border" />
+
 						{/* Additional Direction Section */}
-						<div className="bg-white border border-gray-200 rounded-xl p-5 space-y-4">
-							<div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
-								<svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+						<div className="space-y-4 py-5">
+							<div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+								<svg className="w-4 h-4 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
 									<path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />
 								</svg>
 								Additional Direction
@@ -854,13 +831,13 @@ export function TopicsPage({
 
 							<div>
 								<textarea
-									className="w-full px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 resize-y min-h-[140px] leading-relaxed"
+									className="w-full px-3 py-2.5 text-sm bg-field-background text-foreground border border-border rounded-[--radius] focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent resize-y min-h-[140px] leading-relaxed placeholder:text-muted"
 									rows={6}
 									placeholder="Add any specific instructions, direction, or context...&#10;&#10;Tip: Paste URLs here — they'll be scraped and used as reference material."
 									value={topicPrompt}
 									onChange={(e) => setTopicPrompt(e.target.value)}
 								/>
-								<p className="text-[10px] text-gray-400 mt-1.5">
+								<p className="text-[10px] text-muted/60 mt-1.5">
 									You can paste URLs — the system will scrape the pages and include the extracted text as AI context.
 								</p>
 								{activeWorkspace && (
@@ -872,7 +849,7 @@ export function TopicsPage({
 							</div>
 
 							<div>
-								<label className="block text-xs font-medium text-gray-600 uppercase tracking-wide mb-2">
+								<label className="block text-xs font-medium text-muted uppercase tracking-wide mb-2">
 									Reference Images (optional)
 								</label>
 								<ReferenceImageUpload
@@ -883,27 +860,16 @@ export function TopicsPage({
 							</div>
 						</div>
 
-						<SkillsAppliedStrip generator="topic" className="mb-3 px-1" />
+						<div className="border-t border-border" />
+						<SkillsAppliedStrip generator="topic" className="pt-4 mb-3 px-1" />
 
 						{/* Generate Button */}
 						<Button
 							onClick={handleGenerate}
 							loading={generating}
-							className="w-full !bg-indigo-600 hover:!bg-indigo-700 !rounded-xl !py-3 !text-sm"
+							className="w-full"
 						>
-							<svg
-								className="w-4 h-4 mr-2"
-								fill="none"
-								viewBox="0 0 24 24"
-								stroke="currentColor"
-								strokeWidth={2}
-							>
-								<path
-									strokeLinecap="round"
-									strokeLinejoin="round"
-									d="M13 10V3L4 14h7v7l9-11h-7z"
-								/>
-							</svg>
+							<Zap size={14} className="mr-1.5" />
 							Generate {count} Topics
 						</Button>
 						{generating && pendingRunId && (
@@ -919,8 +885,6 @@ export function TopicsPage({
 										setGenerating(false);
 										setPendingRunId(null);
 									} catch (e) {
-										// Race: worker finished after the user clicked. Show toast,
-										// clear spinner anyway since the page state is stale.
 										showToast(
 											e instanceof Error ? e.message : "Could not cancel",
 											"info",
@@ -938,11 +902,11 @@ export function TopicsPage({
 					</div>
 
 					{/* Right Panel — Results */}
-					<div className="flex-1 min-w-0">
+					<div className={`w-1/2 min-w-0 ${embedded ? "overflow-y-auto p-6 bg-surface-secondary" : "pl-6"}`}>
 						{generating ? (
-							<div className="flex flex-col items-center justify-center h-80 bg-white border border-gray-200 rounded-xl">
+							<div className="flex flex-col items-center justify-center h-80 bg-surface border border-border rounded-xl px-6">
 								<Spinner />
-								<p className="text-sm text-gray-500 mt-4">
+								<p className="text-sm text-muted mt-4">
 									Generating topics...
 								</p>
 							</div>
@@ -950,15 +914,15 @@ export function TopicsPage({
 							<div className="space-y-4">
 								{/* Results header */}
 								<div className="flex items-center justify-between">
-									<p className="text-sm text-gray-500">
+									<p className="text-sm text-muted">
 										{generatedTopics.length} topics for{" "}
 										{brands.find((b) => b.id === brandId)
 											?.name ?? ""}
 										{platform
-											? ` \u00B7 ${PLATFORMS.find((p) => p.value === platform)?.label}`
+											? ` · ${PLATFORMS.find((p) => p.value === platform)?.label}`
 											: ""}
 										{selectedProductIds.length > 0
-											? ` \u00B7 ${selectedProductIds.length} product${selectedProductIds.length > 1 ? "s" : ""}`
+											? ` · ${selectedProductIds.length} product${selectedProductIds.length > 1 ? "s" : ""}`
 											: ""}
 									</p>
 								</div>
@@ -968,7 +932,7 @@ export function TopicsPage({
 									{generatedTopics.map((topic) => (
 										<div
 											key={topic.id}
-											className={`bg-white border border-gray-200 rounded-xl p-4 space-y-3 relative ${
+											className={`bg-surface border border-border rounded-xl p-4 space-y-3 relative transition-shadow hover:shadow-md ${
 												regeneratingTopicId === topic.id ? "opacity-50 pointer-events-none" : ""
 											}`}
 										>
@@ -993,7 +957,7 @@ export function TopicsPage({
 														})()}
 														target="_blank"
 														rel="noopener noreferrer"
-														className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors"
+														className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-accent text-accent-foreground rounded-full hover:opacity-80 transition-opacity"
 													>
 														<svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
 															<path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -1003,53 +967,11 @@ export function TopicsPage({
 												</div>
 											)}
 
-											<div className="flex justify-end gap-2">
-												<button
-													type="button"
-													onClick={() => setShowRegenInput(showRegenInput === topic.id ? null : topic.id)}
-													className="text-gray-300 hover:text-indigo-500 transition-colors"
-													title="Regenerate this topic"
-												>
-													<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-														<path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-													</svg>
-												</button>
-												<button
-													type="button"
-													onClick={() => handleDeleteTopic(topic.id)}
-													className="text-gray-300 hover:text-red-500 transition-colors"
-												>
-													<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-														<path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-													</svg>
-												</button>
-											</div>
-
-											{showRegenInput === topic.id && (
-												<div className="flex gap-2">
-													<input
-														type="text"
-														placeholder="Optional hint (e.g., 'make it more educational')" 
-														className="flex-1 px-3 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400"
-														value={regenHints[topic.id] ?? ""}
-														onChange={(e) => setRegenHints((prev) => ({ ...prev, [topic.id]: e.target.value }))}
-														onKeyDown={(e) => { if (e.key === "Enter") handleRegenerateSingle(topic.id); }}
-													/>
-													<button
-														type="button"
-														onClick={() => handleRegenerateSingle(topic.id)}
-														className="px-3 py-1.5 text-xs font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-													>
-														Go
-													</button>
-												</div>
-											)}
-
-											<input
-												type="text"
+											<textarea
 												value={topic.title}
 												onChange={(e) => handleTopicFieldChange(topic.id, "title", e.target.value)}
-												className="w-full text-sm font-semibold text-gray-900 bg-transparent border-b border-transparent hover:border-gray-200 focus:border-indigo-400 focus:outline-none transition-colors pb-0.5"
+												rows={2}
+												className="w-full text-sm font-semibold text-foreground bg-transparent border-0 border-b border-transparent hover:border-border focus:border-accent focus:outline-none transition-colors resize-none !rounded-none"
 											/>
 
 											<textarea
@@ -1057,17 +979,17 @@ export function TopicsPage({
 												onChange={(e) => handleTopicFieldChange(topic.id, "description", e.target.value)}
 												placeholder="Add a description..."
 												rows={5}
-												className="w-full text-sm text-gray-700 leading-relaxed bg-transparent border border-transparent hover:border-gray-200 focus:border-indigo-400 focus:outline-none rounded-md p-2 resize-y transition-colors"
+												className="w-full text-sm text-foreground leading-relaxed bg-transparent border-0 border-b border-transparent hover:border-border focus:border-accent focus:outline-none resize-y transition-colors placeholder:text-muted !rounded-none"
 											/>
 
 											<div className="grid grid-cols-2 gap-2">
 												<div>
-													<label className="block text-[10px] text-gray-400 mb-0.5">Pillar</label>
+													<label className="block text-[10px] text-muted mb-0.5">Pillar</label>
 													{contentPillars.length > 0 ? (
 														<select
 															value={topic.pillar ?? ""}
 															onChange={(e) => handleTopicFieldChange(topic.id, "pillar", e.target.value)}
-															className="w-full text-xs px-2 py-1 bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:border-indigo-400"
+															className="w-full text-xs px-2 py-1 bg-surface-secondary text-foreground border border-border rounded-[--radius] focus:outline-none focus:border-accent"
 														>
 															<option value="">None</option>
 															{contentPillars.map((p) => (
@@ -1080,17 +1002,17 @@ export function TopicsPage({
 															value={topic.pillar ?? ""}
 															onChange={(e) => handleTopicFieldChange(topic.id, "pillar", e.target.value)}
 															placeholder="Pillar"
-															className="w-full text-xs px-2 py-1 bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:border-indigo-400"
+															className="w-full text-xs px-2 py-1 bg-surface-secondary text-foreground border border-border rounded-full focus:outline-none focus:border-accent placeholder:text-muted"
 														/>
 													)}
 												</div>
 
 												<div>
-													<label className="block text-[10px] text-gray-400 mb-0.5">Format</label>
+													<label className="block text-[10px] text-muted mb-0.5">Format</label>
 													<select
 														value={topic.format ?? ""}
 														onChange={(e) => handleTopicFieldChange(topic.id, "format", e.target.value)}
-														className="w-full text-xs px-2 py-1 bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:border-indigo-400"
+														className="w-full text-xs px-2 py-1 bg-surface-secondary text-foreground border border-border rounded-[--radius] focus:outline-none focus:border-accent"
 													>
 														<option value="">None</option>
 														{(PLATFORM_FORMATS[topic.platform ?? platform] ?? []).map((f) => (
@@ -1100,11 +1022,11 @@ export function TopicsPage({
 												</div>
 
 												<div>
-													<label className="block text-[10px] text-gray-400 mb-0.5">Platform</label>
+													<label className="block text-[10px] text-muted mb-0.5">Platform</label>
 													<select
 														value={topic.platform ?? ""}
 														onChange={(e) => handleTopicFieldChange(topic.id, "platform", e.target.value)}
-														className="w-full text-xs px-2 py-1 bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:border-indigo-400"
+														className="w-full text-xs px-2 py-1 bg-surface-secondary text-foreground border border-border rounded-[--radius] focus:outline-none focus:border-accent"
 													>
 														<option value="">None</option>
 														{PLATFORMS.map((p) => (
@@ -1114,11 +1036,11 @@ export function TopicsPage({
 												</div>
 
 												<div>
-													<label className="block text-[10px] text-gray-400 mb-0.5">Objective</label>
+													<label className="block text-[10px] text-muted mb-0.5">Objective</label>
 													<select
 														value={topic.objective ?? ""}
 														onChange={(e) => handleTopicFieldChange(topic.id, "objective", e.target.value)}
-														className="w-full text-xs px-2 py-1 bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:border-indigo-400"
+														className="w-full text-xs px-2 py-1 bg-surface-secondary text-foreground border border-border rounded-[--radius] focus:outline-none focus:border-accent"
 													>
 														<option value="">None</option>
 														{OBJECTIVES.map((o) => (
@@ -1127,16 +1049,61 @@ export function TopicsPage({
 													</select>
 												</div>
 
-												<div>
-													<label className="block text-[10px] text-gray-400 mb-0.5">Publish Date</label>
+											</div>
+
+											{/* Bottom bar: Publish Date + action icons */}
+											<div className="flex items-end gap-2">
+												<div className="flex-1">
+													<label className="block text-[10px] text-muted mb-0.5">Publish Date</label>
 													<input
 														type="date"
 														value={topic.publishDate ? topic.publishDate.split("T")[0] : ""}
 														onChange={(e) => handleTopicFieldChange(topic.id, "publishDate", e.target.value)}
-														className="w-full text-xs px-2 py-1 bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:border-indigo-400"
+														className="w-full text-xs px-2 py-1 bg-surface-secondary text-foreground border border-border rounded-[--radius] focus:outline-none focus:border-accent"
 													/>
 												</div>
+												<div className="flex items-center gap-0.5 pb-0.5">
+													<button
+														type="button"
+														onClick={() => setShowRegenInput(showRegenInput === topic.id ? null : topic.id)}
+														className="p-1.5 text-muted/40 hover:text-accent transition-colors rounded-full hover:bg-surface-secondary"
+														title="Regenerate this topic"
+													>
+														<svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+															<path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+														</svg>
+													</button>
+													<button
+														type="button"
+														onClick={() => handleDeleteTopic(topic.id)}
+														className="p-1.5 text-muted/40 hover:text-danger transition-colors rounded-full hover:bg-surface-secondary"
+													>
+														<svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+															<path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+														</svg>
+													</button>
+												</div>
 											</div>
+
+											{showRegenInput === topic.id && (
+												<div className="flex gap-2">
+													<input
+														type="text"
+														placeholder="Optional hint (e.g., 'make it more educational')"
+														className="flex-1 px-3 py-1.5 text-xs bg-surface-secondary text-foreground border border-border rounded-full focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent placeholder:text-muted"
+														value={regenHints[topic.id] ?? ""}
+														onChange={(e) => setRegenHints((prev) => ({ ...prev, [topic.id]: e.target.value }))}
+														onKeyDown={(e) => { if (e.key === "Enter") handleRegenerateSingle(topic.id); }}
+													/>
+													<button
+														type="button"
+														onClick={() => handleRegenerateSingle(topic.id)}
+														className="px-3 py-1.5 text-xs font-medium bg-accent text-accent-foreground rounded-full hover:opacity-80 transition-opacity"
+													>
+														Go
+													</button>
+												</div>
+											)}
 										</div>
 									))}
 								</div>
@@ -1144,9 +1111,9 @@ export function TopicsPage({
 							</div>
 						) : (
 							/* Empty state */
-							<div className="flex flex-col items-center justify-center h-80 bg-white border border-gray-200 rounded-xl">
+							<div className="flex flex-col items-center justify-center h-80 bg-surface border border-border rounded-xl px-6">
 								<svg
-									className="w-12 h-12 text-indigo-200 mb-4"
+									className="w-12 h-12 text-muted/30 mb-4"
 									fill="none"
 									viewBox="0 0 24 24"
 									stroke="currentColor"
@@ -1158,10 +1125,10 @@ export function TopicsPage({
 										d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"
 									/>
 								</svg>
-								<p className="text-base font-semibold text-gray-700">
+								<p className="text-base font-semibold text-foreground">
 									No topics yet
 								</p>
-								<p className="text-sm text-gray-400 mt-1 text-center max-w-xs">
+								<p className="text-sm text-muted mt-1 text-center max-w-xs">
 									Select a brand and platform, set your date
 									range, then click Generate to build your
 									content calendar.

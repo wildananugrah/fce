@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Table as HeroTable } from "@heroui/react";
 
 interface Column<T> {
   key: string;
@@ -20,44 +21,36 @@ export function Table<T extends Record<string, unknown>>({
   emptyMessage = "No data",
 }: TableProps<T>) {
   return (
-    <div className="bg-white border border-gray-200 rounded-lg overflow-x-auto">
-      <table className="w-full min-w-[640px]">
-        <thead>
-          <tr className="border-b border-gray-100 bg-gray-50">
+    <HeroTable>
+      <HeroTable.ScrollContainer>
+        <HeroTable.Content aria-label="Data table">
+          <HeroTable.Header>
             {columns.map((col) => (
-              <th
-                key={col.key}
-                className="text-left px-4 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-wide"
-              >
-                {col.header}
-              </th>
+              <HeroTable.Column key={col.key}>{col.header}</HeroTable.Column>
             ))}
-          </tr>
-        </thead>
-        <tbody>
-          {data.length === 0 ? (
-            <tr>
-              <td colSpan={columns.length} className="px-4 py-8 text-center text-sm text-gray-400">
-                {emptyMessage}
-              </td>
-            </tr>
-          ) : (
-            data.map((item, i) => (
-              <tr
-                key={i}
-                className={`border-b border-gray-50 ${onRowClick ? "cursor-pointer hover:bg-gray-50" : ""}`}
-                onClick={() => onRowClick?.(item)}
+          </HeroTable.Header>
+          <HeroTable.Body
+            items={data}
+            renderEmptyState={() => (
+              <div className="px-4 py-8 text-center text-sm text-muted">{emptyMessage}</div>
+            )}
+          >
+            {(item) => (
+              <HeroTable.Row
+                key={String(item.id ?? JSON.stringify(item))}
+                onClick={onRowClick ? () => onRowClick(item) : undefined}
+                className={onRowClick ? "cursor-pointer" : ""}
               >
                 {columns.map((col) => (
-                  <td key={col.key} className="px-4 py-2.5 text-sm text-gray-700">
+                  <HeroTable.Cell key={col.key}>
                     {col.render ? col.render(item) : String(item[col.key] ?? "")}
-                  </td>
+                  </HeroTable.Cell>
                 ))}
-              </tr>
-            ))
-          )}
-        </tbody>
-      </table>
-    </div>
+              </HeroTable.Row>
+            )}
+          </HeroTable.Body>
+        </HeroTable.Content>
+      </HeroTable.ScrollContainer>
+    </HeroTable>
   );
 }

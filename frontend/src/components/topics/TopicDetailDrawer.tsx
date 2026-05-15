@@ -177,25 +177,25 @@ export function TopicDetailDrawer({
       isOpen={isOpen}
       onClose={onClose}
       title="Topic Details"
-      subtitle={topic.brand?.name ?? undefined}
+      width="w-[50vw]"
     >
       <div className="p-6 space-y-6">
         {/* Title */}
         <div>
-          <label className="block text-xs font-medium text-gray-600 uppercase tracking-wide mb-1.5">
+          <label className="block text-xs font-semibold text-muted uppercase tracking-wide mb-1.5">
             Title
           </label>
           <input
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="w-full px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400"
+            className="w-full px-3 py-2 text-sm bg-field-bg text-foreground border border-border rounded-[--radius] focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
           />
         </div>
 
         {/* Description */}
         <div>
-          <label className="block text-xs font-medium text-gray-600 uppercase tracking-wide mb-1.5">
+          <label className="block text-xs font-semibold text-muted uppercase tracking-wide mb-1.5">
             Description
           </label>
           <textarea
@@ -203,7 +203,7 @@ export function TopicDetailDrawer({
             onChange={(e) => setDescription(e.target.value)}
             rows={5}
             placeholder="What is this topic about?"
-            className="w-full px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 resize-y leading-relaxed"
+            className="w-full px-3 py-2 text-sm bg-field-bg text-foreground border border-border rounded-[--radius] focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent resize-y leading-relaxed placeholder:text-muted"
           />
         </div>
 
@@ -211,7 +211,7 @@ export function TopicDetailDrawer({
         <div className="grid grid-cols-2 gap-4">
           {/* Pillar */}
           <div>
-            <label className="flex items-center gap-1.5 text-xs font-medium text-gray-600 uppercase tracking-wide mb-1.5">
+            <label className="flex items-center gap-1.5 text-xs font-semibold text-muted uppercase tracking-wide mb-1.5">
               <Tag size={12} />
               Pillar
             </label>
@@ -220,13 +220,13 @@ export function TopicDetailDrawer({
               value={pillar}
               onChange={(e) => setPillar(e.target.value)}
               placeholder="Content pillar"
-              className="w-full px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-indigo-400"
+              className="w-full px-3 py-2 text-sm bg-field-bg text-foreground border border-border rounded-[--radius] focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent placeholder:text-muted"
             />
           </div>
 
           {/* Format */}
           <div>
-            <label className="flex items-center gap-1.5 text-xs font-medium text-gray-600 uppercase tracking-wide mb-1.5">
+            <label className="flex items-center gap-1.5 text-xs font-semibold text-muted uppercase tracking-wide mb-1.5">
               <Layers size={12} />
               Format
             </label>
@@ -235,20 +235,20 @@ export function TopicDetailDrawer({
               value={format}
               onChange={(e) => setFormat(e.target.value)}
               placeholder="single_image, carousel, reels..."
-              className="w-full px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-indigo-400"
+              className="w-full px-3 py-2 text-sm bg-field-bg text-foreground border border-border rounded-[--radius] focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent placeholder:text-muted"
             />
           </div>
 
           {/* Platform */}
           <div>
-            <label className="flex items-center gap-1.5 text-xs font-medium text-gray-600 uppercase tracking-wide mb-1.5">
+            <label className="flex items-center gap-1.5 text-xs font-semibold text-muted uppercase tracking-wide mb-1.5">
               <Globe size={12} />
               Platform
             </label>
             <select
               value={platform}
               onChange={(e) => setPlatform(e.target.value)}
-              className="w-full px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-indigo-400"
+              className="w-full px-3 py-2 text-sm bg-field-bg text-foreground border border-border rounded-[--radius] focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
             >
               {PLATFORMS.map((p) => (
                 <option key={p.value} value={p.value}>
@@ -260,14 +260,14 @@ export function TopicDetailDrawer({
 
           {/* Objective */}
           <div>
-            <label className="flex items-center gap-1.5 text-xs font-medium text-gray-600 uppercase tracking-wide mb-1.5">
+            <label className="flex items-center gap-1.5 text-xs font-semibold text-muted uppercase tracking-wide mb-1.5">
               <Target size={12} />
               Objective
             </label>
             <select
               value={objective}
               onChange={(e) => setObjective(e.target.value)}
-              className="w-full px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-indigo-400"
+              className="w-full px-3 py-2 text-sm bg-field-bg text-foreground border border-border rounded-[--radius] focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
             >
               {OBJECTIVES.map((o) => (
                 <option key={o.value} value={o.value}>
@@ -279,7 +279,7 @@ export function TopicDetailDrawer({
 
           {/* Publish Date */}
           <div>
-            <label className="flex items-center gap-1.5 text-xs font-medium text-gray-600 uppercase tracking-wide mb-1.5">
+            <label className="flex items-center gap-1.5 text-xs font-semibold text-muted uppercase tracking-wide mb-1.5">
               <Calendar size={12} />
               Publish Date
             </label>
@@ -287,20 +287,20 @@ export function TopicDetailDrawer({
               type="date"
               value={publishDate}
               onChange={(e) => setPublishDate(e.target.value)}
-              className="w-full px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-indigo-400"
+              className="w-full px-3 py-2 text-sm bg-field-bg text-foreground border border-border rounded-[--radius] focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
             />
           </div>
 
           {/* Status */}
           <div>
-            <label className="flex items-center gap-1.5 text-xs font-medium text-gray-600 uppercase tracking-wide mb-1.5">
+            <label className="flex items-center gap-1.5 text-xs font-semibold text-muted uppercase tracking-wide mb-1.5">
               <FileText size={12} />
               Status
             </label>
             <select
               value={status}
               onChange={(e) => setStatus(e.target.value)}
-              className="w-full px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-indigo-400"
+              className="w-full px-3 py-2 text-sm bg-field-bg text-foreground border border-border rounded-[--radius] focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
             >
               {STATUSES.map((s) => (
                 <option key={s.value} value={s.value}>
@@ -314,7 +314,7 @@ export function TopicDetailDrawer({
         {/* Products */}
         {topic.products && topic.products.length > 0 && (
           <div>
-            <label className="flex items-center gap-1.5 text-xs font-medium text-gray-600 uppercase tracking-wide mb-1.5">
+            <label className="flex items-center gap-1.5 text-xs font-semibold text-muted uppercase tracking-wide mb-1.5">
               <Package size={12} />
               Products
             </label>
@@ -322,7 +322,7 @@ export function TopicDetailDrawer({
               {topic.products.map((tp) => (
                 <span
                   key={tp.id}
-                  className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-indigo-50 text-indigo-700"
+                  className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-accent/10 text-accent"
                 >
                   {tp.product.name}
                 </span>
@@ -332,13 +332,13 @@ export function TopicDetailDrawer({
         )}
 
         {/* Metadata footer */}
-        <div className="pt-4 border-t border-gray-100 text-[11px] text-gray-400 space-y-0.5">
+        <div className="pt-4 border-t border-border text-[11px] text-muted space-y-0.5">
           <p>
-            <span className="font-medium text-gray-500">Created:</span>{" "}
+            <span className="font-medium">Created:</span>{" "}
             {formatFullDate(topic.createdAt)}
           </p>
           <p>
-            <span className="font-medium text-gray-500">Topic ID:</span> {topic.id}
+            <span className="font-medium">Topic ID:</span> {topic.id}
           </p>
         </div>
 

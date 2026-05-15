@@ -65,8 +65,7 @@ This session is wrapping up. Please do the following before we close:
    Briefly describe what is visually/functionally complete after this session.
 
 3. **What is still pending / broken**
-   List anything unfinished, any known visual regressions, or any TODO
-   comments you left in the code.
+   List anything unfinished, any known visual regressions, or any TODO comments you left in the code.
 
 4. **Recommended next session start**
    Write 1–3 sentences I can paste at the top of the next START PROMPT's "Current session goal" field so the next session picks up exactly where we left off.
