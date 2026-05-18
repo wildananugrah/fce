@@ -15,7 +15,15 @@ export interface VerificationEmailInput {
 	expiryHuman: string;
 }
 
+export interface PasswordResetEmailInput {
+	to: string;
+	fullName: string | null;
+	resetUrl: string;
+	expiryHuman: string;
+}
+
 export interface IEmailProvider {
 	sendInvitation(input: InvitationEmailInput): Promise<void>;
 	sendVerification(input: VerificationEmailInput): Promise<void>;
+	sendPasswordReset(input: PasswordResetEmailInput): Promise<void>;
 }

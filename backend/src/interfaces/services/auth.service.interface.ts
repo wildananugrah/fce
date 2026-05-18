@@ -12,6 +12,8 @@ export interface IAuthService {
 	me(userId: string): Promise<AuthResponse["user"]>;
 	verifyEmail(token: string): Promise<{ email: string }>;
 	resendVerification(email: string): Promise<{ sent: boolean }>;
+	requestPasswordReset(email: string): Promise<{ sent: boolean }>;
+	resetPassword(token: string, newPassword: string): Promise<{ email: string }>;
 	updateProfile(
 		userId: string,
 		data: {

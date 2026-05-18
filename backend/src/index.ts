@@ -273,6 +273,7 @@ async function main() {
 			jwtRefreshExpiry: env.jwtRefreshExpiry,
 			appUrl: env.appUrl,
 			emailVerificationTokenExpiry: env.emailVerificationTokenExpiry,
+			passwordResetTokenExpiry: env.passwordResetTokenExpiry,
 			userDefaultMaxWorkspaces: env.userDefaultMaxWorkspaces,
 			userDefaultMaxProjects: env.userDefaultMaxProjects,
 		},

@@ -29,6 +29,8 @@ export function LoginPage() {
   useEffect(() => {
     if (searchParams.get("verified") === "1") {
       setVerifiedNotice("Email verified — please log in.");
+    } else if (searchParams.get("passwordReset") === "1") {
+      setVerifiedNotice("Password changed — please log in with your new password.");
     }
   }, [searchParams]);
 
@@ -114,7 +116,12 @@ export function LoginPage() {
               <input type="email" className={inputCls} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required />
             </div>
             <div>
-              <label className={labelCls}>Password</label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-medium text-gray-600 uppercase tracking-wide">Password</label>
+                <Link to="/forgot-password" className="text-xs text-gray-500 hover:text-black hover:underline">
+                  Forgot password?
+                </Link>
+              </div>
               <input type="password" className={inputCls} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Enter your password" required />
             </div>
             <Button type="submit" className="w-full" loading={loading}>Log in</Button>

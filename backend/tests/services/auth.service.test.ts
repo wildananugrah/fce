@@ -55,6 +55,7 @@ describe("AuthService", () => {
 			jwtRefreshExpiry: "7d",
 			appUrl: "http://localhost:5173",
 			emailVerificationTokenExpiry: "24h",
+			passwordResetTokenExpiry: "1h",
 			userDefaultMaxWorkspaces: 1,
 			userDefaultMaxProjects: 3,
 		},
