@@ -739,9 +739,10 @@ async function main() {
 	app.use("*", createErrorHandlerMiddleware(logger));
 	app.use("*", createRequestLoggerMiddleware(logger));
 
-	// Protect /me and /profile inside auth routes (must be registered before app.route)
+	// Protect /me, /profile, and /change-password inside auth routes (must be registered before app.route)
 	app.use("/api/auth/me", authMiddleware);
 	app.use("/api/auth/profile", authMiddleware);
+	app.use("/api/auth/change-password", authMiddleware);
 
 	// Public routes (no auth needed)
 	app.route("/api/auth", createAuthRoutes(authService));
