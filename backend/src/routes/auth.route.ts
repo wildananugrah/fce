@@ -134,6 +134,25 @@ export function createAuthRoutes(authService: IAuthService) {
 		}
 	});
 
+	app.post("/change-password", async (c) => {
+		const userId = c.get("userId");
+		if (!userId) return c.json({ error: "Not authenticated" }, 401);
+		const body = await c.req.json();
+		const { currentPassword, newPassword } = body as {
+			currentPassword?: string;
+			newPassword?: string;
+		};
+		if (!currentPassword || !newPassword) {
+			return c.json({ error: "currentPassword and newPassword are required" }, 400);
+		}
+		try {
+			await authService.changePassword(userId, currentPassword, newPassword);
+			return c.json({ data: { success: true } });
+		} catch (e) {
+			return c.json({ error: e instanceof Error ? e.message : "Failed to change password" }, 400);
+		}
+	});
+
 	app.post("/logout", (c) => {
 		setCookie(c, "refreshToken", "", {
 			httpOnly: true,

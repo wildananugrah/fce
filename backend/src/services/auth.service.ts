@@ -285,6 +285,21 @@ export class AuthService implements IAuthService {
 		return { email: user.email };
 	}
 
+	async changePassword(userId: string, currentPassword: string, newPassword: string): Promise<void> {
+		if (!newPassword || newPassword.length < 8) {
+			throw new Error("New password must be at least 8 characters");
+		}
+
+		const user = await this.userRepository.findById(userId);
+		if (!user) throw new Error("User not found");
+
+		const isValid = await verifyPassword(currentPassword, user.passwordHash);
+		if (!isValid) throw new Error("Current password is incorrect");
+
+		const passwordHash = await hashPassword(newPassword);
+		await this.prisma.user.update({ where: { id: userId }, data: { passwordHash } });
+	}
+
 	async updateProfile(
 		userId: string,
 		data: {

@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { useWorkspace } from "../hooks/useWorkspace";
-import { api } from "../services/api";
+import { api, ApiError } from "../services/api";
 import { Button } from "../components/ui/Button";
 import { Toast } from "../components/ui/Toast";
 import { TokenUsageSection } from "../components/token-usage/TokenUsageSection";
@@ -36,6 +36,41 @@ export function SettingsPage() {
       setToast({ message: "Failed to update profile", type: "error" });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState("");
+
+  const handleChangePassword = async (e: FormEvent) => {
+    e.preventDefault();
+    setPasswordError("");
+    if (newPassword.length < 8) {
+      setPasswordError("New password must be at least 8 characters");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError("New passwords don't match");
+      return;
+    }
+    setChangingPassword(true);
+    try {
+      await api("/api/auth/change-password", {
+        method: "POST",
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setToast({ message: "Password changed successfully", type: "success" });
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : err instanceof Error ? err.message : "Failed to change password";
+      setPasswordError(msg);
+    } finally {
+      setChangingPassword(false);
     }
   };
 
@@ -85,6 +120,55 @@ export function SettingsPage() {
           <Button size="sm" onClick={handleSave} loading={saving}>
             Save Changes
           </Button>
+        </div>
+
+        <div className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
+          <h2 className="text-sm font-semibold text-gray-900">Change Password</h2>
+          {passwordError && (
+            <div className="p-3 text-xs text-red-700 bg-red-50 border border-red-200 rounded-md">
+              {passwordError}
+            </div>
+          )}
+          <form onSubmit={handleChangePassword} className="space-y-4">
+            <div>
+              <label className={labelCls}>Current Password</label>
+              <input
+                type="password"
+                className={inputCls}
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                placeholder="Enter current password"
+                required
+              />
+            </div>
+            <div>
+              <label className={labelCls}>New Password</label>
+              <input
+                type="password"
+                className={inputCls}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="At least 8 characters"
+                required
+                minLength={8}
+              />
+            </div>
+            <div>
+              <label className={labelCls}>Confirm New Password</label>
+              <input
+                type="password"
+                className={inputCls}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Re-enter new password"
+                required
+                minLength={8}
+              />
+            </div>
+            <Button size="sm" type="submit" loading={changingPassword}>
+              Change Password
+            </Button>
+          </form>
         </div>
 
         {activeWorkspace && (
