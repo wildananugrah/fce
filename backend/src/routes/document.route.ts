@@ -13,13 +13,14 @@ export function createDocumentRoutes(documentService: IDocumentService) {
 
 	app.post("/upload", async (c) => {
 		const workspaceId = c.get("workspaceId");
+		const userId = c.get("userId");
 		const formData = await c.req.parseBody();
 		const file = formData.file as File;
 		const brandId = formData.brandId as string;
 		const productId = (formData.productId as string) || undefined;
 		const sourceType = (formData.sourceType as string) || undefined;
 		if (!file || !brandId) return c.json({ error: "file and brandId are required" }, 400);
-		const doc = await documentService.upload(workspaceId, brandId, file, productId, sourceType);
+		const doc = await documentService.upload(workspaceId, brandId, file, productId, sourceType, userId);
 		return c.json({ data: doc }, 201);
 	});
 
@@ -51,10 +52,11 @@ export function createDocumentRoutes(documentService: IDocumentService) {
 	// POST /link — add a link reference
 	app.post("/link", async (c) => {
 		const workspaceId = c.get("workspaceId");
+		const userId = c.get("userId");
 		const body = await c.req.json();
 		const { brandId, url, productId } = body;
 		if (!brandId || !url) return c.json({ error: "brandId and url are required" }, 400);
-		const doc = await documentService.addLink(workspaceId, brandId, url, productId);
+		const doc = await documentService.addLink(workspaceId, brandId, url, productId, userId);
 		return c.json({ data: doc }, 201);
 	});
 

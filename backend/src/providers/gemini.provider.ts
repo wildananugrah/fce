@@ -370,12 +370,31 @@ ${combined}`;
 	}
 
 	async scrape(input: BrandScrapingInput): Promise<BrandScrapingOutput> {
-		// Fetch actual page content via Jina Reader (with HTML fallback).
-		// Without this, the AI has no real data to analyze — it can only
-		// guess based on training knowledge of the brand name.
-		const fetched = await fetchUrlContent(input.url);
-		if (fetched.source === "failed" || !fetched.content) {
-			throw new UrlFetchError([input.url], fetched.error ?? "unknown error");
+		const contextParts: string[] = [];
+
+		let urlFetchError: string | undefined;
+		if (input.url) {
+			const fetched = await fetchUrlContent(input.url);
+			if (fetched.source !== "failed" && fetched.content) {
+				contextParts.push(
+					`=== EXTRACTED WEBSITE CONTENT ===\n=== Source: ${fetched.url} (fetched via ${fetched.source}) ===\n${fetched.content}`,
+				);
+			} else {
+				urlFetchError = fetched.error ?? "unknown error";
+			}
+		}
+
+		if (input.fileText?.trim()) {
+			contextParts.push(
+				`=== UPLOADED DOCUMENT CONTENT ===\n${input.fileText.trim()}`,
+			);
+		}
+
+		if (contextParts.length === 0) {
+			if (urlFetchError !== undefined && input.url) {
+				throw new UrlFetchError([input.url], urlFetchError);
+			}
+			throw new Error("GeminiProvider: at least one of url or fileText is required for brand scraping");
 		}
 
 		const baseSystemPrompt =
@@ -410,9 +429,7 @@ These are brand-strategy interpretations, not factual claims. Derive them from t
 
 ${languageDirective(input.language)}
 
-=== EXTRACTED WEBSITE CONTENT ===
-=== Source: ${fetched.url} (fetched via ${fetched.source}) ===
-${fetched.content}`;
+${contextParts.join("\n\n")}`;
 
 		const response = await this.ai.models.generateContent({
 			model: this.model,

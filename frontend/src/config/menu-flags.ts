@@ -40,3 +40,7 @@ export const MENU_FLAGS: Record<MenuFlagKey, boolean> = {
 export function isMenuEnabled(key: MenuFlagKey): boolean {
   return MENU_FLAGS[key] !== false;
 }
+
+// The route users land on after login and for unknown routes.
+// Must match one of the enabled menu routes (e.g. "/planner", "/brands").
+export const DEFAULT_LANDING_PAGE = "/planner";

@@ -17,6 +17,7 @@ export class DocumentService implements IDocumentService {
 		file: File,
 		productId?: string,
 		sourceType?: string,
+		userId?: string,
 	) {
 		const buffer = Buffer.from(await file.arrayBuffer());
 		const key = `${workspaceId}/${brandId}/${Date.now()}-${file.name}`;
@@ -36,6 +37,10 @@ export class DocumentService implements IDocumentService {
 			fileUrl,
 			fileName: file.name,
 			fileType: file.type,
+			brandId,
+			workspaceId,
+			productId: productId || null,
+			userId: userId || null,
 		});
 		return doc;
 	}
@@ -58,7 +63,7 @@ export class DocumentService implements IDocumentService {
 		return this.documentRepository.findByProduct(productId);
 	}
 
-	async addLink(workspaceId: string, brandId: string, url: string, productId?: string) {
+	async addLink(workspaceId: string, brandId: string, url: string, productId?: string, userId?: string) {
 		const doc = await this.documentRepository.create({
 			workspaceId,
 			brandId,
@@ -72,6 +77,10 @@ export class DocumentService implements IDocumentService {
 		await this.boss.send("link-scraping", {
 			documentId: doc.id,
 			url,
+			brandId,
+			workspaceId,
+			productId: productId || null,
+			userId: userId || null,
 		});
 		return doc;
 	}

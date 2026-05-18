@@ -1,14 +1,25 @@
+import type { PgBoss } from "pg-boss";
 import type { ILogger } from "../interfaces/providers/logger.provider.interface";
 import type { IDocumentRepository } from "../interfaces/repositories/document.repository.interface";
+
+interface LinkScrapingJobData {
+	documentId: string;
+	url: string;
+	brandId?: string | null;
+	workspaceId?: string | null;
+	productId?: string | null;
+	userId?: string | null;
+}
 
 export class LinkScrapingJob {
 	constructor(
 		private documentRepository: IDocumentRepository,
 		private logger: ILogger,
+		private boss: PgBoss,
 	) {}
 
-	async handle(data: { documentId: string; url: string }): Promise<void> {
-		const { documentId, url } = data;
+	async handle(data: LinkScrapingJobData): Promise<void> {
+		const { documentId, url, brandId, workspaceId, productId, userId } = data;
 		try {
 			this.logger.info("Starting link scraping", { documentId, url });
 			await this.documentRepository.updateExtractionStatus(documentId, "processing");
@@ -30,7 +41,6 @@ export class LinkScrapingJob {
 
 			const html = await response.text();
 
-			// Basic HTML text extraction — strip tags and normalize whitespace
 			const text = html
 				.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
 				.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
@@ -54,6 +64,11 @@ export class LinkScrapingJob {
 
 			await this.documentRepository.updateExtractionStatus(documentId, "completed");
 			this.logger.info("Link scraping completed", { documentId, chunkCount: chunks.length });
+
+			// Trigger brand brain refresh for brand-level docs only (no productId)
+			if (brandId && workspaceId && userId && !productId) {
+				await this.boss.send("brand-brain-refresh", { brandId, workspaceId, userId });
+			}
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
 			this.logger.warn(`Link scraping failed, storing URL as reference: ${message}`, {
@@ -61,7 +76,6 @@ export class LinkScrapingJob {
 				url,
 			});
 
-			// Fallback: store the URL itself as a reference chunk so the AI at least sees it
 			try {
 				await this.documentRepository.createChunks(documentId, [
 					{
@@ -71,6 +85,11 @@ export class LinkScrapingJob {
 				]);
 				await this.documentRepository.updateExtractionStatus(documentId, "completed");
 				this.logger.info("Link stored as URL reference (fallback)", { documentId, url });
+
+				// Still trigger refresh even on fallback — the URL chunk is valid context
+				if (brandId && workspaceId && userId && !productId) {
+					await this.boss.send("brand-brain-refresh", { brandId, workspaceId, userId });
+				}
 			} catch {
 				await this.documentRepository.updateExtractionStatus(documentId, "failed");
 			}

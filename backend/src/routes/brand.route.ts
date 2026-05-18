@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import type { PgBoss } from "pg-boss";
 import type { IBrandService } from "../interfaces/services/brand.service.interface";
 import type { AiProviderFactory } from "../services/ai-provider-factory.service";
+import { extractFileText } from "../utils/extract-file-text";
 
 type Variables = {
 	userId: string;
@@ -92,16 +93,32 @@ export function createBrandRoutes(
 		return c.json({ data: brainVersion }, 201);
 	});
 
-	// POST /scrape-preview — synchronous scrape, returns AI result without saving
+	// POST /scrape-preview — synchronous scrape, returns AI result without saving.
+	// Accepts multipart/form-data with optional `url` and optional `file` (max 5 MB).
+	// At least one of url or file must be provided.
 	app.post("/scrape-preview", async (c) => {
-		const body = await c.req.json();
-		const { url, language } = body as { url?: string; language?: string };
-		if (!url) {
-			return c.json({ error: "url is required" }, 400);
+		const formData = await c.req.parseBody();
+		const url = (formData.url as string) || undefined;
+		const file = formData.file instanceof File ? formData.file : undefined;
+		const language = (formData.language as string) || undefined;
+
+		if (!url && !file) {
+			return c.json({ error: "url or file is required" }, 400);
 		}
+
+		const MAX_BYTES = 5 * 1024 * 1024;
+		if (file && file.size > MAX_BYTES) {
+			return c.json({ error: "File exceeds the 5 MB limit" }, 400);
+		}
+
+		let fileText: string | undefined;
+		if (file) {
+			fileText = await extractFileText(file);
+		}
+
 		const workspaceId = c.get("workspaceId");
 		const brandScraper = await aiFactory.getBrandScraper(workspaceId);
-		const result = await brandScraper.scrape({ url, language });
+		const result = await brandScraper.scrape({ url, language, fileText });
 		return c.json({ data: result });
 	});
 

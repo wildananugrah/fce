@@ -1,6 +1,18 @@
 #!/bin/bash
 set -e
 
+# Ensure bun is on PATH when running in non-interactive shells (e.g. GitHub Actions SSH)
+export PATH="/root/.bun/bin:$PATH"
+
+# Ensure Node.js 20+ is installed (Prisma 7 requires it)
+node_major=$(node --version 2>/dev/null | sed 's/v\([0-9]*\).*/\1/')
+if [ -z "$node_major" ] || [ "$node_major" -lt 20 ]; then
+  echo "Upgrading Node.js to v20..."
+  curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+  apt-get install -y nodejs
+fi
+echo "Node.js version: $(node --version)"
+
 REPO_DIR="/root/repo/fce"
 DEPLOY_DIR="/var/www/html/fce"
 

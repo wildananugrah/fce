@@ -1,5 +1,6 @@
 import {
   forwardRef,
+  useCallback,
   useEffect,
   useImperativeHandle,
   useRef,
@@ -26,10 +27,12 @@ import { Button } from "../ui/Button";
 import { ScrapeLanguageToggle } from "../ui/ScrapeLanguageToggle";
 import { useScrapeLanguage } from "../../hooks/useScrapeLanguage";
 import { useUnsavedAsync } from "../../hooks/useUnsavedAsync";
-import { api, ApiError } from "../../services/api";
+import { api, ApiError, apiUpload } from "../../services/api";
 import { useOnboarding } from "../../hooks/useOnboarding";
+import { useSSE } from "../../hooks/useSSE";
 import { ProductReferences } from "../products/ProductReferences";
 import { SkillsAppliedStrip } from "../skills/SkillsAppliedStrip";
+import { FileDropZone } from "../ui/FileDropZone";
 
 // ─── Types ──────────────────────────────────────────────────────
 
@@ -336,10 +339,16 @@ export const BrandBrainForm = forwardRef<BrandBrainFormHandle, BrandBrainFormPro
     const [error, setError] = useState("");
     const [scrapeLanguage, setScrapeLanguage] = useScrapeLanguage();
     const abortRef = useRef<AbortController | null>(null);
+    const [pendingFile, setPendingFile] = useState<File | null>(null);
+    const [brainRefreshing, setBrainRefreshing] = useState(false);
 
     useUnsavedAsync(
       scraping,
       "AI is auto-filling your brand brain — leave anyway? Your progress will be lost.",
+    );
+    useUnsavedAsync(
+      brainRefreshing,
+      "Brand brain is being updated from references — leave anyway? Your progress will be lost.",
     );
 
     // On edit, pre-select the toggle from the brand's persisted language.
@@ -406,11 +415,58 @@ export const BrandBrainForm = forwardRef<BrandBrainFormHandle, BrandBrainFormPro
       return () => {
         cancelled = true;
       };
-    }, [editBrand?.id, workspaceId]);
+    }, [editBrand?.id, workspaceId]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const update = <K extends keyof BrandFormData>(key: K, value: BrandFormData[K]) => {
       setForm((prev) => ({ ...prev, [key]: value }));
     };
+
+    const reloadBrainVersion = useCallback(async () => {
+      if (!editBrand?.id) return;
+      try {
+        const brand = await api<EditBrand>(
+          `/api/workspaces/${workspaceId}/brands/${editBrand.id}`,
+        );
+        const brain =
+          brand.brainVersions?.find((v) => v.isActive) ?? brand.brainVersions?.[0];
+        const vocab = brain?.vocabulary ?? {};
+        const rules = brain?.messagingRules ?? {};
+        const audience = brain?.audiencePersonas;
+        const audienceText = Array.isArray(audience)
+          ? audience.map((a: any) => a.traits?.join(", ") ?? a.name).join("; ")
+          : "";
+        setForm((prev) => ({
+          ...prev,
+          name: brand.name,
+          industry: brand.category ?? prev.industry,
+          summary: (vocab as any).summary ?? prev.summary,
+          tone: brain?.tone ?? prev.tone,
+          personality: brain?.personality ?? prev.personality,
+          contentLanguage: (vocab as any).contentLanguage ?? prev.contentLanguage,
+          platforms: (vocab as any).preferred ?? prev.platforms,
+          targetAudience: audienceText || prev.targetAudience,
+          brandValues: Array.isArray(brain?.values) ? brain.values : prev.brandValues,
+          brandPromise: (vocab as any).brandPromise ?? prev.brandPromise,
+          usp: (vocab as any).usp ?? prev.usp,
+          contentPillars: (vocab as any).contentPillars ?? prev.contentPillars,
+          marketingStrategy: (vocab as any).marketingStrategy ?? prev.marketingStrategy,
+          dos: Array.isArray(rules.do) ? rules.do : prev.dos,
+          donts: Array.isArray(rules.dont) ? rules.dont : prev.donts,
+        }));
+      } catch {
+        // silent — form keeps current values on error
+      }
+    }, [editBrand?.id, workspaceId]);
+
+    useSSE((event) => {
+      if (
+        event.type === "brand_brain_updated" &&
+        (event.data as any).brandId === editBrand?.id
+      ) {
+        setBrainRefreshing(false);
+        reloadBrainVersion();
+      }
+    });
 
     // References tab only makes sense for an existing brand.
     const visibleTabs = BRAND_TABS.filter((t) => (t.key === "references" ? isEditMode : true));
@@ -426,12 +482,17 @@ export const BrandBrainForm = forwardRef<BrandBrainFormHandle, BrandBrainFormPro
     };
 
     const handleAutoFill = async () => {
-      if (!form.websiteUrl.trim()) return;
+      if (!form.websiteUrl.trim() && !pendingFile) return;
       setScraping(true);
       setError("");
       const controller = new AbortController();
       abortRef.current = controller;
       try {
+        const formData = new FormData();
+        if (form.websiteUrl.trim()) formData.append("url", form.websiteUrl.trim());
+        if (pendingFile) formData.append("file", pendingFile);
+        formData.append("language", scrapeLanguage);
+
         const result = await api<{
           name: string;
           category?: string;
@@ -448,7 +509,7 @@ export const BrandBrainForm = forwardRef<BrandBrainFormHandle, BrandBrainFormPro
           donts?: string[];
         }>(`/api/workspaces/${workspaceId}/brands/scrape-preview`, {
           method: "POST",
-          body: JSON.stringify({ url: form.websiteUrl.trim(), language: scrapeLanguage }),
+          body: formData,
           signal: controller.signal,
         });
         setForm((prev) => ({
@@ -462,9 +523,7 @@ export const BrandBrainForm = forwardRef<BrandBrainFormHandle, BrandBrainFormPro
           brandPromise: result.brandPromise || prev.brandPromise,
           usp: result.usp || prev.usp,
           brandValues: result.values?.length ? result.values : prev.brandValues,
-          contentPillars: result.contentPillars?.length
-            ? result.contentPillars
-            : prev.contentPillars,
+          contentPillars: result.contentPillars?.length ? result.contentPillars : prev.contentPillars,
           marketingStrategy: result.marketingStrategy || prev.marketingStrategy,
           dos: result.dos?.length ? result.dos : prev.dos,
           donts: result.donts?.length ? result.donts : prev.donts,
@@ -541,6 +600,15 @@ export const BrandBrainForm = forwardRef<BrandBrainFormHandle, BrandBrainFormPro
             method: "POST",
             body: JSON.stringify(buildBrainPayload()),
           });
+          if (pendingFile) {
+            const fd = new FormData();
+            fd.append("file", pendingFile);
+            fd.append("brandId", brand.id);
+            await apiUpload(
+              `/api/workspaces/${workspaceId}/documents/upload`,
+              fd,
+            );
+          }
           refreshProgress();
         }
         onSaved();
@@ -618,12 +686,14 @@ export const BrandBrainForm = forwardRef<BrandBrainFormHandle, BrandBrainFormPro
                     <div>
                       <div className="flex items-center gap-2 mb-1">
                         <Globe size={18} className="text-gray-500" />
-                        <h3 className="text-sm font-semibold text-gray-900">Website</h3>
+                        <h3 className="text-sm font-semibold text-gray-900">Website or Document</h3>
                       </div>
                       <p className="text-xs text-gray-500 mb-3">
-                        Enter the brand website URL to auto-fill brand information using AI.
+                        Enter a website URL, upload a document, or both — the AI will use all available sources to auto-fill the brand details.
                       </p>
-                      <div className="flex gap-2 items-stretch">
+
+                      {/* URL row */}
+                      <div className="flex gap-2 items-stretch mb-3">
                         <input
                           value={form.websiteUrl}
                           onChange={(e) => update("websiteUrl", e.target.value)}
@@ -635,14 +705,36 @@ export const BrandBrainForm = forwardRef<BrandBrainFormHandle, BrandBrainFormPro
                           onChange={setScrapeLanguage}
                           disabled={scraping}
                         />
+                      </div>
+
+                      {/* Divider */}
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="h-px flex-1 bg-gray-200" />
+                        <span className="text-xs text-gray-400">or</span>
+                        <div className="h-px flex-1 bg-gray-200" />
+                      </div>
+
+                      {/* File drop zone */}
+                      <div className="mb-3">
+                        <FileDropZone
+                          selectedFile={pendingFile}
+                          onFileSelect={setPendingFile}
+                          onClear={() => setPendingFile(null)}
+                          maxSizeMB={5}
+                          disabled={scraping}
+                        />
+                      </div>
+
+                      {/* Auto-fill button row */}
+                      <div className="flex items-center gap-2">
                         <Button
                           variant="secondary"
                           onClick={handleAutoFill}
                           loading={scraping}
-                          disabled={!form.websiteUrl.trim()}
+                          disabled={!form.websiteUrl.trim() && !pendingFile}
                         >
                           <Sparkles size={14} className="mr-1.5" />
-                          Auto-fill from Website
+                          {pendingFile ? "Auto-fill from Sources" : "Auto-fill from Website"}
                         </Button>
                         {scraping && (
                           <Button
@@ -912,7 +1004,7 @@ export const BrandBrainForm = forwardRef<BrandBrainFormHandle, BrandBrainFormPro
                   </>
                 )}
 
-                {activeTab === "references" && editBrand && (
+                {activeTab === "references" && isEditMode && editBrand && (
                   <>
                     <div>
                       <div className="flex items-center gap-2 mb-1">
@@ -924,7 +1016,26 @@ export const BrandBrainForm = forwardRef<BrandBrainFormHandle, BrandBrainFormPro
                         when generating content for this brand.
                       </p>
                     </div>
-                    <ProductReferences workspaceId={workspaceId} brandId={editBrand.id} />
+                    <div className="space-y-4">
+                      {brainRefreshing && (
+                        <div className="bg-indigo-50 border border-indigo-100 rounded-md px-4 py-3 flex items-center gap-2.5">
+                          <Loader2 size={14} className="text-indigo-600 animate-spin shrink-0" />
+                          <div>
+                            <p className="text-xs font-medium text-indigo-700">
+                              Updating brand brain from references…
+                            </p>
+                            <p className="text-[10px] text-indigo-500 mt-0.5">
+                              Your brand brain will refresh once analysis is done.
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                      <ProductReferences
+                        workspaceId={workspaceId}
+                        brandId={editBrand.id}
+                        onReferenceAdded={() => setBrainRefreshing(true)}
+                      />
+                    </div>
                   </>
                 )}
 

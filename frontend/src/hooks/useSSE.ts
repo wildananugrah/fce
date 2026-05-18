@@ -25,6 +25,8 @@ const EVENT_TYPES = [
   "topic_preview_regeneration_failed",
   // Brand scraping
   "brand_scraped",
+  // Brand brain auto-refresh from references
+  "brand_brain_updated",
   // Research runs
   "research_run_complete",
   "research_run_failed",
