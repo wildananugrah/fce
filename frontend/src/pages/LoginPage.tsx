@@ -4,7 +4,9 @@ import { useAuth } from "../hooks/useAuth";
 import { api, ApiError } from "../services/api";
 import { DEFAULT_LANDING_PAGE } from "../config/menu-flags";
 import { Button } from "../components/ui/Button";
-import { Input } from "../components/ui/Input";
+
+const labelCls = "block text-xs font-medium text-gray-600 uppercase tracking-wide mb-1.5";
+const inputCls = "block w-full rounded-full border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-black focus:outline-none";
 
 export function LoginPage() {
   const { login } = useAuth();
@@ -38,6 +40,7 @@ export function LoginPage() {
     try {
       await login(email, password);
       navigate(DEFAULT_LANDING_PAGE);
+
     } catch (err) {
       if (err instanceof ApiError && err.body.verificationRequired === true) {
         setVerificationRequired(true);
@@ -106,8 +109,14 @@ export function LoginPage() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            <Input label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required />
-            <Input label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Enter your password" required />
+            <div>
+              <label className={labelCls}>Email</label>
+              <input type="email" className={inputCls} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required />
+            </div>
+            <div>
+              <label className={labelCls}>Password</label>
+              <input type="password" className={inputCls} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Enter your password" required />
+            </div>
             <Button type="submit" className="w-full" loading={loading}>Log in</Button>
           </form>
           <p className="mt-4 text-xs text-center text-gray-500">

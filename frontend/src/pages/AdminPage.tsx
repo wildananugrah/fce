@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { ShieldOff, UserPlus } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { api } from "../services/api";
+import { useHeaderSlot } from "../contexts/HeaderSlotContext";
 import { Tabs } from "../components/ui/Tabs";
 import { Table } from "../components/ui/Table";
 import { Badge } from "../components/ui/Badge";
@@ -56,6 +57,7 @@ const TABS = [
 
 export function AdminPage() {
   const { user } = useAuth();
+  const setSlot = useHeaderSlot();
   const [activeTab, setActiveTab] = useState("users");
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
@@ -101,6 +103,21 @@ export function AdminPage() {
   };
 
   useEffect(() => {
+    setSlot(
+      <div className="flex items-center gap-4">
+        <Tabs tabs={TABS} activeTab={activeTab} onChange={setActiveTab} />
+        {activeTab === "users" && (
+          <Button size="sm" onClick={() => setNewUserOpen(true)}>
+            <UserPlus className="w-3.5 h-3.5 mr-1" />
+            New User
+          </Button>
+        )}
+      </div>,
+    );
+    return () => setSlot(null);
+  }, [activeTab, setSlot]);
+
+  useEffect(() => {
     fetchData(activeTab);
   }, [activeTab]);
 
@@ -116,12 +133,6 @@ export function AdminPage() {
     if (activeTab === "users") {
       return (
         <div className="space-y-3">
-          <div className="flex justify-end">
-            <Button size="sm" onClick={() => setNewUserOpen(true)}>
-              <UserPlus className="w-3.5 h-3.5 mr-1" />
-              New User
-            </Button>
-          </div>
           <Table<AdminUser>
             columns={[
               {
@@ -218,8 +229,6 @@ export function AdminPage() {
   return (
     <div className="p-6 space-y-6">
       <CoachMark pageKey="admin" title="Admin" body="Superadmin-only tools for managing users, workspaces, and system-wide settings across all tenants on this instance." />
-
-      <Tabs tabs={TABS} activeTab={activeTab} onChange={setActiveTab} />
 
       {renderContent()}
 

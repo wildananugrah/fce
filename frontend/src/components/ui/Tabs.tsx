@@ -11,17 +11,17 @@ interface TabsProps {
 
 export function Tabs({ tabs, activeTab, onChange }: TabsProps) {
   return (
-    <div role="tablist" className="flex gap-1 border-b border-border">
+    <div role="tablist" className="inline-flex bg-gray-100 rounded-full p-1 gap-0.5">
       {tabs.map((tab) => (
         <button
           key={tab.key}
           role="tab"
           aria-selected={activeTab === tab.key}
           onClick={() => onChange(tab.key)}
-          className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors outline-none focus-visible:ring-2 focus-visible:ring-accent ${
+          className={`px-4 py-1.5 text-sm font-medium rounded-full transition-all outline-none focus-visible:ring-2 focus-visible:ring-accent ${
             activeTab === tab.key
-              ? "border-accent text-accent"
-              : "border-transparent text-muted hover:text-foreground"
+              ? "bg-white text-gray-900 shadow-sm"
+              : "text-gray-500 hover:text-gray-700"
           }`}
         >
           {tab.label}

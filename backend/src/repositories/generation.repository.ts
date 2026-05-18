@@ -158,6 +158,7 @@ export class GenerationRepository implements IGenerationRepository {
 					include: {
 						brand: { select: { id: true, name: true } },
 						product: { select: { id: true, name: true } },
+						contentTopic: { select: { pillar: true, publishDate: true } },
 					},
 				},
 				sections: { orderBy: { sectionOrder: "asc" } },

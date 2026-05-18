@@ -173,7 +173,7 @@ export function SectionImageCell({
           type="button"
           onClick={handleGenerate}
           disabled={busy}
-          className="w-full flex flex-col items-center justify-center gap-1 border border-dashed border-gray-300 rounded text-gray-400 hover:border-indigo-400 hover:text-indigo-500 hover:bg-indigo-50/40 disabled:opacity-50 transition-colors"
+          className={`w-full flex flex-col items-center justify-center gap-1 border border-dashed border-gray-300 text-gray-400 hover:border-indigo-400 hover:text-indigo-500 hover:bg-indigo-50/40 disabled:opacity-50 transition-colors ${square ? "rounded-none" : "rounded"}`}
           style={{ aspectRatio }}
         >
           {busy ? (

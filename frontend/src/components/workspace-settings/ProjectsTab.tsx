@@ -3,10 +3,12 @@ import { Plus, Archive } from "lucide-react";
 import { api } from "../../services/api";
 import { useProject } from "../../hooks/useProject";
 import { Button } from "../ui/Button";
-import { Input } from "../ui/Input";
 import { Modal } from "../ui/Modal";
 import { Spinner } from "../ui/Spinner";
 import { ProjectMembersPanel } from "./ProjectMembersPanel";
+
+const labelCls = "block text-xs font-medium text-gray-600 uppercase tracking-wide mb-1.5";
+const inputCls = "block w-full rounded-md border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:outline-none";
 
 interface Project {
   id: string;
@@ -82,7 +84,7 @@ export function ProjectsTab({ workspaceId, onToast }: ProjectsTabProps) {
         </div>
       ) : (
         <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-          <table className="w-full text-sm">
+          <table className="w-full text-xs">
             <thead className="bg-gray-50 text-xs uppercase tracking-wider text-gray-500">
               <tr>
                 <th className="text-left px-4 py-2.5">Name</th>
@@ -241,18 +243,13 @@ function ProjectSettingsPanel({
   return (
     <div className="space-y-4">
       <h3 className="text-sm font-semibold text-gray-900">Project Settings</h3>
-      <Input
-        label="Name"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-      />
       <div>
-        <Input
-          label="Slug"
-          value={slug}
-          onChange={(e) => setSlug(e.target.value)}
-          disabled={isDefault}
-        />
+        <label className={labelCls}>Name</label>
+        <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} />
+      </div>
+      <div>
+        <label className={labelCls}>Slug</label>
+        <input className={inputCls} value={slug} onChange={(e) => setSlug(e.target.value)} disabled={isDefault} />
         {isDefault && (
           <p className="text-[11px] text-gray-500 mt-1">
             The Default project&apos;s slug is locked because internal lookups depend on it.
@@ -260,14 +257,12 @@ function ProjectSettingsPanel({
         )}
       </div>
       <div>
-        <label className="block text-xs font-medium text-gray-600 uppercase tracking-wide mb-1.5">
-          Description
-        </label>
+        <label className={labelCls}>Description</label>
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           rows={3}
-          className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-md focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
+          className="w-full px-3 py-2 text-xs bg-white border border-gray-300 rounded-md focus:outline-none focus:border-indigo-500"
         />
       </div>
       <div className="flex justify-end">
@@ -322,27 +317,21 @@ function CreateProjectModal({
   return (
     <Modal isOpen onClose={onClose} title="New Project" size="md">
       <div className="space-y-4">
-        <Input
-          label="Name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="e.g. Q2 Launch"
-        />
-        <Input
-          label="Slug (optional)"
-          value={slug}
-          onChange={(e) => setSlug(e.target.value)}
-          placeholder="auto-generated from name"
-        />
         <div>
-          <label className="block text-xs font-medium text-gray-600 uppercase tracking-wide mb-1.5">
-            Description
-          </label>
+          <label className={labelCls}>Name</label>
+          <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Q2 Launch" />
+        </div>
+        <div>
+          <label className={labelCls}>Slug (optional)</label>
+          <input className={inputCls} value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="auto-generated from name" />
+        </div>
+        <div>
+          <label className={labelCls}>Description</label>
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={3}
-            className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-md focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
+            className="w-full px-3 py-2 text-xs bg-white border border-gray-300 rounded-md focus:outline-none focus:border-indigo-500"
           />
         </div>
         <div className="flex justify-end gap-2">

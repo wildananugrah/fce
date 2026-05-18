@@ -4,11 +4,10 @@ import { researchApi } from "../services/research.service";
 import { useWorkspace } from "../hooks/useWorkspace";
 import { useAuth } from "../hooks/useAuth";
 import { api } from "../services/api";
+import { useHeaderSlot } from "../contexts/HeaderSlotContext";
 import { Tabs } from "../components/ui/Tabs";
 import { Modal } from "../components/ui/Modal";
 import { Button } from "../components/ui/Button";
-import { Input } from "../components/ui/Input";
-import { Select } from "../components/ui/Select";
 import { Badge } from "../components/ui/Badge";
 import { Spinner } from "../components/ui/Spinner";
 import { Toast } from "../components/ui/Toast";
@@ -17,6 +16,9 @@ import { AiProvidersSection } from "../components/workspace-settings/AiProviders
 import { ProjectsTab } from "../components/workspace-settings/ProjectsTab";
 import { TrashTab } from "../components/workspace-settings/TrashTab";
 import { CoachMark } from "../components/onboarding/CoachMark";
+
+const labelCls = "block text-xs font-medium text-gray-600 uppercase tracking-wide mb-1.5";
+const inputCls = "block w-full rounded-md border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:outline-none";
 
 type ToastState = { message: string; type: "success" | "error" | "info" } | null;
 
@@ -134,23 +136,17 @@ function GeneralTab({ workspaceId, workspaceName, initial, onToast, onRefresh, o
         <h2 className="text-sm font-semibold text-gray-900 mb-1">Profile</h2>
         <p className="text-xs text-gray-500 mb-4">Basic information about this workspace.</p>
         <div className="space-y-4">
-          <Input
-            label="Workspace Name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="My Workspace"
-          />
-          <Input
-            label="Description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="What is this workspace for?"
-          />
+          <div>
+            <label className={labelCls}>Workspace Name</label>
+            <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} placeholder="My Workspace" />
+          </div>
+          <div>
+            <label className={labelCls}>Description</label>
+            <input className={inputCls} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What is this workspace for?" />
+          </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-gray-600 uppercase tracking-wide mb-1.5">
-                Avatar Color
-              </label>
+              <label className={labelCls}>Avatar Color</label>
               <div className="flex items-center gap-3">
                 <input
                   type="color"
@@ -161,12 +157,10 @@ function GeneralTab({ workspaceId, workspaceName, initial, onToast, onRefresh, o
                 <span className="text-xs text-gray-500 font-mono">{avatarColor}</span>
               </div>
             </div>
-            <Input
-              label="Avatar Emoji"
-              value={avatarEmoji}
-              onChange={(e) => setAvatarEmoji(e.target.value)}
-              placeholder="🚀"
-            />
+            <div>
+              <label className={labelCls}>Avatar Emoji</label>
+              <input className={inputCls} value={avatarEmoji} onChange={(e) => setAvatarEmoji(e.target.value)} placeholder="🚀" />
+            </div>
           </div>
           <div className="flex justify-end pt-2">
             <Button onClick={handleSave} loading={saving}>
@@ -214,7 +208,7 @@ function GeneralTab({ workspaceId, workspaceName, initial, onToast, onRefresh, o
               </label>
               <input
                 type="text"
-                className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-md focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500"
+                className="w-full px-3 py-2 text-xs bg-white border border-gray-300 rounded-md focus:outline-none focus:border-red-500"
                 value={deleteConfirmName}
                 onChange={(e) => setDeleteConfirmName(e.target.value)}
                 placeholder={workspaceName}
@@ -328,7 +322,7 @@ function TeamTab({ workspaceId, currentUserId, onToast }: TeamTabProps) {
         </p>
       </div>
       <div className="bg-white border border-gray-200 rounded-lg overflow-x-auto">
-        <table className="w-full min-w-[640px] text-sm">
+        <table className="w-full min-w-[640px] text-xs">
           <thead>
             <tr className="border-b border-gray-200 bg-gray-50">
               <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-wide">
@@ -488,23 +482,16 @@ function InvitationsTab({ workspaceId, onToast }: InvitationsTabProps) {
         <p className="text-xs text-gray-500 mb-4">Send an invitation to join this workspace.</p>
         <div className="flex gap-3 items-end">
           <div className="flex-1">
-            <Input
-              label="Email"
-              type="email"
-              value={inviteEmail}
-              onChange={(e) => setInviteEmail(e.target.value)}
-              placeholder="colleague@example.com"
-            />
+            <label className={labelCls}>Email</label>
+            <input type="email" className={inputCls} value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} placeholder="colleague@example.com" />
           </div>
           <div className="w-36">
-            <Select
-              label="Role"
-              options={ROLE_OPTIONS}
-              value={inviteRole}
-              onChange={(e) => setInviteRole(e.target.value)}
-            />
+            <label className={labelCls}>Role</label>
+            <select className={inputCls} value={inviteRole} onChange={(e) => setInviteRole(e.target.value)}>
+              {ROLE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
           </div>
-          <Button onClick={handleInvite} loading={inviting} className="mb-0">
+          <Button size="sm" onClick={handleInvite} loading={inviting}>
             Invite
           </Button>
         </div>
@@ -521,7 +508,7 @@ function InvitationsTab({ workspaceId, onToast }: InvitationsTabProps) {
         </div>
       ) : (
         <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-          <table className="w-full text-sm">
+          <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-gray-200 bg-gray-50">
                 <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-wide">
@@ -698,7 +685,7 @@ function ApifyIntegrationSection({ workspaceId, showToast }: IntegrationsTabProp
                   placeholder="apify_api_..."
                   value={apiKey}
                   onChange={(e) => setApiKey(e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-white border border-gray-200 rounded-md focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 font-mono"
+                  className="w-full px-3 py-2 text-xs bg-white border border-gray-200 rounded-md focus:outline-none focus:border-indigo-500 font-mono"
                 />
                 <button
                   type="button"
@@ -724,6 +711,7 @@ export function WorkspaceSettingsPage() {
   const { activeWorkspace, refresh } = useWorkspace();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const setSlot = useHeaderSlot();
   const [activeTab, setActiveTab] = useState("general");
   const [toast, setToast] = useState<ToastState>(null);
 
@@ -740,6 +728,11 @@ export function WorkspaceSettingsPage() {
     navigate("/dashboard");
   }, [refresh, navigate]);
 
+  useEffect(() => {
+    setSlot(<Tabs tabs={TABS} activeTab={activeTab} onChange={setActiveTab} />);
+    return () => setSlot(null);
+  }, [activeTab, setSlot]);
+
   if (!activeWorkspace) {
     return (
       <div className="p-6">
@@ -748,68 +741,79 @@ export function WorkspaceSettingsPage() {
     );
   }
 
+  const cardCls = "bg-white border border-gray-200 rounded-lg p-6";
+
   return (
-    <div className="p-6 w-full max-w-[1600px] mx-auto">
+    <div className="py-6 px-6">
 
       <CoachMark pageKey="workspace-settings" title="Workspace Settings" body="Manage members, invitations, AI provider keys, and the Trash for this workspace. Settings here affect everyone in the workspace — only admins can edit." />
-
-      {/* Tabs */}
-      <div className="border-b border-gray-200 mb-6">
-        <Tabs tabs={TABS} activeTab={activeTab} onChange={setActiveTab} />
-      </div>
 
       {/* Tab content */}
       <div>
         {activeTab === "general" && (
-          <GeneralTab
-            workspaceId={activeWorkspace.id}
-            workspaceName={activeWorkspace.name}
-            initial={{
-              name: activeWorkspace.name,
-              description: activeWorkspace.description ?? "",
-              avatarColor: activeWorkspace.avatarColor ?? "#111111",
-              avatarEmoji: activeWorkspace.avatarEmoji ?? "",
-            }}
-            onToast={showToast}
-            onRefresh={refresh}
-            onDeleted={handleWorkspaceDeleted}
-          />
+          <div className={cardCls}>
+            <GeneralTab
+              workspaceId={activeWorkspace.id}
+              workspaceName={activeWorkspace.name}
+              initial={{
+                name: activeWorkspace.name,
+                description: activeWorkspace.description ?? "",
+                avatarColor: activeWorkspace.avatarColor ?? "#111111",
+                avatarEmoji: activeWorkspace.avatarEmoji ?? "",
+              }}
+              onToast={showToast}
+              onRefresh={refresh}
+              onDeleted={handleWorkspaceDeleted}
+            />
+          </div>
         )}
 
         {activeTab === "team" && user && (
-          <TeamTab
-            workspaceId={activeWorkspace.id}
-            currentUserId={user.id}
-            onToast={showToast}
-          />
+          <div className={cardCls}>
+            <TeamTab
+              workspaceId={activeWorkspace.id}
+              currentUserId={user.id}
+              onToast={showToast}
+            />
+          </div>
         )}
 
         {activeTab === "invitations" && (
-          <InvitationsTab workspaceId={activeWorkspace.id} onToast={showToast} />
+          <div className={cardCls}>
+            <InvitationsTab workspaceId={activeWorkspace.id} onToast={showToast} />
+          </div>
         )}
 
         {activeTab === "projects" && (
-          <ProjectsTab workspaceId={activeWorkspace.id} onToast={showToast} />
+          <div className={cardCls}>
+            <ProjectsTab workspaceId={activeWorkspace.id} onToast={showToast} />
+          </div>
         )}
 
-{activeTab === "usage" && (
-          <TokenUsageSection
-            workspaceId={activeWorkspace.id}
-            scope="workspace"
-            title="Workspace Token Usage"
-            description={`Total tokens consumed by all members in ${activeWorkspace.name}.`}
-          />
+        {activeTab === "usage" && (
+          <div className={cardCls}>
+            <TokenUsageSection
+              workspaceId={activeWorkspace.id}
+              scope="workspace"
+              title="Workspace Token Usage"
+              description={`Total tokens consumed by all members in ${activeWorkspace.name}.`}
+            />
+          </div>
         )}
 
         {activeTab === "integrations" && activeWorkspace && (
-          <IntegrationsTab
-            workspaceId={activeWorkspace.id}
-            showToast={(msg, type) => setToast({ message: msg, type })}
-          />
+          <div className={cardCls}>
+            <IntegrationsTab
+              workspaceId={activeWorkspace.id}
+              showToast={(msg, type) => setToast({ message: msg, type })}
+            />
+          </div>
         )}
 
         {activeTab === "trash" && (
-          <TrashTab workspaceId={activeWorkspace.id} onToast={showToast} />
+          <div className={cardCls}>
+            <TrashTab workspaceId={activeWorkspace.id} onToast={showToast} />
+          </div>
         )}
       </div>
 

@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Calendar, Eye, Sparkles, ChevronLeft, ChevronRight } from "lucide-react";
+import { useState, useMemo } from "react";
+import { Calendar, Eye, Sparkles, ChevronLeft, ChevronRight, ChevronUp, ChevronDown } from "lucide-react";
 import { getPillarColor } from "../../utils/pillar-colors";
 import { getFormatStyle, getStatusColor } from "../../utils/topic-styles";
 
@@ -35,6 +35,19 @@ const TD = "px-3 py-2.5 text-[11px] text-gray-700 align-middle";
 export function PlannerListView({ topics, onView, onGenerate }: PlannerListViewProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(1);
+  const [dateSortDir, setDateSortDir] = useState<"asc" | "desc" | null>(null);
+
+  const sortedTopics = useMemo(() => {
+    if (!dateSortDir) return topics;
+    return [...topics].sort((a, b) => {
+      if (!a.publishDate && !b.publishDate) return 0;
+      if (!a.publishDate) return 1;
+      if (!b.publishDate) return -1;
+      const da = new Date(a.publishDate).getTime();
+      const db = new Date(b.publishDate).getTime();
+      return dateSortDir === "asc" ? da - db : db - da;
+    });
+  }, [topics, dateSortDir]);
 
   if (topics.length === 0) {
     return (
@@ -44,8 +57,8 @@ export function PlannerListView({ topics, onView, onGenerate }: PlannerListViewP
     );
   }
 
-  const totalPages = Math.ceil(topics.length / PAGE_SIZE);
-  const pageTopics = topics.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const totalPages = Math.ceil(sortedTopics.length / PAGE_SIZE);
+  const pageTopics = sortedTopics.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const allPageSelected = pageTopics.length > 0 && pageTopics.every((t) => selectedIds.has(t.id));
   const somePageSelected = pageTopics.some((t) => selectedIds.has(t.id)) && !allPageSelected;
@@ -89,7 +102,7 @@ export function PlannerListView({ topics, onView, onGenerate }: PlannerListViewP
   }
 
   const start = (page - 1) * PAGE_SIZE + 1;
-  const end = Math.min(page * PAGE_SIZE, topics.length);
+  const end = Math.min(page * PAGE_SIZE, sortedTopics.length);
 
   return (
     <div className="space-y-3">
@@ -109,11 +122,29 @@ export function PlannerListView({ topics, onView, onGenerate }: PlannerListViewP
                     onChange={toggleAll}
                   />
                 </th>
+                <th className={`${TH} whitespace-nowrap min-w-[110px]`}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDateSortDir((d) => (d === "asc" ? "desc" : d === "desc" ? null : "asc"));
+                      setPage(1);
+                    }}
+                    className="inline-flex items-center justify-center gap-1 uppercase hover:text-gray-800 transition-colors"
+                  >
+                    Publish Date
+                    {dateSortDir === "asc" ? (
+                      <ChevronUp size={12} />
+                    ) : dateSortDir === "desc" ? (
+                      <ChevronDown size={12} />
+                    ) : (
+                      <ChevronUp size={12} className="opacity-25" />
+                    )}
+                  </button>
+                </th>
                 <th className={`${TH} min-w-[220px]`}>Title</th>
                 <th className={TH}>Pillar</th>
-                <th className={TH}>Format</th>
-                <th className={`${TH} whitespace-nowrap min-w-[110px]`}>Publish Date</th>
                 <th className={TH}>Platform</th>
+                <th className={TH}>Format</th>
                 <th className={TH}>Products</th>
                 <th className={TH}>Status</th>
                 <th className={TH}>Actions</th>
@@ -137,6 +168,18 @@ export function PlannerListView({ topics, onView, onGenerate }: PlannerListViewP
                       />
                     </td>
 
+                    {/* Publish Date */}
+                    <td className="px-3 py-2.5 text-[11px] text-gray-700 align-middle whitespace-nowrap">
+                      {t.publishDate ? (
+                        <span className="inline-flex items-center gap-1 text-[11px] text-gray-600">
+                          <Calendar size={11} className="text-gray-400 shrink-0" />
+                          {formatDate(t.publishDate)}
+                        </span>
+                      ) : (
+                        <span className="text-gray-300">—</span>
+                      )}
+                    </td>
+
                     {/* Title */}
                     <td className="max-w-[280px] px-3 py-2.5 align-middle cursor-default" title={tooltip}>
                       <p className="truncate text-[11px] font-medium text-gray-900">{t.title}</p>
@@ -156,6 +199,11 @@ export function PlannerListView({ topics, onView, onGenerate }: PlannerListViewP
                       )}
                     </td>
 
+                    {/* Platform */}
+                    <td className={`${TD} text-center capitalize`}>
+                      {t.platform ?? <span className="text-gray-300">—</span>}
+                    </td>
+
                     {/* Format */}
                     <td className={`${TD} text-center`}>
                       {t.format ? (
@@ -166,23 +214,6 @@ export function PlannerListView({ topics, onView, onGenerate }: PlannerListViewP
                       ) : (
                         <span className="text-gray-300">—</span>
                       )}
-                    </td>
-
-                    {/* Publish Date */}
-                    <td className="px-3 py-2.5 text-[11px] text-gray-700 align-middle whitespace-nowrap">
-                      {t.publishDate ? (
-                        <span className="inline-flex items-center gap-1 text-[11px] text-gray-600">
-                          <Calendar size={11} className="text-gray-400 shrink-0" />
-                          {formatDate(t.publishDate)}
-                        </span>
-                      ) : (
-                        <span className="text-gray-300">—</span>
-                      )}
-                    </td>
-
-                    {/* Platform */}
-                    <td className={`${TD} text-center capitalize`}>
-                      {t.platform ?? <span className="text-gray-300">—</span>}
                     </td>
 
                     {/* Products */}

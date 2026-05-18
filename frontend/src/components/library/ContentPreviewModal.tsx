@@ -4,6 +4,14 @@ import { getPreviewComponent } from "./previews/PreviewRegistry";
 import { api } from "../../services/api";
 import { SectionImageCell, PostImageGenerator } from "../generation/SectionImageCell";
 
+const PORTRAIT_VIDEO_TYPES = new Set([
+  "reels", "story_video", "tiktok_video", "youtube_shorts",
+]);
+
+function getSceneAspectRatio(contentType: string): string {
+  return PORTRAIT_VIDEO_TYPES.has(contentType) ? "9/16" : "16/9";
+}
+
 interface Section {
   id: string;
   sectionType: string;
@@ -745,7 +753,7 @@ export function ContentPreviewModal({
                             outputId={item.id}
                             onSectionUpdated={applySectionUpdate}
                             onError={(m) => onToast(m, "error")}
-                            aspectRatio="16/9"
+                            aspectRatio={getSceneAspectRatio(item.request.contentType)}
                             square
                           />
                         </div>

@@ -2,9 +2,11 @@ import { useCallback, useEffect, useState } from "react";
 import { Trash2 } from "lucide-react";
 import { api } from "../../services/api";
 import { Button } from "../ui/Button";
-import { Input } from "../ui/Input";
 import { Modal } from "../ui/Modal";
 import { Spinner } from "../ui/Spinner";
+
+const labelCls = "block text-xs font-medium text-gray-600 uppercase tracking-wide mb-1.5";
+const inputCls = "block w-full rounded-md border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:outline-none";
 
 interface AdminUser {
   id: string;
@@ -183,16 +185,22 @@ export function AdminUserModal({ userId, isSelf, onClose, onToast, onChanged }: 
           <section className="space-y-3">
             <h3 className="text-sm font-semibold text-gray-900">Details</h3>
             <div className="grid grid-cols-2 gap-3">
-              <Input label="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
-              <Input label="Full name" value={fullName} onChange={(e) => setFullName(e.target.value)} />
+              <div>
+                <label className={labelCls}>Email</label>
+                <input className={inputCls} value={email} onChange={(e) => setEmail(e.target.value)} />
+              </div>
+              <div>
+                <label className={labelCls}>Full name</label>
+                <input className={inputCls} value={fullName} onChange={(e) => setFullName(e.target.value)} />
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium text-gray-600 uppercase tracking-wide mb-1.5">Status</label>
+                <label className={labelCls}>Status</label>
                 <select
                   value={status}
                   onChange={(e) => setStatus(e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-md focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
+                  className={inputCls}
                 >
                   <option value="active">Active</option>
                   <option value="suspended">Suspended</option>
@@ -224,7 +232,8 @@ export function AdminUserModal({ userId, isSelf, onClose, onToast, onChanged }: 
               Set a new password for this user. They can change it themselves afterwards.
             </p>
             <div className="flex gap-2">
-              <Input
+              <input
+                className={inputCls}
                 placeholder="New password (min 8 chars)"
                 type="text"
                 value={newPassword}
@@ -295,13 +304,11 @@ export function AdminUserModal({ userId, isSelf, onClose, onToast, onChanged }: 
             {availableWorkspaces.length > 0 && (
               <div className="flex items-end gap-2 pt-1">
                 <div className="flex-1">
-                  <label className="block text-xs font-medium text-gray-600 uppercase tracking-wide mb-1">
-                    Add to workspace
-                  </label>
+                  <label className={labelCls}>Add to workspace</label>
                   <select
                     value={pendingWorkspaceId}
                     onChange={(e) => setPendingWorkspaceId(e.target.value)}
-                    className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-md"
+                    className={inputCls}
                   >
                     <option value="">— Select workspace —</option>
                     {availableWorkspaces.map((w) => (
@@ -310,11 +317,11 @@ export function AdminUserModal({ userId, isSelf, onClose, onToast, onChanged }: 
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 uppercase tracking-wide mb-1">Role</label>
+                  <label className={labelCls}>Role</label>
                   <select
                     value={pendingRole}
                     onChange={(e) => setPendingRole(e.target.value as "admin" | "member")}
-                    className="px-3 py-2 text-sm bg-white border border-gray-300 rounded-md"
+                    className={inputCls}
                   >
                     <option value="member">member</option>
                     <option value="admin">admin</option>

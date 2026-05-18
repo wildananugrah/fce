@@ -344,7 +344,7 @@ function TopicChip({ topic, onDragStart, onDragEnd, onClick, getPillarColor, com
       draggable
       onDragStart={(e) => onDragStart(e, topic.id)}
       onDragEnd={onDragEnd}
-      onClick={() => onClick(topic)}
+      onClick={(e) => { e.stopPropagation(); onClick(topic); }}
       className={`${pillarClass} rounded-sm px-1.5 py-0.5 text-[10px] font-medium cursor-grab active:cursor-grabbing hover:opacity-80 transition-opacity truncate w-full`}
       title={topic.title}
     >

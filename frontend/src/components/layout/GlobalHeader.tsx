@@ -253,7 +253,7 @@ export function GlobalHeader({ onGenerateClick }: GlobalHeaderProps = {}) {
   }
 
   return (
-    <div className="h-14 bg-white border-b border-gray-100 flex items-center px-6 gap-4 shrink-0 z-20">
+    <div className="h-14 bg-white border-b border-gray-200 flex items-center px-6 gap-4 shrink-0 z-20">
       {/* Page title */}
       <h1 className="text-sm font-semibold text-gray-900 shrink-0">{config.title}</h1>
 
