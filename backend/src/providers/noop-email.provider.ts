@@ -2,6 +2,7 @@ import type { ILogger } from "../interfaces/providers/logger.provider.interface"
 import type {
 	IEmailProvider,
 	InvitationEmailInput,
+	PasswordResetEmailInput,
 	VerificationEmailInput,
 } from "../interfaces/providers/email.provider.interface";
 
@@ -26,6 +27,16 @@ export class NoopEmailProvider implements IEmailProvider {
 		this.logger.warn("Email provider not configured — verification URL logged for dev use", {
 			to: input.to,
 			verifyUrl: input.verifyUrl,
+			expiryHuman: input.expiryHuman,
+		});
+	}
+
+	async sendPasswordReset(input: PasswordResetEmailInput): Promise<void> {
+		// In dev the URL IS logged so the developer can test password reset
+		// without configuring Resend. Do not mirror this behavior in prod.
+		this.logger.warn("Email provider not configured — password reset URL logged for dev use", {
+			to: input.to,
+			resetUrl: input.resetUrl,
 			expiryHuman: input.expiryHuman,
 		});
 	}
