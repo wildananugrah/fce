@@ -2,6 +2,7 @@ import { Resend } from "resend";
 import type {
 	IEmailProvider,
 	InvitationEmailInput,
+	PasswordResetEmailInput,
 	VerificationEmailInput,
 } from "../interfaces/providers/email.provider.interface";
 import type { ILogger } from "../interfaces/providers/logger.provider.interface";
@@ -70,13 +71,41 @@ export class ResendEmailProvider implements IEmailProvider {
 		);
 	}
 
+	async sendPasswordReset(input: PasswordResetEmailInput): Promise<void> {
+		const greeting = input.fullName ? `Hi ${escapeHtml(input.fullName)},` : "Hi there,";
+		const subject = "Reset your FCE Dashboard password";
+		const html = `
+			<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 520px; margin: 0 auto; padding: 24px; color: #111;">
+				<h1 style="font-size: 20px; margin-bottom: 16px;">Reset your password</h1>
+				<p>${greeting}</p>
+				<p>We received a request to reset your FCE Dashboard password. Click the button below to set a new password.</p>
+				<p style="margin: 24px 0;">
+					<a href="${input.resetUrl}" style="display: inline-block; background: #4f46e5; color: #fff; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 600;">Reset password</a>
+				</p>
+				<p style="color: #666; font-size: 13px;">This link expires in ${escapeHtml(input.expiryHuman)}. If the button doesn't work, paste this URL into your browser:</p>
+				<p style="color: #666; font-size: 12px; word-break: break-all;"><a href="${input.resetUrl}" style="color: #4f46e5;">${input.resetUrl}</a></p>
+				<p style="color: #999; font-size: 12px; margin-top: 24px;">If you didn't request this, you can safely ignore this email — your password won't change.</p>
+			</div>
+		`;
+
+		await this.send(
+			{
+				from: this.from,
+				to: input.to,
+				subject,
+				html,
+			},
+			{ kind: "password_reset", to: input.to },
+		);
+	}
+
 	// Single gateway so both send methods inspect the Resend response the
 	// same way. Resend's SDK does NOT throw for most failure modes — it
 	// returns { data, error } with error populated. The previous code
 	// awaited .send() and discarded both halves, so failures were invisible.
 	private async send(
 		payload: { from: string; to: string; subject: string; html: string },
-		context: { kind: "invitation" | "verification"; to: string },
+		context: { kind: "invitation" | "verification" | "password_reset"; to: string },
 	): Promise<void> {
 		const { data, error } = await this.resend.emails.send(payload);
 		if (error) {
