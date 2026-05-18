@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import type { PrismaClient } from "@prisma/client";
 import { EmailNotVerifiedError } from "../errors/email-not-verified-error";
+import { PasswordResetTokenError } from "../errors/password-reset-token-error";
 import { ValidationError } from "../errors/validation-error";
 import type { IEmailProvider } from "../interfaces/providers/email.provider.interface";
 import type { IUserRepository } from "../interfaces/repositories/user.repository.interface";
@@ -29,6 +30,7 @@ interface AuthConfig {
 	jwtRefreshExpiry: string;
 	appUrl: string;
 	emailVerificationTokenExpiry: string;
+	passwordResetTokenExpiry: string;
 	userDefaultMaxWorkspaces: number;
 	userDefaultMaxProjects: number;
 }
@@ -232,6 +234,57 @@ export class AuthService implements IAuthService {
 		return { sent: true };
 	}
 
+	async requestPasswordReset(email: string): Promise<{ sent: boolean }> {
+		const normalized = email.trim().toLowerCase();
+		const user = await this.userRepository.findByEmail(normalized);
+		// Enumeration-resistant: return { sent: true } regardless of whether the
+		// email exists. Actually send only when there's a real user.
+		if (!user) {
+			return { sent: true };
+		}
+
+		// Throttle: bail out if we issued a token for this user in the last minute.
+		const recent = await this.prisma.passwordResetToken.findFirst({
+			where: { userId: user.id, consumedAt: null },
+			orderBy: { createdAt: "desc" },
+		});
+		if (recent && Date.now() - recent.createdAt.getTime() < MIN_RESEND_INTERVAL_MS) {
+			return { sent: true };
+		}
+
+		await this.issuePasswordResetToken(user.id, user.email, user.fullName);
+		return { sent: true };
+	}
+
+	async resetPassword(token: string, newPassword: string): Promise<{ email: string }> {
+		if (!newPassword || newPassword.length < 8) {
+			throw new Error("Password must be at least 8 characters");
+		}
+
+		const row = await this.prisma.passwordResetToken.findUnique({ where: { token } });
+		if (!row) throw new PasswordResetTokenError("invalid");
+		if (row.consumedAt) throw new PasswordResetTokenError("consumed");
+		if (row.expiresAt.getTime() < Date.now()) throw new PasswordResetTokenError("expired");
+
+		const user = await this.userRepository.findById(row.userId);
+		if (!user) throw new PasswordResetTokenError("invalid");
+
+		const passwordHash = await hashPassword(newPassword);
+
+		await this.prisma.$transaction([
+			this.prisma.user.update({
+				where: { id: user.id },
+				data: { passwordHash },
+			}),
+			this.prisma.passwordResetToken.update({
+				where: { id: row.id },
+				data: { consumedAt: new Date() },
+			}),
+		]);
+
+		return { email: user.email };
+	}
+
 	async updateProfile(
 		userId: string,
 		data: {
@@ -298,6 +351,42 @@ export class AuthService implements IAuthService {
 			});
 		} catch {
 			// Intentionally ignored — provider logged. Caller sees kind: "pending".
+		}
+	}
+
+	private async issuePasswordResetToken(
+		userId: string,
+		email: string,
+		fullName: string | null,
+	): Promise<void> {
+		// Invalidate any previous unconsumed tokens so only the latest link works.
+		await this.prisma.passwordResetToken.deleteMany({
+			where: { userId, consumedAt: null },
+		});
+
+		const token = crypto.randomBytes(32).toString("hex");
+		const ttlMs = parseDuration(this.config.passwordResetTokenExpiry);
+		const expiresAt = new Date(Date.now() + ttlMs);
+
+		await this.prisma.passwordResetToken.create({
+			data: { userId, token, expiresAt },
+		});
+
+		const resetUrl = `${this.config.appUrl}/reset-password?token=${encodeURIComponent(token)}`;
+		const expiryHuman = humanizeDuration(this.config.passwordResetTokenExpiry);
+
+		// Email failures are swallowed here so the API still returns { sent: true }
+		// — the token exists in the DB and the user can re-request once delivery
+		// is fixed. The provider has logged the underlying error with context.
+		try {
+			await this.emailProvider.sendPasswordReset({
+				to: email,
+				fullName,
+				resetUrl,
+				expiryHuman,
+			});
+		} catch {
+			// Intentionally ignored — provider logged.
 		}
 	}
 }
