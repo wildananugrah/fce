@@ -111,6 +111,7 @@ const ROUTE_CONFIG: Record<string, RouteConfig> = {
     viewOptions: [
       { value: "table", icon: TableIcon, label: "Table" },
       { value: "grid", icon: LayoutGrid, label: "Grid" },
+      { value: "calendar", icon: CalendarDays, label: "Calendar" },
     ],
     defaultView: "table",
     help: {
