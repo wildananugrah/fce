@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useHeaderSlot } from "../contexts/HeaderSlotContext";
-import { Eye, Trash2, X, ChevronUp, ChevronDown, Calendar } from "lucide-react";
+import { Eye, Trash2, X, ChevronUp, ChevronDown, Calendar, ChevronLeft, ChevronRight } from "lucide-react";
+import { ContentCalendarView } from "../components/library/ContentCalendarView";
 import { getFormatStyle, getStatusColor } from "../utils/topic-styles";
 import { getPillarColor } from "../utils/pillar-colors";
 import { useProject } from "../hooks/useProject";
@@ -68,6 +69,16 @@ function getStatusDotColor(status: string): string {
   return "bg-gray-400";
 }
 
+
+function addMonths(date: Date, n: number): Date {
+  const d = new Date(date);
+  d.setMonth(d.getMonth() + n);
+  return d;
+}
+
+function monthLabel(date: Date): string {
+  return date.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+}
 
 function formatCreatedAt(dateStr: string): { date: string; time: string } {
   const d = new Date(dateStr);
@@ -186,6 +197,7 @@ export function LibraryPage() {
   const [bulkActionRunning, setBulkActionRunning] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>("status");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [cursor, setCursor] = useState(() => new Date());
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) {
@@ -343,10 +355,41 @@ export function LibraryPage() {
     return out;
   }, [items, platformFilter, statusFilter, search, sortKey, sortDir]);
 
-  // Inject platform + status filters into GlobalHeader
+  // Inject platform + status filters (and month nav when calendar) into GlobalHeader
   useEffect(() => {
     setSlot(
       <div className="flex items-center gap-2">
+        {viewMode === "calendar" && (
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setCursor((d) => addMonths(d, -1))}
+              className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
+              title="Previous month"
+            >
+              <ChevronLeft size={14} />
+            </button>
+            <span className="text-sm font-semibold text-gray-900 min-w-[130px] text-center">
+              {monthLabel(cursor)}
+            </span>
+            <button
+              type="button"
+              onClick={() => setCursor(new Date())}
+              className="px-2.5 py-1 text-[11px] font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
+            >
+              Today
+            </button>
+            <button
+              type="button"
+              onClick={() => setCursor((d) => addMonths(d, 1))}
+              className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
+              title="Next month"
+            >
+              <ChevronRight size={14} />
+            </button>
+            <div className="w-px h-4 bg-gray-200 mx-1" />
+          </div>
+        )}
         <select
           className="text-xs font-medium bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-gray-300 focus:border-gray-300 text-gray-700"
           value={platformFilter}
@@ -370,7 +413,7 @@ export function LibraryPage() {
     );
     return () => setSlot(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [setSlot, platformFilter, statusFilter, filtered.length]);
+  }, [setSlot, platformFilter, statusFilter, filtered.length, viewMode, cursor]);
 
   if (!activeWorkspace) {
     return (
@@ -396,6 +439,12 @@ export function LibraryPage() {
               : "No content in library yet. Generate some content first."}
           </p>
         </div>
+      ) : viewMode === "calendar" ? (
+        <ContentCalendarView
+          items={filtered}
+          cursor={cursor}
+          onItemClick={setSelectedItem}
+        />
       ) : viewMode === "grid" ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filtered.map((item) => {
@@ -617,7 +666,7 @@ export function LibraryPage() {
       )}
 
       {/* Bulk Action Bar — table mode only */}
-      {selectedIds.size > 0 && viewMode !== "grid" && (
+      {selectedIds.size > 0 && viewMode !== "grid" && viewMode !== "calendar" && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 bg-gray-900 text-white rounded-xl shadow-2xl border border-gray-800 px-4 py-3 flex items-center gap-3">
           <span className="text-sm font-medium">
             {selectedIds.size} item{selectedIds.size > 1 ? "s" : ""} selected
