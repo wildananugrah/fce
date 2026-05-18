@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import floochinkCircleLogo from "../assets/floochink-logo-circle.png";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { api } from "../services/api";
 import { Modal } from "../components/ui/Modal";
@@ -64,7 +64,12 @@ function LoginModal({
           <input type="email" className={inputCls} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required />
         </div>
         <div>
-          <label className={labelCls}>Password</label>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="block text-xs font-medium text-gray-600 uppercase tracking-wide">Password</label>
+            <Link to="/forgot-password" className="text-xs text-gray-500 hover:text-black hover:underline">
+              Forgot password?
+            </Link>
+          </div>
           <input type="password" className={inputCls} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Enter your password" required />
         </div>
         <Button type="submit" className="w-full" loading={loading}>
