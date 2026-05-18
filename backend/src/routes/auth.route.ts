@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { getCookie, setCookie } from "hono/cookie";
 import { EmailNotVerifiedError } from "../errors/email-not-verified-error";
+import { PasswordResetTokenError } from "../errors/password-reset-token-error";
 import { ValidationError } from "../errors/validation-error";
 import type { IAuthService } from "../interfaces/services/auth.service.interface";
 
@@ -98,6 +99,39 @@ export function createAuthRoutes(authService: IAuthService) {
 		}
 		const result = await authService.resendVerification(email);
 		return c.json({ data: result });
+	});
+
+	app.post("/forgot-password", async (c) => {
+		const body = await c.req.json();
+		const { email } = body as { email?: string };
+		if (!email || typeof email !== "string") {
+			return c.json({ error: "email is required" }, 400);
+		}
+		const result = await authService.requestPasswordReset(email);
+		return c.json({ data: result });
+	});
+
+	app.post("/reset-password", async (c) => {
+		const body = await c.req.json();
+		const { token, password } = body as { token?: string; password?: string };
+		if (!token || typeof token !== "string") {
+			return c.json({ error: "token is required" }, 400);
+		}
+		if (!password || typeof password !== "string") {
+			return c.json({ error: "password is required" }, 400);
+		}
+		try {
+			const result = await authService.resetPassword(token, password);
+			return c.json({ data: result });
+		} catch (e) {
+			if (e instanceof PasswordResetTokenError) {
+				return c.json({ error: e.message }, 400);
+			}
+			if (e instanceof Error) {
+				return c.json({ error: e.message }, 400);
+			}
+			return c.json({ error: "Password reset failed" }, 400);
+		}
 	});
 
 	app.post("/logout", (c) => {
