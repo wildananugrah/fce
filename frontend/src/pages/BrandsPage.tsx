@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useHeaderSlot } from "../contexts/HeaderSlotContext";
 import { useNavigate } from "react-router-dom";
 import {
   Trash2,
@@ -196,6 +197,8 @@ export function BrandsPage() {
   const [saving, setSaving] = useState(false);
   const [editError, setEditError] = useState("");
 
+  const setHeaderSlot = useHeaderSlot();
+
   const showToast = (message: string, type: "success" | "error" | "info") => {
     setToast({ message, type });
   };
@@ -246,6 +249,48 @@ export function BrandsPage() {
   useEffect(() => {
     loadBrands();
   }, [loadBrands]);
+
+  // Inject Edit / Delete (or Save / Cancel) into the GlobalHeader slot
+  useEffect(() => {
+    const brand = brands[0];
+    if (!brand) {
+      setHeaderSlot(null);
+      return;
+    }
+    if (editing) {
+      setHeaderSlot(
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="secondary" onClick={cancelEdit}>
+            <X size={14} className="mr-1.5" />
+            Cancel
+          </Button>
+          <Button size="sm" onClick={saveEdit} loading={saving}>
+            <Save size={14} className="mr-1.5" />
+            Save
+          </Button>
+        </div>,
+      );
+    } else {
+      setHeaderSlot(
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="secondary" onClick={startEdit}>
+            <Pencil size={14} className="mr-1.5" />
+            Edit
+          </Button>
+          <button
+            onClick={() => handleDelete(brand.id, brand.name)}
+            className="p-2 text-gray-400 hover:text-red-500 transition-colors rounded-md hover:bg-red-50"
+            title="Delete brand"
+            aria-label="Delete brand"
+          >
+            <Trash2 size={14} />
+          </button>
+        </div>,
+      );
+    }
+    return () => setHeaderSlot(null);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [brands, editing, saving]);
 
   // If the active project/workspace changes mid-edit, drop the draft so we
   // don't accidentally save against the wrong brand.
@@ -501,20 +546,6 @@ export function BrandsPage() {
             {vocab.summary && (
               <p className="text-sm text-gray-700 leading-relaxed max-w-2xl">{vocab.summary}</p>
             )}
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <Button variant="secondary" onClick={startEdit}>
-              <Pencil size={14} className="mr-1.5" />
-              Edit
-            </Button>
-            <button
-              onClick={() => handleDelete(brand.id, brand.name)}
-              className="p-2 text-gray-400 hover:text-red-500 transition-colors rounded-md hover:bg-red-50"
-              title="Delete brand"
-              aria-label="Delete brand"
-            >
-              <Trash2 size={14} />
-            </button>
           </div>
         </div>
       )}
