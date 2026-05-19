@@ -25,5 +25,7 @@ export interface IAdminService {
 		userId: string,
 		workspaceId: string,
 	): Promise<void>;
+	listWorkspaceProjects(workspaceId: string): Promise<Array<{ id: string; name: string }>>;
+	assignUserToProject(actingUserId: string, userId: string, projectId: string): Promise<void>;
 	listAuditLogs(workspaceId?: string, limit?: number): Promise<any[]>;
 }

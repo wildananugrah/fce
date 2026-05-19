@@ -95,6 +95,25 @@ export function createAdminRoutes(adminService: IAdminService) {
 		return c.body(null, 204);
 	});
 
+	// List projects in a workspace (used by admin modal to populate project picker)
+	app.get("/workspaces/:workspaceId/projects", async (c) => {
+		const workspaceId = c.req.param("workspaceId");
+		const projects = await adminService.listWorkspaceProjects(workspaceId);
+		return c.json({ data: projects });
+	});
+
+	// Assign a user to a project
+	app.put("/users/:id/projects/:projectId", async (c) => {
+		const userId = c.req.param("id");
+		const projectId = c.req.param("projectId");
+		try {
+			await adminService.assignUserToProject(c.get("userId"), userId, projectId);
+			return c.json({ data: { ok: true } });
+		} catch (e) {
+			return c.json({ error: e instanceof Error ? e.message : "Failed to assign project" }, 400);
+		}
+	});
+
 	app.get("/audit-logs", async (c) => {
 		const workspaceId = c.req.query("workspaceId");
 		const limit = parseInt(c.req.query("limit") || "50");

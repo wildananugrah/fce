@@ -253,6 +253,44 @@ export class AdminService implements IAdminService {
 		});
 	}
 
+	async listWorkspaceProjects(workspaceId: string) {
+		const projects = await this.prisma.project.findMany({
+			where: { workspaceId, archivedAt: null },
+			select: { id: true, name: true },
+			orderBy: { name: "asc" },
+		});
+		return projects;
+	}
+
+	async assignUserToProject(actingUserId: string, userId: string, projectId: string) {
+		const project = await this.prisma.project.findUnique({
+			where: { id: projectId },
+			select: { id: true, workspaceId: true },
+		});
+		if (!project) throw new Error("Project not found");
+
+		// Ensure user is a member of the workspace first
+		const wsRole = await this.prisma.userWorkspaceRole.findFirst({
+			where: { userId, workspaceId: project.workspaceId },
+		});
+		if (!wsRole) throw new Error("User must be a workspace member before being assigned to a project");
+
+		await this.prisma.userProjectMembership.upsert({
+			where: { userId_projectId: { userId, projectId } },
+			create: { userId, projectId, isApprover: false, menuAccess: [] },
+			update: {},
+		});
+
+		await this.audit.log({
+			userId: actingUserId,
+			workspaceId: project.workspaceId,
+			action: "assign_project",
+			entityType: "project",
+			entityId: projectId,
+			metadata: { targetUserId: userId, projectId },
+		});
+	}
+
 	async listAuditLogs(workspaceId?: string, limit = 50) {
 		return this.prisma.auditLog.findMany({
 			where: workspaceId ? { workspaceId } : {},

@@ -58,6 +58,10 @@ export function AdminUserModal({ userId, isSelf, onClose, onToast, onChanged }: 
   const [pendingWorkspaceId, setPendingWorkspaceId] = useState("");
   const [pendingRole, setPendingRole] = useState<"admin" | "member">("member");
 
+  // Project assignment (optional, shown after workspace is selected)
+  const [workspaceProjects, setWorkspaceProjects] = useState<{ id: string; name: string }[]>([]);
+  const [pendingProjectId, setPendingProjectId] = useState("");
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -134,9 +138,14 @@ export function AdminUserModal({ userId, isSelf, onClose, onToast, onChanged }: 
         method: "PUT",
         body: JSON.stringify({ role: pendingRole }),
       });
-      onToast("Workspace role set", "success");
+      if (pendingProjectId) {
+        await api(`/api/admin/users/${userId}/projects/${pendingProjectId}`, { method: "PUT" });
+      }
+      onToast(pendingProjectId ? "Workspace and project assigned" : "Workspace role set", "success");
       setPendingWorkspaceId("");
       setPendingRole("member");
+      setPendingProjectId("");
+      setWorkspaceProjects([]);
       await load();
       await onChanged();
     } catch (e) {
@@ -307,7 +316,22 @@ export function AdminUserModal({ userId, isSelf, onClose, onToast, onChanged }: 
                   <label className={labelCls}>Add to workspace</label>
                   <select
                     value={pendingWorkspaceId}
-                    onChange={(e) => setPendingWorkspaceId(e.target.value)}
+                    onChange={async (e) => {
+                      const wsId = e.target.value;
+                      setPendingWorkspaceId(wsId);
+                      setPendingProjectId("");
+                      setWorkspaceProjects([]);
+                      if (wsId) {
+                        try {
+                          const projects = await api<{ id: string; name: string }[]>(
+                            `/api/admin/workspaces/${wsId}/projects`,
+                          );
+                          setWorkspaceProjects(projects);
+                        } catch {
+                          // projects stay empty — assignment remains optional
+                        }
+                      }
+                    }}
                     className={inputCls}
                   >
                     <option value="">— Select workspace —</option>
@@ -327,6 +351,21 @@ export function AdminUserModal({ userId, isSelf, onClose, onToast, onChanged }: 
                     <option value="admin">admin</option>
                   </select>
                 </div>
+                {workspaceProjects.length > 0 && (
+                  <div>
+                    <label className={labelCls}>Project <span className="normal-case text-gray-400">(optional)</span></label>
+                    <select
+                      value={pendingProjectId}
+                      onChange={(e) => setPendingProjectId(e.target.value)}
+                      className={inputCls}
+                    >
+                      <option value="">— None —</option>
+                      {workspaceProjects.map((p) => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
                 <Button size="sm" onClick={assignWorkspace} disabled={!pendingWorkspaceId}>
                   Add
                 </Button>
