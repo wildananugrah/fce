@@ -473,16 +473,6 @@ export function BrandsPage() {
                 />
               </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <Button variant="secondary" onClick={cancelEdit} disabled={saving}>
-                <X size={14} className="mr-1.5" />
-                Cancel
-              </Button>
-              <Button onClick={saveEdit} loading={saving}>
-                <Save size={14} className="mr-1.5" />
-                Save changes
-              </Button>
-            </div>
           </div>
           {editError && (
             <div
