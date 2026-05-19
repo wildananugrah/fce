@@ -23,6 +23,12 @@ interface UserWorkspace {
   role: string;
 }
 
+interface UserProjectMembership {
+  projectId: string;
+  projectName: string;
+  workspaceId: string;
+}
+
 interface Workspace {
   id: string;
   name: string;
@@ -41,6 +47,11 @@ export function AdminUserModal({ userId, isSelf, onClose, onToast, onChanged }: 
   const [user, setUser] = useState<AdminUser | null>(null);
   const [workspaces, setWorkspaces] = useState<UserWorkspace[]>([]);
   const [allWorkspaces, setAllWorkspaces] = useState<Workspace[]>([]);
+  const [projectMemberships, setProjectMemberships] = useState<UserProjectMembership[]>([]);
+  // Per-workspace: projects available to add + currently adding state
+  const [wsProjects, setWsProjects] = useState<Record<string, { id: string; name: string }[]>>({});
+  const [addingProjectFor, setAddingProjectFor] = useState<string | null>(null); // workspaceId
+  const [selectedProjectToAdd, setSelectedProjectToAdd] = useState<Record<string, string>>({}); // wsId → projectId
   const [loading, setLoading] = useState(true);
 
   // Editable fields
@@ -65,10 +76,11 @@ export function AdminUserModal({ userId, isSelf, onClose, onToast, onChanged }: 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [users, ws, all] = await Promise.all([
+      const [users, ws, all, pm] = await Promise.all([
         api<AdminUser[]>("/api/admin/users"),
         api<UserWorkspace[]>(`/api/admin/users/${userId}/workspaces`),
         api<Workspace[]>("/api/workspaces"),
+        api<UserProjectMembership[]>(`/api/admin/users/${userId}/project-memberships`),
       ]);
       const u = users.find((x) => x.id === userId) ?? null;
       setUser(u);
@@ -80,6 +92,7 @@ export function AdminUserModal({ userId, isSelf, onClose, onToast, onChanged }: 
       }
       setWorkspaces(ws);
       setAllWorkspaces(all);
+      setProjectMemberships(pm);
     } catch (e) {
       onToast(e instanceof Error ? e.message : "Failed to load user", "error");
     } finally {
@@ -162,6 +175,41 @@ export function AdminUserModal({ userId, isSelf, onClose, onToast, onChanged }: 
       await onChanged();
     } catch (e) {
       onToast(e instanceof Error ? e.message : "Failed to remove", "error");
+    }
+  };
+
+  const loadWsProjects = async (wsId: string) => {
+    if (wsProjects[wsId]) return; // already loaded
+    try {
+      const projects = await api<{ id: string; name: string }[]>(
+        `/api/admin/workspaces/${wsId}/projects`,
+      );
+      setWsProjects((prev) => ({ ...prev, [wsId]: projects }));
+    } catch { /* ignore */ }
+  };
+
+  const addProjectMembership = async (wsId: string) => {
+    const projectId = selectedProjectToAdd[wsId];
+    if (!projectId) return;
+    try {
+      await api(`/api/admin/users/${userId}/projects/${projectId}`, { method: "PUT" });
+      onToast("Added to project", "success");
+      setAddingProjectFor(null);
+      setSelectedProjectToAdd((prev) => ({ ...prev, [wsId]: "" }));
+      await load();
+    } catch (e) {
+      onToast(e instanceof Error ? e.message : "Failed", "error");
+    }
+  };
+
+  const removeProjectMembership = async (projectId: string, projectName: string) => {
+    if (!confirm(`Remove user from project "${projectName}"?`)) return;
+    try {
+      await api(`/api/admin/users/${userId}/projects/${projectId}`, { method: "DELETE" });
+      onToast("Removed from project", "info");
+      await load();
+    } catch (e) {
+      onToast(e instanceof Error ? e.message : "Failed", "error");
     }
   };
 
@@ -265,48 +313,100 @@ export function AdminUserModal({ userId, isSelf, onClose, onToast, onChanged }: 
             {workspaces.length === 0 ? (
               <p className="text-sm text-gray-400">Not a member of any workspace yet.</p>
             ) : (
-              <div className="space-y-1.5">
-                {workspaces.map((w) => (
-                  <div
-                    key={w.workspaceId}
-                    className="flex items-center justify-between px-3 py-2 bg-gray-50 border border-gray-200 rounded-md"
-                  >
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">{w.workspaceName}</p>
-                      <p className="text-[11px] text-gray-500 font-mono">{w.workspaceSlug}</p>
+              <div className="space-y-2">
+                {workspaces.map((w) => {
+                  const wsMemberships = projectMemberships.filter((p) => p.workspaceId === w.workspaceId);
+                  const availableToAdd = (wsProjects[w.workspaceId] ?? []).filter(
+                    (p) => !wsMemberships.some((m) => m.projectId === p.id),
+                  );
+                  return (
+                    <div key={w.workspaceId} className="border border-gray-200 rounded-md overflow-hidden">
+                      {/* Workspace header row */}
+                      <div className="flex items-center justify-between px-3 py-2 bg-gray-50">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">{w.workspaceName}</p>
+                          <p className="text-[11px] text-gray-500 font-mono">{w.workspaceSlug}</p>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <select
+                            value={w.role}
+                            onChange={async (e) => {
+                              try {
+                                await api(`/api/admin/users/${userId}/workspaces/${w.workspaceId}`, {
+                                  method: "PUT",
+                                  body: JSON.stringify({ role: e.target.value }),
+                                });
+                                onToast("Role updated", "success");
+                                await load();
+                                await onChanged();
+                              } catch (err) {
+                                onToast(err instanceof Error ? err.message : "Failed", "error");
+                              }
+                            }}
+                            className="px-2 py-1 text-xs bg-white border border-gray-300 rounded"
+                          >
+                            <option value="admin">admin</option>
+                            <option value="member">member</option>
+                          </select>
+                          <button
+                            type="button"
+                            onClick={() => removeWorkspace(w.workspaceId, w.workspaceName)}
+                            className="p-1 text-gray-400 hover:text-red-600"
+                            title="Remove"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Project memberships */}
+                      <div className="px-3 py-2 bg-white border-t border-gray-100">
+                        <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wide mb-1.5">Projects</p>
+                        <div className="flex flex-wrap gap-1.5 items-center">
+                          {wsMemberships.length === 0 && (
+                            <span className="text-xs text-gray-400">No projects assigned</span>
+                          )}
+                          {wsMemberships.map((pm) => (
+                            <span key={pm.projectId} className="inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-50 border border-indigo-200 text-indigo-700 rounded text-xs">
+                              {pm.projectName}
+                              <button
+                                type="button"
+                                onClick={() => removeProjectMembership(pm.projectId, pm.projectName)}
+                                className="text-indigo-400 hover:text-red-500 ml-0.5"
+                              >
+                                ×
+                              </button>
+                            </span>
+                          ))}
+                          {addingProjectFor === w.workspaceId ? (
+                            <div className="flex items-center gap-1">
+                              <select
+                                value={selectedProjectToAdd[w.workspaceId] ?? ""}
+                                onChange={(e) => setSelectedProjectToAdd((prev) => ({ ...prev, [w.workspaceId]: e.target.value }))}
+                                className="px-2 py-0.5 text-xs border border-gray-300 rounded"
+                              >
+                                <option value="">— pick project —</option>
+                                {availableToAdd.map((p) => (
+                                  <option key={p.id} value={p.id}>{p.name}</option>
+                                ))}
+                              </select>
+                              <button type="button" onClick={() => addProjectMembership(w.workspaceId)} className="text-xs text-indigo-600 hover:underline">Add</button>
+                              <button type="button" onClick={() => setAddingProjectFor(null)} className="text-xs text-gray-400 hover:text-gray-600">Cancel</button>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => { loadWsProjects(w.workspaceId); setAddingProjectFor(w.workspaceId); }}
+                              className="text-xs text-indigo-500 hover:underline"
+                            >
+                              + Add project
+                            </button>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <select
-                        value={w.role}
-                        onChange={async (e) => {
-                          try {
-                            await api(`/api/admin/users/${userId}/workspaces/${w.workspaceId}`, {
-                              method: "PUT",
-                              body: JSON.stringify({ role: e.target.value }),
-                            });
-                            onToast("Role updated", "success");
-                            await load();
-                            await onChanged();
-                          } catch (err) {
-                            onToast(err instanceof Error ? err.message : "Failed", "error");
-                          }
-                        }}
-                        className="px-2 py-1 text-xs bg-white border border-gray-300 rounded"
-                      >
-                        <option value="admin">admin</option>
-                        <option value="member">member</option>
-                      </select>
-                      <button
-                        type="button"
-                        onClick={() => removeWorkspace(w.workspaceId, w.workspaceName)}
-                        className="p-1 text-gray-400 hover:text-red-600"
-                        title="Remove"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 

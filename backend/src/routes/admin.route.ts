@@ -102,6 +102,25 @@ export function createAdminRoutes(adminService: IAdminService) {
 		return c.json({ data: projects });
 	});
 
+	// List all project memberships for a user (grouped by workspace)
+	app.get("/users/:id/project-memberships", async (c) => {
+		const userId = c.req.param("id");
+		const memberships = await adminService.listUserProjectMemberships(userId);
+		return c.json({ data: memberships });
+	});
+
+	// Remove a user from a project
+	app.delete("/users/:id/projects/:projectId", async (c) => {
+		const userId = c.req.param("id");
+		const projectId = c.req.param("projectId");
+		try {
+			await adminService.removeUserFromProject(c.get("userId"), userId, projectId);
+			return c.body(null, 204);
+		} catch (e) {
+			return c.json({ error: e instanceof Error ? e.message : "Failed to remove from project" }, 400);
+		}
+	});
+
 	// Assign a user to a project
 	app.put("/users/:id/projects/:projectId", async (c) => {
 		const userId = c.req.param("id");

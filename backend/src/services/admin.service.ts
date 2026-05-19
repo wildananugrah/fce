@@ -253,6 +253,35 @@ export class AdminService implements IAdminService {
 		});
 	}
 
+	async listUserProjectMemberships(userId: string) {
+		const memberships = await this.prisma.userProjectMembership.findMany({
+			where: { userId },
+			include: { project: { select: { id: true, name: true, workspaceId: true } } },
+		});
+		return memberships.map((m) => ({
+			projectId: m.projectId,
+			projectName: m.project.name,
+			workspaceId: m.project.workspaceId,
+		}));
+	}
+
+	async removeUserFromProject(actingUserId: string, userId: string, projectId: string) {
+		const project = await this.prisma.project.findUnique({
+			where: { id: projectId },
+			select: { workspaceId: true },
+		});
+		if (!project) throw new Error("Project not found");
+		await this.prisma.userProjectMembership.deleteMany({ where: { userId, projectId } });
+		await this.audit.log({
+			userId: actingUserId,
+			workspaceId: project.workspaceId,
+			action: "remove_project",
+			entityType: "project",
+			entityId: projectId,
+			metadata: { targetUserId: userId },
+		});
+	}
+
 	async listWorkspaceProjects(workspaceId: string) {
 		const projects = await this.prisma.project.findMany({
 			where: { workspaceId, archivedAt: null },
