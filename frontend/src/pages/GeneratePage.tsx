@@ -844,6 +844,25 @@ const frameworkOptions = [{ value: "", label: "Default (AIDA)" }, ...frameworks.
         <div className={embedded ? "flex flex-1 min-h-0" : "flex gap-6"}>
           {/* Left Panel — Form */}
           <div className={embedded ? "w-1/2 overflow-y-auto px-6 py-5 border-r border-gray-100 shrink-0 space-y-5" : "w-[440px] shrink-0 space-y-5"}>
+            {/* Advanced mode toggle (embedded only — non-embedded version lives above the panels) */}
+            {embedded && (
+              <div className="flex items-center justify-end gap-2">
+                <span className="text-xs text-gray-500">{advancedMode ? "Advanced mode" : "Basic mode"}</span>
+                <button
+                  type="button"
+                  onClick={() => setAdvancedMode(!advancedMode)}
+                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                    advancedMode ? "bg-foreground" : "bg-surface-tertiary"
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                      advancedMode ? "translate-x-[18px]" : "translate-x-0.5"
+                    }`}
+                  />
+                </button>
+              </div>
+            )}
             {/* Context Section */}
             <div className="pb-5 space-y-4 border-b border-gray-100">
               <div className="flex items-center gap-2 text-xs font-semibold text-gray-700">
