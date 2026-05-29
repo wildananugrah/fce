@@ -1,0 +1,2589 @@
+{
+  "name": "Content Generator",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "content-generator",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "99cf167d-629e-4cfd-9987-d99bddbaaed2",
+      "name": "Webhook - Content Generator",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -464,
+        -64
+      ],
+      "webhookId": "003e07f2-033d-4b91-846c-42c3ac9be5bc",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "function uuid() {\n  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {\n    const r = Math.random() * 16 | 0;\n    const v = c === 'x' ? r : (r & 0x3 | 0x8);\n    return v.toString(16);\n  });\n}\n\nfunction sqlLiteral(value) {\n  if (value === null || value === undefined || value === '') return 'NULL';\n  return `'${String(value).replace(/'/g, \"''\")}'`;\n}\n\nfunction sqlJson(value) {\n  return `${sqlLiteral(JSON.stringify(value ?? null))}::jsonb`;\n}\n\nfunction normalizeContentType(value) {\n  const normalized = String(value || '').trim().toLowerCase().replace(/\\s*-\\s*/g, '_').replace(/[\\s-]+/g, '_');\n  const map = { single_image: 'single_image', story_image: 'story_image', carousel: 'carousel', reels: 'reels', story_video: 'story_video' };\n  return map[normalized] || 'text_only';\n}\n\nconst body = $input.first().json.body || {};\nconst brand = body.brand || {};\nconst product = body.product || {};\nconst topic = body.topic || {};\nconst jobId = uuid();\nconst outputFormat = body.outputFormat || body.contentType || topic.format || 'Carousel';\nconst contentType = normalizeContentType(outputFormat);\n\nconst request = {\n  jobId, brand, product, topic,\n  language: body.language || 'Indonesian',\n  outputFormat,\n  contentType,\n  objective: body.objective || topic.objective || 'Education',\n  additionalDirection: body.additionalDirection || '',\n  referenceImages: Array.isArray(body.referenceImages) ? body.referenceImages : [],\n  platform: topic.platform || ''\n};\n\nconst ensureTableSql = `\nCREATE TABLE IF NOT EXISTS content_generation (\n  id bigserial PRIMARY KEY,\n  job_id text UNIQUE NOT NULL,\n  status text NOT NULL DEFAULT 'IN_PROGRESS',\n  brand_id text,\n  brand_name text,\n  product_id text,\n  product_name text,\n  topic_id text,\n  title text,\n  platform text,\n  content_format text,\n  objective text,\n  language text,\n  content_json jsonb,\n  sections_json jsonb,\n  images_json jsonb,\n  created_at timestamptz DEFAULT now(),\n  updated_at timestamptz DEFAULT now()\n);\nALTER TABLE content_generation ADD COLUMN IF NOT EXISTS brand_id text;\nALTER TABLE content_generation ADD COLUMN IF NOT EXISTS brand_name text;\nALTER TABLE content_generation ADD COLUMN IF NOT EXISTS product_id text;\nALTER TABLE content_generation ADD COLUMN IF NOT EXISTS product_name text;\nALTER TABLE content_generation ADD COLUMN IF NOT EXISTS topic_id text;\nALTER TABLE content_generation ADD COLUMN IF NOT EXISTS title text;\nALTER TABLE content_generation ADD COLUMN IF NOT EXISTS platform text;\nALTER TABLE content_generation ADD COLUMN IF NOT EXISTS content_format text;\nALTER TABLE content_generation ADD COLUMN IF NOT EXISTS objective text;\nALTER TABLE content_generation ADD COLUMN IF NOT EXISTS language text;\nALTER TABLE content_generation ADD COLUMN IF NOT EXISTS content_json jsonb;\nALTER TABLE content_generation ADD COLUMN IF NOT EXISTS sections_json jsonb;\nALTER TABLE content_generation ADD COLUMN IF NOT EXISTS images_json jsonb;\nALTER TABLE content_generation ADD COLUMN IF NOT EXISTS result jsonb;\nCREATE UNIQUE INDEX IF NOT EXISTS content_generation_job_id_unique_idx ON content_generation (job_id);\nCREATE TABLE IF NOT EXISTS content_generation_images (\n  id bigserial PRIMARY KEY,\n  job_id text NOT NULL,\n  slide_number int,\n  type text DEFAULT 'slide',\n  headline text,\n  body text,\n  visual_direction text,\n  image_prompt text,\n  image_url text,\n  reference_image_url text,\n  aspect_ratio text DEFAULT '1:1',\n  created_at timestamptz DEFAULT now()\n);\nCREATE INDEX IF NOT EXISTS content_generation_images_job_id_idx ON content_generation_images (job_id);\n`;\n\nconst insertJobSql = `\nINSERT INTO content_generation (\n  job_id, status, brand_id, brand_name, product_id, product_name, topic_id, title, platform, content_format, objective, language, updated_at\n)\nVALUES (\n  ${sqlLiteral(jobId)}, 'IN_PROGRESS', ${sqlLiteral(brand.id)}, ${sqlLiteral(brand.name)}, ${sqlLiteral(product.id)}, ${sqlLiteral(product.name)}, ${sqlLiteral(topic.id)}, ${sqlLiteral(topic.title)}, ${sqlLiteral(request.platform)}, ${sqlLiteral(contentType)}, ${sqlLiteral(request.objective)}, ${sqlLiteral(request.language)}, now()\n)\nON CONFLICT (job_id) DO UPDATE SET\n  status = 'IN_PROGRESS', brand_id = EXCLUDED.brand_id, brand_name = EXCLUDED.brand_name,\n  product_id = EXCLUDED.product_id, product_name = EXCLUDED.product_name, topic_id = EXCLUDED.topic_id,\n  title = EXCLUDED.title, platform = EXCLUDED.platform, content_format = EXCLUDED.content_format,\n  objective = EXCLUDED.objective, language = EXCLUDED.language,\n  content_json = NULL, sections_json = NULL, images_json = NULL, result = NULL, updated_at = now()\nRETURNING *;\n`;\n\nconst fetchContextSql = `\nWITH input AS (\n  SELECT ${sqlLiteral(brand.id)}::text AS brand_id,\n         ${sqlLiteral(product.id)}::text AS product_id,\n         ${sqlLiteral(topic.id)}::text AS topic_id\n)\nSELECT\n  (SELECT to_jsonb(ba) FROM brand_analysis ba, input i WHERE i.brand_id IS NOT NULL AND (ba.job_id = i.brand_id OR ba.id::text = i.brand_id) ORDER BY ba.id DESC LIMIT 1) AS brand_context,\n  (SELECT to_jsonb(bp) FROM brand_product bp, input i WHERE i.product_id IS NOT NULL AND (bp.job_id = i.product_id OR bp.id::text = i.product_id) ORDER BY bp.id DESC LIMIT 1) AS product_context,\n  (SELECT to_jsonb(ct) FROM content_topics ct, input i WHERE i.topic_id IS NOT NULL AND (ct.id::text = i.topic_id OR ct.job_id = i.topic_id) ORDER BY ct.id DESC LIMIT 1) AS topic_context;\n`;\n\nreturn [{ json: { ...request, ensureTableSql, insertJobSql, fetchContextSql } }];"
+      },
+      "id": "0ac0ea04-2b75-49d0-9dc3-d748deb30ebd",
+      "name": "Normalize Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -224,
+        -64
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "CREATE TABLE IF NOT EXISTS content_generation (\n  id bigserial PRIMARY KEY,\n  job_id text UNIQUE NOT NULL,\n  status text NOT NULL DEFAULT 'IN_PROGRESS',\n  brand_id text,\n  brand_name text,\n  product_id text,\n  product_name text,\n  topic_id text,\n  topic_title text,\n  language text,\n  platform text,\n  output_format text,\n  objective text,\n  additional_direction text,\n  reference_images jsonb,\n  result jsonb,\n  error_message text,\n  created_at timestamptz DEFAULT now(),\n  updated_at timestamptz DEFAULT now()\n);\nALTER TABLE content_generation ADD COLUMN IF NOT EXISTS job_id text;\nALTER TABLE content_generation ADD COLUMN IF NOT EXISTS status text DEFAULT 'IN_PROGRESS';\nALTER TABLE content_generation ADD COLUMN IF NOT EXISTS brand_id text;\nALTER TABLE content_generation ADD COLUMN IF NOT EXISTS brand_name text;\nALTER TABLE content_generation ADD COLUMN IF NOT EXISTS product_id text;\nALTER TABLE content_generation ADD COLUMN IF NOT EXISTS product_name text;\nALTER TABLE content_generation ADD COLUMN IF NOT EXISTS topic_id text;\nALTER TABLE content_generation ADD COLUMN IF NOT EXISTS topic_title text;\nALTER TABLE content_generation ADD COLUMN IF NOT EXISTS language text;\nALTER TABLE content_generation ADD COLUMN IF NOT EXISTS platform text;\nALTER TABLE content_generation ADD COLUMN IF NOT EXISTS output_format text;\nALTER TABLE content_generation ADD COLUMN IF NOT EXISTS objective text;\nALTER TABLE content_generation ADD COLUMN IF NOT EXISTS additional_direction text;\nALTER TABLE content_generation ADD COLUMN IF NOT EXISTS reference_images jsonb;\nALTER TABLE content_generation ADD COLUMN IF NOT EXISTS result jsonb;\nALTER TABLE content_generation ADD COLUMN IF NOT EXISTS error_message text;\nALTER TABLE content_generation ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now();\nALTER TABLE content_generation ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now();\nCREATE UNIQUE INDEX IF NOT EXISTS content_generation_job_id_unique_idx ON content_generation (job_id);\nCREATE TABLE IF NOT EXISTS content_generation_images (\n  id bigserial PRIMARY KEY,\n  job_id text NOT NULL,\n  slide_number int,\n  type text,\n  headline text,\n  body text,\n  visual_direction text,\n  image_prompt text,\n  image_url text,\n  reference_image_url text,\n  aspect_ratio text,\n  created_at timestamptz DEFAULT now()\n);\nCREATE INDEX IF NOT EXISTS content_generation_images_job_id_idx ON content_generation_images (job_id);",
+        "options": {}
+      },
+      "id": "828133fe-1ac0-4784-8533-33f8658310be",
+      "name": "Ensure Content Generation Table",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        16,
+        -64
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "YkWjVauTa48dvHlA",
+          "name": "Postgree N8N Floothink"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO content_generation (\n  job_id,\n  status,\n  brand_id,\n  brand_name,\n  product_id,\n  product_name,\n  topic_id,\n  topic_title,\n  language,\n  platform,\n  output_format,\n  objective,\n  additional_direction,\n  reference_images,\n  created_at,\n  updated_at\n)\nVALUES (\n  '{{ $(\"Normalize Request\").first().json.jobId }}',\n  'IN_PROGRESS',\n  NULLIF('{{ ((\"\" + (($(\"Normalize Request\").first().json.brand || {}).id || \"\")).replace(/'/g, \"''\")) }}', ''),\n  NULLIF('{{ ((\"\" + (($(\"Normalize Request\").first().json.brand || {}).name || \"\")).replace(/'/g, \"''\")) }}', ''),\n  NULLIF('{{ ((\"\" + (($(\"Normalize Request\").first().json.product || {}).id || \"\")).replace(/'/g, \"''\")) }}', ''),\n  NULLIF('{{ ((\"\" + (($(\"Normalize Request\").first().json.product || {}).name || \"\")).replace(/'/g, \"''\")) }}', ''),\n  NULLIF('{{ ((\"\" + (($(\"Normalize Request\").first().json.topic || {}).id || \"\")).replace(/'/g, \"''\")) }}', ''),\n  NULLIF('{{ ((\"\" + (($(\"Normalize Request\").first().json.topic || {}).title || \"\")).replace(/'/g, \"''\")) }}', ''),\n  NULLIF('{{ ((\"\" + ($(\"Normalize Request\").first().json.language || \"\")).replace(/'/g, \"''\")) }}', ''),\n  NULLIF('{{ ((\"\" + ($(\"Normalize Request\").first().json.platform || ($(\"Normalize Request\").first().json.topic || {}).platform || \"\")).replace(/'/g, \"''\")) }}', ''),\n  NULLIF('{{ ((\"\" + ($(\"Normalize Request\").first().json.outputFormat || \"\")).replace(/'/g, \"''\")) }}', ''),\n  NULLIF('{{ ((\"\" + ($(\"Normalize Request\").first().json.objective || ($(\"Normalize Request\").first().json.topic || {}).objective || \"\")).replace(/'/g, \"''\")) }}', ''),\n  NULLIF('{{ ((\"\" + ($(\"Normalize Request\").first().json.additionalDirection || \"\")).replace(/'/g, \"''\")) }}', ''),\n  '{{ JSON.stringify($(\"Normalize Request\").first().json.referenceImages || []).replace(/'/g, \"''\") }}'::jsonb,\n  now(),\n  now()\n)\nRETURNING *;",
+        "options": {}
+      },
+      "id": "8eecaf32-3b7c-4fef-aaf6-54d532999cee",
+      "name": "Create Content Generation Run",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        256,
+        -64
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "YkWjVauTa48dvHlA",
+          "name": "Postgree N8N Floothink"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ jobId: $('Normalize Request').first().json.jobId }) }}",
+        "options": {}
+      },
+      "id": "d039d503-4dc2-4b55-921b-197fb0355f58",
+      "name": "Respond with Job ID",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        496,
+        -64
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH input AS (\n  SELECT\n    NULLIF('{{ ((\"\" + ((($(\"Normalize Request\").first().json.brand || {}).id) || $json.brand_id || \"\")).replace(/'/g, \"''\")) }}', '')::text AS brand_id,\n    NULLIF('{{ ((\"\" + ((($(\"Normalize Request\").first().json.product || {}).id) || $json.product_id || \"\")).replace(/'/g, \"''\")) }}', '')::text AS product_id,\n    NULLIF('{{ ((\"\" + ((($(\"Normalize Request\").first().json.topic || {}).id) || $json.topic_id || \"\")).replace(/'/g, \"''\")) }}', '')::text AS topic_id\n)\nSELECT\n  (SELECT to_jsonb(ba) FROM brand_analysis ba, input i WHERE i.brand_id IS NOT NULL AND (ba.job_id = i.brand_id OR ba.id::text = i.brand_id) ORDER BY ba.id DESC LIMIT 1) AS brand_context,\n  (SELECT to_jsonb(bp) FROM brand_product bp, input i WHERE i.product_id IS NOT NULL AND (bp.job_id = i.product_id OR bp.id::text = i.product_id) ORDER BY bp.id DESC LIMIT 1) AS product_context,\n  (SELECT to_jsonb(ct) FROM content_topics ct, input i WHERE i.topic_id IS NOT NULL AND (ct.id::text = i.topic_id OR ct.job_id = i.topic_id) ORDER BY ct.id DESC LIMIT 1) AS topic_context;",
+        "options": {}
+      },
+      "id": "9d232cc0-9970-4cd8-824b-085fb66689b1",
+      "name": "Fetch Brand Product Topic Context",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        736,
+        -64
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "YkWjVauTa48dvHlA",
+          "name": "Postgree N8N Floothink"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "function parseMaybeJson(value, fallback) {\n  if (value === null || value === undefined) return fallback;\n  if (typeof value === 'object') return value;\n  try { return JSON.parse(value); } catch (_) { return fallback; }\n}\n\nfunction asText(value) {\n  if (value === null || value === undefined) return 'Not available';\n  if (typeof value === 'string') return value.trim() || 'Not available';\n  return JSON.stringify(value, null, 2);\n}\n\nconst req = $('Normalize Request').first().json;\nconst row = $input.first().json || {};\n\nconst brandContext = parseMaybeJson(row.brand_context, null) || { id: req.brand.id || '', name: req.brand.name || '' };\nconst productContext = parseMaybeJson(row.product_context, null) || { id: req.product.id || '', name: req.product.name || '' };\nconst topicContext = parseMaybeJson(row.topic_context, null) || req.topic || {};\n\nconst skills = [\n  { slug: 'copywriting', name: 'Copywriting', content: 'Create persuasive copy with a clear hook, audience-specific angle, concrete benefit, strong structure, and a CTA that matches the objective. Keep claims grounded in available context.' },\n  { slug: 'copy-editing', name: 'Copy Editing', content: 'Tighten wording, remove fluff, keep grammar natural, improve clarity, and make every line readable for the requested language, platform, and format.' },\n  { slug: 'social-content', name: 'Social Content', content: 'Adapt the content to social media behavior. Match the platform, format, and consumption pattern. Make hooks fast, captions useful, visuals actionable, and slides or scenes easy to follow.' },\n  { slug: 'ad-creative', name: 'Ad Creative', content: 'Use strong creative framing: problem-solution, contrast, transformation, proof, objections, emotional trigger, or curiosity. Make the content executable as a campaign asset.' },\n  { slug: 'marketing-psychology', name: 'Marketing Psychology', content: 'Apply customer motivation, pain points, objections, decision triggers, urgency, trust, and value perception. Do not invent facts, proof, or offers that are absent from the context.' }\n];\n\nconst skillsContext = skills.map((skill) => `## ${skill.name}\\n${skill.content}`).join('\\n\\n---\\n\\n');\nconst referenceImagesText = Array.isArray(req.referenceImages) && req.referenceImages.length\n  ? req.referenceImages.map((image, index) => `${index + 1}. ${typeof image === 'string' ? image : JSON.stringify(image)}`).join('\\n')\n  : 'None';\n\nreturn [{\n  json: {\n    jobId: req.jobId,\n    brand: req.brand,\n    product: req.product,\n    topic: req.topic,\n    brand_context: brandContext,\n    product_context: productContext,\n    topic_context: topicContext,\n    brand_context_text: asText(brandContext),\n    product_context_text: asText(productContext),\n    topic_context_text: asText(topicContext),\n    skills_context: skillsContext,\n    applied_skills: skills.map(({ slug, name }) => ({ slug, name })),\n    outputFormat: req.outputFormat,\n    contentType: req.contentType,\n    objective: req.objective,\n    language: req.language,\n    platform: req.platform,\n    additionalDirection: req.additionalDirection,\n    referenceImages: req.referenceImages,\n    referenceImages_text: referenceImagesText\n  }\n}];"
+      },
+      "id": "bb9297a1-2f5b-4338-ac1b-38dedacf50ef",
+      "name": "Build Content Context + Skills Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        976,
+        -64
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an expert social media content generator for FCE.\n\nCreate SINGLE IMAGE content only.\n\nMARKETING SKILLS APPLIED:\n{{ $(\"Build Content Context + Skills Context\").first().json.skills_context || $(\"Build Content Context + Skills Context\").first().json.skillsContext || $(\"Build Content Context + Skills Context\").first().json.skills_context_text || \"No skills context provided.\" }}\n\nBRAND CONTEXT:\n{{ $(\"Build Content Context + Skills Context\").first().json.brand_context_text || $(\"Build Content Context + Skills Context\").first().json.brandContextText || \"No brand context provided.\" }}\n\nPRODUCT CONTEXT:\n{{ $(\"Build Content Context + Skills Context\").first().json.product_context_text || $(\"Build Content Context + Skills Context\").first().json.productContextText || \"No product context provided.\" }}\n\nTOPIC CONTEXT:\n{{ $(\"Build Content Context + Skills Context\").first().json.topic_context_text || $(\"Build Content Context + Skills Context\").first().json.topicContextText || \"No topic context provided.\" }}\n\nPLATFORM:\n{{ $json.topic?.platform || $json.platform || \"Instagram\" }}\n\nOBJECTIVE:\n{{ $json.topic?.objective || $json.objective || \"Awareness\" }}\n\nADDITIONAL DIRECTION:\n{{ $(\"Normalize Request\").first().json.additionalDirection || $(\"Normalize Request\").first().json.topic?.additionalDirection || $json.additionalDirection || \"No additional direction provided.\" }}\n\nReference image guidance:\n{{ JSON.stringify($json.referenceImageAnalysis || {}) }}\n\nCRITICAL:\n- Return ONLY valid JSON.\n- No markdown.\n- Use the requested language.\n- Be specific to the brand, product, and topic.\n- Do not invent facts, claims, features, prices, testimonials, awards, or proof absent from context.\n- imagePrompt is required and must describe the final image to generate.\n- Please use this language for your output\nLANGUAGE:\n{{ $(\"Normalize Request\").first().json.language || $json.language || \"Use the same language as the request\" }}\n\nRequired JSON:\n{\n  \"title\": \"\",\n  \"platform\": \"\",\n  \"objective\": \"\",\n  \"format\": \"single_image\",\n  \"caption\": \"\",\n  \"hook\": \"\",\n  \"cta\": \"\",\n  \"hashtags\": [],\n  \"visualDirection\": \"\",\n  \"imagePrompt\": \"\"\n}",
+        "options": {}
+      },
+      "id": "f65177b5-b7fc-4d5a-867e-145242ab0907",
+      "name": "AI Agent - Single Image",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        2208,
+        -464
+      ]
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-4o-mini",
+        "options": {
+          "maxTokens": 5000
+        }
+      },
+      "id": "348a6b55-7ba7-4c62-b5ba-4c1aa94d9d05",
+      "name": "OpenRouter Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        2208,
+        624
+      ],
+      "credentials": {
+        "openRouterApi": {
+          "id": "ALSmrNcc7DKGJr1F",
+          "name": "OpenRouter Floothink"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "path": "content-generator/status",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "d8db3585-b7b2-459d-ad05-1ef0774e1700",
+      "name": "Webhook - Content Generator Status",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -464,
+        160
+      ],
+      "webhookId": "4e13314e-e1d6-4166-8a53-74499022db22",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "function sqlLiteral(value) {\n  if (value === null || value === undefined || value === '') return 'NULL';\n  return `'${String(value).replace(/'/g, \"''\")}'`;\n}\nconst query = $input.first().json.query || {};\nconst jobId = query.jobId || '';\nconst ensureTableSql = `\nCREATE TABLE IF NOT EXISTS content_generation (\n  id bigserial PRIMARY KEY,\n  job_id text UNIQUE NOT NULL,\n  status text NOT NULL DEFAULT 'IN_PROGRESS',\n  brand_id text,\n  brand_name text,\n  product_id text,\n  product_name text,\n  topic_id text,\n  title text,\n  platform text,\n  content_format text,\n  objective text,\n  language text,\n  content_json jsonb,\n  sections_json jsonb,\n  images_json jsonb,\n  created_at timestamptz DEFAULT now(),\n  updated_at timestamptz DEFAULT now()\n);\nALTER TABLE content_generation ADD COLUMN IF NOT EXISTS brand_id text;\nALTER TABLE content_generation ADD COLUMN IF NOT EXISTS brand_name text;\nALTER TABLE content_generation ADD COLUMN IF NOT EXISTS product_id text;\nALTER TABLE content_generation ADD COLUMN IF NOT EXISTS product_name text;\nALTER TABLE content_generation ADD COLUMN IF NOT EXISTS topic_id text;\nALTER TABLE content_generation ADD COLUMN IF NOT EXISTS title text;\nALTER TABLE content_generation ADD COLUMN IF NOT EXISTS platform text;\nALTER TABLE content_generation ADD COLUMN IF NOT EXISTS content_format text;\nALTER TABLE content_generation ADD COLUMN IF NOT EXISTS objective text;\nALTER TABLE content_generation ADD COLUMN IF NOT EXISTS language text;\nALTER TABLE content_generation ADD COLUMN IF NOT EXISTS content_json jsonb;\nALTER TABLE content_generation ADD COLUMN IF NOT EXISTS sections_json jsonb;\nALTER TABLE content_generation ADD COLUMN IF NOT EXISTS images_json jsonb;\nALTER TABLE content_generation ADD COLUMN IF NOT EXISTS result jsonb;\nCREATE UNIQUE INDEX IF NOT EXISTS content_generation_job_id_unique_idx ON content_generation (job_id);\nCREATE TABLE IF NOT EXISTS content_generation_images (\n  id bigserial PRIMARY KEY,\n  job_id text NOT NULL,\n  slide_number int,\n  type text DEFAULT 'slide',\n  headline text,\n  body text,\n  visual_direction text,\n  image_prompt text,\n  image_url text,\n  reference_image_url text,\n  aspect_ratio text DEFAULT '1:1',\n  created_at timestamptz DEFAULT now()\n);\nCREATE INDEX IF NOT EXISTS content_generation_images_job_id_idx ON content_generation_images (job_id);\n`;\nconst selectStatusSql = `\nSELECT id, job_id, status, brand_id, brand_name, product_id, product_name, topic_id, title, platform, content_format, objective, language, content_json, sections_json, images_json, result\nFROM content_generation\nWHERE job_id = ${sqlLiteral(jobId)}\nLIMIT 1;\n`;\nreturn [{ json: { jobId, ensureTableSql, selectStatusSql } }];"
+      },
+      "id": "dc27e694-3f59-48b2-9dda-147e86b21285",
+      "name": "Normalize Status Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -224,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "CREATE TABLE IF NOT EXISTS content_generation (\n  id bigserial PRIMARY KEY,\n  job_id text UNIQUE NOT NULL,\n  status text NOT NULL DEFAULT 'IN_PROGRESS',\n  brand_id text,\n  brand_name text,\n  product_id text,\n  product_name text,\n  topic_id text,\n  topic_title text,\n  language text,\n  platform text,\n  output_format text,\n  objective text,\n  additional_direction text,\n  reference_images jsonb,\n  result jsonb,\n  error_message text,\n  created_at timestamptz DEFAULT now(),\n  updated_at timestamptz DEFAULT now()\n);\nALTER TABLE content_generation ADD COLUMN IF NOT EXISTS result jsonb;\nALTER TABLE content_generation ADD COLUMN IF NOT EXISTS error_message text;\nCREATE UNIQUE INDEX IF NOT EXISTS content_generation_job_id_unique_idx ON content_generation (job_id);",
+        "options": {}
+      },
+      "id": "f689d0d8-497e-44be-b5ea-aaff7e73b4a4",
+      "name": "Ensure Content Generation Table - Status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        16,
+        160
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "YkWjVauTa48dvHlA",
+          "name": "Postgree N8N Floothink"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  id,\n  job_id,\n  status,\n  result,\n  created_at,\n  updated_at\nFROM content_generation\nWHERE job_id = '{{ $(\"Normalize Status Request\").first().json.jobId }}'\nLIMIT 1;",
+        "options": {}
+      },
+      "id": "e44bb8c3-4972-482f-a915-7085c3ec2849",
+      "name": "Fetch Content Generation by Job ID",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        256,
+        160
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "YkWjVauTa48dvHlA",
+          "name": "Postgree N8N Floothink"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const jobId = $('Normalize Status Request').first().json.jobId;\nconst items = $input.all().map((item) => item.json);\n\n// Cari data run dari input yang punya status/job_id, utamakan yang punya caption/hook\nlet runData =\n  items.find((item) => item.job_id && (item.caption !== undefined || item.hook !== undefined)) ||\n  items.find((item) => item.job_id && item.status) ||\n  {};\n\ntry {\n  const fetchedRun = $('Fetch Content Generation by Job ID').first().json || {};\n  runData = {\n    ...runData,\n    ...fetchedRun,\n    caption: runData.caption ?? fetchedRun.caption,\n    hook: runData.hook ?? fetchedRun.hook,\n  };\n} catch (error) {}\n\nif (!runData.job_id) {\n  return [{\n    json: {\n      statusCode: 404,\n      body: {\n        success: false,\n        jobId,\n        status: 'NOT_FOUND',\n        message: 'Job not found',\n      },\n    },\n  }];\n}\n\nconst status = runData.status || 'IN_PROGRESS';\n\nconst images = items.filter((item) =>\n  item.image_url ||\n  item.imageUrl ||\n  item.type === 'slide' ||\n  item.type === 'reels_scene' ||\n  item.type === 'story_video_scene' ||\n  item.type === 'story_image' ||\n  item.type === 'single_image'\n);\n\nconst caption = runData.caption ?? null;\nconst hook = runData.hook ?? null;\n\nreturn [{\n  json: {\n    statusCode: 200,\n    body: {\n      success: true,\n      jobId: runData.job_id,\n      status,\n      done: status === 'DONE',\n      caption,\n      hook,\n      totalImages: status === 'DONE' ? images.length : 0,\n      images: status === 'DONE' ? images : [],\n    },\n  },\n}];"
+      },
+      "id": "78486cba-f8f5-491e-8573-50511dc594bb",
+      "name": "Format Status Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        944,
+        144
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json.body) }}",
+        "options": {
+          "responseCode": "={{ $json.statusCode }}"
+        }
+      },
+      "id": "3cae3466-50ac-4689-8752-b77b728f7483",
+      "name": "Respond Status",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1184,
+        144
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Webhook - Content Generator').item.json.body.topic.format }}",
+                    "rightValue": "Single Image",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "9e66ec14-471c-48a3-975a-aba670558c89"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Single Image"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "c96beda7-9a0c-4fb3-bee4-6068d35787c9",
+                    "leftValue": "={{ $('Webhook - Content Generator').item.json.body.topic.format }}",
+                    "rightValue": "=Carousel",
+                    "operator": {
+                      "type": "string",
+                      "operation": "regex"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Carousel"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "7a1e433e-f7a7-4865-9e16-83012314bff6",
+                    "leftValue": "={{ $('Webhook - Content Generator').item.json.body.topic.format }}",
+                    "rightValue": "Reels",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Reels"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "0b430601-ec7d-468e-9dd4-01e73edc0954",
+                    "leftValue": "={{ $('Webhook - Content Generator').item.json.body.topic.format }}",
+                    "rightValue": "Story Video",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Story Video"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "fa140865-fc7e-4490-870e-a5fbcd29ae2c",
+                    "leftValue": "={{ $('Webhook - Content Generator').item.json.body.topic.format }}",
+                    "rightValue": "Story Image",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Story Image"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "switch-by-content-type-pre-ai",
+      "name": "Switch by Content Type",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        1904,
+        -96
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an expert social media content generator for FCE.\n\nCreate CAROUSEL content only.\n\nMARKETING SKILLS APPLIED:\n{{ (() => { try { const j = $(\"Build Content Context + Skills Context\").first().json; return j.skills_context || j.skillsContext || j.skills_context_text || \"No skills context provided.\"; } catch (e) { return \"No skills context provided.\"; } })() }}\n\nBRAND CONTEXT:\n{{ (() => { try { const j = $(\"Build Content Context + Skills Context\").first().json; return j.brand_context_text || j.brandContextText || \"No brand context provided.\"; } catch (e) { return \"No brand context provided.\"; } })() }}\n\nPRODUCT CONTEXT:\n{{ (() => { try { const j = $(\"Build Content Context + Skills Context\").first().json; return j.product_context_text || j.productContextText || \"No product context provided.\"; } catch (e) { return \"No product context provided.\"; } })() }}\n\nTOPIC CONTEXT:\n{{ (() => { try { const j = $(\"Build Content Context + Skills Context\").first().json; return j.topic_context_text || j.topicContextText || \"No topic context provided.\"; } catch (e) { return \"No topic context provided.\"; } })() }}\n\nPLATFORM:\n{{ $(\"Normalize Request\").first().json.topic?.platform || $(\"Normalize Request\").first().json.platform || $json.platform || \"Instagram\" }}\n\nOBJECTIVE:\n{{ $(\"Normalize Request\").first().json.topic?.objective || $(\"Normalize Request\").first().json.objective || $json.objective || \"Awareness\" }}\n\nADDITIONAL DIRECTION:\n{{ $(\"Normalize Request\").first().json.additionalDirection || $(\"Normalize Request\").first().json.topic?.additionalDirection || $json.additionalDirection || \"No additional direction provided.\" }}\n\nREFERENCE IMAGES:\n{{ $(\"Normalize Request\").first().json.referenceImages_text || $json.referenceImages_text || \"No reference image URL provided.\" }}\n\nREFERENCE IMAGE ANALYSIS:\n{{ (() => { try { return JSON.stringify($(\"Code in JavaScript8\").first().json.referenceImageAnalysis || {}, null, 2); } catch (e) { return \"No reference image analysis provided.\"; } })() }}\n\nUse the reference image analysis only as visual guidance for style, composition, color, mood, layout, and design direction. Do not copy exact text, logos, or protected design elements unless explicitly provided as owned brand assets.\n\nCRITICAL:\n- Return ONLY valid JSON.\n- No markdown.\n- Use the requested language.\n- Be specific to the brand, product, and topic.\n- Do not invent facts, claims, features, prices, testimonials, awards, or proof absent from context.\n- Every slide must include imagePrompt.\n- Make carousel slides coherent as a sequence: strong hook, clear progression, useful payoff, and CTA.\n- Each imagePrompt must be visually distinct but consistent with the same campaign style.\n- Please use this language for your output\nLANGUAGE:\n{{ $(\"Normalize Request\").first().json.language || $json.language || \"Use the same language as the request\" }}\n\n\nRequired JSON:\n{\n  \"title\": \"\",\n  \"platform\": \"\",\n  \"objective\": \"\",\n  \"caption\": \"\",\n  \"hook\": \"\",\n  \"cta\": \"\",\n  \"hashtags\": [],\n  \"slides\": [\n    {\n      \"slideNumber\": 1,\n      \"headline\": \"\",\n      \"body\": \"\",\n      \"visualDirection\": \"\",\n      \"imagePrompt\": \"\"\n    }\n  ]\n}",
+        "options": {}
+      },
+      "id": "ai-agent-carousel",
+      "name": "AI Agent - Carousel",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        2208,
+        -272
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an expert social media content generator for FCE.\n\nCreate REELS content only.\n\nMARKETING SKILLS APPLIED:\n{{ (() => { try { const j = $(\"Build Content Context + Skills Context\").first().json; return j.skills_context || j.skillsContext || j.skills_context_text || \"No skills context provided.\"; } catch (e) { return \"No skills context provided.\"; } })() }}\n\nBRAND CONTEXT:\n{{ (() => { try { const j = $(\"Build Content Context + Skills Context\").first().json; return j.brand_context_text || j.brandContextText || \"No brand context provided.\"; } catch (e) { return \"No brand context provided.\"; } })() }}\n\nPRODUCT CONTEXT:\n{{ (() => { try { const j = $(\"Build Content Context + Skills Context\").first().json; return j.product_context_text || j.productContextText || \"No product context provided.\"; } catch (e) { return \"No product context provided.\"; } })() }}\n\nTOPIC CONTEXT:\n{{ (() => { try { const j = $(\"Build Content Context + Skills Context\").first().json; return j.topic_context_text || j.topicContextText || \"No topic context provided.\"; } catch (e) { return \"No topic context provided.\"; } })() }}\n\nPLATFORM:\n{{ $(\"Normalize Request\").first().json.topic?.platform || $(\"Normalize Request\").first().json.platform || $json.platform || \"Instagram\" }}\n\nOBJECTIVE:\n{{ $(\"Normalize Request\").first().json.topic?.objective || $(\"Normalize Request\").first().json.objective || $json.objective || \"Awareness\" }}\n\nADDITIONAL DIRECTION:\n{{ $(\"Normalize Request\").first().json.additionalDirection || $(\"Normalize Request\").first().json.topic?.additionalDirection || $json.additionalDirection || \"No additional direction provided.\" }}\n\nREFERENCE IMAGES:\n{{ $(\"Normalize Request\").first().json.referenceImages_text || $json.referenceImages_text || \"No reference image URL provided.\" }}\n\nREFERENCE IMAGE ANALYSIS:\n{{ (() => { try { return JSON.stringify($(\"Code in JavaScript8\").first().json.referenceImageAnalysis || {}, null, 2); } catch (e) { return \"No reference image analysis provided.\"; } })() }}\n\nCRITICAL:\n- Return ONLY valid JSON.\n- No markdown.\n- Use the requested language.\n- Be specific to the brand, product, and topic.\n- Do not invent facts, claims, features, prices, testimonials, awards, or proof absent from context.\n- Create video scenes, not carousel slides.\n- Every scene must include imagePrompt.\n- Please use this language for your output\nLANGUAGE:\n{{ $(\"Normalize Request\").first().json.language || $json.language || \"Use the same language as the request\" }}\n\n\nRequired JSON:\n{\n  \"title\": \"\",\n  \"platform\": \"\",\n  \"objective\": \"\",\n  \"format\": \"reels\",\n  \"caption\": \"\",\n  \"hook\": \"\",\n  \"cta\": \"\",\n  \"hashtags\": [],\n  \"script\": {\n    \"openingHook\": \"\",\n    \"voiceover\": \"\",\n    \"textOverlays\": [],\n    \"scenes\": [\n      {\n        \"sceneNumber\": 1,\n        \"duration\": \"\",\n        \"visualDirection\": \"\",\n        \"voiceover\": \"\",\n        \"textOverlay\": \"\",\n        \"imagePrompt\": \"\"\n      }\n    ]\n  }\n}",
+        "options": {}
+      },
+      "id": "ai-agent-reels",
+      "name": "AI Agent - Reels",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        2208,
+        -48
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an expert social media content generator for FCE.\n\nCreate STORY IMAGE content only.\n\nMARKETING SKILLS APPLIED:\n{{ (() => { try { const j = $(\"Build Content Context + Skills Context\").first().json; return j.skills_context || j.skillsContext || j.skills_context_text || \"No skills context provided.\"; } catch (e) { return \"No skills context provided.\"; } })() }}\n\nBRAND CONTEXT:\n{{ (() => { try { const j = $(\"Build Content Context + Skills Context\").first().json; return j.brand_context_text || j.brandContextText || \"No brand context provided.\"; } catch (e) { return \"No brand context provided.\"; } })() }}\n\nPRODUCT CONTEXT:\n{{ (() => { try { const j = $(\"Build Content Context + Skills Context\").first().json; return j.product_context_text || j.productContextText || \"No product context provided.\"; } catch (e) { return \"No product context provided.\"; } })() }}\n\nTOPIC CONTEXT:\n{{ (() => { try { const j = $(\"Build Content Context + Skills Context\").first().json; return j.topic_context_text || j.topicContextText || \"No topic context provided.\"; } catch (e) { return \"No topic context provided.\"; } })() }}\n\nPLATFORM:\n{{ $(\"Normalize Request\").first().json.topic?.platform || $(\"Normalize Request\").first().json.platform || $json.platform || \"Instagram\" }}\n\nOBJECTIVE:\n{{ $(\"Normalize Request\").first().json.topic?.objective || $(\"Normalize Request\").first().json.objective || $json.objective || \"Awareness\" }}\n\nADDITIONAL DIRECTION:\n{{ $(\"Normalize Request\").first().json.additionalDirection || $(\"Normalize Request\").first().json.topic?.additionalDirection || $json.additionalDirection || \"No additional direction provided.\" }}\n\nREFERENCE IMAGES:\n{{ $(\"Normalize Request\").first().json.referenceImages_text || $json.referenceImages_text || \"No reference image URL provided.\" }}\n\nREFERENCE IMAGE ANALYSIS:\n{{ (() => { try { return JSON.stringify($(\"Code in JavaScript8\").first().json.referenceImageAnalysis || {}, null, 2); } catch (e) { return \"No reference image analysis provided.\"; } })() }}\n\nCRITICAL:\n- Return ONLY valid JSON.\n- No markdown.\n- Use the requested language.\n- Be specific to the brand, product, and topic.\n- Do not invent facts, claims, features, prices, testimonials, awards, or proof absent from context.\n- imagePrompt is required and must describe a vertical 9:16 story image.\n- Please use this language for your output\nLANGUAGE:\n{{ $(\"Normalize Request\").first().json.language || $json.language || \"Use the same language as the request\" }}\n\n\nRequired JSON:\n{\n  \"title\": \"\",\n  \"platform\": \"\",\n  \"objective\": \"\",\n  \"format\": \"story_image\",\n  \"caption\": \"\",\n  \"hook\": \"\",\n  \"cta\": \"\",\n  \"hashtags\": [],\n  \"visualDirection\": \"\",\n  \"imagePrompt\": \"\",\n  \"storyText\": \"\"\n}",
+        "options": {}
+      },
+      "id": "ai-agent-story-image",
+      "name": "AI Agent - Story Image",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        2208,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an expert social media content generator for FCE.\n\nCreate STORY VIDEO content only.\n\nMARKETING SKILLS APPLIED:\n{{ (() => { try { const j = $(\"Build Content Context + Skills Context\").first().json; return j.skills_context || j.skillsContext || j.skills_context_text || \"No skills context provided.\"; } catch (e) { return \"No skills context provided.\"; } })() }}\n\nBRAND CONTEXT:\n{{ (() => { try { const j = $(\"Build Content Context + Skills Context\").first().json; return j.brand_context_text || j.brandContextText || \"No brand context provided.\"; } catch (e) { return \"No brand context provided.\"; } })() }}\n\nPRODUCT CONTEXT:\n{{ (() => { try { const j = $(\"Build Content Context + Skills Context\").first().json; return j.product_context_text || j.productContextText || \"No product context provided.\"; } catch (e) { return \"No product context provided.\"; } })() }}\n\nTOPIC CONTEXT:\n{{ (() => { try { const j = $(\"Build Content Context + Skills Context\").first().json; return j.topic_context_text || j.topicContextText || \"No topic context provided.\"; } catch (e) { return \"No topic context provided.\"; } })() }}\n\nPLATFORM:\n{{ $(\"Normalize Request\").first().json.topic?.platform || $(\"Normalize Request\").first().json.platform || $json.platform || \"Instagram\" }}\n\nOBJECTIVE:\n{{ $(\"Normalize Request\").first().json.topic?.objective || $(\"Normalize Request\").first().json.objective || $json.objective || \"Awareness\" }}\n\nADDITIONAL DIRECTION:\n{{ $(\"Normalize Request\").first().json.additionalDirection || $(\"Normalize Request\").first().json.topic?.additionalDirection || $json.additionalDirection || \"No additional direction provided.\" }}\n\nREFERENCE IMAGES:\n{{ $(\"Normalize Request\").first().json.referenceImages_text || $json.referenceImages_text || \"No reference image URL provided.\" }}\n\nREFERENCE IMAGE ANALYSIS:\n{{ (() => { try { return JSON.stringify($(\"Code in JavaScript8\").first().json.referenceImageAnalysis || {}, null, 2); } catch (e) { return \"No reference image analysis provided.\"; } })() }}\n\nCRITICAL:\n- Return ONLY valid JSON.\n- No markdown.\n- Use the requested language.\n- Be specific to the brand, product, and topic.\n- Do not invent facts, claims, features, prices, testimonials, awards, or proof absent from context.\n- Create vertical story video scenes, not carousel slides.\n- Every scene must include imagePrompt.\n- Please use this language for your output\nLANGUAGE:\n{{ $(\"Normalize Request\").first().json.language || $json.language || \"Use the same language as the request\" }}\n\n\nRequired JSON:\n{\n  \"title\": \"\",\n  \"platform\": \"\",\n  \"objective\": \"\",\n  \"format\": \"story_video\",\n  \"caption\": \"\",\n  \"hook\": \"\",\n  \"cta\": \"\",\n  \"hashtags\": [],\n  \"script\": {\n    \"openingHook\": \"\",\n    \"voiceover\": \"\",\n    \"textOverlays\": [],\n    \"scenes\": [\n      {\n        \"sceneNumber\": 1,\n        \"duration\": \"\",\n        \"visualDirection\": \"\",\n        \"voiceover\": \"\",\n        \"textOverlay\": \"\",\n        \"imagePrompt\": \"\"\n      }\n    ]\n  }\n}",
+        "options": {}
+      },
+      "id": "ai-agent-story-video",
+      "name": "AI Agent - Story Video",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        2208,
+        176
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "function stripCodeFence(text) {\n  return String(text || '').trim().replace(/^```(?:json)?\\s*/i, '').replace(/```$/i, '').trim();\n}\n\nfunction parseAiJson(value) {\n  if (value && typeof value === 'object' && !Array.isArray(value)) return value;\n\n  const cleaned = stripCodeFence(value);\n\n  try {\n    return JSON.parse(cleaned);\n  } catch (error) {\n    const first = cleaned.indexOf('{');\n    const last = cleaned.lastIndexOf('}');\n\n    if (first >= 0 && last > first) {\n      return JSON.parse(cleaned.slice(first, last + 1));\n    }\n\n    throw error;\n  }\n}\n\nfunction firstReferenceImageUrl(value) {\n  if (!value) return null;\n\n  if (Array.isArray(value)) {\n    const first = value.find(Boolean);\n    return first ? String(first) : null;\n  }\n\n  return String(value);\n}\n\nconst built = $('Build Content Context + Skills Context').first().json;\nconst webhookBody = $('Webhook - Content Generator').first().json.body || {};\nconst incoming = $input.first().json || {};\n\nconst referenceImageUrl =\n  firstReferenceImageUrl(webhookBody.referenceImages) ||\n  firstReferenceImageUrl(built.referenceImages) ||\n  firstReferenceImageUrl(incoming.referenceImages);\n\nconst raw = incoming.output ?? incoming.text ?? incoming.response ?? incoming;\nconst parsed = parseAiJson(raw);\n\nconst slides = Array.isArray(parsed.slides) ? parsed.slides : [];\nif (!slides.length) throw new Error('Carousel output must include slides');\n\nconst normalizedSlides = slides.map((slide, index) => ({\n  slideNumber: Number(slide.slideNumber || index + 1),\n  headline: String(slide.headline || ''),\n  body: String(slide.body || ''),\n  visualDirection: String(slide.visualDirection || ''),\n  imagePrompt: String(slide.imagePrompt || slide.visualDirection || '').trim(),\n  imageUrl: null,\n  referenceImageUrl,\n  aspectRatio: '1:1',\n}));\n\nconst content = {\n  title: String(parsed.title || built.topic?.title || ''),\n  platform: String(parsed.platform || built.platform || built.topic?.platform || ''),\n  objective: String(parsed.objective || built.objective || ''),\n  format: 'carousel',\n  caption: String(parsed.caption || ''),\n  hook: String(parsed.hook || ''),\n  cta: String(parsed.cta || ''),\n  hashtags: Array.isArray(parsed.hashtags) ? parsed.hashtags : [],\n  slides: normalizedSlides,\n};\n\nconst sections = [\n  { sectionType: 'hook', sectionOrder: 1, contentText: content.hook || '' },\n  { sectionType: 'caption', sectionOrder: 2, contentText: content.caption || '' },\n  { sectionType: 'cta', sectionOrder: 3, contentText: content.cta || '' },\n  { sectionType: 'hashtag', sectionOrder: 4, contentText: content.hashtags.join(' ') },\n  ...normalizedSlides.map((slide, index) => ({\n    sectionType: 'slide',\n    sectionOrder: index + 5,\n    contentText: JSON.stringify(slide),\n  })),\n];\n\nconst images = normalizedSlides.map((slide) => ({\n  type: 'slide',\n  slideNumber: slide.slideNumber,\n  imagePrompt: slide.imagePrompt,\n  imageUrl: null,\n  referenceImageUrl,\n  aspectRatio: '1:1',\n}));\n\nreturn [\n  {\n    json: {\n      jobId: built.jobId,\n      content,\n      sections,\n      images,\n      metadata: {\n        brand: built.brand,\n        product: built.product,\n        topic: built.topic,\n        language: built.language,\n        platform: built.platform,\n        objective: built.objective,\n      },\n    },\n  },\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2528,
+        -272
+      ],
+      "id": "e8275ad5-fe1b-4cd8-ba57-abf392f25ec4",
+      "name": "Parse Carousel Output"
+    },
+    {
+      "parameters": {
+        "jsCode": "const source = $('Parse Carousel Output').first().json;\n\nconst content = source.content || {};\nconst slides = Array.isArray(content.slides) ? content.slides : [];\n\nif (!slides.length) {\n  throw new Error('No slides found to prepare image generation');\n}\n\nreturn slides.map((slide, index) => {\n  const slideNumber = Number(slide.slideNumber || index + 1);\n\n  return {\n    json: {\n      jobId: source.jobId || $('Normalize Request').first().json.jobId,\n\n      type: 'slide',\n      slideNumber,\n      headline: slide.headline || '',\n      body: slide.body || '',\n      visualDirection: slide.visualDirection || '',\n      imagePrompt: slide.imagePrompt || slide.visualDirection || '',\n      aspectRatio: '1:1',\n\n      contentTitle: content.title || '',\n      platform: content.platform || '',\n      objective: content.objective || '',\n      format: content.format || 'carousel',\n      caption: content.caption || '',\n      hook: content.hook || '',\n      cta: content.cta || '',\n      hashtags: content.hashtags || [],\n\n      content,\n      sections: source.sections || [],\n      images: source.images || [],\n      metadata: source.metadata || {}\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2976,
+        -272
+      ],
+      "id": "0ecd7032-3720-426e-9c27-88ae32fdaacd",
+      "name": "Prepare Slide Images"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        3200,
+        -272
+      ],
+      "id": "4f75e546-55b9-4cde-9711-e9eb84b9105f",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openRouterApi",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "={\n  \"Content-Type\": \"application/json\",\n  \"HTTP-Referer\": \"https://fce.floothink.com\",\n  \"X-Title\": \"FCE Content Generator\"\n}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"google/gemini-3-pro-image-preview\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Generate a single {{$json.aspectRatio || '1:1'}} Instagram carousel slide image. Do not include long readable text. Use clean professional commercial visual style. No watermark. Slide headline: {{$json.headline}}. Slide body: {{$json.body}}. Visual direction: {{$json.visualDirection}}. Image prompt: {{$json.imagePrompt}}\"\n    }\n  ],\n  \"modalities\": [\"image\", \"text\"],\n  \"stream\": false\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        3424,
+        -256
+      ],
+      "id": "5e1ec767-002d-4755-ba05-15de7617d2b9",
+      "name": "HTTP Request",
+      "retryOnFail": true,
+      "credentials": {
+        "openRouterApi": {
+          "id": "ALSmrNcc7DKGJr1F",
+          "name": "OpenRouter Floothink"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH update_run AS (\n  UPDATE content_generation\n  SET\n    caption = NULLIF('{{ ($json.content?.caption || \"\").toString().replace(/'/g, \"''\") }}', ''),\n    hook = NULLIF('{{ ($json.content?.hook || \"\").toString().replace(/'/g, \"''\") }}', ''),\n    result = COALESCE(result, '{}'::jsonb) || jsonb_build_object(\n      'title', NULLIF('{{ ($json.content?.title || \"\").toString().replace(/'/g, \"''\") }}', ''),\n      'caption', NULLIF('{{ ($json.content?.caption || \"\").toString().replace(/'/g, \"''\") }}', ''),\n      'hook', NULLIF('{{ ($json.content?.hook || \"\").toString().replace(/'/g, \"''\") }}', ''),\n      'cta', NULLIF('{{ ($json.content?.cta || \"\").toString().replace(/'/g, \"''\") }}', ''),\n      'hashtags', '{{ JSON.stringify($json.content?.hashtags || []) }}'::jsonb\n    ),\n    updated_at = NOW()\n  WHERE job_id = '{{ $(\"Normalize Request\").first().json.jobId }}'\n  RETURNING job_id\n),\ndelete_images AS (\n  DELETE FROM content_generation_images\n  WHERE job_id = '{{ $(\"Normalize Request\").first().json.jobId }}'\n  RETURNING id\n)\nSELECT\n  true AS success,\n  (SELECT job_id FROM update_run) AS job_id,\n  (SELECT COUNT(*) FROM delete_images) AS deleted_images;",
+        "options": {}
+      },
+      "id": "clear-existing-slide-images",
+      "name": "Clear Existing Slide Images",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2752,
+        -272
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "YkWjVauTa48dvHlA",
+          "name": "Postgree N8N Floothink"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO content_generation_images (\n  job_id,\n  slide_number,\n  type,\n  headline,\n  body,\n  visual_direction,\n  image_prompt,\n  image_url,\n  reference_image_url,\n  aspect_ratio\n)\nVALUES (\n  '{{ $(\"Normalize Request\").first().json.jobId }}',\n  {{ Number($(\"Prepare Slide Images\").item.json.slideNumber || $(\"Prepare Slide Images\").item.json.sceneNumber || $(\"Prepare Slide Images\").item.json.index || 1) }},\n  'slide',\n  NULLIF('{{ ($(\"Prepare Slide Images\").item.json.headline || \"\").toString().replace(/'/g, \"''\") }}', ''),\n  NULLIF('{{ ($(\"Prepare Slide Images\").item.json.body || \"\").toString().replace(/'/g, \"''\") }}', ''),\n  NULLIF('{{ ($(\"Prepare Slide Images\").item.json.visualDirection || \"\").toString().replace(/'/g, \"''\") }}', ''),\n  NULLIF('{{ ($(\"Prepare Slide Images\").item.json.imagePrompt || \"\").toString().replace(/'/g, \"''\") }}', ''),\n  NULLIF('{{ ($(\"Code in JavaScript4\").item.json.uploadResult?.imageUrl || $(\"Code in JavaScript4\").item.json.imageUrl || \"\").toString().replace(/'/g, \"''\") }}', ''),\n  NULLIF('{{ (() => {\n    const item = $(\"Prepare Slide Images\").item.json;\n    const parsed = $(\"Parse Carousel Output\").first().json;\n    const body = $(\"Webhook - Content Generator\").first().json.body || {};\n\n    const pick = (value) => Array.isArray(value) ? value[0] : value;\n\n    return (\n      item.referenceImageUrl ||\n      pick(item.referenceImages) ||\n      parsed.images?.[0]?.referenceImageUrl ||\n      pick(body.referenceImages) ||\n      \"\"\n    ).toString().replace(/'/g, \"''\");\n  })() }}', ''),\n  NULLIF('{{ ($(\"Prepare Slide Images\").item.json.aspectRatio || \"1:1\").toString().replace(/'/g, \"''\") }}', '')\n)\nRETURNING *;",
+        "options": {}
+      },
+      "id": "save-slide-image",
+      "name": "Save Slide Image",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        4528,
+        -256
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "YkWjVauTa48dvHlA",
+          "name": "Postgree N8N Floothink"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 4
+      },
+      "id": "wait-before-next-slide",
+      "name": "Wait Before Next Slide",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        4736,
+        -256
+      ],
+      "webhookId": "f0e32274-e2ff-4d56-b815-f596127dce05"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT *\nFROM content_generation_images\nWHERE job_id = '{{ $(\"Normalize Request\").first().json.jobId }}'\nORDER BY slide_number ASC, id ASC;",
+        "options": {}
+      },
+      "id": "fetch-generated-images",
+      "name": "Fetch Generated Images by Job ID",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        5248,
+        -64
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "YkWjVauTa48dvHlA",
+          "name": "Postgree N8N Floothink"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const built = $('Build Content Context + Skills Context').first().json;\nconst dbImages = $input.all().map((item) => item.json || {});\n\nconst contentType = String(built.contentType || built.outputFormat || '').toLowerCase();\n\nfunction cleanImage(row) {\n  return {\n    id: row.id,\n    type: row.type,\n    slideNumber: row.slide_number || row.slideNumber || null,\n    headline: row.headline || '',\n    body: row.body || '',\n    visualDirection: row.visual_direction || row.visualDirection || '',\n    imagePrompt: row.image_prompt || row.imagePrompt || '',\n    imageUrl: row.image_url || row.imageUrl || '',\n    referenceImageUrl: row.reference_image_url || row.referenceImageUrl || null,\n    aspectRatio: row.aspect_ratio || row.aspectRatio || '1:1'\n  };\n}\n\nconst images = dbImages.map(cleanImage);\n\nconst content = {\n  title: built.title || built.topic?.title || '',\n  platform: built.platform || '',\n  objective: built.objective || '',\n  format: contentType,\n  caption: built.caption || '',\n  hook: built.hook || '',\n  cta: built.cta || '',\n  hashtags: built.hashtags || [],\n  slides: contentType === 'carousel'\n    ? images.map((image) => ({\n        slideNumber: image.slideNumber,\n        headline: image.headline,\n        body: image.body,\n        visualDirection: image.visualDirection,\n        imagePrompt: image.imagePrompt,\n        imageUrl: image.imageUrl\n      }))\n    : []\n};\n\nreturn [{\n  json: {\n    jobId: built.jobId,\n    status: 'DONE',\n    content,\n    sections: built.sections || [],\n    images,\n    result: {\n      content,\n      sections: built.sections || [],\n      images\n    }\n  }\n}];"
+      },
+      "id": "merge-final-content-result",
+      "name": "Merge Final Content Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5488,
+        -64
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE content_generation\nSET\n  result = '{{ JSON.stringify($json.data || $json).replace(/'/g, \"''\") }}'::jsonb,\n  updated_at = now()\nWHERE job_id = '{{ $(\"Normalize Request\").first().json.jobId }}'\nRETURNING *;",
+        "options": {}
+      },
+      "id": "save-final-content-result",
+      "name": "Save Final Content Result",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        5728,
+        -64
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "YkWjVauTa48dvHlA",
+          "name": "Postgree N8N Floothink"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE content_generation\nSET\n  status = 'DONE',\n  updated_at = now()\nWHERE job_id = '{{ $(\"Normalize Request\").first().json.jobId }}'\nRETURNING *;",
+        "options": {}
+      },
+      "id": "mark-carousel-run-done",
+      "name": "Mark Content Run DONE",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        5968,
+        -64
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "YkWjVauTa48dvHlA",
+          "name": "Postgree N8N Floothink"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "function parseJson(value) {\n  if (value && typeof value === 'object' && !Array.isArray(value)) return value;\n  const text = String(value || '').trim().replace(/^```(?:json)?\\s*/i, '').replace(/```$/i, '').trim();\n  try { return JSON.parse(text); } catch (error) {\n    const start = text.indexOf('{');\n    const end = text.lastIndexOf('}');\n    if (start >= 0 && end > start) return JSON.parse(text.slice(start, end + 1));\n    throw error;\n  }\n}\nconst built = $('Build Content Context + Skills Context').first().json;\nconst raw = $input.first().json.output ?? $input.first().json.text ?? $input.first().json.response ?? $input.first().json;\nconst ai = parseJson(raw);\nconst content = {\n  title: String(ai.title || built.topic?.title || ''),\n  platform: String(ai.platform || built.platform || built.topic?.platform || ''),\n  objective: String(ai.objective || built.objective || ''),\n  format: 'single_image',\n  caption: String(ai.caption || ''),\n  hook: String(ai.hook || ''),\n  cta: String(ai.cta || ''),\n  hashtags: Array.isArray(ai.hashtags) ? ai.hashtags : [],\n  visualDirection: String(ai.visualDirection || ''),\n  imagePrompt: String(ai.imagePrompt || ai.visualDirection || '')\n};\nconst sections = [\n  { sectionType: 'hook', sectionOrder: 1, contentText: content.hook },\n  { sectionType: 'caption', sectionOrder: 2, contentText: content.caption },\n  { sectionType: 'cta', sectionOrder: 3, contentText: content.cta },\n  { sectionType: 'hashtag', sectionOrder: 4, contentText: content.hashtags.join(' ') },\n  { sectionType: 'visual_direction', sectionOrder: 5, contentText: content.visualDirection }\n];\nconst images = [{ type: 'single_image', assetNumber: 1, referenceImageUrl:$('Webhook - Content Generator').first().json.body.referenceImages , imagePrompt: content.imagePrompt, aspectRatio: '1:1' }];\nreturn [{ json: { jobId: built.jobId, content, sections, images, slides: [], scenes: [] } }];\n"
+      },
+      "id": "parse-single-image-output",
+      "name": "Parse Single Image Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2528,
+        -464
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const parsed = $('Parse Single Image Output').first().json;\nconst content = parsed.content || {};\nreturn [{ json: { jobId: parsed.jobId, type: 'single_image', slideNumber: 1, headline: content.hook || '', body: content.caption || '', visualDirection: content.visualDirection || '', imagePrompt: content.imagePrompt || content.visualDirection || '', aspectRatio: '1:1', content, sections: parsed.sections || [], images: parsed.images || [], slides: [], scenes: [] } }];"
+      },
+      "id": "prepare-single-image-asset",
+      "name": "Prepare Single Image Asset",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2976,
+        -464
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openRouterApi",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "={\n  \"Content-Type\": \"application/json\",\n  \"HTTP-Referer\": \"https://fce.floothink.com\",\n  \"X-Title\": \"FCE Content Generator\"\n}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"google/gemini-3-pro-image-preview\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Generate a single {{ $json.aspectRatio || '1:1' }} social media post image. Do not include long readable text. Use clean professional commercial visual style. No watermark. Hook: {{ ($json.headline || '').replace(/\\n/g, ' ') }}. Caption context: {{ ($json.body || '').replace(/\\n/g, ' ') }}. Visual direction: {{ ($json.visualDirection || '').replace(/\\n/g, ' ') }}. Image prompt: {{ ($json.imagePrompt || '').replace(/\\n/g, ' ') }}\"\n    }\n  ],\n  \"modalities\": [\"image\", \"text\"]\n}",
+        "options": {}
+      },
+      "id": "generate-single-image",
+      "name": "Generate Single Image",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        3200,
+        -464
+      ],
+      "retryOnFail": true,
+      "credentials": {
+        "openRouterApi": {
+          "id": "ALSmrNcc7DKGJr1F",
+          "name": "OpenRouter Floothink"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst prefix = 'image';\n\nfor (const item of items) {\n  const message = item.json.choices?.[0]?.message || {};\n  const images = message.images || [];\n\n  const img = images.find((image) => image?.image_url?.url);\n  if (!img) continue;\n\n  let imageUrl = img.image_url.url || '';\n\n  let ext = 'jpg';\n  if (imageUrl.startsWith('data:image/png')) ext = 'png';\n  else if (imageUrl.startsWith('data:image/jpeg')) ext = 'jpg';\n  else if (imageUrl.startsWith('data:image/webp')) ext = 'webp';\n\n  if (imageUrl.includes(',')) {\n    imageUrl = imageUrl.split(',')[1];\n  }\n\n  return [\n    {\n      json: {\n        image_url_clean: imageUrl,\n        fileName: `${prefix}_${item.json.created || Date.now()}_0.${ext}`,\n        index: 0,\n      },\n    },\n  ];\n}\n\nreturn [];"
+      },
+      "id": "extract-single-image-url",
+      "name": "Extract Single Image URL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3424,
+        -464
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO content_generation_images (\n  job_id,\n  slide_number,\n  type,\n  headline,\n  body,\n  visual_direction,\n  image_prompt,\n  image_url,\n  reference_image_url,\n  aspect_ratio\n)\nVALUES (\n  '{{ $(\"Normalize Request\").first().json.jobId }}',\n  1,\n  'single_image',\n  NULLIF('{{ ($(\"Prepare Single Image Asset\").first().json.headline || \"\").toString().replace(/'/g, \"''\") }}', ''),\n  NULLIF('{{ ($(\"Prepare Single Image Asset\").first().json.body || \"\").toString().replace(/'/g, \"''\") }}', ''),\n  NULLIF('{{ ($(\"Prepare Single Image Asset\").first().json.visualDirection || \"\").toString().replace(/'/g, \"''\") }}', ''),\n  NULLIF('{{ ($(\"Prepare Single Image Asset\").first().json.imagePrompt || \"\").toString().replace(/'/g, \"''\") }}', ''),\n  NULLIF('{{ ($(\"Code in JavaScript3\").item.json.uploadResult.imageUrl || $(\"Code in JavaScript3\").item.json.imageUrl || \"\").toString().replace(/'/g, \"''\") }}', ''),\n  NULLIF('{{ ($(\"Prepare Single Image Asset\").first().json.images?.[0]?.referenceImageUrl || \"\").toString().replace(/'/g, \"''\") }}', ''),\n  NULLIF('{{ ($(\"Prepare Single Image Asset\").first().json.aspectRatio || \"1:1\").toString().replace(/'/g, \"''\") }}', '')\n)\nRETURNING *;",
+        "options": {}
+      },
+      "id": "save-single-image",
+      "name": "Save Single Image",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        4304,
+        -464
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "YkWjVauTa48dvHlA",
+          "name": "Postgree N8N Floothink"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "function parseJson(value) {\n  if (value && typeof value === 'object' && !Array.isArray(value)) return value;\n  const text = String(value || '').trim().replace(/^```(?:json)?\\s*/i, '').replace(/```$/i, '').trim();\n  try { return JSON.parse(text); } catch (error) {\n    const start = text.indexOf('{');\n    const end = text.lastIndexOf('}');\n    if (start >= 0 && end > start) return JSON.parse(text.slice(start, end + 1));\n    throw error;\n  }\n}\nconst built = $('Build Content Context + Skills Context').first().json;\nconst raw = $input.first().json.output ?? $input.first().json.text ?? $input.first().json.response ?? $input.first().json;\nconst ai = parseJson(raw);\nconst content = {\n  title: String(ai.title || built.topic?.title || ''),\n  platform: String(ai.platform || built.platform || built.topic?.platform || ''),\n  objective: String(ai.objective || built.objective || ''),\n  format: 'story_image',\n  caption: String(ai.caption || ''),\n  hook: String(ai.hook || ''),\n  cta: String(ai.cta || ''),\n  hashtags: Array.isArray(ai.hashtags) ? ai.hashtags : [],\n  visualDirection: String(ai.visualDirection || ''),\n  imagePrompt: String(ai.imagePrompt || ai.visualDirection || ''),\n  storyText: String(ai.storyText || ai.textOverlay || '')\n};\nconst sections = [\n  { sectionType: 'hook', sectionOrder: 1, contentText: content.hook },\n  { sectionType: 'caption', sectionOrder: 2, contentText: content.caption },\n  { sectionType: 'cta', sectionOrder: 3, contentText: content.cta },\n  { sectionType: 'hashtag', sectionOrder: 4, contentText: content.hashtags.join(' ') },\n  { sectionType: 'story_text', sectionOrder: 5, contentText: content.storyText },\n  { sectionType: 'visual_direction', sectionOrder: 6, contentText: content.visualDirection }\n];\nconst images = [{ type: 'story_image', assetNumber: 1, imageUrl: null, referenceImageUrl: null, imagePrompt: content.imagePrompt, aspectRatio: '9:16' }];\nreturn [{ json: { jobId: built.jobId, content, sections, images, slides: [], scenes: [] } }];"
+      },
+      "id": "parse-story-image-output",
+      "name": "Parse Story Image Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2528,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const parsed = $('Parse Story Image Output').first().json;\nconst content = parsed.content || {};\nreturn [{ json: { jobId: parsed.jobId, type: 'story_image', slideNumber: 1, headline: content.hook || content.storyText || '', body: content.caption || '', visualDirection: content.visualDirection || '', imagePrompt: content.imagePrompt || content.visualDirection || '', aspectRatio: '9:16', content, sections: parsed.sections || [], images: parsed.images || [], slides: [], scenes: [] } }];"
+      },
+      "id": "prepare-story-image-asset",
+      "name": "Prepare Story Image Asset",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2976,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openRouterApi",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "={\n  \"Content-Type\": \"application/json\",\n  \"HTTP-Referer\": \"https://fce.floothink.com\",\n  \"X-Title\": \"FCE Content Generator\"\n}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"google/gemini-3-pro-image-preview\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Generate a single {{$json.aspectRatio || '9:16'}} vertical story image. Do not include long readable text. Use clean professional commercial visual style. No watermark. Hook/story text: {{$json.headline}}. Caption context: {{$json.body}}. Visual direction: {{$json.visualDirection}}. Image prompt: {{$json.imagePrompt}}\"\n    }\n  ],\n  \"modalities\": [\"image\", \"text\"],\n  \"stream\": false\n}",
+        "options": {}
+      },
+      "id": "generate-story-image",
+      "name": "Generate Story Image",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        3200,
+        400
+      ],
+      "retryOnFail": true,
+      "credentials": {
+        "openRouterApi": {
+          "id": "ALSmrNcc7DKGJr1F",
+          "name": "OpenRouter Floothink"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO content_generation_images (\n  job_id,\n  slide_number,\n  type,\n  headline,\n  body,\n  visual_direction,\n  image_prompt,\n  image_url,\n  reference_image_url,\n  aspect_ratio\n)\nVALUES (\n  '{{ $(\"Normalize Request\").first().json.jobId }}',\n  1,\n  'single_image',\n  NULLIF('{{ ($(\"Prepare Story Image Asset\").first().json.headline || \"\").toString().replace(/'/g, \"''\") }}', ''),\n  NULLIF('{{ ($(\"Prepare Story Image Asset\").first().json.body || \"\").toString().replace(/'/g, \"''\") }}', ''),\n  NULLIF('{{ ($(\"Prepare Story Image Asset\").first().json.visualDirection || \"\").toString().replace(/'/g, \"''\") }}', ''),\n  NULLIF('{{ ($(\"Prepare Story Image Asset\").first().json.imagePrompt || \"\").toString().replace(/'/g, \"''\") }}', ''),\n  NULLIF('{{ ($(\"Code in JavaScript5\").item.json.uploadResult.imageUrl || $(\"Code in JavaScript3\").item.json.imageUrl || \"\").toString().replace(/'/g, \"''\") }}', ''),\n  NULLIF('{{ ($(\"Prepare Story Image Asset\").first().json.referenceImageUrl || \"\").toString().replace(/'/g, \"''\") }}', ''),\n  NULLIF('{{ ($(\"Prepare Story Image Asset\").first().json.aspectRatio || \"1:1\").toString().replace(/'/g, \"''\") }}', '')\n)\nRETURNING *;",
+        "options": {}
+      },
+      "id": "save-story-image",
+      "name": "Save Story Image",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        4304,
+        400
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "YkWjVauTa48dvHlA",
+          "name": "Postgree N8N Floothink"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "function parseJson(value) {\n  if (value && typeof value === 'object' && !Array.isArray(value)) return value;\n  const text = String(value || '').trim().replace(/^```(?:json)?\\s*/i, '').replace(/```$/i, '').trim();\n  try { return JSON.parse(text); } catch (error) {\n    const start = text.indexOf('{');\n    const end = text.lastIndexOf('}');\n    if (start >= 0 && end > start) return JSON.parse(text.slice(start, end + 1));\n    throw error;\n  }\n}\nconst built = $('Build Content Context + Skills Context').first().json;\nconst raw = $input.first().json.output ?? $input.first().json.text ?? $input.first().json.response ?? $input.first().json;\nconst ai = parseJson(raw);\nconst sourceScenes = Array.isArray(ai.script?.scenes) ? ai.script.scenes : [];\nconst scenes = sourceScenes.map((scene, index) => ({ sceneNumber: Number(scene.sceneNumber || index + 1), duration: String(scene.duration || scene.timeRange || ''), timeRange: String(scene.timeRange || scene.duration || ''), visualDirection: String(scene.visualDirection || scene.visual || scene.description || ''), voiceover: String(scene.voiceover || ''), onScreenText: String(scene.onScreenText || scene.textOverlay || ''), textOverlay: String(scene.textOverlay || scene.onScreenText || ''), imagePrompt: String(scene.imagePrompt || scene.visualDirection || scene.visual || scene.description || '') }));\nconst content = {\n  title: String(ai.title || built.topic?.title || ''),\n  platform: String(ai.platform || built.platform || built.topic?.platform || ''),\n  objective: String(ai.objective || built.objective || ''),\n  format: 'reels',\n  caption: String(ai.caption || ''),\n  hook: String(ai.hook || ai.script?.openingHook || ''),\n  cta: String(ai.cta || ''),\n  hashtags: Array.isArray(ai.hashtags) ? ai.hashtags : [],\n  script: { openingHook: String(ai.script?.openingHook || ai.hook || ''), voiceover: String(ai.script?.voiceover || ''), textOverlays: Array.isArray(ai.script?.textOverlays) ? ai.script.textOverlays : [], scenes }\n};\nconst sections = [\n  { sectionType: 'hook', sectionOrder: 1, contentText: content.hook || content.script.openingHook || '' },\n  { sectionType: 'caption', sectionOrder: 2, contentText: content.caption },\n  { sectionType: 'cta', sectionOrder: 3, contentText: content.cta },\n  { sectionType: 'hashtag', sectionOrder: 4, contentText: content.hashtags.join(' ') },\n  { sectionType: 'script', sectionOrder: 5, contentText: JSON.stringify(content.script) },\n  ...scenes.map((scene, index) => ({ sectionType: 'scene', sectionOrder: index + 6, contentText: JSON.stringify({ ...scene, imageUrl: null, referenceImageUrl: null, aspectRatio: '9:16' }) }))\n];\nconst images = scenes.map((scene) => ({ type: 'reels_scene', sceneNumber: scene.sceneNumber, imageUrl: null, referenceImageUrl: null, imagePrompt: scene.imagePrompt, aspectRatio: '9:16' }));\nreturn [{ json: { jobId: built.jobId, content, sections, images, slides: [], scenes } }];"
+      },
+      "id": "parse-reels-output",
+      "name": "Parse Reels Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2528,
+        -48
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const parsed = $('Parse Reels Output').first().json;\nconst content = parsed.content || {};\nconst scenes = parsed.scenes || content.script?.scenes || [];\nif (!scenes.length) throw new Error('No reels scenes found to prepare image generation');\nreturn scenes.filter((scene) => scene.imagePrompt || scene.visualDirection).map((scene, index) => ({ json: { jobId: parsed.jobId, type: 'reels_scene', slideNumber: Number(scene.sceneNumber || index + 1), sceneNumber: Number(scene.sceneNumber || index + 1), headline: scene.onScreenText || scene.textOverlay || content.hook || '', body: scene.voiceover || '', visualDirection: scene.visualDirection || '', imagePrompt: scene.imagePrompt || scene.visualDirection || '', aspectRatio: '9:16', content, sections: parsed.sections || [], images: parsed.images || [], slides: [], scenes } }));"
+      },
+      "id": "prepare-reels-scene-images",
+      "name": "Prepare Reels Scene Images",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2976,
+        -48
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "loop-reels-scenes",
+      "name": "Loop Reels Scenes",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        3200,
+        -48
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openRouterApi",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "={\n  \"Content-Type\": \"application/json\",\n  \"HTTP-Referer\": \"https://fce.floothink.com\",\n  \"X-Title\": \"FCE Content Generator\"\n}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"google/gemini-3-pro-image-preview\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Generate a single {{$json.aspectRatio || '9:16'}} vertical video scene reference image. Do not include long readable text. Use clean professional commercial visual style. No watermark. Scene {{$json.sceneNumber}}. On-screen text: {{$json.headline}}. Voiceover context: {{$json.body}}. Visual direction: {{$json.visualDirection}}. Image prompt: {{$json.imagePrompt}}\"\n    }\n  ],\n  \"modalities\": [\"image\", \"text\"],\n  \"stream\": false\n}",
+        "options": {}
+      },
+      "id": "generate-reels-scene-image",
+      "name": "Generate Reels Scene Image",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        3424,
+        -32
+      ],
+      "retryOnFail": true,
+      "credentials": {
+        "openRouterApi": {
+          "id": "ALSmrNcc7DKGJr1F",
+          "name": "OpenRouter Floothink"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO content_generation_images (\n  job_id,\n  slide_number,\n  type,\n  headline,\n  body,\n  visual_direction,\n  image_prompt,\n  image_url,\n  reference_image_url,\n  aspect_ratio\n)\nVALUES (\n  '{{ $(\"Normalize Request\").first().json.jobId }}',\n  {{ Number($(\"Prepare Reels Scene Images\").item.json.sceneNumber || $(\"Prepare Reels Scene Images\").item.json.slideNumber || $(\"Prepare Reels Scene Images\").item.json.index || 1) }},\n  'reels_scene',\n  NULLIF('{{ ($(\"Prepare Reels Scene Images\").item.json.headline || \"\").toString().replace(/'/g, \"''\") }}', ''),\n  NULLIF('{{ ($(\"Prepare Reels Scene Images\").item.json.body || \"\").toString().replace(/'/g, \"''\") }}', ''),\n  NULLIF('{{ ($(\"Prepare Reels Scene Images\").item.json.visualDirection || \"\").toString().replace(/'/g, \"''\") }}', ''),\n  NULLIF('{{ ($(\"Prepare Reels Scene Images\").item.json.imagePrompt || \"\").toString().replace(/'/g, \"''\") }}', ''),\n  NULLIF('{{ ($(\"Code in JavaScript6\").item.json.uploadResult?.imageUrl || $(\"Code in JavaScript6\").item.json.imageUrl || \"\").toString().replace(/'/g, \"''\") }}', ''),\n  NULLIF('{{ ($(\"Prepare Reels Scene Images\").item.json.referenceImageUrl || \"\").toString().replace(/'/g, \"''\") }}', ''),\n  NULLIF('{{ ($(\"Prepare Reels Scene Images\").item.json.aspectRatio || \"9:16\").toString().replace(/'/g, \"''\") }}', '')\n)\nRETURNING *;",
+        "options": {}
+      },
+      "id": "save-reels-scene-image",
+      "name": "Save Reels Scene Image",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        4528,
+        -32
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "YkWjVauTa48dvHlA",
+          "name": "Postgree N8N Floothink"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 4
+      },
+      "id": "wait-before-next-reels-scene",
+      "name": "Wait Before Next Reels Scene",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        4736,
+        -32
+      ],
+      "webhookId": "d289381f-38fe-4d50-ba4b-803241dfa53e"
+    },
+    {
+      "parameters": {
+        "jsCode": "function parseJson(value) {\n  if (value && typeof value === 'object' && !Array.isArray(value)) return value;\n  const text = String(value || '').trim().replace(/^```(?:json)?\\s*/i, '').replace(/```$/i, '').trim();\n  try { return JSON.parse(text); } catch (error) {\n    const start = text.indexOf('{');\n    const end = text.lastIndexOf('}');\n    if (start >= 0 && end > start) return JSON.parse(text.slice(start, end + 1));\n    throw error;\n  }\n}\nconst built = $('Build Content Context + Skills Context').first().json;\nconst raw = $input.first().json.output ?? $input.first().json.text ?? $input.first().json.response ?? $input.first().json;\nconst ai = parseJson(raw);\nconst sourceScenes = Array.isArray(ai.script?.scenes) ? ai.script.scenes : (Array.isArray(ai.scenes) ? ai.scenes : []);\nconst scenes = sourceScenes.map((scene, index) => ({ sceneNumber: Number(scene.sceneNumber || index + 1), duration: String(scene.duration || scene.timeRange || ''), timeRange: String(scene.timeRange || scene.duration || ''), visualDirection: String(scene.visualDirection || scene.visual || scene.description || ''), voiceover: String(scene.voiceover || ''), onScreenText: String(scene.onScreenText || scene.textOverlay || ''), textOverlay: String(scene.textOverlay || scene.onScreenText || ''), imagePrompt: String(scene.imagePrompt || scene.visualDirection || scene.visual || scene.description || '') }));\nconst content = {\n  title: String(ai.title || built.topic?.title || ''),\n  platform: String(ai.platform || built.platform || built.topic?.platform || ''),\n  objective: String(ai.objective || built.objective || ''),\n  format: 'story_video',\n  caption: String(ai.caption || ''),\n  hook: String(ai.hook || ai.script?.openingHook || ''),\n  cta: String(ai.cta || ''),\n  hashtags: Array.isArray(ai.hashtags) ? ai.hashtags : [],\n  script: { openingHook: String(ai.script?.openingHook || ai.hook || ''), voiceover: String(ai.script?.voiceover || ''), textOverlays: Array.isArray(ai.script?.textOverlays) ? ai.script.textOverlays : [], scenes }\n};\nconst sections = [\n  { sectionType: 'hook', sectionOrder: 1, contentText: content.hook || content.script.openingHook || '' },\n  { sectionType: 'caption', sectionOrder: 2, contentText: content.caption },\n  { sectionType: 'cta', sectionOrder: 3, contentText: content.cta },\n  { sectionType: 'hashtag', sectionOrder: 4, contentText: content.hashtags.join(' ') },\n  { sectionType: 'script', sectionOrder: 5, contentText: JSON.stringify(content.script) },\n  ...scenes.map((scene, index) => ({ sectionType: 'scene', sectionOrder: index + 6, contentText: JSON.stringify({ ...scene, imageUrl: null, referenceImageUrl: null, aspectRatio: '9:16' }) }))\n];\nconst images = scenes.map((scene) => ({ type: 'story_video_scene', sceneNumber: scene.sceneNumber, imageUrl: null, referenceImageUrl: null, imagePrompt: scene.imagePrompt, aspectRatio: '9:16' }));\nreturn [{ json: { jobId: built.jobId, content, sections, images, slides: [], scenes } }];"
+      },
+      "id": "parse-story-video-output",
+      "name": "Parse Story Video Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2528,
+        176
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const parsed = $('Parse Story Video Output').first().json;\nconst content = parsed.content || {};\nconst scenes = parsed.scenes || content.script?.scenes || [];\nif (!scenes.length) throw new Error('No story video scenes found to prepare image generation');\nreturn scenes.filter((scene) => scene.imagePrompt || scene.visualDirection).map((scene, index) => ({ json: { jobId: parsed.jobId, type: 'story_video_scene', slideNumber: Number(scene.sceneNumber || index + 1), sceneNumber: Number(scene.sceneNumber || index + 1), headline: scene.onScreenText || scene.textOverlay || content.hook || '', body: scene.voiceover || '', visualDirection: scene.visualDirection || '', imagePrompt: scene.imagePrompt || scene.visualDirection || '', aspectRatio: '9:16', content, sections: parsed.sections || [], images: parsed.images || [], slides: [], scenes } }));"
+      },
+      "id": "prepare-story-video-scene-images",
+      "name": "Prepare Story Video Scene Images",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2976,
+        176
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "loop-story-video-scenes",
+      "name": "Loop Story Video Scenes",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        3200,
+        176
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openRouterApi",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "={\n  \"Content-Type\": \"application/json\",\n  \"HTTP-Referer\": \"https://fce.floothink.com\",\n  \"X-Title\": \"FCE Content Generator\"\n}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"google/gemini-3-pro-image-preview\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Generate a single {{$json.aspectRatio || '9:16'}} vertical story video scene reference image. Do not include long readable text. Use clean professional commercial visual style. No watermark. Scene {{$json.sceneNumber}}. On-screen text: {{$json.headline}}. Voiceover context: {{$json.body}}. Visual direction: {{$json.visualDirection}}. Image prompt: {{$json.imagePrompt}}\"\n    }\n  ],\n  \"modalities\": [\"image\", \"text\"],\n  \"stream\": false\n}",
+        "options": {}
+      },
+      "id": "generate-story-video-scene-image",
+      "name": "Generate Story Video Scene Image",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        3424,
+        192
+      ],
+      "retryOnFail": true,
+      "credentials": {
+        "openRouterApi": {
+          "id": "ALSmrNcc7DKGJr1F",
+          "name": "OpenRouter Floothink"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO content_generation_images (\n  job_id,\n  slide_number,\n  type,\n  headline,\n  body,\n  visual_direction,\n  image_prompt,\n  image_url,\n  reference_image_url,\n  aspect_ratio\n)\nVALUES (\n  '{{ $(\"Normalize Request\").first().json.jobId }}',\n  {{ $(\"Prepare Story Video Scene Images\").item.json.sceneNumber || $(\"Prepare Story Video Scene Images\").item.json.slideNumber || $(\"Prepare Story Video Scene Images\").item.json.index || 1 }},\n  'story_video_scene',\n  NULLIF('{{ ($(\"Prepare Story Video Scene Images\").item.json.headline || \"\").toString().replace(/'/g, \"''\") }}', ''),\n  NULLIF('{{ ($(\"Prepare Story Video Scene Images\").item.json.body || \"\").toString().replace(/'/g, \"''\") }}', ''),\n  NULLIF('{{ ($(\"Prepare Story Video Scene Images\").item.json.visualDirection || \"\").toString().replace(/'/g, \"''\") }}', ''),\n  NULLIF('{{ ($(\"Prepare Story Video Scene Images\").item.json.imagePrompt || \"\").toString().replace(/'/g, \"''\") }}', ''),\n  NULLIF('{{ ($(\"Code in JavaScript7\").item.json.uploadResult?.imageUrl || $(\"Code in JavaScript7\").item.json.imageUrl || \"\").toString().replace(/'/g, \"''\") }}', ''),\n  NULLIF('{{ ($(\"Prepare Story Video Scene Images\").item.json.referenceImageUrl || \"\").toString().replace(/'/g, \"''\") }}', ''),\n  NULLIF('{{ ($(\"Prepare Story Video Scene Images\").item.json.aspectRatio || \"9:16\").toString().replace(/'/g, \"''\") }}', '')\n)\nRETURNING *;",
+        "options": {}
+      },
+      "id": "save-story-video-scene-image",
+      "name": "Save Story Video Scene Image",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        4528,
+        192
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "YkWjVauTa48dvHlA",
+          "name": "Postgree N8N Floothink"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 4
+      },
+      "id": "wait-before-next-story-video-scene",
+      "name": "Wait Before Next Story Video Scene",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        4736,
+        192
+      ],
+      "webhookId": "b4804a2a-32af-4179-beb8-461864f2fbd0"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH update_run AS (\n  UPDATE content_generation\n  SET\n    caption = NULLIF('{{ ($(\"Parse Carousel Output\").first().json.content?.caption || \"\").toString().replace(/'/g, \"''\") }}', ''),\n    hook = NULLIF('{{ ($(\"Parse Carousel Output\").first().json.content?.hook || \"\").toString().replace(/'/g, \"''\") }}', ''),\n    result = COALESCE(result, '{}'::jsonb) || jsonb_build_object(\n      'title', NULLIF('{{ ($(\"Parse Carousel Output\").first().json.content?.title || \"\").toString().replace(/'/g, \"''\") }}', ''),\n      'caption', NULLIF('{{ ($(\"Parse Carousel Output\").first().json.content?.caption || \"\").toString().replace(/'/g, \"''\") }}', ''),\n      'hook', NULLIF('{{ ($(\"Parse Carousel Output\").first().json.content?.hook || \"\").toString().replace(/'/g, \"''\") }}', ''),\n      'cta', NULLIF('{{ ($(\"Parse Carousel Output\").first().json.content?.cta || \"\").toString().replace(/'/g, \"''\") }}', ''),\n      'hashtags', '{{ JSON.stringify($(\"Parse Carousel Output\").first().json.content?.hashtags || []) }}'::jsonb\n    ),\n    updated_at = NOW()\n  WHERE job_id = '{{ $(\"Normalize Request\").first().json.jobId }}'\n  RETURNING job_id\n),\ndelete_images AS (\n  DELETE FROM content_generation_images\n  WHERE job_id = '{{ $(\"Normalize Request\").first().json.jobId }}'\n  RETURNING id\n)\nSELECT\n  true AS success,\n  (SELECT job_id FROM update_run) AS job_id,\n  (SELECT COUNT(*) FROM delete_images) AS deleted_images;",
+        "options": {}
+      },
+      "id": "clear-existing-single-image-images",
+      "name": "Clear Existing Single Image Images",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2752,
+        -464
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "YkWjVauTa48dvHlA",
+          "name": "Postgree N8N Floothink"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH update_run AS (\n  UPDATE content_generation\n  SET\n    caption = NULLIF('{{ ($(\"Parse Story Image Output\").first().json.content?.caption || \"\").toString().replace(/'/g, \"''\") }}', ''),\n    hook = NULLIF('{{ ($(\"Parse Story Image Output\").first().json.content?.hook || \"\").toString().replace(/'/g, \"''\") }}', ''),\n    result = COALESCE(result, '{}'::jsonb) || jsonb_build_object(\n      'title', NULLIF('{{ ($(\"Parse Story Image Output\").first().json.content?.title || \"\").toString().replace(/'/g, \"''\") }}', ''),\n      'caption', NULLIF('{{ ($(\"Parse Story Image Output\").first().json.content?.caption || \"\").toString().replace(/'/g, \"''\") }}', ''),\n      'hook', NULLIF('{{ ($(\"Parse Story Image Output\").first().json.content?.hook || \"\").toString().replace(/'/g, \"''\") }}', ''),\n      'cta', NULLIF('{{ ($(\"Parse Story Image Output\").first().json.content?.cta || \"\").toString().replace(/'/g, \"''\") }}', ''),\n      'hashtags', '{{ JSON.stringify($(\"Parse Story Image Output\").first().json.content?.hashtags || []) }}'::jsonb\n    ),\n    updated_at = NOW()\n  WHERE job_id = '{{ $(\"Normalize Request\").first().json.jobId }}'\n  RETURNING job_id\n),\ndelete_images AS (\n  DELETE FROM content_generation_images\n  WHERE job_id = '{{ $(\"Normalize Request\").first().json.jobId }}'\n  RETURNING id\n)\nSELECT true AS success, (SELECT job_id FROM update_run) AS job_id, (SELECT COUNT(*) FROM delete_images) AS deleted_images;",
+        "options": {}
+      },
+      "id": "clear-existing-story-image-images",
+      "name": "Clear Existing Story Image Images",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2752,
+        400
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "YkWjVauTa48dvHlA",
+          "name": "Postgree N8N Floothink"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH update_run AS (\n  UPDATE content_generation\n  SET\n    caption = NULLIF('{{ ($(\"Parse Reels Output\").first().json.content?.caption || \"\").toString().replace(/'/g, \"''\") }}', ''),\n    hook = NULLIF('{{ ($(\"Parse Reels Output\").first().json.content?.hook || \"\").toString().replace(/'/g, \"''\") }}', ''),\n    result = COALESCE(result, '{}'::jsonb) || jsonb_build_object(\n      'title', NULLIF('{{ ($(\"Parse Reels Output\").first().json.content?.title || \"\").toString().replace(/'/g, \"''\") }}', ''),\n      'caption', NULLIF('{{ ($(\"Parse Reels Output\").first().json.content?.caption || \"\").toString().replace(/'/g, \"''\") }}', ''),\n      'hook', NULLIF('{{ ($(\"Parse Reels Output\").first().json.content?.hook || \"\").toString().replace(/'/g, \"''\") }}', ''),\n      'cta', NULLIF('{{ ($(\"Parse Reels Output\").first().json.content?.cta || \"\").toString().replace(/'/g, \"''\") }}', ''),\n      'hashtags', '{{ JSON.stringify($(\"Parse Reels Output\").first().json.content?.hashtags || []) }}'::jsonb\n    ),\n    updated_at = NOW()\n  WHERE job_id = '{{ $(\"Normalize Request\").first().json.jobId }}'\n  RETURNING job_id\n),\ndelete_images AS (\n  DELETE FROM content_generation_images\n  WHERE job_id = '{{ $(\"Normalize Request\").first().json.jobId }}'\n  RETURNING id\n)\nSELECT true AS success, (SELECT job_id FROM update_run) AS job_id, (SELECT COUNT(*) FROM delete_images) AS deleted_images;",
+        "options": {}
+      },
+      "id": "clear-existing-reels-images",
+      "name": "Clear Existing Reels Images",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2752,
+        -48
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "YkWjVauTa48dvHlA",
+          "name": "Postgree N8N Floothink"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH update_run AS (\n  UPDATE content_generation\n  SET\n    caption = NULLIF('{{ ($(\"Parse Story Video Output\").first().json.content?.caption || \"\").toString().replace(/'/g, \"''\") }}', ''),\n    hook = NULLIF('{{ ($(\"Parse Story Video Output\").first().json.content?.hook || \"\").toString().replace(/'/g, \"''\") }}', ''),\n    result = COALESCE(result, '{}'::jsonb) || jsonb_build_object(\n      'title', NULLIF('{{ ($(\"Parse Story Video Output\").first().json.content?.title || \"\").toString().replace(/'/g, \"''\") }}', ''),\n      'caption', NULLIF('{{ ($(\"Parse Story Video Output\").first().json.content?.caption || \"\").toString().replace(/'/g, \"''\") }}', ''),\n      'hook', NULLIF('{{ ($(\"Parse Story Video Output\").first().json.content?.hook || \"\").toString().replace(/'/g, \"''\") }}', ''),\n      'cta', NULLIF('{{ ($(\"Parse Story Video Output\").first().json.content?.cta || \"\").toString().replace(/'/g, \"''\") }}', ''),\n      'hashtags', '{{ JSON.stringify($(\"Parse Story Video Output\").first().json.content?.hashtags || []) }}'::jsonb\n    ),\n    updated_at = NOW()\n  WHERE job_id = '{{ $(\"Normalize Request\").first().json.jobId }}'\n  RETURNING job_id\n),\ndelete_images AS (\n  DELETE FROM content_generation_images\n  WHERE job_id = '{{ $(\"Normalize Request\").first().json.jobId }}'\n  RETURNING id\n)\nSELECT true AS success, (SELECT job_id FROM update_run) AS job_id, (SELECT COUNT(*) FROM delete_images) AS deleted_images;",
+        "options": {}
+      },
+      "id": "clear-existing-story-video-images",
+      "name": "Clear Existing Story Video Images",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2752,
+        176
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "YkWjVauTa48dvHlA",
+          "name": "Postgree N8N Floothink"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "bucketName": "=FCE_Image",
+        "fileName": "={{ $json.objectKey }}",
+        "additionalFields": {
+          "acl": "publicRead"
+        }
+      },
+      "id": "upload-slide-image-s3",
+      "name": "Upload Slide Image to S3",
+      "type": "n8n-nodes-base.s3",
+      "typeVersion": 1,
+      "position": [
+        4304,
+        -256
+      ],
+      "retryOnFail": true,
+      "waitBetweenTries": 3000,
+      "credentials": {
+        "s3": {
+          "id": "6RrdPMNkCTvNNkSP",
+          "name": "Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "bucketName": "=FCE_Image",
+        "fileName": "={{ $json.objectKey }}",
+        "additionalFields": {
+          "acl": "publicRead"
+        }
+      },
+      "id": "upload-story-image-s3",
+      "name": "Upload Story Image to S3",
+      "type": "n8n-nodes-base.s3",
+      "typeVersion": 1,
+      "position": [
+        4080,
+        400
+      ],
+      "retryOnFail": true,
+      "waitBetweenTries": 3000,
+      "credentials": {
+        "s3": {
+          "id": "6RrdPMNkCTvNNkSP",
+          "name": "Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "bucketName": "FCE_Image",
+        "fileName": "={{ $json.fileName }}",
+        "additionalFields": {
+          "acl": "publicRead"
+        }
+      },
+      "id": "upload-reels-scene-image-s3",
+      "name": "Upload Reels Scene Image to S3",
+      "type": "n8n-nodes-base.s3",
+      "typeVersion": 1,
+      "position": [
+        4304,
+        -32
+      ],
+      "retryOnFail": true,
+      "waitBetweenTries": 3000,
+      "credentials": {
+        "s3": {
+          "id": "6RrdPMNkCTvNNkSP",
+          "name": "Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "bucketName": "=FCE_Image",
+        "fileName": "={{ $json.objectKey }}",
+        "additionalFields": {
+          "acl": "publicRead"
+        }
+      },
+      "id": "upload-story-video-scene-image-s3",
+      "name": "Upload Story Video Scene Image to S3",
+      "type": "n8n-nodes-base.s3",
+      "typeVersion": 1,
+      "position": [
+        4304,
+        192
+      ],
+      "retryOnFail": true,
+      "waitBetweenTries": 3000,
+      "credentials": {
+        "s3": {
+          "id": "6RrdPMNkCTvNNkSP",
+          "name": "Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "toBinary",
+        "sourceProperty": "image_url_clean",
+        "options": {
+          "fileName": "={{ $json.fileName }}"
+        }
+      },
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        3856,
+        -32
+      ],
+      "id": "fb5810c8-5f32-4196-ad4e-0155a663a3cf",
+      "name": "Convert to File"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst seen = new Set();\n\nfor (const item of items) {\n  const message = item.json.choices?.[0]?.message || {};\n  const images = message.images || [];\n\n  for (const img of images) {\n    let imageUrl = img?.image_url?.url || '';\n\n    if (!imageUrl) continue;\n\n    let ext = 'jpg';\n    if (imageUrl.startsWith('data:image/png')) ext = 'png';\n    else if (imageUrl.startsWith('data:image/jpeg')) ext = 'jpg';\n    else if (imageUrl.startsWith('data:image/webp')) ext = 'webp';\n\n    if (imageUrl.includes(',')) {\n      imageUrl = imageUrl.split(',')[1];\n    }\n\n    const signature = imageUrl.slice(0, 200) + imageUrl.slice(-200);\n    if (seen.has(signature)) continue;\n    seen.add(signature);\n\n    return [\n      {\n        json: {\n          image_url_clean: imageUrl,\n          fileName: `image_${item.json.created || Date.now()}_0.${ext}`,\n          index: 0,\n        },\n      },\n    ];\n  }\n}\n\nreturn [];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3632,
+        -32
+      ],
+      "id": "0b06ca03-7eae-4e53-81e2-492df26337e6",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "operation": "toBinary",
+        "sourceProperty": "image_url_clean",
+        "options": {
+          "fileName": "={{ $json.fileName }}"
+        }
+      },
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        3648,
+        -464
+      ],
+      "id": "beebcb9b-0ce6-48df-a1b3-9cb6f584e827",
+      "name": "Convert to File1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst prefix = 'image';\n\nfor (const item of items) {\n  const message = item.json.choices?.[0]?.message || {};\n  const images = message.images || [];\n\n  const img = images.find((image) => image?.image_url?.url);\n  if (!img) continue;\n\n  let imageUrl = img.image_url.url || '';\n\n  let ext = 'jpg';\n  if (imageUrl.startsWith('data:image/png')) ext = 'png';\n  else if (imageUrl.startsWith('data:image/jpeg')) ext = 'jpg';\n  else if (imageUrl.startsWith('data:image/webp')) ext = 'webp';\n\n  if (imageUrl.includes(',')) {\n    imageUrl = imageUrl.split(',')[1];\n  }\n\n  return [\n    {\n      json: {\n        image_url_clean: imageUrl,\n        fileName: `${prefix}_${item.json.created || Date.now()}_0.${ext}`,\n        index: 0,\n      },\n    },\n  ];\n}\n\nreturn [];"
+      },
+      "id": "cbd8a10a-b44f-4703-8361-42ed87449e94",
+      "name": "Extract Single Image URL1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3632,
+        -256
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "toBinary",
+        "sourceProperty": "image_url_clean",
+        "options": {
+          "fileName": "={{ $json.fileName }}"
+        }
+      },
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        3856,
+        -256
+      ],
+      "id": "a3d79be9-ce94-4906-bb1f-ccec2778c7fd",
+      "name": "Convert to File2"
+    },
+    {
+      "parameters": {
+        "operation": "toBinary",
+        "sourceProperty": "image_url_clean",
+        "options": {
+          "fileName": "={{ $json.fileName }}"
+        }
+      },
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        3856,
+        192
+      ],
+      "id": "0b341692-06d9-42f2-962f-e70777e0d810",
+      "name": "Convert to File3"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst prefix = 'image';\n\nfor (const item of items) {\n  const message = item.json.choices?.[0]?.message || {};\n  const images = message.images || [];\n\n  const img = images.find((image) => image?.image_url?.url);\n  if (!img) continue;\n\n  let imageUrl = img.image_url.url || '';\n\n  let ext = 'jpg';\n  if (imageUrl.startsWith('data:image/png')) ext = 'png';\n  else if (imageUrl.startsWith('data:image/jpeg')) ext = 'jpg';\n  else if (imageUrl.startsWith('data:image/webp')) ext = 'webp';\n\n  if (imageUrl.includes(',')) {\n    imageUrl = imageUrl.split(',')[1];\n  }\n\n  return [\n    {\n      json: {\n        image_url_clean: imageUrl,\n        fileName: `${prefix}_${item.json.created || Date.now()}_0.${ext}`,\n        index: 0,\n      },\n    },\n  ];\n}\n\nreturn [];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3632,
+        192
+      ],
+      "id": "ae0b38ce-5c88-4fac-9c8f-82edbba1f656",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "operation": "toBinary",
+        "sourceProperty": "image_url_clean",
+        "options": {
+          "fileName": "={{ $json.fileName }}"
+        }
+      },
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        3648,
+        400
+      ],
+      "id": "b68db634-6803-42d6-9a48-275e3675a736",
+      "name": "Convert to File4"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst result = [];\n\nfor (const item of items) {\n  const message = item.json.choices?.[0]?.message || {};\n  const images = message.images || [];\n  \n  images.forEach((img, index) => {\n    let imageUrl = img?.image_url?.url || '';\n    \n    if (!imageUrl) return;\n    \n    let ext = 'jpg';\n    if (imageUrl.startsWith('data:image/png')) ext = 'png';\n    else if (imageUrl.startsWith('data:image/jpeg')) ext = 'jpg';\n    else if (imageUrl.startsWith('data:image/webp')) ext = 'webp';\n    \n    if (imageUrl.includes(',')) {\n      imageUrl = imageUrl.split(',')[1];\n    }\n    \n    result.push({\n      json: {\n        image_url_clean: imageUrl,\n        fileName: `image_${item.json.created || Date.now()}_${index}.${ext}`,\n        index: index\n      }\n    });\n  });\n}\n\nreturn result;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3424,
+        400
+      ],
+      "id": "1c174939-e806-4c57-9e2b-9a8eaf2446e5",
+      "name": "Code in JavaScript2"
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map((item, index) => {\n  const fileName =\n    item.binary?.data?.fileName ||\n    item.json.fileName ||\n    `image_${Date.now()}_${index}.jpg`;\n\n  return {\n    json: {\n      ...item.json,\n      fileName,\n      objectKey: fileName,\n      uploadResult: {\n        ...(item.json.uploadResult || {}),\n        objectKey: fileName,\n        imageUrl: `https://flsbftvkfmugikidpowi.supabase.co/storage/v1/object/public/FCE_Image/${fileName}`,\n      },\n    },\n    binary: item.binary,\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3856,
+        -464
+      ],
+      "id": "a5d9ce0f-f9c7-4a9c-b10e-59e07b312a7d",
+      "name": "Code in JavaScript3"
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "bucketName": "FCE_Image",
+        "fileName": "={{ $json.objectKey }}",
+        "additionalFields": {
+          "acl": "publicRead"
+        }
+      },
+      "id": "33a1ec9a-a506-41d4-91cd-7ba41a4a982f",
+      "name": "Upload Slide Image to S",
+      "type": "n8n-nodes-base.s3",
+      "typeVersion": 1,
+      "position": [
+        4080,
+        -464
+      ],
+      "retryOnFail": true,
+      "waitBetweenTries": 3000,
+      "credentials": {
+        "s3": {
+          "id": "6RrdPMNkCTvNNkSP",
+          "name": "Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map((item, index) => {\n  const fileName =\n    item.binary?.data?.fileName ||\n    item.json.fileName ||\n    `image_${Date.now()}_${index}.jpg`;\n\n  return {\n    json: {\n      ...item.json,\n      fileName,\n      objectKey: fileName,\n      uploadResult: {\n        ...(item.json.uploadResult || {}),\n        objectKey: fileName,\n        imageUrl: `https://flsbftvkfmugikidpowi.supabase.co/storage/v1/object/public/FCE_Image/${fileName}`,\n      },\n    },\n    binary: item.binary,\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4080,
+        -256
+      ],
+      "id": "c80ca3ae-a377-4256-9abe-7e2985096dd7",
+      "name": "Code in JavaScript4"
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map((item, index) => {\n  const fileName =\n    item.binary?.data?.fileName ||\n    item.json.fileName ||\n    `image_${Date.now()}_${index}.jpg`;\n\n  return {\n    json: {\n      ...item.json,\n      fileName,\n      objectKey: fileName,\n      uploadResult: {\n        ...(item.json.uploadResult || {}),\n        objectKey: fileName,\n        imageUrl: `https://flsbftvkfmugikidpowi.supabase.co/storage/v1/object/public/FCE_Image/${fileName}`,\n      },\n    },\n    binary: item.binary,\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3856,
+        400
+      ],
+      "id": "4c458ebf-b835-450a-84db-85a6ac8dc359",
+      "name": "Code in JavaScript5"
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map((item, index) => {\n  const fileName =\n    item.binary?.data?.fileName ||\n    item.json.fileName ||\n    `image_${Date.now()}_${index}.jpg`;\n\n  return {\n    json: {\n      ...item.json,\n      fileName,\n      objectKey: fileName,\n      uploadResult: {\n        ...(item.json.uploadResult || {}),\n        objectKey: fileName,\n        imageUrl: `https://flsbftvkfmugikidpowi.supabase.co/storage/v1/object/public/FCE_Image/${fileName}`,\n      },\n    },\n    binary: item.binary,\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4080,
+        -32
+      ],
+      "id": "1432cc91-306f-4efd-bccf-9c06e509f07a",
+      "name": "Code in JavaScript6"
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map((item, index) => {\n  const fileName =\n    item.binary?.data?.fileName ||\n    item.json.fileName ||\n    `image_${Date.now()}_${index}.jpg`;\n\n  return {\n    json: {\n      ...item.json,\n      fileName,\n      objectKey: fileName,\n      uploadResult: {\n        ...(item.json.uploadResult || {}),\n        objectKey: fileName,\n        imageUrl: `https://flsbftvkfmugikidpowi.supabase.co/storage/v1/object/public/FCE_Image/${fileName}`,\n      },\n    },\n    binary: item.binary,\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4080,
+        192
+      ],
+      "id": "4b2da0ff-f399-45ca-8d2a-5233ea2934aa",
+      "name": "Code in JavaScript7"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  id,\n  job_id,\n  slide_number,\n  type,\n  headline,\n  body,\n  visual_direction,\n  image_prompt,\n  image_url,\n  reference_image_url,\n  aspect_ratio,\n  created_at\nFROM content_generation_images\nWHERE job_id = '{{ $(\"Normalize Status Request\").first().json.jobId }}'\nORDER BY slide_number ASC, id ASC;\n\nSELECT\n  id,\n  job_id,\n  status,\n  caption,\n  hook,\n  result,\n  created_at,\n  updated_at\nFROM content_generation\nWHERE job_id = '{{ $(\"Normalize Status Request\").first().json.jobId }}'\nLIMIT 1;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        704,
+        144
+      ],
+      "id": "5d85d479-cea9-4099-9bce-16bf41c9e6b8",
+      "name": "Execute a SQL query",
+      "credentials": {
+        "postgres": {
+          "id": "YkWjVauTa48dvHlA",
+          "name": "Postgree N8N Floothink"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "d6fb6fcd-b70e-4b6a-812e-39c4a8dea379",
+              "leftValue": "={{ $('Webhook - Content Generator').item.json.body.referenceImages }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1200,
+        -64
+      ],
+      "id": "8083d75f-9d3e-4703-8046-d87445f29c1e",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer REDACTED_OPENROUTER_API_KEY"
+            },
+            {
+              "name": "Content-type",
+              "value": "application/json"
+            },
+            {
+              "name": "HTTP-Referer",
+              "value": "https://n8n.floothink.com"
+            },
+            {
+              "name": "X-Title",
+              "value": "Floothink Content Generator"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"google/gemini-2.5-pro\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You analyze reference images for marketing image generation. Return concise JSON only. Do not wrap in markdown.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": [\n        {\n          \"type\": \"text\",\n          \"text\": \"Analyze this reference image as visual guidance for generating a new marketing image. Return JSON with these keys: style, composition, colors, objects, textDetected, useAsGuidance, avoid. Keep it concise and practical.\"\n        },\n        {\n          \"type\": \"image_url\",\n          \"image_url\": {\n            \"url\": \"{{ $('Webhook - Content Generator').item.json.body.referenceImages }}\"\n          }\n        }\n      ]\n    }\n  ],\n  \"temperature\": 0.2,\n  \"max_tokens\": 800\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1424,
+        -80
+      ],
+      "id": "7390162d-5a9f-4f5e-b29e-236fc64c3b9b",
+      "name": "HTTP Request2",
+      "retryOnFail": true,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "jsCode": "const content = $json.choices?.[0]?.message?.content || '';\n\nlet analysis = {};\ntry {\n  analysis = JSON.parse(content);\n} catch (error) {\n  analysis = {\n    raw: content,\n  };\n}\n\nreturn [\n  {\n    json: {\n      ...$input.first().json,\n      referenceImageAnalysis: analysis,\n    },\n    binary: $input.first().binary,\n  },\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1648,
+        -80
+      ],
+      "id": "7215b2f7-43c8-4694-af11-1a2eab37ddd0",
+      "name": "Code in JavaScript8"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "ca41cef0-5a64-416d-92d4-84cd060bcad3",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "DONE",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        464,
+        160
+      ],
+      "id": "c4647a37-1c25-4848-92c0-e1667fb372e4",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({\n  success: true,\n  jobId: $(\"Fetch Content Generation by Job ID\").first().json.job_id,\n  status: $(\"Fetch Content Generation by Job ID\").first().json.status || \"IN_PROGRESS\",\n  done: false,\n  images: []\n}) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        704,
+        320
+      ],
+      "id": "d81529a8-5a30-4891-9cab-cc1fc7f5cfeb",
+      "name": "Respond to Webhook"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook - Content Generator": {
+      "main": [
+        [
+          {
+            "node": "Normalize Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Request": {
+      "main": [
+        [
+          {
+            "node": "Ensure Content Generation Table",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ensure Content Generation Table": {
+      "main": [
+        [
+          {
+            "node": "Create Content Generation Run",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Create Content Generation Run": {
+      "main": [
+        [
+          {
+            "node": "Respond with Job ID",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Respond with Job ID": {
+      "main": [
+        [
+          {
+            "node": "Fetch Brand Product Topic Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Brand Product Topic Context": {
+      "main": [
+        [
+          {
+            "node": "Build Content Context + Skills Context",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "AI Agent - Single Image": {
+      "main": [
+        [
+          {
+            "node": "Parse Single Image Output",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent - Single Image",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "AI Agent - Carousel",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "AI Agent - Reels",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "AI Agent - Story Image",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "AI Agent - Story Video",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Content Generator Status": {
+      "main": [
+        [
+          {
+            "node": "Normalize Status Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Status Request": {
+      "main": [
+        [
+          {
+            "node": "Ensure Content Generation Table - Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ensure Content Generation Table - Status": {
+      "main": [
+        [
+          {
+            "node": "Fetch Content Generation by Job ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Content Generation by Job ID": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Status Response": {
+      "main": [
+        [
+          {
+            "node": "Respond Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Content Context + Skills Context": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch by Content Type": {
+      "main": [
+        [
+          {
+            "node": "AI Agent - Single Image",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI Agent - Carousel",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI Agent - Reels",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI Agent - Story Video",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI Agent - Story Image",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        []
+      ]
+    },
+    "AI Agent - Carousel": {
+      "main": [
+        [
+          {
+            "node": "Parse Carousel Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent - Reels": {
+      "main": [
+        [
+          {
+            "node": "Parse Reels Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent - Story Image": {
+      "main": [
+        [
+          {
+            "node": "Parse Story Image Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent - Story Video": {
+      "main": [
+        [
+          {
+            "node": "Parse Story Video Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Slide Images": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Fetch Generated Images by Job ID",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Extract Single Image URL1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Carousel Output": {
+      "main": [
+        [
+          {
+            "node": "Clear Existing Slide Images",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clear Existing Slide Images": {
+      "main": [
+        [
+          {
+            "node": "Prepare Slide Images",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Slide Image": {
+      "main": [
+        [
+          {
+            "node": "Wait Before Next Slide",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait Before Next Slide": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Generated Images by Job ID": {
+      "main": [
+        [
+          {
+            "node": "Merge Final Content Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Final Content Result": {
+      "main": [
+        [
+          {
+            "node": "Save Final Content Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Final Content Result": {
+      "main": [
+        [
+          {
+            "node": "Mark Content Run DONE",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Single Image Asset": {
+      "main": [
+        [
+          {
+            "node": "Generate Single Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Single Image": {
+      "main": [
+        [
+          {
+            "node": "Extract Single Image URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Single Image": {
+      "main": [
+        [
+          {
+            "node": "Fetch Generated Images by Job ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Story Image Asset": {
+      "main": [
+        [
+          {
+            "node": "Generate Story Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Story Image": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Story Image": {
+      "main": [
+        [
+          {
+            "node": "Fetch Generated Images by Job ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Reels Scene Images": {
+      "main": [
+        [
+          {
+            "node": "Loop Reels Scenes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Reels Scenes": {
+      "main": [
+        [
+          {
+            "node": "Fetch Generated Images by Job ID",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Generate Reels Scene Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Reels Scene Image": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Reels Scene Image": {
+      "main": [
+        [
+          {
+            "node": "Wait Before Next Reels Scene",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait Before Next Reels Scene": {
+      "main": [
+        [
+          {
+            "node": "Loop Reels Scenes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Story Video Scene Images": {
+      "main": [
+        [
+          {
+            "node": "Loop Story Video Scenes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Story Video Scenes": {
+      "main": [
+        [
+          {
+            "node": "Fetch Generated Images by Job ID",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Generate Story Video Scene Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Story Video Scene Image": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Story Video Scene Image": {
+      "main": [
+        [
+          {
+            "node": "Wait Before Next Story Video Scene",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait Before Next Story Video Scene": {
+      "main": [
+        [
+          {
+            "node": "Loop Story Video Scenes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Single Image Output": {
+      "main": [
+        [
+          {
+            "node": "Clear Existing Single Image Images",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clear Existing Single Image Images": {
+      "main": [
+        [
+          {
+            "node": "Prepare Single Image Asset",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Story Image Output": {
+      "main": [
+        [
+          {
+            "node": "Clear Existing Story Image Images",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clear Existing Story Image Images": {
+      "main": [
+        [
+          {
+            "node": "Prepare Story Image Asset",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Reels Output": {
+      "main": [
+        [
+          {
+            "node": "Clear Existing Reels Images",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clear Existing Reels Images": {
+      "main": [
+        [
+          {
+            "node": "Prepare Reels Scene Images",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Story Video Output": {
+      "main": [
+        [
+          {
+            "node": "Clear Existing Story Video Images",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clear Existing Story Video Images": {
+      "main": [
+        [
+          {
+            "node": "Prepare Story Video Scene Images",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload Slide Image to S3": {
+      "main": [
+        [
+          {
+            "node": "Save Slide Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Single Image URL": {
+      "main": [
+        [
+          {
+            "node": "Convert to File1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload Story Image to S3": {
+      "main": [
+        [
+          {
+            "node": "Save Story Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload Reels Scene Image to S3": {
+      "main": [
+        [
+          {
+            "node": "Save Reels Scene Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload Story Video Scene Image to S3": {
+      "main": [
+        [
+          {
+            "node": "Save Story Video Scene Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert to File": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Convert to File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert to File1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Single Image URL1": {
+      "main": [
+        [
+          {
+            "node": "Convert to File2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert to File2": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Convert to File3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert to File3": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "Convert to File4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert to File4": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript3": {
+      "main": [
+        [
+          {
+            "node": "Upload Slide Image to S",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload Slide Image to S": {
+      "main": [
+        [
+          {
+            "node": "Save Single Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript4": {
+      "main": [
+        [
+          {
+            "node": "Upload Slide Image to S3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript5": {
+      "main": [
+        [
+          {
+            "node": "Upload Story Image to S3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript6": {
+      "main": [
+        [
+          {
+            "node": "Upload Reels Scene Image to S3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript7": {
+      "main": [
+        [
+          {
+            "node": "Upload Story Video Scene Image to S3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query": {
+      "main": [
+        [
+          {
+            "node": "Format Status Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Switch by Content Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request2": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript8",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript8": {
+      "main": [
+        [
+          {
+            "node": "Switch by Content Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "34643fb8-23d7-4536-9318-a7d9f66001cb",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "de05e9a2fde146d01845966a070288e86cb0db7d6640cd2282172981fb03c5d1"
+  },
+  "id": "HyMd8xTwZPGE81Ld",
+  "tags": [
+    {
+      "updatedAt": "2026-05-07T11:13:17.567Z",
+      "createdAt": "2026-05-07T11:13:17.567Z",
+      "id": "XERPR1YzHq1ni2I2",
+      "name": "Rehan"
+    }
+  ]
+}

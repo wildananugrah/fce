@@ -1,0 +1,491 @@
+{
+  "name": "generate topics",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "generate-topics",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-generate-topics",
+      "name": "Webhook - Generate Topics",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1280,
+        160
+      ],
+      "webhookId": "e71ed8c9-ef88-4c3c-8615-68c87ae42001",
+      "onError": "continueRegularOutput",
+      "notes": "Receives POST JSON body for FCE Topic Generator UI format: brand, language, products, brandContentPillars, platform, objective, contentFormats, schedule, numberOfTopics, additionalDirection, imageLinks. Backend should also include workspaceId and userId for topic_generation_runs."
+    },
+    {
+      "parameters": {
+        "jsCode": "const jobId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {\n  const r = Math.random() * 16 | 0;\n  const v = c === 'x' ? r : (r & 0x3 | 0x8);\n  return v.toString(16);\n});\n\nconst body = $input.first().json.body || {};\n\nconst brand = body.brand;\nconst language = body.language || 'Indonesian';\nconst products = body.products || [];\nconst brandContentPillars = body.brandContentPillars || [];\nconst platform = body.platform;\nconst objective = body.objective;\nconst contentFormats = body.contentFormats || [];\nconst schedule = body.schedule || {};\nconst numberOfTopics = body.numberOfTopics || 10;\nconst additionalDirection = body.additionalDirection || '';\nconst imageLinks = body.imageLinks || [];\n\nreturn [{\n  json: {\n    jobId,\n    brand,\n    language,\n    products,\n    brandContentPillars,\n    platform,\n    objective,\n    contentFormats,\n    schedule,\n    scheduleFrom: schedule.from || null,\n    scheduleTo: schedule.to || null,\n    numberOfTopics,\n    additionalDirection,\n    imageLinks\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1040,
+        160
+      ],
+      "id": "normalize-request",
+      "name": "Normalize Request"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO topic_generation (\n  job_id,\n  status,\n  brand_id,\n  brand_name,\n  language,\n  product_ids,\n  product_names,\n  brand_content_pillars,\n  platform,\n  objective,\n  content_formats,\n  schedule_from,\n  schedule_to,\n  number_of_topics,\n  additional_direction,\n  image_links\n)\nVALUES (\n  '{{ $json.jobId }}',\n  'IN_PROGRESS',\n  '{{ $json.brand.id }}',\n  '{{ $json.brand.name }}',\n  '{{ $json.language }}',\n  '{{ JSON.stringify($json.products.map(p => p.id).filter(Boolean)) }}'::jsonb,\n  '{{ JSON.stringify($json.products.map(p => p.name).filter(Boolean)) }}'::jsonb,\n  '{{ JSON.stringify($json.brandContentPillars) }}'::jsonb,\n  '{{ $json.platform }}',\n  '{{ $json.objective }}',\n  '{{ JSON.stringify($json.contentFormats) }}'::jsonb,\n  '{{ $json.scheduleFrom }}',\n  '{{ $json.scheduleTo }}',\n  {{ $json.numberOfTopics }},\n  '{{ $json.additionalDirection }}',\n  '{{ JSON.stringify($json.imageLinks) }}'::jsonb\n)\nRETURNING *;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -800,
+        160
+      ],
+      "id": "create-topic-generation-run",
+      "name": "Create Topic Generation Run",
+      "credentials": {
+        "postgres": {
+          "id": "YkWjVauTa48dvHlA",
+          "name": "Postgree N8N Floothink"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ data: { jobId: $('Normalize Request').first().json.jobId } }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -560,
+        160
+      ],
+      "id": "respond-to-webhook",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  ba.*,\n  COALESCE(\n    jsonb_agg(\n      to_jsonb(bp)\n      ORDER BY bp.id\n    ) FILTER (WHERE bp.id IS NOT NULL),\n    '[]'::jsonb\n  ) AS products_context\nFROM brand_analysis ba\nLEFT JOIN brand_product bp\n  ON bp.brand_analysis_job_id = ba.job_id\nWHERE ba.job_id = '{{ $(\"Normalize Request\").item.json.brand.id }}'\n  AND (\n    {{ $(\"Normalize Request\").item.json.products.length }} = 0\n    OR bp.job_id IN (\n      {{ $(\"Normalize Request\").item.json.products.map(p => `'${p.id}'`).join(\",\") || \"NULL\" }}\n    )\n  )\nGROUP BY ba.id\nLIMIT 1;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -320,
+        160
+      ],
+      "id": "fetch-brand-product-context",
+      "name": "Fetch Brand + Product Context",
+      "credentials": {
+        "postgres": {
+          "id": "YkWjVauTa48dvHlA",
+          "name": "Postgree N8N Floothink"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "function parseMaybeJson(value, fallback) {\n  if (value === null || value === undefined) return fallback;\n  if (typeof value === 'object') return value;\n  try {\n    return JSON.parse(value);\n  } catch (_) {\n    return fallback;\n  }\n}\n\nfunction textList(values) {\n  if (!Array.isArray(values) || !values.length) return 'Not specified';\n  return values.join(', ');\n}\n\nfunction cleanBrandRow(row) {\n  const brand = { ...row };\n\n  // products_context berasal dari hasil aggregate product.\n  // Jangan masukkan ke brand context supaya brand dan product tetap terpisah.\n  delete brand.products_context;\n\n  return brand;\n}\n\nconst req = $('Normalize Request').first().json;\nconst row = $input.first().json || {};\n\nconst brandContext = cleanBrandRow(row);\nconst productsContext = parseMaybeJson(row.products_context, []);\n\nconst skills = [\n  {\n    slug: 'content-strategy',\n    name: 'Content Strategy',\n    content: 'Use this skill to create a strategic content plan. Topics must align with brand goals, audience needs, funnel stage, content pillars, and platform context. Prioritize topics that can educate, engage, convert, or retain. Avoid random ideas; every topic should have a clear strategic role.'\n  },\n  {\n    slug: 'social-content',\n    name: 'Social Content',\n    content: 'Use this skill to make topics fit social media behavior. Match the selected platform, format, and audience expectation. Instagram/TikTok should be more visual and hook-driven, LinkedIn more professional and insight-driven, YouTube more searchable and narrative-driven, Twitter/X more concise and opinion-friendly, Facebook more community-oriented.'\n  },\n  {\n    slug: 'ad-creative',\n    name: 'Ad Creative',\n    content: 'Use this skill to generate topics with strong creative angles. Include clear hooks, emotional triggers, problem-solution framing, proof, contrast, urgency, curiosity, or transformation. Topics should be easy to turn into ads, reels, carousels, captions, or campaign assets.'\n  },\n  {\n    slug: 'marketing-ideas',\n    name: 'Marketing Ideas',\n    content: 'Use this skill to make the topic list useful for broader marketing growth. Consider content and SEO, social/community, partnerships, product-led growth, authority building, competitor angles, lead magnets, and campaign ideas. Make topics practical, specific, and useful for future execution.'\n  },\n  {\n    slug: 'customer-research',\n    name: 'Customer Research',\n    content: 'Use this skill to ground topics in customer needs. Reflect customer pain points, objections, desired outcomes, jobs-to-be-done, decision triggers, and language customers might use. Avoid company-centric topics; prefer audience-relevant topics.'\n  }\n];\n\nconst skillsContext = skills\n  .map((skill) => `## ${skill.name}\\n${skill.content}`)\n  .join('\\n\\n---\\n\\n');\n\nreturn [{\n  json: {\n    // 1. Drag this to BRAND CONTEXT\n    brand_context: brandContext,\n    brand_context_text: JSON.stringify(brandContext, null, 2),\n\n    // 2. Drag this to PRODUCT CONTEXT\n    products_context: productsContext,\n    products_context_text: JSON.stringify(productsContext, null, 2),\n\n    // 3. Drag this to MARKETING SKILLS APPLIED\n    skills_context: skillsContext,\n    applied_skills: skills.map((skill) => ({\n      slug: skill.slug,\n      name: skill.name\n    })),\n\n    // Request fields tetap disediakan untuk prompt AI\n    jobId: req.jobId,\n    brand: req.brand,\n    brandId: req.brandId,\n    brandName: req.brandName,\n    products: req.products,\n    productIds: req.productIds,\n    productNames: req.productNames,\n\n    platform: req.platform,\n    objective: req.objective,\n\n    brandContentPillars: req.brandContentPillars,\n    brandContentPillars_text: textList(req.brandContentPillars),\n\n    contentFormats: req.contentFormats,\n    contentFormats_text: textList(req.contentFormats),\n\n    scheduleFrom: req.scheduleFrom,\n    scheduleTo: req.scheduleTo,\n    numberOfTopics: req.numberOfTopics,\n    language: req.language,\n    additionalDirection: req.additionalDirection,\n\n    imageLinks: req.imageLinks,\n    imageLinks_text: textList(req.imageLinks)\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -80,
+        144
+      ],
+      "id": "build-topic-context-skills-context",
+      "name": "Build Topic Context + Skills Context",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an expert social media content strategist.\n\nYour task is to generate content topics for the selected brand and products.\n\nApply the following marketing skills as operating guidance.\nUse them to improve content strategy, social platform fit, creative angles, ad-style hooks, customer insight, and campaign relevance.\nDo not mention the skills by name in the final JSON.\n\nMARKETING SKILLS APPLIED:\n{{ $json.skills_context }}\n\nBRAND CONTEXT:\n{{ $json.brand_context_text }}\n\nPRODUCT CONTEXT:\n{{ $json.products_context_text }}\n\nPLATFORM:\n{{ $json.platform }}\n\nOBJECTIVE:\n{{ $json.objective }}\n\nCONTENT FORMATS:\n{{ $json.contentFormats_text }}\n\nBRAND CONTENT PILLARS:\n{{ $json.brandContentPillars_text }}\n\nSCHEDULE:\n{{ $json.scheduleFrom }} to {{ $json.scheduleTo }}\n\nLANGUAGE:\n{{ $json.language }}\n\nADDITIONAL DIRECTION:\n{{ $json.additionalDirection }}\n\nIMAGE LINKS:\n{{ $json.imageLinks_text }}\n\nCRITICAL:\n- Return ONLY valid JSON\n- No markdown\n- No explanation\n- Use the requested language\n- Generate exactly {{ $json.numberOfTopics }} topics\n- Generate topics that fit the selected platform\n- Respect selected content formats\n- Respect selected brand content pillars\n- Make topics specific to the brand and product\n- Avoid generic topic ideas\n- publishDate must be ISO date string within the requested schedule range when possible\n\nRequired JSON:\n{\n  \"topics\": [\n    {\n      \"title\": \"\",\n      \"description\": \"\",\n      \"pillar\": \"\",\n      \"platform\": \"\",\n      \"format\": \"\",\n      \"objective\": \"\",\n      \"publishDate\": \"\"\n    }\n  ]\n}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        160,
+        128
+      ],
+      "id": "ai-agent-generate-topics",
+      "name": "AI Agent",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        160,
+        320
+      ],
+      "id": "openrouter-chat-model",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "ALSmrNcc7DKGJr1F",
+          "name": "OpenRouter Floothink"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "function uuid() {\n  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {\n    const r = Math.random() * 16 | 0;\n    const v = c === 'x' ? r : (r & 0x3 | 0x8);\n    return v.toString(16);\n  });\n}\n\nfunction sqlLiteral(value) {\n  if (value === null || value === undefined) return 'NULL';\n  return `'${String(value).replace(/'/g, \"''\")}'`;\n}\n\nfunction sqlJson(value) {\n  return sqlLiteral(JSON.stringify(value));\n}\n\nfunction sqlTextArray(values) {\n  if (!Array.isArray(values) || !values.length) return 'ARRAY[]::text[]';\n  return `ARRAY[${values.map(sqlLiteral).join(', ')}]::text[]`;\n}\n\nfunction stripCodeFence(text) {\n  return String(text || '')\n    .trim()\n    .replace(/^```(?:json)?\\s*/i, '')\n    .replace(/```$/i, '')\n    .trim();\n}\n\nfunction parseAiJson(value) {\n  if (value && typeof value === 'object') return value;\n  const cleaned = stripCodeFence(value);\n  try {\n    return JSON.parse(cleaned);\n  } catch (error) {\n    const first = cleaned.indexOf('{');\n    const last = cleaned.lastIndexOf('}');\n    if (first >= 0 && last > first) return JSON.parse(cleaned.slice(first, last + 1));\n    throw error;\n  }\n}\n\nfunction validIsoDate(value, from, to) {\n  if (!value) return null;\n  const d = new Date(value);\n  if (Number.isNaN(d.getTime())) return null;\n  if (from && d < new Date(from)) return null;\n  if (to) {\n    const end = new Date(to);\n    end.setHours(23, 59, 59, 999);\n    if (d > end) return null;\n  }\n  return d.toISOString();\n}\n\nconst req = $('Normalize Request').first().json;\nconst built = $('Build Topic Context + Skills Context').first().json;\nconst ai = $input.first().json || {};\nconst raw = ai.output ?? ai.text ?? ai.response ?? ai.result ?? ai;\nconst parsed = parseAiJson(raw);\n\nif (!Array.isArray(parsed.topics)) {\n  throw new Error('AI output must contain a topics array');\n}\n\nconst fallbackPillar = req.brandContentPillars[0] || '';\nconst fallbackFormat = req.contentFormats[0] || '';\n\nconst topics = parsed.topics.map((topic, index) => {\n  const title = String(topic.title || '').trim();\n  if (!title) throw new Error(`Topic at index ${index} is missing title`);\n  return {\n    id: uuid(),\n    title,\n    description: String(topic.description || ''),\n    pillar: topic.pillar || fallbackPillar,\n    platform: topic.platform || req.platform || '',\n    format: topic.format || fallbackFormat,\n    objective: topic.objective || req.objective || '',\n    publishDate: validIsoDate(topic.publishDate, req.scheduleFrom, req.scheduleTo),\n  };\n});\n\nconst insertTopicsSql = `\nWITH topics AS (\n  SELECT value AS topic\n  FROM jsonb_array_elements(${sqlJson(topics)}::jsonb)\n), input_product_ids AS (\n  SELECT ${sqlTextArray(req.productIds)} AS product_ids\n), inserted_topics AS (\n  INSERT INTO content_topics (\n    id,\n    workspace_id,\n    brand_id,\n    title,\n    description,\n    pillar,\n    platform,\n    format,\n    objective,\n    publish_date,\n    status,\n    created_at,\n    updated_at\n  )\n  SELECT\n    topic->>'id',\n    ${sqlLiteral(req.workspaceId)},\n    ${sqlLiteral(req.brandId)},\n    topic->>'title',\n    NULLIF(topic->>'description', ''),\n    NULLIF(topic->>'pillar', ''),\n    NULLIF(topic->>'platform', ''),\n    NULLIF(topic->>'format', ''),\n    NULLIF(topic->>'objective', ''),\n    CASE WHEN NULLIF(topic->>'publishDate', '') IS NULL THEN NULL ELSE (topic->>'publishDate')::timestamptz END,\n    'draft',\n    now(),\n    now()\n  FROM topics\n  RETURNING id, title\n), inserted_relations AS (\n  INSERT INTO content_topic_products (content_topic_id, product_id)\n  SELECT topic->>'id', ids.product_id\n  FROM topics\n  CROSS JOIN input_product_ids\n  CROSS JOIN LATERAL unnest(input_product_ids.product_ids) AS ids(product_id)\n  ON CONFLICT (content_topic_id, product_id) DO NOTHING\n  RETURNING 1\n)\nSELECT\n  (SELECT count(*) FROM inserted_topics) AS inserted_topics,\n  (SELECT count(*) FROM inserted_relations) AS inserted_relations;\n`;\n\nreturn [{\n  json: {\n    runId: req.runId,\n    workspaceId: req.workspaceId,\n    brandId: req.brandId,\n    productIds: req.productIds,\n    topics,\n    topicsCount: topics.length,\n    insertTopicsSql,\n    applied_skills: built.applied_skills,\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        560,
+        112
+      ],
+      "id": "parse-ai-topics",
+      "name": "Parse AI Topics",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH topics AS (\n  SELECT t.topic\n  FROM jsonb_array_elements('{{ JSON.stringify($json.topics) }}'::jsonb) AS t(topic)\n),\ninserted_topics AS (\n  INSERT INTO content_topics (\n    topic_generation_id,\n    job_id,\n    title,\n    description,\n    pillar,\n    platform,\n    content_format,\n    objective,\n    publish_date,\n    status,\n    raw_topic,\n    created_at,\n    updated_at\n  )\n  SELECT\n    {{ $('Create Topic Generation Run').first().json.id }},\n    '{{ $('Create Topic Generation Run').first().json.job_id }}',\n    NULLIF(topic->>'title', ''),\n    NULLIF(topic->>'description', ''),\n    NULLIF(topic->>'pillar', ''),\n    NULLIF(topic->>'platform', ''),\n    NULLIF(topic->>'format', ''),\n    NULLIF(topic->>'objective', ''),\n    CASE\n      WHEN NULLIF(topic->>'publishDate', '') IS NULL THEN NULL\n      ELSE (topic->>'publishDate')::timestamptz\n    END,\n    'draft',\n    topic,\n    now(),\n    now()\n  FROM topics\n  RETURNING id, title\n)\nSELECT count(*) AS inserted_topics\nFROM inserted_topics;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        800,
+        96
+      ],
+      "id": "insert-content-topics",
+      "name": "Insert Content Topics",
+      "credentials": {
+        "postgres": {
+          "id": "YkWjVauTa48dvHlA",
+          "name": "Postgree N8N Floothink"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE topic_generation\nSET\n  status = 'DONE',\n  updated_at = now()\nWHERE job_id = '{{ $('Create Topic Generation Run').first().json.job_id }}'\nRETURNING *;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1040,
+        80
+      ],
+      "id": "mark-run-done",
+      "name": "Mark Run Done",
+      "credentials": {
+        "postgres": {
+          "id": "YkWjVauTa48dvHlA",
+          "name": "Postgree N8N Floothink"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "{{ $('Normalize Request').first().json.markFailedSql }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1056,
+        336
+      ],
+      "id": "mark-run-failed",
+      "name": "Mark Run Failed",
+      "credentials": {
+        "postgres": {
+          "id": "YkWjVauTa48dvHlA",
+          "name": "Postgree N8N Floothink"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "path": "generate-topics/status",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "d57fb870-9702-4ffe-9238-d87dc6d5008f",
+      "name": "Webhook - Generate Topics1",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1280,
+        384
+      ],
+      "webhookId": "e71ed8c9-ef88-4c3c-8615-68c87ae42001",
+      "onError": "continueRegularOutput",
+      "notes": "Receives POST JSON body for FCE Topic Generator UI format: brand, language, products, brandContentPillars, platform, objective, contentFormats, schedule, numberOfTopics, additionalDirection, imageLinks. Backend should also include workspaceId and userId for topic_generation_runs."
+    },
+    {
+      "parameters": {
+        "jsCode": "const row = $input.first()?.json;\n\nif (!row || !row.job_id) {\n  return [{\n    json: {\n      statusCode: 404,\n      body: {\n        status: 'NOT_FOUND'\n      }\n    }\n  }];\n}\n\nif (row.status !== 'DONE') {\n  return [{\n    json: {\n      statusCode: 200,\n      body: {\n        jobId: row.job_id,\n        status: row.status\n      }\n    }\n  }];\n}\n\nreturn [{\n  json: {\n    statusCode: 200,\n    body: {\n      jobId: row.job_id,\n      status: 'DONE',\n      data: {\n        brandId: row.brand_id,\n        brandName: row.brand_name,\n\n        productId: Array.isArray(row.product_ids) ? row.product_ids[0] : null,\n        productIds: row.product_ids || [],\n        productNames: row.product_names || [],\n\n        language: row.language,\n        platform: row.platform,\n        objective: row.objective,\n        numberOfTopics: row.number_of_topics,\n        topics: row.topics || []\n      }\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -816,
+        384
+      ],
+      "id": "6424059f-74f1-4c2b-a07a-c7363b046243",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  tg.job_id,\n  tg.status,\n  tg.brand_id,\n  tg.brand_name,\n  tg.language,\n  tg.product_ids,\n  tg.product_names,\n  tg.platform,\n  tg.objective,\n  tg.number_of_topics,\n  COALESCE(\n    jsonb_agg(\n      jsonb_build_object(\n        'id', ct.id,\n        'title', ct.title,\n        'description', ct.description,\n        'pillar', ct.pillar,\n        'platform', ct.platform,\n        'format', ct.content_format,\n        'objective', ct.objective,\n        'publishDate', ct.publish_date,\n        'status', ct.status\n      )\n      ORDER BY ct.publish_date ASC, ct.id ASC\n    ) FILTER (WHERE ct.id IS NOT NULL),\n    '[]'::jsonb\n  ) AS topics\nFROM topic_generation tg\nLEFT JOIN content_topics ct\n  ON ct.job_id = tg.job_id\nWHERE tg.job_id = '{{ $(\"Webhook - Generate Topics1\").first().json.query.jobId }}'\nGROUP BY\n  tg.job_id,\n  tg.status,\n  tg.brand_id,\n  tg.brand_name,\n  tg.language,\n  tg.product_ids,\n  tg.product_names,\n  tg.platform,\n  tg.objective,\n  tg.number_of_topics\nLIMIT 1;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -1040,
+        384
+      ],
+      "id": "d049ce8b-1be9-4828-bef0-93676665ddc1",
+      "name": "Execute a SQL query1",
+      "credentials": {
+        "postgres": {
+          "id": "YkWjVauTa48dvHlA",
+          "name": "Postgree N8N Floothink"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {
+          "responseCode": "={{ $json.statusCode }}"
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -592,
+        384
+      ],
+      "id": "5a9159bf-0762-4a01-b637-083eb20bc0c8",
+      "name": "Respond to Webhook1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook - Generate Topics": {
+      "main": [
+        [
+          {
+            "node": "Normalize Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Request": {
+      "main": [
+        [
+          {
+            "node": "Create Topic Generation Run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Topic Generation Run": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond to Webhook": {
+      "main": [
+        [
+          {
+            "node": "Fetch Brand + Product Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Brand + Product Context": {
+      "main": [
+        [
+          {
+            "node": "Build Topic Context + Skills Context",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Run Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Topic Context + Skills Context": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Run Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Parse AI Topics",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Run Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse AI Topics": {
+      "main": [
+        [
+          {
+            "node": "Insert Content Topics",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Run Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Content Topics": {
+      "main": [
+        [
+          {
+            "node": "Mark Run Done",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Run Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Generate Topics1": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "saveDataSuccessExecution": "all",
+    "saveDataErrorExecution": "all",
+    "timezone": "Asia/Jakarta"
+  },
+  "versionId": "69d4e5aa-83e7-41b5-a77a-6393b0d07dfc",
+  "meta": {
+    "instanceId": "de05e9a2fde146d01845966a070288e86cb0db7d6640cd2282172981fb03c5d1"
+  },
+  "id": "UN6Sq3PbKLyeyoRj",
+  "tags": [
+    {
+      "updatedAt": "2026-05-07T11:13:17.567Z",
+      "createdAt": "2026-05-07T11:13:17.567Z",
+      "id": "XERPR1YzHq1ni2I2",
+      "name": "Rehan"
+    }
+  ]
+}

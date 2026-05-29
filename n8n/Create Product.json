@@ -1,0 +1,443 @@
+{
+  "name": "Create Product",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "create-product",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-create-product",
+      "name": "Webhook - Create Product",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1184,
+        192
+      ],
+      "webhookId": "97e9e1bb-43e4-4a4e-bdde-5aeaa6684ace",
+      "onError": "continueRegularOutput",
+      "notes": "Receives POST JSON body for product creation. Required body: url and brand. Optional: language, defaults to id."
+    },
+    {
+      "parameters": {
+        "jsCode": "const jobId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {\n  const r = Math.random() * 16 | 0;\n  const v = c === 'x' ? r : (r & 0x3 | 0x8);\n  return v.toString(16);\n});\n\nconst body = $input.first().json.body || {};\n\nconst url = body.url;\nconst brand = body.brand;\nconst website_url = body.website_url;\nconst language = body.language || 'Indonesian';\nconst references = body.references || [];\n\nreturn [{\n  json: {\n    jobId,\n    url,\n    brand,\n    website_url,\n    language,\n    references\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -944,
+        192
+      ],
+      "id": "851ceb48-94fe-43c4-8b08-14dcae4388b1",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ jobId: $('Code in JavaScript').item.json.jobId }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -496,
+        192
+      ],
+      "id": "3c71e4d0-58e3-40fa-a767-dfff5d9278c9",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO brand_product (\n  job_id,\n  status,\n  website_url,\n  product_url,\n  language\n)\nVALUES (\n  '{{ $json.jobId }}',\n  'IN_PROGRESS',\n  '{{ $json.website_url }}',\n  '{{ $json.url }}',\n  '{{ $json.language }}'\n)\nON CONFLICT (job_id)\nDO UPDATE SET\n  status = 'IN_PROGRESS',\n  website_url = EXCLUDED.website_url,\n  product_url = EXCLUDED.product_url,\n  language = EXCLUDED.language,\n  updated_at = now();",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -720,
+        192
+      ],
+      "id": "b19faa67-a6f8-4899-8925-60fac18acc02",
+      "name": "Execute a SQL query",
+      "credentials": {
+        "postgres": {
+          "id": "YkWjVauTa48dvHlA",
+          "name": "Postgree N8N Floothink"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const job = $input.first()?.json;\n\nif (!job || !job.job_id) {\n  return [{\n    json: {\n      status: 404,\n      body: {\n        status: 'NOT_FOUND'\n      }\n    }\n  }];\n}\n\nif (job.status !== 'DONE') {\n  return [{\n    json: {\n      status: 200,\n      body: {\n        jobId: job.job_id,\n        status: job.status\n      }\n    }\n  }];\n}\n\nreturn [{\n  json: {\n    status: 200,\n    body: {\n      jobId: job.job_id,\n      status: 'DONE',\n      data: {\n        id: job.id,\n        jobId: job.job_id,\n        brandAnalysisJobId: job.brand_analysis_job_id,\n\n        productUrl: job.product_url,\n        productName: job.product_name,\n        brandName: job.brand_name,\n        productType: job.product_type,\n        priceTier: job.price_tier,\n        productImage: job.product_image,\n\n        productSummary: job.product_summary,\n        uniqueSellingProposition: job.unique_selling_proposition,\n        reasonToBelieve: job.reason_to_believe,\n        functionalBenefits: job.functional_benefits || [],\n        emotionalBenefits: job.emotional_benefits || [],\n        targetAudience: job.target_audience,\n\n        websiteUrl: job.website_url,\n        language: job.language,\n        createdAt: job.created_at,\n        updatedAt: job.updated_at\n      }\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -736,
+        400
+      ],
+      "id": "13d68e6d-7e6b-4901-90de-bd56fb3ed160",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM brand_product \nWHERE job_id = '{{ $json.query.jobId }}'\nLIMIT 1;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -960,
+        400
+      ],
+      "id": "f529cd37-a905-458f-8367-813afca477e5",
+      "name": "Execute a SQL query1",
+      "credentials": {
+        "postgres": {
+          "id": "YkWjVauTa48dvHlA",
+          "name": "Postgree N8N Floothink"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {
+          "responseCode": "={{ $json.status }}"
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -512,
+        400
+      ],
+      "id": "1c26f606-b94a-4e86-9089-353d5bf0f74f",
+      "name": "Respond to Webhook1"
+    },
+    {
+      "parameters": {
+        "path": "create-product/status",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1200,
+        400
+      ],
+      "id": "dd8c3415-93ad-4980-9f3b-b9c678c95a4d",
+      "name": "Webhook",
+      "webhookId": "66356bcd-bc11-4e65-8584-6bb73f792f8a",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "Nasabny45H3V3lyf",
+          "name": "Project ID"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT *\nFROM brand_analysis\nWHERE website_url = '{{ $(\"Code in JavaScript\").item.json.website_url }}'\nLIMIT 1;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -288,
+        192
+      ],
+      "id": "bc5958cd-75d2-446b-b61e-53cec8cd4462",
+      "name": "Execute a SQL query2",
+      "credentials": {
+        "postgres": {
+          "id": "YkWjVauTa48dvHlA",
+          "name": "Postgree N8N Floothink"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an expert product positioning strategist.\n\nYour task is to generate a PRODUCT BRAIN for the target product.\n\nApply the following marketing skills as operating guidance.\nUse these skills to improve product positioning, copy clarity, pricing interpretation, marketing angles, benefits, USP, reason to believe, target audience, and content rules.\nDo not mention the skills by name in the final JSON.\n\nMARKETING SKILLS APPLIED:\n{{ $json.skills_context }}\n\nTARGET PRODUCT URL:\n{{ $('Code in JavaScript').item.json.url }}\n\nLANGUAGE:\n{{ $('Code in JavaScript').item.json.language }}\n\nBRAND BRAIN:\n{{ $json.brand_brain_text }}\n\nYou have access to a scraping tool.\nUse the tool to analyze the product page before generating the result.\n\nCRITICAL:\n- Return ONLY valid JSON\n- No markdown\n- No explanation\n- Use the requested language\n- Make the result specific to the product page\n- Keep the result consistent with the Brand Brain\n- Do not invent exact pricing if it is not visible on the product page\n\nRequired JSON:\n{\n  \"product_name\": \"\",\n  \"product_type\": \"\",\n  \"price_tier\": \"\",\n  \"product_summary\": \"\",\n  \"usp\": \"\",\n  \"reason_to_believe\": \"\",\n  \"functional_benefits\": [],\n  \"emotional_benefits\": [],\n  \"target_audience\": \"\",\n  \"rules\": []\n}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        128,
+        192
+      ],
+      "id": "b18478eb-ba40-4451-8ebf-2930cb15a1a1",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        96,
+        432
+      ],
+      "id": "a0ff5303-c4ba-4e47-a342-ae68912143af",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "ALSmrNcc7DKGJr1F",
+          "name": "OpenRouter Floothink"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "Run actor and get dataset",
+        "actorSource": "store",
+        "actorId": {
+          "__rl": true,
+          "value": "aYG0l9s7dbB7j3gbS",
+          "mode": "list",
+          "cachedResultName": "Website Content Crawler (apify/website-content-crawler)",
+          "cachedResultUrl": "https://console.apify.com/actors/aYG0l9s7dbB7j3gbS/input"
+        },
+        "customBody": "={\n  \"startUrls\": [\n    {\n      \"url\": \"{{ $('Webhook - Create Product').item.json.body.url }}\"\n    }\n  ],\n  \"maxCrawlPages\": 1,\n  \"crawlerType\": \"cheerio\",\n  \"saveMarkdown\": true,\n  \"saveHtml\": false,\n  \"removeElementsCssSelector\": \"script, style, nav, footer, header, noscript\"\n}"
+      },
+      "type": "@apify/n8n-nodes-apify.apifyTool",
+      "typeVersion": 1,
+      "position": [
+        288,
+        416
+      ],
+      "id": "32988152-6871-43c6-91bb-ce51f50fc940",
+      "name": "Run an Actor and get dataset in Apify1",
+      "credentials": {
+        "apifyApi": {
+          "id": "rbUEEwQJFDupQM9h",
+          "name": "Apify Floothink"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const row = $input.first().json;\n\nconst skills = [\n  {\n    slug: \"product-marketing-context\",\n    name: \"Product Marketing Context\",\n    content: `\nUse this skill to build strong foundational product context before generating a Product Brain.\n\nFocus on capturing:\n- Product overview: what the product is, what it does, category, type, business model.\n- Target audience: ideal customer profile, decision makers, primary use cases, jobs-to-be-done.\n- Problems and pain points: core problem, why existing alternatives fall short, cost of the problem, emotional tension.\n- Competitive landscape: direct, secondary, and indirect alternatives.\n- Differentiation: key differentiators, why they matter, why customers choose this product.\n- Objections: likely objections and how the product can address them.\n- Switching dynamics: push away from current solution, pull toward this product, habits that block switching, anxieties about switching.\n- Customer language: words customers use to describe their problem and desired outcome.\n- Brand voice: tone, style, and personality.\n- Proof points: metrics, results, claims, testimonials, notable customers, or evidence.\n- Goals: desired conversion action and business objective.\n\nWhen generating the Product Brain, make the output concrete, specific, and useful for future marketing/content generation.\nAvoid generic product descriptions. Prefer customer-relevant positioning.\n`\n  },\n  {\n    slug: \"copywriting\",\n    name: \"Copywriting\",\n    content: `\nUse this skill to make the Product Brain persuasive, clear, and conversion-oriented.\n\nApply these principles:\n- Clarity over cleverness.\n- Benefits over features: explain what each feature means for the customer.\n- Specificity over vague claims.\n- Customer language over company jargon.\n- Active voice over passive voice.\n- Simple words over complex words.\n- One clear idea per section.\n- Avoid empty buzzwords such as \"innovative\", \"streamline\", \"optimize\", unless supported by specifics.\n- Make the value proposition easy to understand quickly.\n- Use direct, confident, honest language.\n\nWhen writing USP, product summary, benefits, and RTB:\n- Make the USP distinct from competitors.\n- Tie claims to user outcomes.\n- Avoid exaggerated or unsupported statements.\n- Make functional benefits practical and concrete.\n- Make emotional benefits connected to real customer tension.\n- Make rules useful for future content generation.\n`\n  },\n  {\n    slug: \"pricing-strategy\",\n    name: \"Pricing Strategy\",\n    content: `\nUse this skill to interpret and generate pricing-related product context.\n\nFocus on:\n- Product type and pricing model: SaaS, service, subscription, usage-based, package-based, premium, freemium, enterprise, etc.\n- Price tier: infer whether the product is budget, mid-range, premium, enterprise, or custom-priced.\n- Value-based pricing: price should reflect perceived value, not just cost.\n- Competitive alternative: understand what customers compare this product against.\n- Value metric: identify what the customer is paying for, such as seats, usage, access, service scope, deliverables, or outcomes.\n- Packaging: understand what is included, what differentiates tiers, and what signals higher value.\n- Pricing psychology: premium positioning should sound trustworthy and outcome-driven; budget positioning should emphasize accessibility and efficiency.\n\nWhen generating Product Brain:\n- Fill \"price_tier\" based on evidence from the page, or infer carefully.\n- If no price is visible, use \"Not specified\" or infer only if strongly supported.\n- Connect price tier to perceived value and target audience.\n- Avoid inventing exact prices unless they are visible on the scraped product page.\n`\n  },\n  {\n    slug: \"marketing-ideas\",\n    name: \"Marketing Ideas for SaaS\",\n    content: `\nUse this skill to make the Product Brain useful for future marketing ideation and content generation.\n\nThink about marketing angles by context:\n- Content and SEO opportunities.\n- Competitor comparison angles.\n- Free tool or lead magnet potential.\n- Paid ads hooks.\n- Social and community angles.\n- Email and onboarding ideas.\n- Partnerships or integration opportunities.\n- Product-led growth loops.\n- Authority-building and thought leadership.\n- Review sites, marketplaces, and platform channels.\n- Low-budget quick wins versus long-term brand plays.\n\nWhen generating Product Brain:\n- Include product rules and positioning that can support future marketing campaigns.\n- Identify angles that make the product easier to promote.\n- Capture audience pain points that can become hooks.\n- Capture benefits that can become campaign messages.\n- Capture proof points that can support ads, landing pages, and social posts.\n- Make the output practical for content generation, not just descriptive.\n`\n  }\n];\n\nconst brandBrain = {\n  id: row.id,\n  website_url: row.website_url,\n  brand_summary: row.brand_summary,\n  personality_and_tone: row.personality_and_tone,\n  audience_and_values: row.audience_and_values,\n  brand_promise: row.brand_promise,\n  unique_selling_points: row.unique_selling_points || [],\n  social_media_strategy: row.social_media_strategy,\n  content_pillars: row.content_pillars || [],\n  rules: row.rules || []\n};\n\nconst skillsContext = skills\n  .map((skill) => `## ${skill.name}\\n\\n${skill.content.trim()}`)\n  .join(\"\\n\\n---\\n\\n\");\n\nreturn [{\n  json: {\n    brand_brain: brandBrain,\n    brand_brain_text: JSON.stringify(brandBrain, null, 2),\n    skills_context: skillsContext,\n    applied_skills: skills.map((skill) => ({\n      slug: skill.slug,\n      name: skill.name,\n    }))\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -80,
+        192
+      ],
+      "id": "0c98a48d-6b7a-4ae6-86f6-f9cb97994d84",
+      "name": "Code in JavaScript2"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json.output;\n\nconst parsed = JSON.parse(raw);\n\nreturn [\n  {\n    json: parsed\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        192
+      ],
+      "id": "762b925a-5d2f-490a-8141-361b90ea6821",
+      "name": "Code in JavaScript3"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE brand_product\nSET\n  product_url = '{{ $(\"Webhook - Create Product\").item.json.body.url }}',\n  product_name = '{{ $json.product_name }}',\n  brand_name = '{{ $(\"Webhook - Create Product\").item.json.body.brand }}',\n  product_type = '{{ $json.product_type }}',\n  price_tier = '{{ $json.price_tier }}',\n  product_summary = '{{ $json.product_summary }}',\n  unique_selling_proposition = '{{ $json.usp }}',\n  reason_to_believe = '{{ $json.reason_to_believe }}',\n  functional_benefits = '{{ JSON.stringify($json.functional_benefits) }}'::jsonb,\n  emotional_benefits = '{{ JSON.stringify($json.emotional_benefits) }}'::jsonb,\n  target_audience = '{{ $json.target_audience }}',\n  website_url = '{{ $(\"Webhook - Create Product\").item.json.body.website_url }}',\n  language = '{{ $(\"Webhook - Create Product\").item.json.body.language }}',\n  status = 'DONE',\n  brand_analysis_job_id = '{{ $(\"Execute a SQL query2\").item.json.job_id }}',\n  updated_at = now()\nWHERE job_id = '{{ $(\"Code in JavaScript\").item.json.jobId }}';",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        688,
+        192
+      ],
+      "id": "81e8f944-f7af-4c2a-90e1-7bac91e41475",
+      "name": "Execute a SQL query3",
+      "credentials": {
+        "postgres": {
+          "id": "YkWjVauTa48dvHlA",
+          "name": "Postgree N8N Floothink"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook - Create Product": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond to Webhook": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query2": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run an Actor and get dataset in Apify1": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript3": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "saveDataSuccessExecution": "all",
+    "saveDataErrorExecution": "all",
+    "timezone": "Asia/Jakarta"
+  },
+  "versionId": "804fa268-2609-4ef3-ad7f-cd57e92169f0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "de05e9a2fde146d01845966a070288e86cb0db7d6640cd2282172981fb03c5d1"
+  },
+  "id": "bTMe6KDZM40pkgFT",
+  "tags": [
+    {
+      "updatedAt": "2026-05-07T11:13:17.567Z",
+      "createdAt": "2026-05-07T11:13:17.567Z",
+      "id": "XERPR1YzHq1ni2I2",
+      "name": "Rehan"
+    }
+  ]
+}
