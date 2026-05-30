@@ -27,6 +27,15 @@ interface UserUsage {
   generationCount: number;
 }
 
+interface CreditBalance {
+  isOpenRouter: boolean;
+  isUnlimited?: boolean;
+  limit?: number;
+  used?: number;
+  remaining?: number;
+  error?: string;
+}
+
 interface TokenUsageSectionProps {
   workspaceId: string;
   scope: "user" | "workspace";
@@ -45,6 +54,23 @@ export function TokenUsageSection({
   const [days, setDays] = useState(30);
   const [users, setUsers] = useState<UserUsage[]>([]);
   const [selectedUserId, setSelectedUserId] = useState<string>("");
+  const [creditBalance, setCreditBalance] = useState<CreditBalance | null>(null);
+
+  // Fetch OpenRouter credit balance once (workspace scope only)
+  useEffect(() => {
+    if (!workspaceId || scope !== "workspace") return;
+    (async () => {
+      try {
+        const res = await api<{ data: CreditBalance }>(
+          `/api/workspaces/${workspaceId}/ai-settings/credit-balance`,
+        );
+        const data = (res as any).data ?? res;
+        if (data?.isOpenRouter) setCreditBalance(data);
+      } catch {
+        // silent — credit balance is best-effort
+      }
+    })();
+  }, [workspaceId, scope]);
 
   // Fetch the user-breakdown list once (only for workspace scope)
   useEffect(() => {
@@ -125,6 +151,9 @@ export function TokenUsageSection({
           </div>
         )}
       </div>
+
+      {/* OpenRouter credit balance */}
+      {creditBalance && <CreditBalanceCard balance={creditBalance} />}
 
       {/* Stat cards */}
       {summary ? (
@@ -223,6 +252,61 @@ export function TokenUsageSection({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function CreditBalanceCard({ balance }: { balance: CreditBalance }) {
+  if (balance.error) {
+    return (
+      <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-xs text-red-600">
+        <span className="text-base">⚠️</span>
+        <span>Could not fetch OpenRouter credit balance: {balance.error}</span>
+      </div>
+    );
+  }
+
+  if (balance.isUnlimited) {
+    return (
+      <div className="flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3">
+        <span className="text-base">✅</span>
+        <div>
+          <p className="text-xs font-semibold text-emerald-800">OpenRouter Credits</p>
+          <p className="text-xs text-emerald-600">Unlimited key — no credit limit set</p>
+        </div>
+      </div>
+    );
+  }
+
+  const remaining = balance.remaining ?? 0;
+  const limit = balance.limit ?? 1;
+  const pct = Math.max(0, Math.min(100, (remaining / limit) * 100));
+  const isLow = pct < 20;
+  const isCritical = pct < 5;
+
+  return (
+    <div className={`border rounded-lg px-4 py-3 ${isCritical ? "bg-red-50 border-red-200" : isLow ? "bg-amber-50 border-amber-200" : "bg-gray-50 border-gray-200"}`}>
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <span className="text-base">{isCritical ? "🔴" : isLow ? "🟡" : "🟢"}</span>
+          <p className="text-xs font-semibold text-gray-800">OpenRouter Credits</p>
+        </div>
+        <p className={`text-xs font-bold ${isCritical ? "text-red-600" : isLow ? "text-amber-700" : "text-gray-700"}`}>
+          ${remaining.toFixed(2)} / ${limit.toFixed(2)} remaining
+        </p>
+      </div>
+      <div className="w-full bg-gray-200 rounded-full h-1.5">
+        <div
+          className={`h-1.5 rounded-full transition-all ${isCritical ? "bg-red-500" : isLow ? "bg-amber-500" : "bg-emerald-500"}`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <div className="flex items-center justify-between mt-1.5">
+        <p className="text-[10px] text-gray-400">Used: ${(balance.used ?? 0).toFixed(2)}</p>
+        <p className={`text-[10px] font-medium ${isCritical ? "text-red-500" : isLow ? "text-amber-600" : "text-gray-400"}`}>
+          {pct.toFixed(0)}% remaining
+        </p>
+      </div>
     </div>
   );
 }

@@ -248,6 +248,48 @@ export function createWorkspaceAiSettingsRoutes(
 		}
 	});
 
+	// GET /credit-balance — fetch the OpenRouter key's remaining credit balance.
+	// Returns { isOpenRouter, isUnlimited, remaining, used, limit } all in USD.
+	// When not in OpenRouter mode, returns { isOpenRouter: false }.
+	app.get("/credit-balance", async (c) => {
+		const workspaceId = c.get("workspaceId");
+		const aiMode = process.env.AI_MODE;
+		if (aiMode !== "openrouter") {
+			return c.json({ data: { isOpenRouter: false } });
+		}
+
+		const resolved = await aiFactory.getSettings(workspaceId);
+		const apiKey = resolved.openrouter.apiKey;
+		if (!apiKey) {
+			return c.json({ data: { isOpenRouter: true, error: "No API key configured" } });
+		}
+
+		try {
+			const res = await fetch("https://openrouter.ai/api/v1/auth/key", {
+				headers: { Authorization: `Bearer ${apiKey}` },
+			});
+			if (!res.ok) {
+				return c.json({ data: { isOpenRouter: true, error: `API returned ${res.status}` } });
+			}
+			const body = (await res.json()) as { data: { limit: number | null; usage: number } };
+			const { limit, usage } = body.data;
+			if (limit === null) {
+				return c.json({ data: { isOpenRouter: true, isUnlimited: true, used: usage } });
+			}
+			return c.json({
+				data: {
+					isOpenRouter: true,
+					isUnlimited: false,
+					limit,
+					used: usage,
+					remaining: limit - usage,
+				},
+			});
+		} catch (e) {
+			return c.json({ data: { isOpenRouter: true, error: e instanceof Error ? e.message : "Failed" } });
+		}
+	});
+
 	// POST /test-openrouter — verify an OpenRouter API key + model.
 	// body: { apiKey: string; model: string }
 	// Gated to workspace admins to prevent proxy abuse.
