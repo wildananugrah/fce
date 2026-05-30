@@ -1,5 +1,6 @@
 import nodemailer, { type Transporter } from "nodemailer";
 import type {
+	CreditAlertEmailInput,
 	IEmailProvider,
 	InvitationEmailInput,
 	PasswordResetEmailInput,
@@ -108,9 +109,31 @@ export class SmtpEmailProvider implements IEmailProvider {
 		);
 	}
 
+	async sendCreditAlert(input: CreditAlertEmailInput): Promise<void> {
+		const remaining = input.remainingUsd.toFixed(2);
+		const threshold = input.thresholdUsd.toFixed(2);
+		const subject = `⚠️ OpenRouter credit low: $${remaining} remaining`;
+		const html = `
+			<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 520px; margin: 0 auto; padding: 24px; color: #111;">
+				<h1 style="font-size: 20px; margin-bottom: 16px;">OpenRouter credit running low</h1>
+				<p>Your OpenRouter API key balance has dropped to <strong>$${remaining}</strong>, which is at or below your configured alert threshold of <strong>$${threshold}</strong>.</p>
+				<p>AI generation will stop working when the balance reaches zero. Top up your credits to keep the service running.</p>
+				<p style="margin: 24px 0;">
+					<a href="https://openrouter.ai/credits" style="display: inline-block; background: #4f46e5; color: #fff; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 600;">Top up credits →</a>
+				</p>
+				<p style="color: #999; font-size: 12px; margin-top: 24px;">This alert fires every check cycle while balance remains below the threshold. Set OPENROUTER_CREDIT_ALERT_THRESHOLD in your .env to adjust.</p>
+			</div>
+		`;
+
+		await this.send(
+			{ to: input.to, subject, html },
+			{ kind: "credit_alert", to: input.to },
+		);
+	}
+
 	private async send(
 		payload: { to: string; subject: string; html: string },
-		context: { kind: "invitation" | "verification" | "password_reset"; to: string },
+		context: { kind: "invitation" | "verification" | "password_reset" | "credit_alert"; to: string },
 	): Promise<void> {
 		try {
 			const info = await this.transporter.sendMail({
