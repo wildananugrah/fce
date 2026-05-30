@@ -58,7 +58,9 @@ bunx prisma db push
 echo "Building backend..."
 cd "$REPO_DIR/backend"
 bun install
-make down; make up;
+# Graceful restart: reload keeps connections alive during restart.
+# If no PM2 process exists yet (first deploy), fall back to make up.
+pm2 reload pm2.config.cjs --update-env 2>/dev/null || make up
 
 echo "Building fce frontend..."
 cd "$REPO_DIR/frontend"
