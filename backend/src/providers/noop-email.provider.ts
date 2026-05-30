@@ -1,5 +1,6 @@
 import type { ILogger } from "../interfaces/providers/logger.provider.interface";
 import type {
+	CreditAlertEmailInput,
 	IEmailProvider,
 	InvitationEmailInput,
 	PasswordResetEmailInput,
@@ -38,6 +39,14 @@ export class NoopEmailProvider implements IEmailProvider {
 			to: input.to,
 			resetUrl: input.resetUrl,
 			expiryHuman: input.expiryHuman,
+		});
+	}
+
+	async sendCreditAlert(input: CreditAlertEmailInput): Promise<void> {
+		this.logger.warn("Email provider not configured — credit alert NOT sent", {
+			to: input.to,
+			remainingUsd: input.remainingUsd,
+			thresholdUsd: input.thresholdUsd,
 		});
 	}
 }
