@@ -42,7 +42,7 @@ make down; make up
 echo "Building database..."
 cd "$REPO_DIR/backend"
 set -a
-source .env
+source <(grep -E '^[[:space:]]*[A-Za-z_][A-Za-z0-9_]*=' .env)
 set +a
 bun install
 # Generate the Prisma client against the new schema first so the pre-push
