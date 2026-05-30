@@ -465,15 +465,11 @@ async function main() {
 	);
 	const researchRunJob = new ResearchRunJob(prisma, apifyProvider, notificationService, logger);
 	const archiveSweepJob = new ArchiveSweepJob(prisma, logger, env.archiveTtlDays);
+	// Job is always created in openrouter mode; it self-manages which workspaces
+	// to check based on their workspace settings (openrouterCreditAlertEmail).
 	const openrouterCreditCheckJob =
-		aiMode === "openrouter" && process.env.OPENROUTER_CREDIT_ALERT_EMAIL
-			? new OpenRouterCreditCheckJob(
-					process.env.OPENROUTER_API_KEY ?? "",
-					process.env.OPENROUTER_CREDIT_ALERT_EMAIL,
-					parseFloat(process.env.OPENROUTER_CREDIT_ALERT_THRESHOLD ?? "5"),
-					emailProvider,
-					logger,
-			  )
+		aiMode === "openrouter"
+			? new OpenRouterCreditCheckJob(prisma, aiProviderFactory, emailProvider, logger)
 			: null;
 
 	const creatorEnrichmentJob = new CreatorEnrichmentJob(
@@ -559,7 +555,7 @@ async function main() {
 	await boss.createQueue("recommendation-recompute");
 	await boss.createQueue("research-run");
 	await boss.createQueue("archive-sweep");
-	if (aiMode === "openrouter" && process.env.OPENROUTER_CREDIT_ALERT_EMAIL) {
+	if (openrouterCreditCheckJob) {
 		await boss.createQueue("openrouter-credit-check");
 	}
 	await boss.createQueue("creator-enrichment");

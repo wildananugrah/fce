@@ -741,6 +741,11 @@ model WorkspaceSetting {
   openrouterImageModel        String? @map("openrouter_image_model")
   openrouterVideoModel        String? @map("openrouter_video_model")
 
+  // Credit alert — email and threshold stored per workspace so admins can
+  // configure alerts without touching the server .env.
+  openrouterCreditAlertEmail     String? @map("openrouter_credit_alert_email")
+  openrouterCreditAlertThreshold Float?  @map("openrouter_credit_alert_threshold")
+
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 

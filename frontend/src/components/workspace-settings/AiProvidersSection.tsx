@@ -36,6 +36,8 @@ interface AiSettings {
 		openrouterChatModel: string | null;
 		openrouterImageModel: string | null;
 		openrouterVideoModel: string | null;
+		openrouterCreditAlertEmail: string | null;
+		openrouterCreditAlertThreshold: number | null;
 	};
 	credentials: {
 		anthropic: { configured: boolean; masked: string | null };
@@ -121,6 +123,8 @@ export function AiProvidersSection({ workspaceId, showToast }: Props) {
 		openrouterChatModel: "",
 		openrouterImageModel: "",
 		openrouterVideoModel: "",
+		openrouterCreditAlertEmail: "",
+		openrouterCreditAlertThreshold: "",
 	});
 	const [showOpenrouterKey, setShowOpenrouterKey] = useState(false);
 	const [openrouterTesting, setOpenrouterTesting] = useState(false);
@@ -154,6 +158,11 @@ export function AiProvidersSection({ workspaceId, showToast }: Props) {
 				openrouterChatModel: data.workspaceValues.openrouterChatModel ?? "",
 				openrouterImageModel: data.workspaceValues.openrouterImageModel ?? "",
 				openrouterVideoModel: data.workspaceValues.openrouterVideoModel ?? "",
+				openrouterCreditAlertEmail: data.workspaceValues.openrouterCreditAlertEmail ?? "",
+				openrouterCreditAlertThreshold:
+					data.workspaceValues.openrouterCreditAlertThreshold != null
+						? String(data.workspaceValues.openrouterCreditAlertThreshold)
+						: "",
 			});
 		} catch (e) {
 			showToast(e instanceof Error ? e.message : "Failed to load AI settings", "error");
@@ -213,11 +222,16 @@ export function AiProvidersSection({ workspaceId, showToast }: Props) {
 				"openrouterChatModel",
 				"openrouterImageModel",
 				"openrouterVideoModel",
+				"openrouterCreditAlertEmail",
 			] as const;
 			for (const k of modelKeys) {
 				const v = openrouterDraft[k];
 				patch[k] = v === "" ? null : v;
 			}
+			// Threshold is a number field — send as number or null
+			const rawThreshold = openrouterDraft.openrouterCreditAlertThreshold.trim();
+			(patch as Record<string, unknown>).openrouterCreditAlertThreshold =
+				rawThreshold === "" ? null : parseFloat(rawThreshold) || null;
 			await api(`/api/workspaces/${workspaceId}/ai-settings`, {
 				method: "PUT",
 				body: JSON.stringify(patch),
@@ -425,6 +439,39 @@ export function AiProvidersSection({ workspaceId, showToast }: Props) {
 						<p className="text-xs text-gray-500">
 							Image model must be image-capable. Video model must accept video URL input.
 						</p>
+					</div>
+
+					<div className="border-t pt-4 space-y-3">
+						<h4 className="text-sm font-semibold text-gray-700">Credit Alert</h4>
+						<p className="text-xs text-gray-500">
+							Get an email when your OpenRouter credit balance drops below the threshold. Leave blank to disable.
+						</p>
+						<div className="grid grid-cols-[140px_1fr] gap-3 items-center">
+							<label className="text-sm text-gray-700">Alert email</label>
+							<input
+								type="email"
+								className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400"
+								placeholder="ops@yourcompany.com"
+								value={openrouterDraft.openrouterCreditAlertEmail}
+								onChange={(e) =>
+									setOpenrouterDraft((p) => ({ ...p, openrouterCreditAlertEmail: e.target.value }))
+								}
+							/>
+						</div>
+						<div className="grid grid-cols-[140px_1fr] gap-3 items-center">
+							<label className="text-sm text-gray-700">Threshold (USD)</label>
+							<input
+								type="number"
+								min="0"
+								step="0.5"
+								className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400"
+								placeholder="5"
+								value={openrouterDraft.openrouterCreditAlertThreshold}
+								onChange={(e) =>
+									setOpenrouterDraft((p) => ({ ...p, openrouterCreditAlertThreshold: e.target.value }))
+								}
+							/>
+						</div>
 					</div>
 
 					<div className="border-t pt-4 flex items-center justify-between">

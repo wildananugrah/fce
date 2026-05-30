@@ -21,6 +21,8 @@ export type AiSettingsPatch = Partial<{
 	openrouterChatModel: string | null;
 	openrouterImageModel: string | null;
 	openrouterVideoModel: string | null;
+	openrouterCreditAlertEmail: string | null;
+	openrouterCreditAlertThreshold: number | null;
 }>;
 
 /**

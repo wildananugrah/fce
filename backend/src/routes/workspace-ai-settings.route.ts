@@ -34,6 +34,8 @@ const OPENROUTER_FIELDS = new Set([
 	"openrouterChatModel",
 	"openrouterImageModel",
 	"openrouterVideoModel",
+	"openrouterCreditAlertEmail",
+	"openrouterCreditAlertThreshold",
 ]);
 const LEGACY_FIELDS = new Set([
 	"aiProvider",
@@ -99,6 +101,8 @@ export function createWorkspaceAiSettingsRoutes(
 					openrouterChatModel: record?.openrouterChatModel ?? null,
 					openrouterImageModel: record?.openrouterImageModel ?? null,
 					openrouterVideoModel: record?.openrouterVideoModel ?? null,
+					openrouterCreditAlertEmail: record?.openrouterCreditAlertEmail ?? null,
+					openrouterCreditAlertThreshold: record?.openrouterCreditAlertThreshold ?? null,
 				},
 				credentials: {
 					anthropic: maskKey(record?.anthropicApiKey),
@@ -156,10 +160,21 @@ export function createWorkspaceAiSettingsRoutes(
 			"openrouterChatModel",
 			"openrouterImageModel",
 			"openrouterVideoModel",
+			"openrouterCreditAlertEmail",
 		] as const;
 		for (const f of stringFields) {
 			const v = sanitizeString(body[f]);
 			if (v !== undefined) patch[f] = v;
+		}
+
+		// openrouterCreditAlertThreshold — nullable float
+		if ("openrouterCreditAlertThreshold" in body) {
+			const raw = body.openrouterCreditAlertThreshold;
+			if (raw === null) {
+				patch.openrouterCreditAlertThreshold = null;
+			} else if (typeof raw === "number" && isFinite(raw) && raw >= 0) {
+				patch.openrouterCreditAlertThreshold = raw;
+			}
 		}
 
 		const mode = aiFactory.mode;
