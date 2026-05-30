@@ -22,8 +22,15 @@ export interface PasswordResetEmailInput {
 	expiryHuman: string;
 }
 
+export interface CreditAlertEmailInput {
+	to: string;
+	remainingUsd: number;
+	thresholdUsd: number;
+}
+
 export interface IEmailProvider {
 	sendInvitation(input: InvitationEmailInput): Promise<void>;
 	sendVerification(input: VerificationEmailInput): Promise<void>;
 	sendPasswordReset(input: PasswordResetEmailInput): Promise<void>;
+	sendCreditAlert(input: CreditAlertEmailInput): Promise<void>;
 }
