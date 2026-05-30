@@ -15,6 +15,7 @@ import { PgBoss } from "pg-boss";
 import { loadSkillRegistry } from "./config/skills/loader";
 import type { SkillRegistry } from "./config/skills/loader";
 import { ArchiveSweepJob } from "./jobs/archive-sweep.job";
+import { OpenRouterCreditCheckJob } from "./jobs/openrouter-credit-check.job";
 import { BrandScrapingJob } from "./jobs/brand-scraping.job";
 import { BrandBrainRefreshJob } from "./jobs/brand-brain-refresh.job";
 import { CampaignGenerationJob } from "./jobs/campaign-generation.job";
@@ -464,6 +465,16 @@ async function main() {
 	);
 	const researchRunJob = new ResearchRunJob(prisma, apifyProvider, notificationService, logger);
 	const archiveSweepJob = new ArchiveSweepJob(prisma, logger, env.archiveTtlDays);
+	const openrouterCreditCheckJob =
+		aiMode === "openrouter" && process.env.OPENROUTER_CREDIT_ALERT_EMAIL
+			? new OpenRouterCreditCheckJob(
+					process.env.OPENROUTER_API_KEY ?? "",
+					process.env.OPENROUTER_CREDIT_ALERT_EMAIL,
+					parseFloat(process.env.OPENROUTER_CREDIT_ALERT_THRESHOLD ?? "5"),
+					emailProvider,
+					logger,
+			  )
+			: null;
 
 	const creatorEnrichmentJob = new CreatorEnrichmentJob(
 		creatorRepository,
@@ -548,6 +559,9 @@ async function main() {
 	await boss.createQueue("recommendation-recompute");
 	await boss.createQueue("research-run");
 	await boss.createQueue("archive-sweep");
+	if (aiMode === "openrouter" && process.env.OPENROUTER_CREDIT_ALERT_EMAIL) {
+		await boss.createQueue("openrouter-credit-check");
+	}
 	await boss.createQueue("creator-enrichment");
 	await boss.createQueue("competitor-pipeline");
 
@@ -646,6 +660,15 @@ async function main() {
 			for (const _ of jobs) await archiveSweepJob.handle();
 		},
 	);
+	if (openrouterCreditCheckJob) {
+		await boss.work(
+			"openrouter-credit-check",
+			{ localConcurrency: 1, pollingIntervalSeconds: 60 },
+			async (jobs) => {
+				for (const _ of jobs) await openrouterCreditCheckJob.handle();
+			},
+		);
+	}
 	await boss.work(
 		"creator-enrichment",
 		{ localConcurrency: 3, pollingIntervalSeconds: 2 },
@@ -664,6 +687,17 @@ async function main() {
 	// Run the archive sweeper once an hour. pg-boss dedupes duplicate
 	// schedules by (queue, key) so calling this on every boot is safe.
 	await boss.schedule("archive-sweep", "0 * * * *");
+	if (openrouterCreditCheckJob) {
+		await boss.schedule(
+			"openrouter-credit-check",
+			process.env.OPENROUTER_CREDIT_CHECK_CRON ?? "0 * * * *",
+		);
+		logger.info("openrouter-credit-check scheduled", {
+			cron: process.env.OPENROUTER_CREDIT_CHECK_CRON ?? "0 * * * *",
+			alertEmail: process.env.OPENROUTER_CREDIT_ALERT_EMAIL,
+			thresholdUsd: process.env.OPENROUTER_CREDIT_ALERT_THRESHOLD ?? "5",
+		});
+	}
 
 	// ─── Middleware Instances ────────────────────────────────────────
 	const authMiddleware = createAuthMiddleware(env.jwtSecret);
