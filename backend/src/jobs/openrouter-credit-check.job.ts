@@ -3,7 +3,7 @@ import type { ILogger } from "../interfaces/providers/logger.provider.interface"
 
 const OPENROUTER_KEY_URL = "https://openrouter.ai/api/v1/auth/key";
 
-type FetchFn = (url: string, init?: RequestInit) => Promise<Response>;
+export type FetchFn = (url: string, init?: RequestInit) => Promise<Response>;
 
 interface KeyInfoResponse {
 	data: {
@@ -48,7 +48,7 @@ export class OpenRouterCreditCheckJob {
 			return;
 		}
 
-		const remainingUsd = (limit - usage) / 1000;
+		const remainingUsd = limit - usage;
 
 		this.logger.info("openrouter-credit-check: balance checked", {
 			remainingUsd: remainingUsd.toFixed(2),

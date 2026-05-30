@@ -1,7 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { OpenRouterCreditCheckJob } from "../../src/jobs/openrouter-credit-check.job";
+import type { ILogger } from "../../src/interfaces/providers/logger.provider.interface";
+import { OpenRouterCreditCheckJob, type FetchFn } from "../../src/jobs/openrouter-credit-check.job";
 
-const mockLogger = { info: () => {}, warn: () => {}, error: () => {} } as any;
+const mockLogger = { info: () => {}, warn: () => {}, error: () => {}, debug: () => {}, child: () => mockLogger } as unknown as ILogger;
 
 function makeMockEmail() {
 	const calls: any[] = [];
@@ -13,8 +14,6 @@ function makeMockEmail() {
 		calls,
 	};
 }
-
-type FetchFn = (url: string, init?: RequestInit) => Promise<Response>;
 
 function buildJob(
 	apiKey: string,
@@ -33,7 +32,7 @@ describe("OpenRouterCreditCheckJob", () => {
 	describe("when balance is below threshold", () => {
 		it("sends a credit alert email", async () => {
 			const mockFetch = async (_url: string, _opts?: any) =>
-				({ ok: true, json: async () => ({ data: { limit: 10000, usage: 8000 } }) }) as any;
+				({ ok: true, json: async () => ({ data: { limit: 10, usage: 8 } }) }) as any;
 
 			const { job, email } = buildJob("key", "ops@co.com", 5, mockFetch);
 			await job.handle();
@@ -48,7 +47,7 @@ describe("OpenRouterCreditCheckJob", () => {
 	describe("when balance equals threshold exactly", () => {
 		it("sends a credit alert email (boundary — at threshold fires)", async () => {
 			const mockFetch = async (_url: string, _opts?: any) =>
-				({ ok: true, json: async () => ({ data: { limit: 10000, usage: 5000 } }) }) as any;
+				({ ok: true, json: async () => ({ data: { limit: 10, usage: 5 } }) }) as any;
 
 			const { job, email } = buildJob("key", "ops@co.com", 5, mockFetch);
 			await job.handle();
@@ -61,7 +60,7 @@ describe("OpenRouterCreditCheckJob", () => {
 	describe("when balance is above threshold", () => {
 		it("does not send an alert email", async () => {
 			const mockFetch = async (_url: string, _opts?: any) =>
-				({ ok: true, json: async () => ({ data: { limit: 10000, usage: 1000 } }) }) as any;
+				({ ok: true, json: async () => ({ data: { limit: 10, usage: 1 } }) }) as any;
 
 			const { job, email } = buildJob("key", "ops@co.com", 5, mockFetch);
 			await job.handle();
@@ -73,7 +72,7 @@ describe("OpenRouterCreditCheckJob", () => {
 	describe("when key has no limit (unlimited)", () => {
 		it("does not send an alert email", async () => {
 			const mockFetch = async (_url: string, _opts?: any) =>
-				({ ok: true, json: async () => ({ data: { limit: null, usage: 100 } }) }) as any;
+				({ ok: true, json: async () => ({ data: { limit: null, usage: 0.1 } }) }) as any;
 
 			const { job, email } = buildJob("key", "ops@co.com", 5, mockFetch);
 			await job.handle();
@@ -106,7 +105,7 @@ describe("OpenRouterCreditCheckJob", () => {
 	describe("when the email send fails", () => {
 		it("does not throw", async () => {
 			const mockFetch = async (_url: string, _opts?: any) =>
-				({ ok: true, json: async () => ({ data: { limit: 10000, usage: 9900 } }) }) as any;
+				({ ok: true, json: async () => ({ data: { limit: 10, usage: 9.9 } }) }) as any;
 
 			const failEmail = {
 				sendInvitation: async () => {},
