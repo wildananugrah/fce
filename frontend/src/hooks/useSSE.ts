@@ -40,6 +40,9 @@ const EVENT_TYPES = [
   "competitor_pipeline_video_analyzed",
   "competitor_pipeline_completed",
   "competitor_pipeline_failed",
+  // Token usage Excel export
+  "export_ready",
+  "export_failed",
 ] as const;
 
 // EventSource doesn't surface the HTTP status of a failure — `onerror` just
