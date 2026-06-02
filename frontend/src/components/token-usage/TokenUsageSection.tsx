@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { api } from "../../services/api";
+import { useSSE } from "../../hooks/useSSE";
 
 interface TokenSummary {
   totalInputTokens: number;
@@ -55,6 +56,20 @@ export function TokenUsageSection({
   const [users, setUsers] = useState<UserUsage[]>([]);
   const [selectedUserId, setSelectedUserId] = useState<string>("");
   const [creditBalance, setCreditBalance] = useState<CreditBalance | null>(null);
+
+  // Export state
+  const [exportDateFrom, setExportDateFrom] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 30);
+    return d.toISOString().slice(0, 10); // YYYY-MM-DD
+  });
+  const [exportDateTo, setExportDateTo] = useState(
+    () => new Date().toISOString().slice(0, 10)
+  );
+  type ExportState = "idle" | "generating" | "ready" | "error";
+  const [exportState, setExportState] = useState<ExportState>("idle");
+  const [exportUrl, setExportUrl] = useState<string | null>(null);
+  const [exportFilename, setExportFilename] = useState<string | null>(null);
 
   // Fetch OpenRouter credit balance once (workspace scope only)
   useEffect(() => {
@@ -118,6 +133,34 @@ export function TokenUsageSection({
     })();
   }, [workspaceId, scope, days, selectedUserId]);
 
+  useSSE((event) => {
+    if (event.type === "export_ready" && event.data.workspaceId === workspaceId) {
+      setExportState("ready");
+      setExportUrl(event.data.url as string);
+      setExportFilename(event.data.filename as string);
+    }
+    if (event.type === "export_failed" && event.data.workspaceId === workspaceId) {
+      setExportState("error");
+      setTimeout(() => setExportState("idle"), 4000);
+    }
+  });
+
+  const handleExport = async () => {
+    if (!workspaceId || exportState === "generating") return;
+    setExportState("generating");
+    setExportUrl(null);
+    setExportFilename(null);
+    try {
+      await api(`/api/workspaces/${workspaceId}/ai-logs/export`, {
+        method: "POST",
+        body: JSON.stringify({ dateFrom: exportDateFrom, dateTo: exportDateTo }),
+      });
+    } catch {
+      setExportState("error");
+      setTimeout(() => setExportState("idle"), 4000);
+    }
+  };
+
   const formatUserLabel = (u: UserUsage) => {
     const name = u.fullName ?? u.email;
     return `${name} — ${u.totalTokens.toLocaleString()} tokens`;
@@ -151,6 +194,77 @@ export function TokenUsageSection({
           </div>
         )}
       </div>
+
+      {/* Export panel — workspace scope only */}
+      {scope === "workspace" && (
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-2">
+            <label className="text-[10px] font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap">
+              Date range
+            </label>
+            <input
+              type="date"
+              value={exportDateFrom}
+              max={exportDateTo}
+              onChange={(e) => setExportDateFrom(e.target.value)}
+              className="text-xs px-2 py-1 border border-gray-200 rounded-md focus:outline-none focus:border-indigo-400"
+            />
+            <span className="text-xs text-gray-400">to</span>
+            <input
+              type="date"
+              value={exportDateTo}
+              min={exportDateFrom}
+              max={new Date().toISOString().slice(0, 10)}
+              onChange={(e) => setExportDateTo(e.target.value)}
+              className="text-xs px-2 py-1 border border-gray-200 rounded-md focus:outline-none focus:border-indigo-400"
+            />
+          </div>
+
+          {exportState === "idle" && (
+            <button
+              type="button"
+              onClick={handleExport}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+              </svg>
+              Export to Excel
+            </button>
+          )}
+
+          {exportState === "generating" && (
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-md">
+              <svg className="animate-spin w-3.5 h-3.5 text-indigo-500" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              Generating export…
+            </div>
+          )}
+
+          {exportState === "ready" && exportUrl && (
+            <a
+              href={exportUrl}
+              download={exportFilename ?? "token-usage.xlsx"}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-colors"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              Download Excel
+            </a>
+          )}
+
+          {exportState === "error" && (
+            <span className="text-xs text-red-500 px-2 py-1.5">
+              Export failed — please try again
+            </span>
+          )}
+        </div>
+      )}
 
       {/* OpenRouter credit balance */}
       {creditBalance && <CreditBalanceCard balance={creditBalance} />}
