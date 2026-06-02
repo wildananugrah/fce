@@ -1,5 +1,6 @@
 import type { PrismaClient } from "@prisma/client";
 import { Hono } from "hono";
+import type { PgBoss } from "pg-boss";
 
 type Variables = {
 	userId: string;
@@ -8,7 +9,7 @@ type Variables = {
 	workspaceRole: string;
 };
 
-export function createAiLogRoutes(prisma: PrismaClient) {
+export function createAiLogRoutes(prisma: PrismaClient, boss: PgBoss) {
 	const app = new Hono<{ Variables: Variables }>();
 
 	// GET / — List AI activity logs for workspace
@@ -264,6 +265,36 @@ export function createAiLogRoutes(prisma: PrismaClient) {
 				byProvider: Object.fromEntries(byProvider.map((p) => [p.provider, p._count])),
 			},
 		});
+	});
+
+	// POST /export — enqueue an async Excel export job for the date range.
+	// Returns immediately with { jobId }; the job notifies via SSE when done.
+	app.post("/export", async (c) => {
+		const workspaceId = c.get("workspaceId");
+		const userId = c.get("userId");
+		const body = (await c.req.json()) as { dateFrom?: unknown; dateTo?: unknown };
+
+		const dateFrom = typeof body.dateFrom === "string" ? body.dateFrom.trim() : "";
+		const dateTo   = typeof body.dateTo   === "string" ? body.dateTo.trim()   : "";
+
+		// Validate ISO date strings (YYYY-MM-DD)
+		const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+		if (!ISO_DATE.test(dateFrom) || !ISO_DATE.test(dateTo)) {
+			return c.json({ error: "dateFrom and dateTo must be YYYY-MM-DD" }, 400);
+		}
+		if (dateFrom > dateTo) {
+			return c.json({ error: "dateFrom must be on or before dateTo" }, 400);
+		}
+
+		const jobId = await boss.send("token-usage-export", {
+			workspaceId,
+			userId,
+			dateFrom,
+			dateTo,
+			jobId: crypto.randomUUID(),
+		});
+
+		return c.json({ data: { jobId } }, 202);
 	});
 
 	return app;
