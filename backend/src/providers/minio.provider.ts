@@ -72,6 +72,9 @@ export class MinioStorageProvider implements IStorageProvider {
 
 	async getSignedUrl(bucket: string, key: string, ttlSeconds: number): Promise<string> {
 		const command = new GetObjectCommand({ Bucket: bucket, Key: key });
-		return getSignedUrl(this.client, command, { expiresIn: ttlSeconds });
+		const signed = await getSignedUrl(this.client, command, { expiresIn: ttlSeconds });
+		// The S3 client builds the URL from the internal endpoint (e.g. localhost:9002).
+		// Replace it with the public URL so browsers and external callers can reach the file.
+		return signed.replace(this.endpoint, this.publicUrl);
 	}
 }
