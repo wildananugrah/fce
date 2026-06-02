@@ -15,6 +15,7 @@ import { PgBoss } from "pg-boss";
 import { loadSkillRegistry } from "./config/skills/loader";
 import type { SkillRegistry } from "./config/skills/loader";
 import { ArchiveSweepJob } from "./jobs/archive-sweep.job";
+import { TokenUsageExportJob } from "./jobs/token-usage-export.job";
 import { OpenRouterCreditCheckJob } from "./jobs/openrouter-credit-check.job";
 import { BrandScrapingJob } from "./jobs/brand-scraping.job";
 import { BrandBrainRefreshJob } from "./jobs/brand-brain-refresh.job";
@@ -465,6 +466,13 @@ async function main() {
 	);
 	const researchRunJob = new ResearchRunJob(prisma, apifyProvider, notificationService, logger);
 	const archiveSweepJob = new ArchiveSweepJob(prisma, logger, env.archiveTtlDays);
+	const tokenUsageExportJob = new TokenUsageExportJob(
+		prisma,
+		storageProvider,
+		env.minioBucket,
+		notificationService,
+		logger,
+	);
 	// Job is always created in openrouter mode; it self-manages which workspaces
 	// to check based on their workspace settings (openrouterCreditAlertEmail).
 	const openrouterCreditCheckJob =
@@ -555,6 +563,7 @@ async function main() {
 	await boss.createQueue("recommendation-recompute");
 	await boss.createQueue("research-run");
 	await boss.createQueue("archive-sweep");
+	await boss.createQueue("token-usage-export");
 	if (openrouterCreditCheckJob) {
 		await boss.createQueue("openrouter-credit-check");
 	}
@@ -677,6 +686,13 @@ async function main() {
 		{ localConcurrency: 1, pollingIntervalSeconds: 5 },
 		async (jobs) => {
 			for (const job of jobs) await competitorPipelineJob.handle(job.data as any);
+		},
+	);
+	await boss.work(
+		"token-usage-export",
+		{ localConcurrency: 1, pollingIntervalSeconds: 5 },
+		async (jobs) => {
+			for (const job of jobs) await tokenUsageExportJob.handle(job.data as any);
 		},
 	);
 
@@ -837,7 +853,7 @@ async function main() {
 		"/ai-settings",
 		createWorkspaceAiSettingsRoutes(workspaceSettingRepository, aiProviderFactory, auditService),
 	);
-	workspaceScoped.route("/ai-logs", createAiLogRoutes(prisma));
+	workspaceScoped.route("/ai-logs", createAiLogRoutes(prisma, boss));
 	workspaceScoped.route("/research", createResearchRoutes(researchService));
 	workspaceScoped.route(
 		"/projects/:projectId/competitor-analyzer",
