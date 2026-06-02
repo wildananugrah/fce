@@ -1,6 +1,9 @@
 import type { PrismaClient } from "@prisma/client";
 import { Hono } from "hono";
 import type { PgBoss } from "pg-boss";
+import type { MinioStorageProvider } from "../providers/minio.provider";
+
+const XLSX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
 type Variables = {
 	userId: string;
@@ -9,7 +12,12 @@ type Variables = {
 	workspaceRole: string;
 };
 
-export function createAiLogRoutes(prisma: PrismaClient, boss: PgBoss) {
+export function createAiLogRoutes(
+	prisma: PrismaClient,
+	boss: PgBoss,
+	storage: MinioStorageProvider,
+	bucket: string,
+) {
 	const app = new Hono<{ Variables: Variables }>();
 
 	// GET / — List AI activity logs for workspace
@@ -295,6 +303,34 @@ export function createAiLogRoutes(prisma: PrismaClient, boss: PgBoss) {
 		});
 
 		return c.json({ data: { jobId } }, 202);
+	});
+
+	// GET /export/download — proxy-stream an export file from MinIO.
+	// Uses workspace-scoped auth (Bearer token via the existing middleware).
+	// The key is validated to belong to this workspace before fetching.
+	app.get("/export/download", async (c) => {
+		const workspaceId = c.get("workspaceId");
+		const key = c.req.query("key") ?? "";
+		const filename = c.req.query("filename") ?? "token-usage.xlsx";
+
+		// Validate the key belongs to this workspace (prevents path traversal).
+		if (!key || !key.startsWith(`exports/${workspaceId}/`)) {
+			return c.json({ error: "Invalid or missing key" }, 400);
+		}
+
+		try {
+			const buffer = await storage.getObject(bucket, key);
+			return new Response(buffer as unknown as BodyInit, {
+				status: 200,
+				headers: {
+					"Content-Type": XLSX_CONTENT_TYPE,
+					"Content-Disposition": `attachment; filename="${filename}"`,
+					"Content-Length": String(buffer.length),
+				},
+			});
+		} catch {
+			return c.json({ error: "Export not found or expired" }, 404);
+		}
 	});
 
 	return app;

@@ -4,7 +4,6 @@ import type { MinioStorageProvider } from "../providers/minio.provider";
 import type { INotificationService } from "../interfaces/services/notification.service.interface";
 import type { ILogger } from "../interfaces/providers/logger.provider.interface";
 
-const SIGNED_URL_TTL_SECONDS = 86400; // 24 hours
 const CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
 export interface TokenUsageExportJobData {
@@ -50,12 +49,13 @@ export class TokenUsageExportJob {
 
 			const buffer = Buffer.from(await workbook.xlsx.writeBuffer());
 			await this.storage.upload(this.bucket, key, buffer, CONTENT_TYPE);
-			const url = await this.storage.getSignedUrl(this.bucket, key, SIGNED_URL_TTL_SECONDS);
 
 			this.logger.info("token-usage-export: complete", { workspaceId, key });
+			// Send the MinIO key (not a presigned URL) so the frontend downloads
+			// through the backend proxy endpoint — avoids MinIO hostname/TLS issues.
 			this.notificationService.notify(userId, {
 				type: "export_ready",
-				data: { url, filename, workspaceId },
+				data: { key, filename, workspaceId },
 			});
 		} catch (err) {
 			this.logger.error("token-usage-export: failed", {

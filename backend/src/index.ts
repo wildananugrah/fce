@@ -853,7 +853,7 @@ async function main() {
 		"/ai-settings",
 		createWorkspaceAiSettingsRoutes(workspaceSettingRepository, aiProviderFactory, auditService),
 	);
-	workspaceScoped.route("/ai-logs", createAiLogRoutes(prisma, boss));
+	workspaceScoped.route("/ai-logs", createAiLogRoutes(prisma, boss, storageProvider, env.minioBucket));
 	workspaceScoped.route("/research", createResearchRoutes(researchService));
 	workspaceScoped.route(
 		"/projects/:projectId/competitor-analyzer",

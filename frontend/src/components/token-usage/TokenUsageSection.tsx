@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { api } from "../../services/api";
+import { api, getAccessToken } from "../../services/api";
 import { useSSE } from "../../hooks/useSSE";
 
 interface TokenSummary {
@@ -135,9 +135,11 @@ export function TokenUsageSection({
 
   useSSE((event) => {
     if (event.type === "export_ready" && event.data.workspaceId === workspaceId) {
+      const key = event.data.key as string;
+      const filename = event.data.filename as string;
       setExportState("ready");
-      setExportUrl(event.data.url as string);
-      setExportFilename(event.data.filename as string);
+      setExportUrl(`/api/workspaces/${workspaceId}/ai-logs/export/download?key=${encodeURIComponent(key)}&filename=${encodeURIComponent(filename)}`);
+      setExportFilename(filename);
     }
     if (event.type === "export_failed" && event.data.workspaceId === workspaceId) {
       setExportState("error");
@@ -244,18 +246,34 @@ export function TokenUsageSection({
           )}
 
           {exportState === "ready" && exportUrl && (
-            <a
-              href={exportUrl}
-              download={exportFilename ?? "token-usage.xlsx"}
-              target="_blank"
-              rel="noreferrer"
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  const token = await getAccessToken();
+                  const res = await fetch(exportUrl, {
+                    headers: token ? { Authorization: `Bearer ${token}` } : {},
+                  });
+                  if (!res.ok) throw new Error("Download failed");
+                  const blob = await res.blob();
+                  const blobUrl = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = blobUrl;
+                  a.download = exportFilename ?? "token-usage.xlsx";
+                  a.click();
+                  URL.revokeObjectURL(blobUrl);
+                } catch {
+                  setExportState("error");
+                  setTimeout(() => setExportState("idle"), 4000);
+                }
+              }}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-colors"
             >
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
               </svg>
               Download Excel
-            </a>
+            </button>
           )}
 
           {exportState === "error" && (
