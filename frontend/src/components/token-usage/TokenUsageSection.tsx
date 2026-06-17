@@ -431,7 +431,7 @@ function CreditBalanceCard({ balance }: { balance: CreditBalance }) {
           <span className="text-base">{isCritical ? "🔴" : isLow ? "🟡" : "🟢"}</span>
           <p className="text-xs font-semibold text-gray-800">OpenRouter Credits</p>
           <div className="flex gap-1 ml-1">
-            {(["remaining", "usage"] as const).map((v) => (
+            {(["usage","remaining"] as const).map((v) => (
               <button
                 key={v}
                 type="button"
