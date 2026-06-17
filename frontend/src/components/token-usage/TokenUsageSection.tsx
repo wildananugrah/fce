@@ -389,6 +389,8 @@ export function TokenUsageSection({
 }
 
 function CreditBalanceCard({ balance }: { balance: CreditBalance }) {
+  const [view, setView] = useState<"remaining" | "usage">("remaining");
+
   if (balance.error) {
     return (
       <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-xs text-red-600">
@@ -411,10 +413,16 @@ function CreditBalanceCard({ balance }: { balance: CreditBalance }) {
   }
 
   const remaining = balance.remaining ?? 0;
+  const used = balance.used ?? 0;
   const limit = balance.limit ?? 1;
-  const pct = Math.max(0, Math.min(100, (remaining / limit) * 100));
-  const isLow = pct < 20;
-  const isCritical = pct < 5;
+  const remainingPct = Math.max(0, Math.min(100, (remaining / limit) * 100));
+  const usedPct = Math.max(0, Math.min(100, (used / limit) * 100));
+  // Health (color + emoji) always reflects how much is LEFT, regardless of which view is shown.
+  const isLow = remainingPct < 20;
+  const isCritical = remainingPct < 5;
+
+  const showUsage = view === "usage";
+  const barPct = showUsage ? usedPct : remainingPct;
 
   return (
     <div className={`border rounded-lg px-4 py-3 ${isCritical ? "bg-red-50 border-red-200" : isLow ? "bg-amber-50 border-amber-200" : "bg-gray-50 border-gray-200"}`}>
@@ -422,21 +430,41 @@ function CreditBalanceCard({ balance }: { balance: CreditBalance }) {
         <div className="flex items-center gap-2">
           <span className="text-base">{isCritical ? "🔴" : isLow ? "🟡" : "🟢"}</span>
           <p className="text-xs font-semibold text-gray-800">OpenRouter Credits</p>
+          <div className="flex gap-1 ml-1">
+            {(["remaining", "usage"] as const).map((v) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => setView(v)}
+                className={`px-2 py-0.5 text-[10px] font-medium rounded-md transition-colors capitalize ${
+                  view === v
+                    ? "bg-indigo-600 text-white"
+                    : "bg-white text-gray-500 border border-gray-200 hover:border-gray-300"
+                }`}
+              >
+                {v}
+              </button>
+            ))}
+          </div>
         </div>
         <p className={`text-xs font-bold ${isCritical ? "text-red-600" : isLow ? "text-amber-700" : "text-gray-700"}`}>
-          ${remaining.toFixed(2)} / ${limit.toFixed(2)} remaining
+          {showUsage
+            ? `$${used.toFixed(2)} / $${limit.toFixed(2)} used`
+            : `$${remaining.toFixed(2)} / $${limit.toFixed(2)} remaining`}
         </p>
       </div>
       <div className="w-full bg-gray-200 rounded-full h-1.5">
         <div
           className={`h-1.5 rounded-full transition-all ${isCritical ? "bg-red-500" : isLow ? "bg-amber-500" : "bg-emerald-500"}`}
-          style={{ width: `${pct}%` }}
+          style={{ width: `${barPct}%` }}
         />
       </div>
       <div className="flex items-center justify-between mt-1.5">
-        <p className="text-[10px] text-gray-400">Used: ${(balance.used ?? 0).toFixed(2)}</p>
+        <p className="text-[10px] text-gray-400">
+          {showUsage ? `Remaining: $${remaining.toFixed(2)}` : `Used: $${used.toFixed(2)}`}
+        </p>
         <p className={`text-[10px] font-medium ${isCritical ? "text-red-500" : isLow ? "text-amber-600" : "text-gray-400"}`}>
-          {pct.toFixed(0)}% remaining
+          {showUsage ? `${usedPct.toFixed(0)}% used` : `${remainingPct.toFixed(0)}% remaining`}
         </p>
       </div>
     </div>
