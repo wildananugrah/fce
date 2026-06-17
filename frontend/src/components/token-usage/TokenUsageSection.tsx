@@ -389,7 +389,7 @@ export function TokenUsageSection({
 }
 
 function CreditBalanceCard({ balance }: { balance: CreditBalance }) {
-  const [view, setView] = useState<"remaining" | "usage">("remaining");
+  const [view, setView] = useState<"remaining" | "usage">("usage");
 
   if (balance.error) {
     return (
